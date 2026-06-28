@@ -79,6 +79,12 @@ async def backfill_ticker(ticker, edgar, processor, table_indexer, max_filings, 
             out = await table_indexer.index_tables(tables, meta, f"backfill_{ticker}_{fd}")
             res["filings"] += 1
             res["rows"] += out.get("rows_indexed", 0)
+            # Free the big BeautifulSoup tree / HTML before the next filing —
+            # big 10-Ks (6MB, 100+ tables) balloon to 100s of MB; without this
+            # they accumulate and OOM-kill the process on a shared machine.
+            del content, raw, processed, tables, out
+            import gc
+            gc.collect()
             await asyncio.sleep(0.15)  # EDGAR <=10 req/s
         except Exception as e:
             res["errors"] += 1
