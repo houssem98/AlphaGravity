@@ -34,11 +34,11 @@ YEARS_BACK = 3  # default; override with --years-back (YoY-derived metrics need 
 PROGRESS = Path(__file__).parent.parent / "backfill_financials_progress.json"
 
 
-async def backfill_ticker(ticker, edgar, processor, table_indexer, max_filings, years_back=YEARS_BACK):
+async def backfill_ticker(ticker, edgar, processor, table_indexer, max_filings, years_back=YEARS_BACK, filing_types=None):
     res = {"ticker": ticker, "filings": 0, "rows": 0, "errors": 0}
     try:
         filings = await edgar.fetch_company_filings(
-            ticker=ticker, filing_types=FILING_TYPES, max_filings=max_filings
+            ticker=ticker, filing_types=filing_types or FILING_TYPES, max_filings=max_filings
         )
     except Exception as e:
         return {**res, "errors": 1, "reason": str(e)[:120]}
@@ -93,6 +93,8 @@ async def main():
     ap.add_argument("--max-filings", type=int, default=4)
     ap.add_argument("--years-back", type=int, default=YEARS_BACK,
                     help="how many years of filings to keep (raise for YoY-derived metrics)")
+    ap.add_argument("--filing-types", nargs="+", default=None,
+                    help="filing types to fetch (default 10-K + 10-Q); use just 10-K for light, annual-only deep history")
     ap.add_argument("--resume", action="store_true", help="skip tickers already done")
     args = ap.parse_args()
 
@@ -132,7 +134,7 @@ async def main():
         print(f"Resuming — {len(done)} done, {len(tickers)} remaining.\n")
 
     for i, t in enumerate(tickers, 1):
-        r = await backfill_ticker(t, edgar, processor, table_indexer, args.max_filings, args.years_back)
+        r = await backfill_ticker(t, edgar, processor, table_indexer, args.max_filings, args.years_back, args.filing_types)
         total_rows += int(r.get("rows", 0) or 0)
         print(f"[{i}/{len(tickers)}] {t}: filings={r['filings']} rows={r['rows']} err={r['errors']}")
         done.add(t)
