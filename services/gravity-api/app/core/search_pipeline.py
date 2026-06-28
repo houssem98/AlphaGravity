@@ -745,12 +745,16 @@ class SearchPipeline:
             # If retrieval found nothing, return a clear "not indexed" answer
             # instead of sending empty context to the LLM (which causes hallucination
             # or crashes on calculation queries).
-            if not top_passages and settings.on_demand_ingest_enabled:
+            if not top_passages and settings.on_demand_ingest_enabled and reasoning_depth != "fast":
                 # On-demand: the company asked about isn't in the corpus yet.
                 # Fetch its recent EDGAR filings live, index them, and retry
                 # retrieval once. Fully guarded + time-boxed: any failure falls
                 # through to the existing "not indexed" message, so this can never
                 # make a currently-failing query worse.
+                # SKIPPED in explicit "fast" mode: live EDGAR fetch+ingest costs
+                # up to ~90s (timeout 75s + retries), which blows fast-mode latency
+                # and causes request timeouts. Fast = fast (return not-found now);
+                # agentic/auto keep on-demand for uncovered companies.
                 _od_tickers = [
                     e.get("ticker") for e in query_plan.get("entities", {}).get("companies", [])
                     if isinstance(e, dict) and e.get("ticker")
