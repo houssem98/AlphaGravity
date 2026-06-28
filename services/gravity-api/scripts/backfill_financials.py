@@ -30,11 +30,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
 FILING_TYPES = ["10-K", "10-Q"]          # financial statements live in these
-YEARS_BACK = 3
+YEARS_BACK = 3  # default; override with --years-back (YoY-derived metrics need prior years)
 PROGRESS = Path(__file__).parent.parent / "backfill_financials_progress.json"
 
 
-async def backfill_ticker(ticker, edgar, processor, table_indexer, max_filings):
+async def backfill_ticker(ticker, edgar, processor, table_indexer, max_filings, years_back=YEARS_BACK):
     res = {"ticker": ticker, "filings": 0, "rows": 0, "errors": 0}
     try:
         filings = await edgar.fetch_company_filings(
@@ -43,7 +43,7 @@ async def backfill_ticker(ticker, edgar, processor, table_indexer, max_filings):
     except Exception as e:
         return {**res, "errors": 1, "reason": str(e)[:120]}
 
-    cutoff = datetime.now() - timedelta(days=365 * YEARS_BACK)
+    cutoff = datetime.now() - timedelta(days=365 * years_back)
     for f in filings or []:
         try:
             fd = f.get("filing_date", "")
@@ -91,6 +91,8 @@ async def main():
     ap.add_argument("--tickers", nargs="+", help="specific tickers (default: all S&P 500)")
     ap.add_argument("--limit", type=int, help="cap number of tickers")
     ap.add_argument("--max-filings", type=int, default=4)
+    ap.add_argument("--years-back", type=int, default=YEARS_BACK,
+                    help="how many years of filings to keep (raise for YoY-derived metrics)")
     ap.add_argument("--resume", action="store_true", help="skip tickers already done")
     args = ap.parse_args()
 
@@ -130,7 +132,7 @@ async def main():
         print(f"Resuming — {len(done)} done, {len(tickers)} remaining.\n")
 
     for i, t in enumerate(tickers, 1):
-        r = await backfill_ticker(t, edgar, processor, table_indexer, args.max_filings)
+        r = await backfill_ticker(t, edgar, processor, table_indexer, args.max_filings, args.years_back)
         total_rows += int(r.get("rows", 0) or 0)
         print(f"[{i}/{len(tickers)}] {t}: filings={r['filings']} rows={r['rows']} err={r['errors']}")
         done.add(t)

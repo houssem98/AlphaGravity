@@ -3,8 +3,11 @@
 Durable state ledger for the `/loop` engineering run. **Read this first every iteration.**
 One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
-- **Branch:** `roadmap/world-class`
-- **NEXT:** P1-d span-level citations (needs gravity-api char-offset storage + deploy) OR P3 frontend. Backfill STOPPED at 77/316 (~106 tickers backfilled); deploys unblocked. P1-b deployed + validated.
+- **Branch:** `roadmap/world-class` — PUSHED to origin, **PR #1 open** (https://github.com/houssem98/antigravity/pull/1).
+- ⚠️ **ROTATE KEYS:** committed config files (`.claude/settings.json`, `.claude/settings.local.json`, `scripts/hermes.bat`) held live OpenRouter/Supabase/Anthropic keys. Purged from pushed history via git-filter-repo + `.gitignore`d on origin (PR #1). They remain in LOCAL history (commit 2bf71c6) → **rotate them**.
+- ✅ **RECONCILE DONE:** local `roadmap/world-class` == origin (`f040457`, identical), WIP + configs preserved (configs now gitignored, untracked). `core.longpaths true` set.
+- 🚨 **PUBLIC SECRET LEAK (user handling):** repo is PUBLIC and `origin/main` (commits `423e07b`, `a09c2fd`) contains 4 live keys (OpenRouter, Supabase Secret, Supabase PAT, Anthropic). User said they'll fix. Keys MUST be rotated (already public). Local branches main/hermes-integration/fix-* + `backup/roadmap-pre-scrub` still hold them in history.
+- **NEXT (resume after key rotation):** deep-history backfill (numeric lever, Supabase write), P1-d span citations (backend), P2 transcripts (backend), P3-a viewer (backend). Backend/Supabase work paused during rotation. ~106 tickers backfilled. gravity-api + market-ui deployed.
 
 ---
 
@@ -30,7 +33,7 @@ One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
 ### P3 — Source viewer + workflow
 - [ ] **P3-a** Filing/PDF source viewer with citation jump-to-span
-- [ ] **P3-b** Export grid → Excel/model
+- [x] **P3-b** Export grid → Excel — *DONE (pre-existing). `gridExcel.exportGridToXLSX` → Grid + Sources + FinData + Validation sheets; wired to Excel + CSV buttons. Verified.*
 - [ ] **P3-c** Save/share grid views
 - [ ] **P3-d** Deepen cross-doc comparison in grid
 

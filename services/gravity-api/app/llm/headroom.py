@@ -1,25 +1,33 @@
 """
 Headroom compression — shrink verbose LLM contexts before generation.
 
-Routes message lists through the headroom-proxy Fly app, which crushes
-redundant JSON / logs / RAG chunks ~90% while preserving the user prompt.
-Cuts input-token cost on Gemini / Anthropic for SEC-filing-heavy contexts.
+Runs the Headroom SmartCrusher IN-PROCESS (the `headroom-ai` library) to crush
+redundant tool-result / JSON-array context (RAG chunks, tool outputs) while
+preserving the user prompt. Provider-agnostic: compresses the message list
+before it reaches any SDK (DeepSeek / Gemini / Anthropic).
+
+NOTE: the headroom *proxy* (headroom-proxy.fly.dev) compression is an
+unimplemented no-op at v0.27.0 (per-type compressors round-trip byte-equal).
+The library `compress()` is the implemented path, so we call it directly here.
+
+SmartCrusher only crushes tool/JSON-array content above min_tokens_to_crush
+(~200) and caps items (max_items_after_crush). Plain concatenated RAG text in a
+user/system message is NOT compressed (left byte-equal) — to benefit there the
+caller must pass retrieved chunks as a `role: tool` JSON array.
 
 Gated by HEADROOM_ENABLED=true. Fails open: any error returns the original
-messages unchanged, so a proxy outage never breaks generation.
+messages unchanged, so a compression bug never breaks generation.
 
 Env:
   HEADROOM_ENABLED      "true" to turn on (default off)
-  HEADROOM_URL          proxy base, default http://headroom-proxy.internal:8787
   HEADROOM_MIN_TOKENS   skip compression below this size (default 1500)
-  HEADROOM_TIMEOUT_S    request timeout (default 8)
 """
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import TYPE_CHECKING
 
-import httpx
 import structlog
 
 if TYPE_CHECKING:
@@ -38,13 +46,27 @@ def _rough_token_count(messages: list["LLMMessage"]) -> int:
     return chars // 4
 
 
+def _compress_sync(payload: list[dict], model: str) -> dict | None:
+    """Blocking in-process compress; returns the raw result dict or None."""
+    from headroom import compress  # local import: optional dep, keep cold path cheap
+
+    result = compress(payload, model=model)
+    return {
+        "messages": result.messages,
+        "tokens_before": getattr(result, "tokens_before", None),
+        "tokens_after": getattr(result, "tokens_after", None),
+        "transforms": list(getattr(result, "transforms_applied", []) or []),
+    }
+
+
 async def compress_messages(
     messages: list["LLMMessage"],
     model: str,
 ) -> list["LLMMessage"]:
     """
-    Compress a message list via headroom-proxy. Returns compressed messages,
-    or the originals unchanged on any failure / when disabled / when small.
+    Compress a message list via the in-process Headroom SmartCrusher. Returns
+    compressed messages, or the originals unchanged on any failure / when
+    disabled / when small.
     """
     if not _enabled() or not messages:
         return messages
@@ -53,28 +75,22 @@ async def compress_messages(
     if _rough_token_count(messages) < min_tokens:
         return messages
 
-    base = os.getenv("HEADROOM_URL", "http://headroom-proxy.internal:8787").rstrip("/")
-    timeout = float(os.getenv("HEADROOM_TIMEOUT_S", "8"))
-
     from app.llm.base import LLMMessage  # local import to avoid cycle
 
-    payload = {
-        "model": model,
-        "messages": [{"role": m.role, "content": m.content} for m in messages],
-    }
+    payload = [{"role": m.role, "content": m.content} for m in messages]
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            r = await client.post(f"{base}/v1/compress", json=payload)
-            if r.status_code != 200:
-                logger.warning("headroom_compress_non200", status=r.status_code)
-                return messages
-            data = r.json()
+        # SmartCrusher is a CPU-bound Rust call — run off the event loop.
+        data = await asyncio.to_thread(_compress_sync, payload, model)
     except Exception as e:
         logger.warning("headroom_compress_failed", error=str(e))
         return messages
 
+    if not data:
+        return messages
+
     out = data.get("messages")
-    if not isinstance(out, list) or not out:
+    if not isinstance(out, list) or not out or len(out) != len(messages):
+        # Defensive: never let compression change the message count.
         return messages
 
     before = data.get("tokens_before")
@@ -85,7 +101,11 @@ async def compress_messages(
             tokens_before=before,
             tokens_after=after,
             saved=before - after,
+            transforms=data.get("transforms"),
             model=model,
         )
 
-    return [LLMMessage(role=m.get("role", "user"), content=m.get("content", "")) for m in out]
+    return [
+        LLMMessage(role=m.get("role", "user"), content=m.get("content", "") or "")
+        for m in out
+    ]

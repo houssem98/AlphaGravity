@@ -740,7 +740,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI }
   });
 
   return (
-    <div className="w-[320px] shrink-0 flex flex-col h-full"
+    <div className="w-full h-full flex flex-col"
       style={{ background: '#0B0E14', borderRight: '1px solid #1B2236' }}>
       <style>{`.aip::-webkit-scrollbar{display:none}`}</style>
 

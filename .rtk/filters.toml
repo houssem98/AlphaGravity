@@ -3,11 +3,33 @@
 # Docs: https://github.com/rtk-ai/rtk#custom-filters
 schema_version = 1
 
-# Example: suppress build noise from a custom tool
-# [filters.my-tool]
-# description = "Compact my-tool output"
-# match_command = "^my-tool\\s+build"
-# strip_ansi = true
-# strip_lines_matching = ["^\\s*$", "^Downloading", "^Installing"]
-# max_lines = 30
-# on_empty = "my-tool: ok"
+# Strip the constant Fly noise that rides on EVERY flyctl command:
+# the "Metrics token unavailable" GraphQL warning + its query echo +
+# "context canceled". None of these are errors; they fire even on success.
+[filters.fly-noise]
+description = "Drop flyctl metrics-token / context-canceled warning spam"
+match_command = "^fly\\b"
+strip_ansi = true
+strip_lines_matching = [
+  "Metrics token unavailable",
+  "failed to run query\\(",
+  "organization\\(slug:",
+  "context canceled",
+  "^\\s*$",
+]
+
+# Builds dump hundreds of buildkit progress + layer push/pull lines that
+# carry no signal on success. Keep summary, machine state, health, errors.
+[filters.fly-deploy]
+description = "Compact fly deploy: drop buildkit progress + layer push/pull noise"
+match_command = "^fly deploy\\b"
+strip_ansi = true
+strip_lines_matching = [
+  "pushing layer ",
+  "pushing manifest ",
+  "pushing layers for ",
+  "^#\\d+ ",
+  " DONE \\d",
+  "^\\s*$",
+]
+on_empty = "fly deploy: ok"

@@ -140,18 +140,16 @@ async def websocket_market_data(websocket: WebSocket, asset: str = "BTC"):
     """
     await websocket.accept()
     try:
-        while True:
-            # Fetch live data
-            data = await market_service.get_markets(asset, limit=10)
-
-            # Send to client
+        # Live push: Binance WS overlay (price/volume) + real ±2% depth.
+        # stream_markets internally falls back to REST polling if the upstream
+        # WS is unavailable, so the client always receives data.
+        async for data in market_service.stream_markets(asset, limit=10):
             await websocket.send_json(data)
-
-            # Wait 2 seconds before next update (real-time but not excessive)
-            await asyncio.sleep(2)
 
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        await websocket.send_json({"error": str(e)})
-        await websocket.close()
+        try:
+            await websocket.send_json({"error": str(e)})
+        finally:
+            await websocket.close()

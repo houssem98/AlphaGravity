@@ -683,7 +683,7 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ currentAsset }) 
   ];
 
   return (
-    <div className="w-[360px] shrink-0 flex flex-col h-full overflow-hidden"
+    <div className="w-full h-full flex flex-col overflow-hidden"
       style={{ background: '#0B0E14', borderLeft: '1px solid #1B2236' }}>
 
       {/* ── HEADER BLOCK ── */}

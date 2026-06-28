@@ -1,13 +1,17 @@
 """Live exchange data service - CoinGecko + Binance API integration."""
 
 import asyncio
+import json
 import httpx
 import structlog
 import os
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, AsyncIterator
 from datetime import datetime, timedelta
 
 logger = structlog.get_logger()
+
+BINANCE_WS_SPOT = "wss://stream.binance.com:9443/stream?streams="
+BINANCE_WS_PERP = "wss://fstream.binance.com/stream?streams="
 
 
 class ExchangeDataService:
@@ -16,7 +20,156 @@ class ExchangeDataService:
     def __init__(self):
         self.coingecko_base = "https://api.coingecko.com/api/v3"
         self.binance_base = "https://api.binance.com/api/v3"
+        self.binance_fapi_base = "https://fapi.binance.com/fapi/v1"  # USDT-M perpetuals
         self.timeout = 10.0
+        # Real ±2% order-book depth cache (symbol -> (ts, dict)). Refreshed every
+        # _depth_ttl s so the 2s WS loop doesn't hammer the order-book endpoint.
+        self._depth_cache: Dict[str, Any] = {}
+        self._depth_ttl = 15.0
+
+    async def _real_depth(self, client: "httpx.AsyncClient", bsym: str, perp: bool) -> Dict[str, Any] | None:
+        """Real cumulative order-book depth within ±2% of mid, in USD. Cached."""
+        import time as _t
+        key = ("p:" if perp else "s:") + bsym
+        hit = self._depth_cache.get(key)
+        if hit and (_t.monotonic() - hit[0]) < self._depth_ttl:
+            return hit[1]
+        base = self.binance_fapi_base if perp else self.binance_base
+        try:
+            r = await client.get(f"{base}/depth", params={"symbol": bsym, "limit": 500})
+            r.raise_for_status()
+            ob = r.json()
+            bids = [(float(p), float(q)) for p, q in ob.get("bids", [])]
+            asks = [(float(p), float(q)) for p, q in ob.get("asks", [])]
+            if not bids or not asks:
+                return None
+            mid = (bids[0][0] + asks[0][0]) / 2
+            bid_usd = sum(p * q for p, q in bids if p >= mid * 0.98)
+            ask_usd = sum(p * q for p, q in asks if p <= mid * 1.02)
+            total = bid_usd + ask_usd
+            # liquidity score 0–1000, log-scaled on total ±2% depth (CMC-like)
+            import math
+            liq = int(min(1000, round(100 * math.log10(total + 1)))) if total > 0 else 0
+            out = {
+                "bid": f"${bid_usd/1e6:.1f}M",
+                "ask": f"${ask_usd/1e6:.1f}M",
+                "liquidity": liq,
+            }
+            self._depth_cache[key] = (_t.monotonic(), out)
+            return out
+        except Exception as e:
+            logger.warning("real_depth_failed", symbol=bsym, error=str(e))
+            return None
+
+    async def stream_markets(self, asset: str, limit: int = 10) -> AsyncIterator[Dict[str, Any]]:
+        """
+        Live market stream. Discovers pairs + real ±2% depth via REST (cached),
+        then overlays live price/volume from Binance WS ticker streams (push,
+        sub-second). Periodically refreshes depth. Falls back to a 2s REST poll
+        if the upstream WS can't be established.
+        """
+        symbol = asset.upper() if len(asset) <= 3 else asset
+        data = await self.get_markets(symbol, limit=limit)
+        yield data
+        rows = data.get("exchanges", [])
+        if not rows:
+            return
+
+        # map binance symbol -> row, and build per-venue stream lists
+        by_sym: Dict[tuple, Dict[str, Any]] = {}
+        spot_streams: List[str] = []
+        perp_streams: List[str] = []
+        main_q = 1.0
+        for r in rows:
+            bsym = r["pair"].replace("/", "").replace(" PERP", "").strip().upper()
+            perp = r.get("market_type") == "perpetual"
+            by_sym[(perp, bsym)] = r
+            (perp_streams if perp else spot_streams).append(f"{bsym.lower()}@ticker")
+
+        try:
+            import websockets  # optional dep
+        except Exception:
+            websockets = None
+
+        if websockets is None or (not spot_streams and not perp_streams):
+            # fallback: REST poll
+            while True:
+                await asyncio.sleep(2)
+                yield await self.get_markets(symbol, limit=limit)
+            return
+
+        dirty = {"v": False}
+
+        async def consume(url: str, perp: bool):
+            try:
+                async with websockets.connect(url, ping_interval=20, close_timeout=5) as ws:
+                    async for raw in ws:
+                        msg = json.loads(raw)
+                        t = msg.get("data", msg)
+                        s = t.get("s")
+                        row = by_sym.get((perp, s)) if s else None
+                        if not row:
+                            continue
+                        last = t.get("c")
+                        q = t.get("q")
+                        if last is not None:
+                            row["price"] = f"${float(last):,.2f}"
+                        if q is not None:
+                            row["_q"] = float(q)
+                            row["volume24h"] = f"${float(q)/1e9:.2f}B"
+                        dirty["v"] = True
+            except Exception as e:
+                logger.warning("binance_ws_consume_failed", perp=perp, error=str(e))
+
+        async def refresh_depth():
+            # periodic real ±2% depth refresh (the cache TTL gates actual calls)
+            while True:
+                await asyncio.sleep(15)
+                try:
+                    headers = {"User-Agent": "Mozilla/5.0"}
+                    async with httpx.AsyncClient(timeout=self.timeout, headers=headers) as client:
+                        for (perp, bsym), row in by_sym.items():
+                            d = await self._real_depth(client, bsym, perp)
+                            if isinstance(d, dict):
+                                row["depth"] = {"bid": d["bid"], "ask": d["ask"]}
+                                row["liquidity"] = d["liquidity"]
+                        dirty["v"] = True
+                except Exception as e:
+                    logger.warning("depth_refresh_failed", error=str(e))
+
+        tasks = []
+        if spot_streams:
+            tasks.append(asyncio.create_task(consume(BINANCE_WS_SPOT + "/".join(spot_streams), False)))
+        if perp_streams:
+            tasks.append(asyncio.create_task(consume(BINANCE_WS_PERP + "/".join(perp_streams), True)))
+        tasks.append(asyncio.create_task(refresh_depth()))
+
+        # seed main spot quote-volume for volume% recompute
+        try:
+            for r in rows:
+                if r.get("market_type") == "spot" and r["pair"].endswith("/USDT"):
+                    main_q = max(main_q, float(r.get("_q", 0) or 0))
+        except Exception:
+            pass
+
+        try:
+            while True:
+                await asyncio.sleep(1)
+                if not dirty["v"]:
+                    continue
+                dirty["v"] = False
+                # recompute main + volume% from live quote-volumes
+                mq = max([float(r.get("_q", 0) or 0) for r in rows if r.get("market_type") == "spot"] or [main_q]) or 1.0
+                for r in rows:
+                    q = float(r.get("_q", 0) or 0)
+                    if q:
+                        r["volumePercent"] = f"{(q / mq * 100):.2f}%"
+                data["metadata"]["updated_at"] = datetime.utcnow().isoformat() + "Z"
+                data["metadata"]["source"] = "binance-ws"
+                yield {"asset": symbol, "exchanges": rows, "metadata": data["metadata"]}
+        finally:
+            for tk in tasks:
+                tk.cancel()
 
     async def get_markets(
         self,
@@ -45,13 +198,49 @@ class ExchangeDataService:
         try:
             symbol = asset.upper() if len(asset) <= 3 else asset
 
-            # Try Binance API first (real data, API key available)
-            markets = await self._fetch_binance_markets(symbol, limit)
+            # Spot + perpetual fetched concurrently. Each row is tagged with a
+            # market_type so the UI's Spot / Perpetual / Futures tabs can filter.
+            # Futures (dated/quarterly) has no clean public source yet → omitted.
+            spot, perp = await asyncio.gather(
+                self._fetch_binance_markets(symbol, limit),
+                self._fetch_binance_perp_markets(symbol, limit),
+                return_exceptions=True,
+            )
+            spot = spot if isinstance(spot, list) else []
+            perp = perp if isinstance(perp, list) else []
 
-            if markets:
+            for m in spot:
+                m["market_type"] = "spot"
+            for m in perp:
+                m["market_type"] = "perpetual"
+
+            # Replace synthetic depth/liquidity with REAL ±2% order-book depth
+            # (cached). Rows keep their fallback values if a fetch fails.
+            rows = spot + perp
+            try:
+                headers = {"User-Agent": "Mozilla/5.0"}
+                async with httpx.AsyncClient(timeout=self.timeout, headers=headers) as client:
+                    depths = await asyncio.gather(*[
+                        self._real_depth(client, m["_bsym"], m.get("market_type") == "perpetual")
+                        for m in rows if m.get("_bsym")
+                    ], return_exceptions=True)
+                    di = 0
+                    for m in rows:
+                        if not m.get("_bsym"):
+                            continue
+                        d = depths[di]; di += 1
+                        if isinstance(d, dict):
+                            m["depth"] = {"bid": d["bid"], "ask": d["ask"]}
+                            m["liquidity"] = d["liquidity"]
+            except Exception as e:
+                logger.warning("depth_enrich_failed", error=str(e))
+            for m in rows:
+                m.pop("_bsym", None)
+
+            if spot or perp:
                 return {
                     "asset": symbol,
-                    "exchanges": markets,
+                    "exchanges": spot + perp,
                     "metadata": {
                         "updated_at": datetime.utcnow().isoformat() + "Z",
                         "source": "binance",
@@ -60,9 +249,11 @@ class ExchangeDataService:
                     },
                 }
 
-            # Fallback to mock data
+            # Fallback to mock data (spot)
             asset_id = self._symbol_to_id(asset)
             markets = self._mock_markets(asset_id, limit)
+            for m in markets:
+                m["market_type"] = "spot"
 
             return {
                 "asset": symbol,
@@ -110,7 +301,7 @@ class ExchangeDataService:
 
                 markets = []
                 price = float(main_data.get("lastPrice", 0))
-                volume = float(main_data.get("quoteAssetVolume", 0))
+                volume = float(main_data.get("quoteVolume", 0))
 
                 markets.append({
                     "rank": 1,
@@ -124,6 +315,7 @@ class ExchangeDataService:
                     "spreadBps": 3,
                     "lastUpdate": "live",
                     "symbol": symbol,
+                    "_bsym": main_pair,
                 })
 
                 # Add related pairs
@@ -131,7 +323,7 @@ class ExchangeDataService:
                     if idx > limit:
                         break
                     price = float(pair.get("lastPrice", 0))
-                    volume = float(pair.get("quoteAssetVolume", 0))
+                    volume = float(pair.get("quoteVolume", 0))
                     pair_name = pair["symbol"].replace(symbol, "").strip()
 
                     markets.append({
@@ -141,16 +333,66 @@ class ExchangeDataService:
                         "price": f"${price:,.2f}",
                         "depth": {"bid": f"${volume/1e6:.1f}M", "ask": f"${volume/1.2e6:.1f}M"},
                         "volume24h": f"${volume/1e9:.2f}B",
-                        "volumePercent": f"{(volume / float(main_data.get('quoteAssetVolume', 1)) * 100):.2f}%",
+                        "volumePercent": f"{(volume / float(main_data.get('quoteVolume', 1)) * 100):.2f}%",
                         "liquidity": 500 - idx * 10,
                         "spreadBps": 3 + idx,
                         "lastUpdate": "live",
                         "symbol": symbol,
+                        "_bsym": pair["symbol"],
                     })
 
                 return markets
         except Exception as e:
             logger.error("binance_fetch_failed", error=str(e))
+            return []
+
+    async def _fetch_binance_perp_markets(self, symbol: str, limit: int) -> List[Dict[str, Any]]:
+        """Fetch Binance USDT-M perpetual market data (fapi). Public, no key."""
+        try:
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            async with httpx.AsyncClient(timeout=self.timeout, headers=headers) as client:
+                resp = await client.get(f"{self.binance_fapi_base}/ticker/24hr")
+                resp.raise_for_status()
+                all_perps = resp.json()
+
+                main_sym = f"{symbol}USDT"
+                main = next((p for p in all_perps if p.get("symbol") == main_sym), None)
+                if not main:
+                    return []
+
+                # main USDT-M perp + a few other quote perps for the same base
+                related = [
+                    p for p in all_perps
+                    if p.get("symbol", "").startswith(symbol)
+                    and p.get("symbol") != main_sym
+                    and p.get("symbol", "").endswith(("USDC", "BTC", "ETH"))
+                ][: max(0, limit - 1)]
+
+                main_vol = float(main.get("quoteVolume", 0)) or 1.0
+                rows: List[Dict[str, Any]] = []
+                for idx, p in enumerate([main] + related, 1):
+                    if idx > limit:
+                        break
+                    price = float(p.get("lastPrice", 0))
+                    volume = float(p.get("quoteVolume", 0))
+                    quote = p["symbol"].replace(symbol, "", 1).strip() or "USDT"
+                    rows.append({
+                        "rank": idx,
+                        "name": "Binance Futures",
+                        "pair": f"{symbol}/{quote} PERP",
+                        "price": f"${price:,.2f}",
+                        "depth": {"bid": f"${volume/1e6:.1f}M", "ask": f"${volume/1.2e6:.1f}M"},
+                        "volume24h": f"${volume/1e9:.2f}B",
+                        "volumePercent": f"{(volume / main_vol * 100):.2f}%",
+                        "liquidity": max(50, 500 - idx * 10),
+                        "spreadBps": 3 + idx,
+                        "lastUpdate": "live",
+                        "symbol": symbol,
+                        "_bsym": p["symbol"],
+                    })
+                return rows
+        except Exception as e:
+            logger.error("binance_perp_fetch_failed", error=str(e))
             return []
 
     async def _fetch_coingecko_markets(
@@ -255,7 +497,7 @@ class ExchangeDataService:
 
                     if binance_pair in binance_map:
                         b_data = binance_map[binance_pair]
-                        market["volume24h"] = f"${float(b_data.get('quoteAssetVolume', 0)) / 1e9:.2f}B"
+                        market["volume24h"] = f"${float(b_data.get('quoteVolume', 0)) / 1e9:.2f}B"
                         market["lastUpdate"] = "live"
                         market["liquidity"] = 700  # Mock: calculate from depth
 

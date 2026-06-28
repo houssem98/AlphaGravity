@@ -29,7 +29,9 @@ class DeepSeekClient(BaseLLMClient):
         )
 
     async def generate(self, messages: list[LLMMessage], config: LLMConfig | None = None) -> LLMResponse:
+        from app.llm.headroom import compress_messages
         config = config or LLMConfig()
+        messages = await compress_messages(messages, self.model_id)
         api_msgs = [{"role": m.role, "content": m.content} for m in messages]
         start = time.perf_counter()
         response = await self.client.chat.completions.create(

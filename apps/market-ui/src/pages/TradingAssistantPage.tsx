@@ -12,6 +12,7 @@ import { Sidebar } from '../components/trading/Sidebar';
 import { Topbar } from '../components/trading/Topbar';
 import { AssetInfoPanel } from '../components/trading/AssetInfoPanel';
 import { CommunityPanel } from '../components/trading/CommunityPanel';
+import { ResizeHandle } from '../components/trading/ResizeHandle';
 import { OrderBlockModal } from '../components/trading/OrderBlockModal';
 import { SymbolSearchModal } from '../components/trading/SymbolSearchModal';
 import { PortfolioPanel } from '../components/trading/PortfolioPanel';
@@ -24,7 +25,7 @@ import { MarketsTab } from '../components/trading/tabs/MarketsTab';
 import { HermesRiskBanner } from '../components/trading/HermesRiskBanner';
 import { useAssetRiskCheck } from '../hooks/useAssetRiskCheck';
 
-import { X, MessageSquare, Search, Settings, PieChart, Star, ArrowLeft, Sparkles, LogOut } from 'lucide-react';
+import { X, MessageSquare, Search, Settings, PieChart, Star, ArrowLeft, Sparkles, LogOut, PanelLeft, PanelLeftClose } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { NAV_ITEMS as NAV } from '../lib/navItems';
@@ -42,6 +43,14 @@ export default function TradingAssistantPage() {
   const navigate = useNavigate();
   const handleSignOut = async () => { await signOut(); navigate('/auth'); };
   const [currentView, setCurrentView] = useState<'markets' | 'chart'>('markets');
+  // Left icon rail collapse (persisted) — toggle to free page width.
+  const [railOpen, setRailOpen] = useState<boolean>(() => localStorage.getItem('trading.railOpen') !== 'false');
+  useEffect(() => { localStorage.setItem('trading.railOpen', String(railOpen)); }, [railOpen]);
+  // Resizable side-panel widths (persisted). CMC-matched defaults; drag dividers to resize.
+  const [leftW, setLeftW] = useState<number>(() => Number(localStorage.getItem('trading.leftW.v2')) || 288);
+  const [rightW, setRightW] = useState<number>(() => Number(localStorage.getItem('trading.rightW.v2')) || 300);
+  useEffect(() => { localStorage.setItem('trading.leftW.v2', String(leftW)); }, [leftW]);
+  useEffect(() => { localStorage.setItem('trading.rightW.v2', String(rightW)); }, [rightW]);
   const [currentAsset, setCurrentAsset] = useState<string>('BTC');
   const [currentTimeframe, setCurrentTimeframe] = useState<string>('1D');
   const [activeTab, setActiveTab] = useState<string>('Chart');
@@ -342,8 +351,8 @@ export default function TradingAssistantPage() {
 
   return (
     <div className="flex h-screen w-full font-sans overflow-hidden bg-[color:var(--bg)] text-[color:var(--text-2)]">
-      {/* Persistent Left Nav Sidebar */}
-      <aside className="w-[56px] flex flex-col items-center py-3 shrink-0 z-50 bg-[color:var(--surface)] border-r border-[color:var(--line)]">
+      {/* Persistent Left Nav Sidebar (collapsible) */}
+      <aside className={`${railOpen ? 'w-[56px]' : 'w-0 border-r-0'} overflow-hidden flex flex-col items-center py-3 shrink-0 z-50 bg-[color:var(--surface)] border-r border-[color:var(--line)] transition-[width] duration-200`}>
         <Link to="/search" className="w-8 h-8 rounded-sm flex items-center justify-center mb-4 bg-[color:color-mix(in_oklch,var(--accent)_12%,transparent)] glint chrome">
           <Sparkles className="w-4 h-4 text-[color:var(--accent)]" />
         </Link>
@@ -380,6 +389,13 @@ export default function TradingAssistantPage() {
       {/* Global Header */}
       <header className="h-12 shrink-0 flex items-center px-3 justify-between z-50 bg-[color:var(--surface)] border-b border-[color:var(--line)]">
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => setRailOpen((o) => !o)}
+            className="w-7 h-7 rounded-sm flex items-center justify-center transition-colors text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)]"
+            title={railOpen ? 'Hide sidebar' : 'Show sidebar'}
+          >
+            {railOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+          </button>
           {currentView === 'chart' && (
             <button
               onClick={() => setCurrentView('markets')}
@@ -477,8 +493,11 @@ export default function TradingAssistantPage() {
           {/* 3-column layout: left info | chart | right community */}
           <div className="flex flex-row flex-1 overflow-hidden bg-[color:var(--bg)]">
 
-            {/* Left: Coin info */}
-            <AssetInfoPanel asset={currentAsset} onAskAI={() => setIsAssistantOpen(true)} />
+            {/* Left: Coin info (resizable) */}
+            <div className="shrink-0 h-full" style={{ width: leftW }}>
+              <AssetInfoPanel asset={currentAsset} onAskAI={() => setIsAssistantOpen(true)} />
+            </div>
+            <ResizeHandle value={leftW} min={240} max={520} dir={1} onChange={setLeftW} ariaLabel="Resize info panel" />
 
             {/* Center: Chart */}
             <div className="flex-1 flex flex-col min-w-0">
@@ -554,8 +573,11 @@ export default function TradingAssistantPage() {
               }
             </div>
 
-            {/* Right: Community / Twitter tracker */}
-            <CommunityPanel currentAsset={currentAsset} />
+            {/* Right: Community / Twitter tracker (resizable) */}
+            <ResizeHandle value={rightW} min={260} max={560} dir={-1} onChange={setRightW} ariaLabel="Resize social panel" />
+            <div className="shrink-0 h-full" style={{ width: rightW }}>
+              <CommunityPanel currentAsset={currentAsset} />
+            </div>
 
           </div>
 

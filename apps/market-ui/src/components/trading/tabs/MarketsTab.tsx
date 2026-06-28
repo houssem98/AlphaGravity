@@ -1,44 +1,121 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { BarChart3, Zap, Sparkles, AlertCircle, RefreshCw, Search, X, ArrowUpDown } from 'lucide-react';
+import { AlertCircle, Search, X, ArrowUpDown, ExternalLink, Info, SlidersHorizontal, Sparkles, BarChart2 } from 'lucide-react';
 import { HermesQueryPanel } from '../HermesQueryPanel';
 import { useHermesPanel } from '../../../hooks/useHermesPanel';
 import { useMarketsWebSocket } from '../../../hooks/useMarketsWebSocket';
 import { useMarketsSort } from '../../../hooks/useMarketsSort';
-import { useMarketsSearch } from '../../../hooks/useMarketsSearch';
 
 interface MarketsTabProps {
   asset: string;
 }
 
+// Known exchange brand colours (monogram fallback) + CoinMarketCap static
+// logo ids. Real logos load in the browser from CMC's CDN; any miss/unknown
+// exchange falls back to the brand-colour monogram via <img onError>.
+const BRAND: Record<string, string> = {
+  binance: '#F0B90B',
+  coinbase: '#0052FF',
+  kraken: '#5741D9',
+  okx: '#000000',
+  bybit: '#F7A600',
+  bitget: '#00F0FF',
+  upbit: '#093687',
+  aster: '#A78BFA',
+  gate: '#2354E6',
+  kucoin: '#23AF91',
+};
+
+// name-substring -> CMC exchange id (https://s2.coinmarketcap.com/static/img/exchanges/64x64/<id>.png)
+const CMC_LOGO_ID: Record<string, number> = {
+  binance: 270,
+  coinbase: 89,
+  kraken: 24,
+  okx: 294,
+  bybit: 521,
+  bitget: 513,
+  upbit: 102,
+  gate: 302,
+  kucoin: 311,
+  'crypto.com': 391,
+  mexc: 544,
+};
+
+function matchKey<T>(name: string, map: Record<string, T>): T | undefined {
+  const key = name.toLowerCase();
+  for (const k of Object.keys(map)) if (key.includes(k)) return map[k];
+  return undefined;
+}
+
+function brandColor(name: string): string {
+  const hit = matchKey(name, BRAND);
+  if (hit) return hit;
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return `hsl(${h} 55% 45%)`;
+}
+
+const ExchangeLogo: React.FC<{ name: string }> = ({ name }) => {
+  const id = matchKey(name, CMC_LOGO_ID);
+  const [failed, setFailed] = useState(false);
+
+  if (id && !failed) {
+    return (
+      <img
+        src={`https://s2.coinmarketcap.com/static/img/exchanges/64x64/${id}.png`}
+        alt={name}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="flex-none w-7 h-7 rounded-full object-cover bg-[color:var(--surface-2)]"
+      />
+    );
+  }
+
+  const color = brandColor(name);
+  const initial = name.trim().charAt(0).toUpperCase();
+  return (
+    <span
+      className="flex-none w-7 h-7 rounded-full inline-flex items-center justify-center text-xs font-bold text-white"
+      style={{ background: `linear-gradient(135deg, ${color}, color-mix(in oklch, ${color} 70%, #000))` }}
+    >
+      {initial}
+    </span>
+  );
+};
+
 const SkeletonRow = () => (
   <tr className="border-b border-[color:var(--line)]">
     {Array.from({ length: 8 }).map((_, i) => (
-      <td key={i} className="px-4 py-4">
+      <td key={i} className="px-3 py-2.5">
         <div className="h-4 bg-[color:var(--surface-2)] rounded-md animate-pulse" />
       </td>
     ))}
   </tr>
 );
 
+const TYPE_TABS = ['Spot', 'Perpetual', 'Futures'] as const;
+type MarketType = (typeof TYPE_TABS)[number];
+
 export const MarketsTab: React.FC<MarketsTabProps> = ({ asset }) => {
   const [hoveredRank, setHoveredRank] = useState<number | null>(null);
   const [filter, setFilter] = useState<'all' | 'cex' | 'dex'>('all');
+  const [marketType, setMarketType] = useState<MarketType>('Spot');
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const hermesPanel = useHermesPanel();
   const { data: marketsData, loading, error } = useMarketsWebSocket({ asset });
 
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const typeFiltered = (marketsData?.exchanges || []).filter(ex => {
+  const wantType = marketType.toLowerCase(); // 'spot' | 'perpetual' | 'futures'
+  const typeFiltered = (marketsData?.exchanges || []).filter((ex) => {
+    // Market type (spot/perpetual/futures). Rows default to spot if untagged.
+    if ((ex.market_type || 'spot') !== wantType) return false;
     if (filter === 'all') return true;
     const cexNames = ['Binance', 'Coinbase', 'Kraken', 'OKX', 'Bybit', 'Bitget', 'Upbit'];
-    const isCEX = cexNames.some(name => ex.name.includes(name));
-    if (filter === 'cex') return isCEX;
-    if (filter === 'dex') return !isCEX;
-    return true;
+    const isCEX = cexNames.some((name) => ex.name.includes(name));
+    return filter === 'cex' ? isCEX : !isCEX;
   });
 
-  const searchFiltered = typeFiltered.filter(ex => {
+  const searchFiltered = typeFiltered.filter((ex) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return ex.name.toLowerCase().includes(q) || ex.pair.toLowerCase().includes(q);
@@ -46,74 +123,83 @@ export const MarketsTab: React.FC<MarketsTabProps> = ({ asset }) => {
 
   const { sorted: filteredData, sortField, sortOrder, toggleSort } = useMarketsSort(searchFiltered);
 
+  const segBtn = (active: boolean) =>
+    `px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
+      active
+        ? 'bg-[color:var(--surface)] text-[color:var(--text)] shadow-sm'
+        : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'
+    }`;
+
   return (
-    <div className="flex flex-col flex-1 overflow-y-auto bg-gradient-to-b from-[color:var(--bg)] via-[color:var(--bg)] to-[color:color-mix(in_oklch,var(--accent)_2%,var(--bg))]">
-      {/* Header with Filters */}
-      <div className="sticky top-0 z-30 px-8 py-6 border-b border-[color:var(--line)] bg-[color:var(--surface)] bg-opacity-95 backdrop-blur-xl">
-        {/* Title Section */}
-        <div className="flex items-end justify-between mb-6">
-          <div className="flex items-end gap-4">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-[color:var(--accent)] via-[color:color-mix(in_oklch,var(--accent)_85%,transparent)] to-[color:color-mix(in_oklch,var(--accent)_60%,transparent)] shadow-lg shadow-[color:var(--accent)]/25">
-              <BarChart3 className="w-6 h-6 text-[color:var(--accent-ink)]" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-[color:var(--text)] tracking-tight">{asset} Markets</h2>
-              <p className="text-sm text-[color:var(--text-3)] mt-1.5 font-medium">Real-time exchange data • 24h metrics</p>
-            </div>
-          </div>
-        </div>
+    <div className="flex flex-col flex-1 overflow-y-auto bg-[color:var(--bg)]">
+      {/* Header */}
+      <div className="sticky top-0 z-30 px-5 pt-4 pb-3 bg-[color:var(--bg)]">
+        <h2 className="text-xl font-bold text-[color:var(--text)] tracking-tight mb-4">{asset} Markets</h2>
 
-        {/* Control Row */}
-        <div className="flex items-center gap-3">
-          {/* Search Bar */}
-          <div className="flex-1 relative max-w-md">
-            <Search className="absolute left-4 top-3 w-4 h-4 text-[color:var(--text-3)]" />
-            <input
-              type="text"
-              placeholder="Search exchange or pair..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--line)] text-[color:var(--text)] text-sm placeholder-[color:var(--text-3)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/50 transition-all"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-4 top-3 text-[color:var(--text-3)] hover:text-[color:var(--text)] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Filter Buttons */}
-          <div className="flex items-center gap-2">
-            {['All', 'CEX', 'DEX'].map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f.toLowerCase() as any)}
-                className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filter === f.toLowerCase()
-                    ? 'bg-[color:var(--accent)] text-[color:var(--accent-ink)] shadow-lg shadow-[color:var(--accent)]/25 font-semibold'
-                    : 'bg-[color:var(--surface-2)] text-[color:var(--text-3)] border border-[color:var(--line)] hover:bg-[color:var(--surface)] hover:text-[color:var(--text-2)] hover:border-[color:var(--accent)]/30'
-                }`}
-              >
+        {/* Filter chip rows (CMC-style segmented controls) */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* All / CEX / DEX */}
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--line)]">
+            {(['All', 'CEX', 'DEX'] as const).map((f) => (
+              <button key={f} onClick={() => setFilter(f.toLowerCase() as any)} className={segBtn(filter === f.toLowerCase())}>
                 {f}
               </button>
             ))}
           </div>
 
-          {/* Ask Hermes Button */}
+          {/* Spot / Perpetual / Futures */}
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--line)]">
+            {TYPE_TABS.map((t) => (
+              <button key={t} onClick={() => setMarketType(t)} className={segBtn(marketType === t)}>
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {/* Filters (toggles search) */}
+          <button
+            onClick={() => setShowSearch((s) => !s)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              showSearch
+                ? 'bg-[color:var(--surface)] text-[color:var(--text)] border-[color:var(--accent)]/40'
+                : 'bg-[color:var(--surface-2)] text-[color:var(--text-3)] border-[color:var(--line)] hover:text-[color:var(--text-2)]'
+            }`}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filters
+          </button>
+
           <button
             onClick={() => hermesPanel.openPanel({ exchanges: filteredData, asset })}
-            className="ml-auto px-4 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-[color:var(--accent)] via-[color:var(--accent)] to-[color:color-mix(in_oklch,var(--accent)_80%,transparent)] text-[color:var(--accent-ink)] hover:shadow-xl hover:shadow-[color:var(--accent)]/30 transition-all duration-200 flex items-center gap-2 whitespace-nowrap"
+            className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:opacity-90 transition-opacity whitespace-nowrap"
           >
             <Sparkles className="w-4 h-4" />
             Ask Hermes
           </button>
         </div>
+
+        {/* Collapsible search */}
+        {showSearch && (
+          <div className="relative max-w-md mt-3">
+            <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-[color:var(--text-3)]" />
+            <input
+              type="text"
+              autoFocus
+              placeholder="Search exchange or pair..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-9 py-2 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--line)] text-[color:var(--text)] text-sm placeholder-[color:var(--text-3)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-3 top-2.5 text-[color:var(--text-3)] hover:text-[color:var(--text)]">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Error State */}
+      {/* Error */}
       {error && (
         <div className="flex-1 px-6 py-8 flex items-center justify-center">
           <div className="text-center">
@@ -126,208 +212,135 @@ export const MarketsTab: React.FC<MarketsTabProps> = ({ asset }) => {
 
       {/* Table */}
       {!error && (
-        <div className="flex-1 px-8 py-4 overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="flex-1 px-5 pb-5 overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-b-2 border-[color:var(--line)] sticky top-[70px] bg-[color:var(--surface)] bg-opacity-95 backdrop-blur-md">
-                <th className="px-4 py-4 text-left text-xs font-bold text-[color:var(--text-3)] uppercase tracking-wider">#</th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-[color:var(--text-3)] uppercase tracking-wider">Exchange</th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-[color:var(--text-3)] uppercase tracking-wider">Pair</th>
+              <tr className="border-b border-[color:var(--line)]">
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-[color:var(--text-3)]">#</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-[color:var(--text-3)]">Exchange</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-[color:var(--text-3)]">Pairs</th>
                 <th
                   onClick={() => toggleSort('price')}
-                  className="px-4 py-4 text-right text-xs font-bold text-[color:var(--text-3)] uppercase tracking-wider cursor-pointer hover:text-[color:var(--accent)] transition-colors flex items-center justify-end gap-2 group"
+                  className="px-3 py-2.5 text-right text-xs font-semibold text-[color:var(--text-3)] cursor-pointer hover:text-[color:var(--text)] transition-colors"
                 >
-                  Price
-                  {sortField === 'price' && (
-                    <ArrowUpDown className={`w-4 h-4 text-[color:var(--accent)] ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
-                  )}
-                  {sortField !== 'price' && <ArrowUpDown className="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />}
+                  <span className="inline-flex items-center gap-1.5">
+                    Price
+                    <ArrowUpDown className={`w-3.5 h-3.5 ${sortField === 'price' ? 'text-[color:var(--accent)]' : 'opacity-30'} ${sortField === 'price' && sortOrder === 'asc' ? 'rotate-180' : ''}`} />
+                  </span>
                 </th>
-                <th className="px-4 py-4 text-right text-xs font-bold text-[color:var(--text-3)] uppercase tracking-wider">Depth</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-[color:var(--text-3)]">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5 opacity-50" />
+                    +2% / -2% Depth
+                  </span>
+                </th>
                 <th
                   onClick={() => toggleSort('volume24h')}
-                  className="px-4 py-4 text-right text-xs font-bold text-[color:var(--text-3)] uppercase tracking-wider cursor-pointer hover:text-[color:var(--accent)] transition-colors flex items-center justify-end gap-2 group"
+                  className="px-3 py-2.5 text-right text-xs font-semibold text-[color:var(--text-3)] cursor-pointer hover:text-[color:var(--text)] transition-colors"
                 >
-                  Volume (24h)
-                  {sortField === 'volume24h' && (
-                    <ArrowUpDown className={`w-4 h-4 text-[color:var(--accent)] ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
-                  )}
-                  {sortField !== 'volume24h' && <ArrowUpDown className="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />}
+                  <span className="inline-flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5 opacity-50" />
+                    Volume (24h)
+                    <ArrowUpDown className={`w-3.5 h-3.5 ${sortField === 'volume24h' ? 'text-[color:var(--accent)]' : 'opacity-30'} ${sortField === 'volume24h' && sortOrder === 'asc' ? 'rotate-180' : ''}`} />
+                  </span>
                 </th>
-                <th className="px-4 py-4 text-right text-xs font-bold text-[color:var(--text-3)] uppercase tracking-wider">Volume %</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-[color:var(--text-3)]">Volume %</th>
                 <th
                   onClick={() => toggleSort('liquidity')}
-                  className="px-4 py-4 text-right text-xs font-bold text-[color:var(--text-3)] uppercase tracking-wider cursor-pointer hover:text-[color:var(--accent)] transition-colors flex items-center justify-end gap-2 group"
+                  className="px-3 py-2.5 text-right text-xs font-semibold text-[color:var(--text-3)] cursor-pointer hover:text-[color:var(--text)] transition-colors"
                 >
-                  Liquidity
-                  {sortField === 'liquidity' && (
-                    <ArrowUpDown className={`w-4 h-4 text-[color:var(--accent)] ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
-                  )}
-                  {sortField !== 'liquidity' && <ArrowUpDown className="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />}
+                  <span className="inline-flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5 opacity-50" />
+                    Liquidity
+                    <ArrowUpDown className={`w-3.5 h-3.5 ${sortField === 'liquidity' ? 'text-[color:var(--accent)]' : 'opacity-30'} ${sortField === 'liquidity' && sortOrder === 'asc' ? 'rotate-180' : ''}`} />
+                  </span>
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[color:var(--line)]">
+            <tbody>
               {loading
                 ? Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
                 : filteredData.map((ex, idx) => {
                     const isHovered = hoveredRank === ex.rank;
-                    const volumeNum = parseFloat(ex.volumePercent.replace('%', ''));
-
                     return (
                       <motion.tr
                         key={`${ex.rank}-${ex.pair}`}
-                        initial={{ opacity: 0, y: 5 }}
+                        initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.02 }}
+                        transition={{ delay: idx * 0.015 }}
                         onMouseEnter={() => setHoveredRank(ex.rank)}
                         onMouseLeave={() => setHoveredRank(null)}
-                        className={`group transition-all duration-300 ${
-                          isHovered
-                            ? 'bg-gradient-to-r from-[color:color-mix(in_oklch,var(--accent)_12%,var(--surface))] via-[color:color-mix(in_oklch,var(--accent)_6%,var(--surface))] to-transparent shadow-lg shadow-[color:var(--accent)]/10 border-l-2 border-l-[color:var(--accent)]'
-                            : 'hover:bg-[color:color-mix(in_oklch,var(--accent)_5%,var(--surface))]'
+                        className={`border-b border-[color:var(--line)] transition-colors ${
+                          isHovered ? 'bg-[color:var(--surface-2)]' : ''
                         }`}
                       >
-                        <td className="px-4 py-4 text-center">
-                          <span className={`w-7 h-7 rounded-full inline-flex items-center justify-center text-sm font-bold transition-all duration-200 ${
-                            isHovered
-                              ? 'bg-[color:var(--accent)] text-[color:var(--accent-ink)] shadow-lg shadow-[color:var(--accent)]/40'
-                              : 'bg-[color:var(--surface-2)] text-[color:var(--text-3)]'
-                          }`}>
-                            {ex.rank}
+                        {/* Rank */}
+                        <td className="px-3 py-2.5 text-[color:var(--text-3)] tabular-nums">{ex.rank}</td>
+
+                        {/* Exchange */}
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center gap-3">
+                            <ExchangeLogo name={ex.name} />
+                            <span className="font-semibold text-[color:var(--text)]">{ex.name}</span>
+                          </div>
+                        </td>
+
+                        {/* Pairs */}
+                        <td className="px-3 py-2.5">
+                          <span className="inline-flex items-center gap-1 font-medium text-[color:var(--accent)] hover:underline cursor-pointer">
+                            {ex.pair}
+                            <ExternalLink className="w-3 h-3 opacity-70" />
                           </span>
                         </td>
 
-                        <td className="px-4 py-4">
-                          <div className="font-semibold text-[color:var(--text)] group-hover:text-[color:var(--accent)] transition-colors duration-200">
-                            {ex.name}
-                          </div>
+                        {/* Price */}
+                        <td className="px-3 py-2.5 text-right font-mono font-semibold text-[color:var(--text)] tabular-nums">
+                          {ex.price}
                         </td>
 
-                        <td className="px-4 py-4">
-                          <div className="inline-block px-3 py-1.5 rounded-md bg-gradient-to-br from-[color:color-mix(in_oklch,var(--accent)_15%,var(--surface))] to-[color:color-mix(in_oklch,var(--accent)_8%,var(--surface))] border border-[color:var(--accent)]/30 font-mono text-xs font-semibold text-[color:var(--accent)] tracking-wide">
-                            {ex.pair}
-                          </div>
+                        {/* Depth pill */}
+                        <td className="px-3 py-2.5 text-right">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[color:var(--surface-2)] font-mono text-xs tabular-nums">
+                            <span className="text-[color:var(--up)] font-semibold">{ex.depth.bid}</span>
+                            <span className="text-[color:var(--text-3)]">/</span>
+                            <span className="text-[color:var(--down)] font-semibold">{ex.depth.ask}</span>
+                          </span>
                         </td>
 
-                        <td className="px-4 py-4 text-right">
-                          <motion.div
-                            initial={{ backgroundColor: 'transparent' }}
-                            animate={{ backgroundColor: 'transparent' }}
-                            className="font-mono font-bold text-[color:var(--accent)] text-sm relative"
-                          >
-                            {ex.price}
-                            <motion.div
-                              className="absolute inset-0 rounded pointer-events-none border border-[color:var(--accent)] opacity-0"
-                              animate={{ opacity: [0.5, 0] }}
-                              transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 4 }}
-                            />
-                          </motion.div>
-                        </td>
-
-                        <td className="px-4 py-4 text-right">
-                          <div className="font-mono text-xs text-[color:var(--text-2)] space-y-1">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="h-2 w-8 bg-[color:color-mix(in_oklch,var(--up)_25%,var(--surface))] rounded-full" />
-                              <div className="text-[color:var(--up)] font-semibold w-16 text-right">{ex.depth.bid}</div>
-                            </div>
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="h-2 w-8 bg-[color:color-mix(in_oklch,var(--down)_25%,var(--surface))] rounded-full" />
-                              <div className="text-[color:var(--down)] font-semibold w-16 text-right">{ex.depth.ask}</div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-4 text-right">
-                          <div className="font-mono font-bold text-[color:var(--accent)] text-sm">
+                        {/* Volume (24h) pill */}
+                        <td className="px-3 py-2.5 text-right">
+                          <span className="inline-block px-2 py-1 rounded-md font-mono text-xs font-semibold tabular-nums text-[color:var(--up)] bg-[color:color-mix(in_oklch,var(--up)_12%,var(--surface-2))]">
                             {ex.volume24h}
-                          </div>
+                          </span>
                         </td>
 
-                        <td className="px-4 py-4 text-right">
-                          <div className="flex items-center justify-end gap-3">
-                            <div className="h-2 w-14 bg-[color:var(--surface-2)] rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-300 ${
-                                  volumeNum > 3
-                                    ? 'bg-gradient-to-r from-[color:var(--up)] to-[color:var(--up)]/70'
-                                    : volumeNum > 1
-                                    ? 'bg-gradient-to-r from-[color:var(--accent)] to-[color:var(--accent)]/70'
-                                    : 'bg-[color:var(--text-3)]/50'
-                                }`}
-                                style={{ width: `${Math.min(100, volumeNum * 20)}%` }}
-                              />
-                            </div>
-                            <span className={`font-mono font-bold text-sm w-12 text-right ${
-                              volumeNum > 3
-                                ? 'text-[color:var(--up)]'
-                                : volumeNum > 1
-                                ? 'text-[color:var(--accent)]'
-                                : 'text-[color:var(--text-3)]'
-                            }`}>
-                              {ex.volumePercent}
-                            </span>
-                          </div>
+                        {/* Volume % */}
+                        <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-[color:var(--text-2)]">
+                          {ex.volumePercent}
                         </td>
 
-                        <td className="px-4 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {Array.from({ length: 5 }).map((_, i) => {
-                              const level = (i + 1) * 200;
-                              const isActive = ex.liquidity >= level;
-                              return (
-                                <motion.div
-                                  key={i}
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  transition={{ delay: i * 0.08 }}
-                                  className={`w-2 h-5 rounded-sm transition-all duration-200 ${
-                                    isActive
-                                      ? 'bg-gradient-to-t from-[color:var(--accent)] via-[color:var(--accent)]/85 to-[color:var(--accent)]/70 shadow-md shadow-[color:var(--accent)]/40'
-                                      : 'bg-[color:var(--surface-2)]'
-                                  } ${isHovered && isActive ? 'brightness-125' : ''}`}
-                                />
-                              );
-                            })}
-                          </div>
+                        {/* Liquidity pill */}
+                        <td className="px-3 py-2.5 text-right">
+                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[color:var(--surface-2)] font-mono text-xs font-semibold tabular-nums text-[color:var(--text)]">
+                            <BarChart2 className="w-3 h-3 text-[color:var(--text-3)]" />
+                            {ex.liquidity.toLocaleString()}
+                          </span>
                         </td>
                       </motion.tr>
                     );
                   })}
             </tbody>
           </table>
+
+          {!loading && filteredData.length === 0 && (
+            <div className="py-16 text-center text-[color:var(--text-3)] text-sm">No markets match your filters.</div>
+          )}
         </div>
       )}
 
-      {/* Footer Stats */}
-      <div className="px-8 py-6 border-t border-[color:var(--line)] bg-gradient-to-r from-[color:color-mix(in_oklch,var(--accent)_5%,var(--surface))] via-[color:color-mix(in_oklch,var(--accent)_2%,var(--surface))] to-[color:var(--surface)]">
-        <div className="grid grid-cols-4 gap-6">
-          <div className="group">
-            <div className="text-xs font-bold text-[color:var(--text-3)] uppercase tracking-wider mb-2">Total Volume</div>
-            <div className="font-bold text-[color:var(--accent)] text-lg group-hover:text-[color:var(--accent)] transition-colors">—</div>
-          </div>
-          <div className="group">
-            <div className="text-xs font-bold text-[color:var(--text-3)] uppercase tracking-wider mb-2">Top Exchange</div>
-            <div className="font-bold text-[color:var(--text)] text-lg group-hover:text-[color:var(--accent)] transition-colors">{marketsData?.exchanges?.[0]?.name || '—'}</div>
-          </div>
-          <div className="group">
-            <div className="text-xs font-bold text-[color:var(--text-3)] uppercase tracking-wider mb-2">Avg Spread</div>
-            <div className="font-bold text-[color:var(--text)] text-lg group-hover:text-[color:var(--accent)] transition-colors">—</div>
-          </div>
-          <div className="group">
-            <div className="text-xs font-bold text-[color:var(--text-3)] uppercase tracking-wider mb-2">Showing</div>
-            <div className="font-bold text-[color:var(--accent)] text-lg">{filteredData.length} <span className="text-[color:var(--text-3)] text-base">of {marketsData?.exchanges?.length || 0}</span></div>
-          </div>
-        </div>
-      </div>
-
       {/* Hermes Query Panel */}
       {hermesPanel.isOpen && (
-        <HermesQueryPanel
-          asset={asset}
-          context={hermesPanel.selectedContext}
-          onClose={hermesPanel.closePanel}
-        />
+        <HermesQueryPanel asset={asset} context={hermesPanel.selectedContext} onClose={hermesPanel.closePanel} />
       )}
     </div>
   );

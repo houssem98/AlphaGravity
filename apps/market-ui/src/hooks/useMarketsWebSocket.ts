@@ -12,6 +12,7 @@ interface ExchangeMarket {
   spreadBps: number;
   lastUpdate: string;
   symbol: string;
+  market_type?: 'spot' | 'perpetual' | 'futures';
 }
 
 interface MarketsData {
@@ -42,39 +43,52 @@ export function useMarketsWebSocket(options: UseMarketsWebSocketOptions = {}) {
     setLoading(true);
     setError(null);
 
-    const apiUrl = process.env.REACT_APP_API_URL || 'https://gravity-api-prod.fly.dev';
+    const apiUrl = import.meta.env.VITE_GRAVITY_API_URL || 'https://gravity-api-prod.fly.dev';
     const wsUrl = apiUrl.replace('https://', 'wss://').replace('http://', 'ws://');
-    const ws = new WebSocket(`${wsUrl}/api/trading/markets/ws?asset=${asset}`);
 
-    ws.onopen = () => {
-      setLoading(false);
-    };
+    let disposed = false;          // set on unmount; suppresses error + reconnect
+    let ws: WebSocket | null = null;
+    let retry: ReturnType<typeof setTimeout> | null = null;
 
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        if (message.error) {
-          setError(message.error);
-        } else {
-          setData(message);
-          setError(null);
+    const connect = () => {
+      if (disposed) return;
+      ws = new WebSocket(`${wsUrl}/api/trading/markets/ws?asset=${asset}`);
+
+      ws.onopen = () => {
+        if (disposed) return;
+        setLoading(false);
+        setError(null);
+      };
+
+      ws.onmessage = (event) => {
+        if (disposed) return;
+        try {
+          const message = JSON.parse(event.data);
+          if (message.error) {
+            setError(message.error);
+          } else {
+            setData(message);
+            setError(null);
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to parse message');
         }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to parse message');
-      }
+      };
+
+      ws.onclose = () => {
+        if (disposed) return; // intentional unmount close — stay silent
+        setError('Connection closed');
+        // auto-reconnect after a short backoff
+        retry = setTimeout(connect, 2000);
+      };
     };
 
-    ws.onerror = () => {
-      setError('WebSocket connection error');
-      setLoading(false);
-    };
-
-    ws.onclose = () => {
-      setError('Connection closed');
-    };
+    connect();
 
     return () => {
-      ws.close();
+      disposed = true;
+      if (retry) clearTimeout(retry);
+      ws?.close();
     };
   }, [asset]);
 
