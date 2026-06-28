@@ -130,6 +130,13 @@ class StructuredSearch:
             # with "Revenue (Total…", so anchor revenue synonyms to the label start.
             if metric in ("revenue", "total revenue", "net sales"):
                 flt["metric_name"] = "ilike.Revenue*"
+            elif metric in self._METRIC_PATTERNS:
+                # Prefer the CURATED ilike pattern over a literal word-replace.
+                # The query may say "stockholders equity" while the filed label
+                # is "shareholders' equity" — the literal *stockholders*equity*
+                # matched 0 rows (structured channel silently didn't fire); the
+                # curated *holders*Equity* matches both.
+                flt["metric_name"] = f"ilike.{self._METRIC_PATTERNS[metric][1]}"
             else:
                 flt["metric_name"] = f"ilike.*{metric.replace(' ', '*')}*"
 
