@@ -290,8 +290,26 @@ class EntityResolver:
                 score = _token_overlap(mention_norm, norm_name)
                 if score >= 0.5:
                     candidates.append((score, entry))
-        # Sort by score, then prefer the most specific (fewest-token) name on ties.
-        candidates.sort(key=lambda x: (x[0], -len(_content_tokens(_normalize(x[1]["name"])))), reverse=True)
+        # Tie-break (single-char-drop collisions): "Block" and "H&R Block" both
+        # reduce to content-tokens {block} (the "h r" is dropped), so they tie at
+        # score 1.0. Resolve by the RAW token set (incl. single chars):
+        #   1. prefer names whose raw tokens ⊇ the mention's raw tokens — keeps
+        #      the "h r" signal, so "H&R Block" → HRB but "Block" → Block Inc;
+        #   2. then fewest content tokens; 3. then shortest raw name.
+        mention_raw_tokens = set(mention_norm.split())
+
+        def _rank(cand: tuple[float, dict]) -> tuple:
+            score, e = cand
+            nn = _normalize(e["name"])
+            raw = set(nn.split())
+            return (
+                score,
+                1 if mention_raw_tokens and mention_raw_tokens.issubset(raw) else 0,
+                -len(_content_tokens(nn)),
+                -len(nn),
+            )
+
+        candidates.sort(key=_rank, reverse=True)
 
         if candidates:
             best_score, best = candidates[0]
