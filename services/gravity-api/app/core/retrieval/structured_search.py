@@ -179,7 +179,9 @@ class StructuredSearch:
         "gross margin", "operating margin", "net margin", "profit margin",
         "operating cash flow", "free cash flow", "cash flow",
         "capital expenditure", "capex", "total assets", "total liabilities", "long-term debt",
-        "total debt", "inventory", "accounts receivable", "cash and", "shareholders equity",
+        "total debt", "inventory", "accounts receivable", "accounts payable", "cash and",
+        "total stockholders equity", "total shareholders equity",
+        "stockholders equity", "shareholders equity", "stockholders' equity", "shareholders' equity",
         "eps", "earnings per share", "return on equity", "roe", "dividend", "buyback",
         "share repurchase", "research and development", "r&d",
         # Banks / financials
@@ -213,6 +215,12 @@ class StructuredSearch:
         "r&d": ("rd", "*Research*and*Development*"),
         "total assets": ("ta", "*Total*Assets*"),
         "total liabilities": ("tl", "*Total*Liabilities*"),
+        "stockholders equity": ("eq", "*holders*Equity*"),
+        "shareholders equity": ("eq", "*holders*Equity*"),
+        "total stockholders equity": ("eq", "*holders*Equity*"),
+        "total shareholders equity": ("eq", "*holders*Equity*"),
+        "accounts payable": ("ap", "*Accounts*Payable*"),
+        "accounts receivable": ("ar", "*Accounts*Receivable*"),
         "net interest income": ("nii", "*Net*Interest*Income*"),
         "operating cash flow": ("ocf", "*Operating*Cash*Flow*"),
         "capital expenditure": ("capex", "*Capital*Expenditure*"),
@@ -227,7 +235,10 @@ class StructuredSearch:
     # single metric (bull/bear case, "did profitability improve"). One per statement.
     _KEY_METRIC_PATTERNS: list[str] = [
         "Revenue*", "*Net*Income*", "*Operating*Income*", "*Gross*Profit*",
-        "*Operating*Cash*Flow*", "*Capital*Expenditure*", "*Total*Assets*",
+        "*Operating*Cash*Flow*", "*Capital*Expenditure*",
+        # Full balance sheet (was Assets-only → liabilities/equity never pinned
+        # for ratio/qualitative queries that need them, e.g. quick ratio, D/E).
+        "*Total*Assets*", "*Total*Liabilities*", "*holders*Equity*",
     ]
 
     _DERIVED_COMPONENTS: dict[str, list[str]] = {
