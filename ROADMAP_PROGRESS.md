@@ -4,7 +4,7 @@ Durable state ledger for the `/loop` engineering run. **Read this first every it
 One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
 - **Branch:** `roadmap/world-class` — PUSHED to origin, **PR #1 open** (https://github.com/houssem98/antigravity/pull/1).
-- **NEXT (numeric path, reframed):** true numeric ≈50% (scorer fixed). Levers now, in ROI order: (1) targeted ingestion of FinanceBench's OLD filings (2016–2019) — the real coverage gap; (2) entity-resolution fix (Block≠H&R Block); (3) table extraction accuracy. NOT more recent-year data (disproven).
+- **NEXT (numeric path, reframed):** true numeric ≈50% (scorer fixed). Levers: (1) **entity-res — DONE** (Block→Block Inc tie-break, deployed); (2) targeted ingestion of FinanceBench's OLD 2016–2019 filings — the real coverage gap; (3) table extraction accuracy (AMCOR quick-ratio 0.89 vs 0.67). NOT more recent-year data (disproven).
 - ⚠️ **ROTATE KEYS:** committed config files (`.claude/settings.json`, `.claude/settings.local.json`, `scripts/hermes.bat`) held live OpenRouter/Supabase/Anthropic keys. Purged from pushed history via git-filter-repo + `.gitignore`d on origin (PR #1). They remain in LOCAL history (commit 2bf71c6) → **rotate them**.
 - ✅ **RECONCILE DONE:** local `roadmap/world-class` == origin (`f040457`, identical), WIP + configs preserved (configs now gitignored, untracked). `core.longpaths true` set.
 - 🚨 **PUBLIC SECRET LEAK (user handling):** repo is PUBLIC and `origin/main` (commits `423e07b`, `a09c2fd`) contains 4 live keys (OpenRouter, Supabase Secret, Supabase PAT, Anthropic). User said they'll fix. Keys MUST be rotated (already public). Local branches main/hermes-integration/fix-* + `backup/roadmap-pre-scrub` still hold them in history.
