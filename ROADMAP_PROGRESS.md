@@ -4,6 +4,7 @@ Durable state ledger for the `/loop` engineering run. **Read this first every it
 One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
 - **Branch:** `roadmap/world-class` — PUSHED to origin, **PR #1 open** (https://github.com/houssem98/antigravity/pull/1).
+- **NEXT (numeric path, reframed):** true numeric ≈50% (scorer fixed). Levers now, in ROI order: (1) targeted ingestion of FinanceBench's OLD filings (2016–2019) — the real coverage gap; (2) entity-resolution fix (Block≠H&R Block); (3) table extraction accuracy. NOT more recent-year data (disproven).
 - ⚠️ **ROTATE KEYS:** committed config files (`.claude/settings.json`, `.claude/settings.local.json`, `scripts/hermes.bat`) held live OpenRouter/Supabase/Anthropic keys. Purged from pushed history via git-filter-repo + `.gitignore`d on origin (PR #1). They remain in LOCAL history (commit 2bf71c6) → **rotate them**.
 - ✅ **RECONCILE DONE:** local `roadmap/world-class` == origin (`f040457`, identical), WIP + configs preserved (configs now gitignored, untracked). `core.longpaths true` set.
 - 🚨 **PUBLIC SECRET LEAK (user handling):** repo is PUBLIC and `origin/main` (commits `423e07b`, `a09c2fd`) contains 4 live keys (OpenRouter, Supabase Secret, Supabase PAT, Anthropic). User said they'll fix. Keys MUST be rotated (already public). Local branches main/hermes-integration/fix-* + `backup/roadmap-pre-scrub` still hold them in history.
@@ -48,7 +49,7 @@ One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
 | Metric | Target | Current | Source |
 |---|---|---|---|
-| FinanceBench numeric QA | ≥80% | **33%** (5/15 sample, prod) | `tests/eval/financebench.py` |
+| FinanceBench numeric QA | ≥80% | **~50%** (15/30, after scorer fix; was mis-measured 30%) | `tests/eval/financebench.py` |
 | Company-correctness | 100% | unmeasured | `tests/eval/company_correctness.py` |
 | Retrieval recall@10 | ≥0.90 | **~7%** (weak proxy) | source text widened 500→2000 (recall 0→7%); still a weak proxy — gold evidence phrased differently than chunks, 0.5 token-overlap too strict. Directional only. |
 | Citation faithfulness | ≥95% | **27%** hit-rate (8/30, was 20%) | financebench citation_check |
@@ -66,6 +67,9 @@ One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 - **P0-a (baseline)** — eval harness present: `financebench.py`, `financebench_xbrl.py`, `company_correctness.py`, `latency_cost_runner.py`, `judge_model.py`, `run_eval.py`. Local venv has httpx/datasets/tqdm/rouge_score. Prod `/v1/search` reachable (HTTP 200, ~13.5s, channels `[structured,dense,tree_nav]`). FinanceBench sample-15 baseline running → results pending.
 
 ## Observations / leads
+- **NUMERIC WAS MIS-MEASURED — true ≈50%, not 30%.** Scorer bug: `numeric_match` scaled the model's "X million" suffix but expected answers are bare-millions ("11588.00") → 11588e6 vs 11588 false-neg. Fixed (`_number_candidates`, both bare+scaled). Re-scored deep_fb/p1b/recall_fix runs all 30%→**50%** (+4/30 recovered). +6 unit tests. (Code-only, no prod change.)
+- **DEEP HISTORY = NOT the numeric lever (disproven by measurement).** --years-back 6 --max-filings 16 (financials 168k→248k) left numeric FLAT (recall 7→13%). Three data experiments now agree: data volume isn't the wall.
+- **Real numeric blockers (from failure inspection):** (1) scorer false-negs [FIXED]; (2) **FinanceBench targets OLD filings 2016–2019** — our corpus is 2020–2026, so MGM FY2018 / Boeing FY2018 / Nike FY2016–18 / Block FY2016 genuinely absent → need TARGETED ingestion of FinanceBench's specific docs, not "more recent years"; (3) **entity resolution** — "Block Inc (Square)" routed to H&R Block (HRB); (4) **extraction errors** — AMCOR quick ratio extracted 0.89 vs true 0.67.
 - **n=30 FinanceBench is NOISY** — citation swung 27%→17% and halluc 0→20% on the SAME deterministic sample across runs (LLM nondeterminism). Numeric is stable (~30%). Use n≥50 (or full 150) for trustworthy small deltas; treat ±10pt at n=30 as noise.
 - Widened source text 500→2000 (`search_pipeline.py:849`) — better citation-panel snippets + recall headroom; recall 0→7% (still weak proxy).
 - Prod fast-mode query returned channels `[structured, dense, tree_nav]` — **FTS/bm25 keyword channel did NOT fire** despite the 101k-chunk backfill. Investigate whether `search_chunks_fts` is wired into the fast pipeline / fusion (candidate sub-task under P1-b or new P0).

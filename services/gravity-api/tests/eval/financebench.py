@@ -314,18 +314,40 @@ def fuzzy_match(got: str, expected: str) -> bool:
         overlap = len(n_got & n_exp) / len(n_exp)
         return overlap >= ROUGE_THRESHOLD
 
+def _number_candidates(text: str) -> list[float]:
+    """All plausible magnitudes for each number — BOTH the bare mantissa and the
+    scale-applied value. FinanceBench expected answers are often already in
+    millions with NO suffix (e.g. "11588.00") while the model writes the same
+    figure as "$11,588 million"; matching both forms avoids false negatives
+    (the old scorer scaled only the model's number → 1.16e10 vs 11588)."""
+    cands: list[float] = []
+    pattern = r'(\d[\d,]*\.?\d*)\s*(billion|million|trillion|b|m|t|%)?'
+    mult = {'billion': 1e9, 'b': 1e9, 'million': 1e6, 'm': 1e6, 'trillion': 1e12, 't': 1e12}
+    for mm in re.finditer(pattern, text.lower()):
+        try:
+            mant = float(mm.group(1).replace(',', ''))
+        except ValueError:
+            continue
+        cands.append(mant)               # bare mantissa
+        suf = (mm.group(2) or '').lower()
+        if suf in mult:
+            cands.append(mant * mult[suf])  # scale-applied
+    return cands
+
 def numeric_match(got: str, expected: str) -> bool:
-    """Check if the primary numeric value in expected appears in got within tolerance."""
-    exp_nums = _extract_numbers(expected)
-    got_nums = _extract_numbers(got)
-    if not exp_nums:
-        return True  # No number to check
-    if not got_nums:
+    """True if the expected figure appears in got within tolerance, comparing
+    both bare and scale-applied magnitudes on each side (handles the
+    millions-with/without-suffix mismatch)."""
+    exp_c = _number_candidates(expected)
+    got_c = _number_candidates(got)
+    if not exp_c:
+        return True
+    if not got_c:
         return False
-    target = exp_nums[0]
-    if target == 0:
-        return 0 in got_nums
-    return any(abs(g - target) / abs(target) <= NUMERIC_TOLERANCE for g in got_nums)
+    targets = [e for e in exp_c if e != 0]
+    if not targets:
+        return 0 in got_c
+    return any(abs(g - e) / abs(e) <= NUMERIC_TOLERANCE for e in targets for g in got_c)
 
 def hallucination_flag(got: str, sources: list[dict]) -> bool:
     """
