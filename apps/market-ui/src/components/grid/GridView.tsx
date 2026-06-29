@@ -26,6 +26,7 @@ import { queryGravityRAG } from '../../services/gravitySearchService';
 import { saveGridRun, loadLatestGridRun, listGridRuns, loadGridRun, deleteGridRun, type SavedGridRow } from '../../services/gridStore';
 import { exportGridToXLSX, downloadBlob } from '../../services/gridExcel';
 import { buildShareLink, readSharedGridFromUrl, clearSharedGridFromUrl } from '../../services/gridShare';
+import { recordExport } from '../../services/auditClient';
 
 const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/llm/chat`;
 
@@ -289,12 +290,14 @@ export default function GridView() {
         if (!state) return;
         const blob = new Blob([toCSV(state)], { type: 'text/csv;charset=utf-8' });
         downloadBlob(blob, stampedName('csv'));
+        recordExport('csv', { bytes: blob.size, destination: stampedName('csv') });
     };
 
     const handleExportXLSX = async () => {
         if (!state) return;
         const blob = await exportGridToXLSX(state);
         downloadBlob(blob, stampedName('xlsx'));
+        recordExport('xlsx', { bytes: blob.size, destination: stampedName('xlsx') });
     };
 
     const handleShare = async () => {
@@ -306,6 +309,7 @@ export default function GridView() {
             return;
         }
         await navigator.clipboard.writeText(link);
+        recordExport('share_link', { bytes: link.length });
         setShareMsg('Share link copied');
         setTimeout(() => setShareMsg(null), 2000);
     };

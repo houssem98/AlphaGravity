@@ -103,6 +103,40 @@ async def chunk_context(
     return {"document_id": doc_id, "chunks": rows}
 
 
+@router.post("/audit/export")
+async def audit_export(
+    format: str = Query(..., description="pdf | xlsx | csv | share_link | email"),
+    event_id: str = Query(default="adhoc", description="originating search trace_id, if any"),
+    destination: str = Query(default=""),
+    bytes_size: int = Query(default=0, ge=0),
+    auth: dict = Depends(require_auth),
+):
+    """
+    Record an external export/dissemination of an AI-generated record
+    (SEC 17a-4 / FINRA 4511: dissemination is itself a recordable event).
+
+    The per-inference audit log (search pipeline Stage 10) already covers
+    generation; this closes the loop for exports, which happen client-side
+    (Excel/CSV/share) and were previously unrecorded.
+    """
+    from app.dependencies import get_search_pipeline
+    audit = getattr(get_search_pipeline(), "audit_logger", None)
+    if audit is None:
+        return {"recorded": False, "reason": "audit_logger_unavailable"}
+    try:
+        record_hash = await audit.record_export(
+            event_id=event_id or "adhoc",
+            format=format,
+            exported_by=auth["user_id"],
+            destination=destination,
+            bytes_size=bytes_size,
+        )
+        return {"recorded": True, "record_hash": record_hash}
+    except Exception as e:
+        logger.warning("audit_export_failed", error=str(e), format=format)
+        return {"recorded": False, "reason": str(e)[:120]}
+
+
 @router.get("/documents/filing-types")
 async def list_filing_types():
     """
