@@ -4,8 +4,9 @@ Durable state ledger for the `/loop` engineering run. **Read this first every it
 One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
 - **Branch:** `roadmap/world-class` — PUSHED to origin, **PR #1 open** (https://github.com/houssem98/antigravity/pull/1).
-- **ITERATION COMPLETE:** P2-a earnings transcript backfill script (commit 8b54094). Run on Fly to index.
-- **NEXT:** P2-b news/press source, OR P3-a source viewer, OR latency (P4-a — biggest benchmark gap, 18s p50 vs 2s target).
+- **ITERATION COMPLETE:** P2-b news backfill script (commit a86a9c6). Run on Fly to index.
+- **NEXT:** P2-c freshness SLA, OR P3-a source viewer (frontend), OR P3-c save/share grid.
+- **P4-a LATENCY = SPEND-BLOCKED (triangulated 4x):** p50 ~18s dominated by DeepSeek generation (~12-15s). DeepSeek is FIRST for all tiers in router because it's the only FUNDED model that reads in-context XBRL facts (gemini/groq/gpt = free-tier rate-limited/no-quota). Terse-prompt + max_tokens levers already pulled. <2s target UNREACHABLE without a funded fast model (Groq dev tier / funded OpenAI). A deterministic query-understanding fast-path was considered + rejected: risks mis-routing → regresses correctness for ~2s that doesn't hit the 2s target anyway. **SKIP P4-a until paid fast key.**
 - ⚠️ **ROTATE KEYS:** committed config files (`.claude/settings.json`, `.claude/settings.local.json`, `scripts/hermes.bat`) held live OpenRouter/Supabase/Anthropic keys. Purged from pushed history via git-filter-repo + `.gitignore`d on origin (PR #1). They remain in LOCAL history (commit 2bf71c6) → **rotate them**.
 - ✅ **RECONCILE DONE:** local `roadmap/world-class` == origin (`f040457`, identical), WIP + configs preserved (configs now gitignored, untracked). `core.longpaths true` set.
 - 🚨 **PUBLIC SECRET LEAK (user handling):** repo is PUBLIC and `origin/main` (commits `423e07b`, `a09c2fd`) contains 4 live keys (OpenRouter, Supabase Secret, Supabase PAT, Anthropic). User said they'll fix. Keys MUST be rotated (already public). Local branches main/hermes-integration/fix-* + `backup/roadmap-pre-scrub` still hold them in history.
@@ -29,7 +30,7 @@ One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
 ### P2 — Corpus moat
 - [x] **P2-a** Add earnings-call transcripts ingestion source — *DONE. `scripts/backfill_transcripts.py` added. Uses `EarningsTranscriptSource.fetch_transcript()` (EDGAR 8-K free path, Quartr/AlphaVantage optional). Pipes full_text → `pipeline.ingest_bytes(filing_type="earnings_transcript")` → full vec+keyword+structured pipeline. Top-100 S&P tickers, 3s/ticker, resume support. **Run on Fly to actually index:** `BULK_FAST_INGEST=true python scripts/backfill_transcripts.py --limit 100 --resume`. Infra complete; corpus expansion deferred to Fly run. Commit 8b54094.*
-- [ ] **P2-b** Add news / press-release source
+- [x] **P2-b** Add news / press-release source — *DONE. `scripts/backfill_news.py`. Uses `NewsSource.fetch_company_news` (GDELT free, no key) for URL discovery → `pipeline.ingest_from_url(filing_type="news")` fetches each article body. News ranks below filings in fusion (5 vs 10) → neutral to FinanceBench numeric, adds qualitative/recency coverage. NEWSAPI_KEY optional for full-text. Found+left dead code: `gdelt.publish_articles` mis-indented inside `_parse_gdelt_date` (unreachable, uses `self` outside class) — NO callers, YAGNI left as-is. **Run on Fly to index.** Commit a86a9c6.*
 - [ ] **P2-c** Freshness SLA: ingest < 1h of EDGAR publish
 
 ### P3 — Source viewer + workflow
