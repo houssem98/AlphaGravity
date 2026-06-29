@@ -537,9 +537,31 @@ function AgentTracePanel({ steps, complete, totalIterations, totalCostUsd }: {
 
 interface ContextChunk { position: number; text: string; section: string; is_cited: boolean; }
 
+// Highlight the cited snippet within the fuller chunk text (jump-to-span).
+// Matches citation.text as a substring; falls back to highlighting the whole
+// chunk if the snippet isn't found verbatim (truncation/whitespace differences).
+function highlightSpan(chunkText: string, snippet: string): ReactNode {
+    const snip = (snippet || '').trim().replace(/^"|"$/g, '');
+    if (!snip || snip.length < 8) return chunkText;
+    const idx = chunkText.indexOf(snip);
+    if (idx === -1) {
+        // Snippet not found verbatim — highlight the whole chunk so the user
+        // still sees the cited passage emphasised.
+        return <mark className="bg-[var(--accent)]/25 text-inherit rounded px-0.5">{chunkText}</mark>;
+    }
+    return (
+        <>
+            {chunkText.slice(0, idx)}
+            <mark className="bg-[var(--accent)]/30 text-inherit rounded px-0.5">{chunkText.slice(idx, idx + snip.length)}</mark>
+            {chunkText.slice(idx + snip.length)}
+        </>
+    );
+}
+
 function SourceContext({ citation }: { citation: GravityCitation }) {
     const [chunks, setChunks] = useState<ContextChunk[] | null>(null);
     const [loading, setLoading] = useState(true);
+    const citedRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         let alive = true;
@@ -549,8 +571,10 @@ function SourceContext({ citation }: { citation: GravityCitation }) {
         (async () => {
             try {
                 const tok = await getAccessToken();
+                // window=2: a fuller stretch of the filing around the cited span
+                // (the source viewer), not just immediate neighbours.
                 const res = await fetch(
-                    `${GRAVITY_API}/v1/documents/chunk/${encodeURIComponent(citation.chunk_id)}/context?window=1`,
+                    `${GRAVITY_API}/v1/documents/chunk/${encodeURIComponent(citation.chunk_id)}/context?window=2`,
                     { headers: tok ? { Authorization: `Bearer ${tok}` } : {} },
                 );
                 const data = res.ok ? await res.json() : null;
@@ -564,6 +588,13 @@ function SourceContext({ citation }: { citation: GravityCitation }) {
         return () => { alive = false; };
     }, [citation.chunk_id]);
 
+    // Jump-to-span: scroll the cited passage into view once chunks load.
+    useEffect(() => {
+        if (chunks && citedRef.current) {
+            citedRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [chunks]);
+
     // Fallback: no neighbours persisted → show the cited passage alone.
     const rows: ContextChunk[] = chunks ?? [
         { position: 0, text: citation.text ?? '', section: citation.section ?? '', is_cited: true },
@@ -572,30 +603,27 @@ function SourceContext({ citation }: { citation: GravityCitation }) {
     return (
         <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
             <div className="flex items-center justify-between mb-3">
-                <p className="text-xs text-[var(--text-3)] uppercase tracking-wider">Source Context</p>
+                <p className="text-xs text-[var(--text-3)] uppercase tracking-wider">Source Viewer</p>
                 {loading && <div className="w-3 h-3 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin" />}
             </div>
-            <p className="text-[10px] text-[var(--text-3)] mb-3">Neighbouring chunks are shown around the cited passage for continuity.</p>
-            <div className="space-y-2">
+            <p className="text-[10px] text-[var(--text-3)] mb-3">Filing context around the cited passage; the exact cited span is highlighted.</p>
+            <div className="space-y-2 max-h-[420px] overflow-y-auto">
                 {rows.map((c, i) => (
                     <div
                         key={i}
+                        ref={c.is_cited ? citedRef : undefined}
                         className={c.is_cited
                             ? 'rounded-lg border border-[var(--accent)]/40 bg-[var(--accent)]/[0.06] p-3'
                             : 'rounded-lg border border-white/[0.05] bg-white/[0.01] p-3'}
                     >
                         <div className="flex items-center gap-2 mb-1.5">
                             <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded ${c.is_cited ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'bg-white/[0.05] text-[var(--text-3)]'}`}>
-                                {c.is_cited ? 'Cited passage' : (i === 0 ? 'Previous' : 'Next')}
+                                {c.is_cited ? 'Cited passage' : 'Context'}
                             </span>
                             {c.section && <span className="text-[10px] text-[var(--text-3)] truncate">{c.section}</span>}
                         </div>
                         <p className={`text-xs leading-relaxed ${c.is_cited ? 'text-[var(--text)]' : 'text-[var(--text-2)]'}`}>
-                            {c.is_cited && citation.char_offset_start !== undefined && citation.char_offset_end !== undefined ? (
-                                <mark className="bg-[var(--accent)]/20 text-inherit rounded px-0.5">{`"${c.text}"`}</mark>
-                            ) : (
-                                c.is_cited ? `"${c.text}"` : c.text
-                            )}
+                            {c.is_cited ? highlightSpan(c.text, citation.text ?? '') : c.text}
                         </p>
                     </div>
                 ))}
