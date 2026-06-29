@@ -4,9 +4,9 @@ Durable state ledger for the `/loop` engineering run. **Read this first every it
 One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
 - **Branch:** `roadmap/world-class` — PUSHED to origin, **PR #1 open** (https://github.com/houssem98/antigravity/pull/1).
-- **ITERATION COMPLETE:** P3-a source viewer + jump-to-span (commit 63c9458, frontend not yet deployed).
-- **NEXT:** P3-c save/share grid views, OR P3-d cross-doc compare. (P3-b already done.)
-- **DEPLOY NOTE:** market-ui frontend changes (P1-d highlight, P3-a viewer) not yet deployed to Vercel — batch-deploy when P3 frontend work is done.
+- **ITERATION COMPLETE:** P3-c save/share grid links (commit 8eb233b). Only P3-d left in P3.
+- **NEXT:** P3-d deepen cross-doc comparison in grid (last P3 item). Then P4-b grid throughput; P4-a (latency) + P4-c (SSO/audit) likely spend/scope-heavy.
+- **DEPLOY NOTE:** market-ui frontend changes (P1-d highlight, P3-a viewer, P3-c share) not yet deployed to Vercel — batch-deploy after P3-d.
 - **P4-a LATENCY = SPEND-BLOCKED (triangulated 4x):** p50 ~18s dominated by DeepSeek generation (~12-15s). DeepSeek is FIRST for all tiers in router because it's the only FUNDED model that reads in-context XBRL facts (gemini/groq/gpt = free-tier rate-limited/no-quota). Terse-prompt + max_tokens levers already pulled. <2s target UNREACHABLE without a funded fast model (Groq dev tier / funded OpenAI). A deterministic query-understanding fast-path was considered + rejected: risks mis-routing → regresses correctness for ~2s that doesn't hit the 2s target anyway. **SKIP P4-a until paid fast key.**
 - ⚠️ **ROTATE KEYS:** committed config files (`.claude/settings.json`, `.claude/settings.local.json`, `scripts/hermes.bat`) held live OpenRouter/Supabase/Anthropic keys. Purged from pushed history via git-filter-repo + `.gitignore`d on origin (PR #1). They remain in LOCAL history (commit 2bf71c6) → **rotate them**.
 - ✅ **RECONCILE DONE:** local `roadmap/world-class` == origin (`f040457`, identical), WIP + configs preserved (configs now gitignored, untracked). `core.longpaths true` set.
@@ -37,7 +37,7 @@ One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 ### P3 — Source viewer + workflow
 - [x] **P3-a** Filing/PDF source viewer with citation jump-to-span — *DONE (frontend). Widened the citation panel's context window 1→2 (fuller filing stretch); auto-scrolls the cited passage into view on open (jump-to); `highlightSpan` highlights the EXACT cited snippet substring within the chunk (offset-independent string match, whole-chunk fallback if not verbatim — works on existing corpus, no re-ingest). Scrollable viewer. Built clean. NOTE: not a true PDF/page-image viewer (chunk-text based); a real PDF viewer needs PageIndex page-image rendering (dormant, separate lever). Commit 63c9458.*
 - [x] **P3-b** Export grid → Excel — *DONE (pre-existing). `gridExcel.exportGridToXLSX` → Grid + Sources + FinData + Validation sheets; wired to Excel + CSV buttons. Verified.*
-- [ ] **P3-c** Save/share grid views
+- [x] **P3-c** Save/share grid views — *DONE. SAVE already existed (`gridStore`: save/load/list/delete on Supabase `grid_runs`, user-scoped, auto-restore last run). Added SHARE: `gridShare.ts` encodes full GridState into a URL fragment (UTF-8-safe base64) → self-contained shareable link needing NO auth/server to view. Server-backed share would need an `is_public` column + RLS policy (Supabase DDL = manual dashboard step, blocked) — the URL-fragment approach sidesteps it. Share button copies link (64KB guard → Excel-export fallback for huge grids); mount loads a shared grid from URL (wins over last-run), then clears the hash. b64 round-trip verified (UTF-8/emoji). Built clean. Commit 8eb233b.*
 - [ ] **P3-d** Deepen cross-doc comparison in grid
 
 ### P4 — Scale / enterprise
