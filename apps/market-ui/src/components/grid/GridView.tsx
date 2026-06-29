@@ -73,6 +73,9 @@ export default function GridView() {
     const [searchQuery, setSearchQuery] = useState('');
     const [copiedCell, setCopiedCell] = useState<string | null>(null);
     const [shareMsg, setShareMsg] = useState<string | null>(null);
+    // P4-b throughput: actual wall-time + cells/sec for the last run, so the
+    // /100-cell SLA is measurable (was unmeasured).
+    const [runStats, setRunStats] = useState<{ cells: number; wallS: number; per100S: number } | null>(null);
     const [burst, setBurst] = useState(false);
     const [activeCitation, setActiveCitation] = useState<number | null>(null);
     const abortRef = useRef<AbortController | null>(null);
@@ -201,6 +204,8 @@ export default function GridView() {
         const initial = initializeGrid(def);
         setState(initial);
         setRunning(true);
+        setRunStats(null);
+        const t0 = performance.now();
         const controller = new AbortController();
         abortRef.current = controller;
 
@@ -219,6 +224,16 @@ export default function GridView() {
                 onCellUpdate: (s) => { setState({ ...s }); },
             });
             setState(final);
+            // P4-b: record actual throughput. per100S extrapolates this run's
+            // cells/sec to 100 cells (the SLA unit), so a small run still reports
+            // a comparable /100 figure.
+            const wallS = (performance.now() - t0) / 1000;
+            const doneCount = Object.values(final.cells).filter(c => c.status === 'done').length;
+            if (doneCount > 0) {
+                const per100S = (wallS / doneCount) * 100;
+                setRunStats({ cells: doneCount, wallS: Math.round(wallS), per100S: Math.round(per100S) });
+                console.log(`[grid throughput] ${doneCount} cells in ${wallS.toFixed(1)}s → ${per100S.toFixed(0)}s/100 (model=${selectedModel}, conc=${selectedModel === 'gemini' ? 1 : 6})`);
+            }
             // Success micro-interaction: cyan/gold particle burst (spec §11.4)
             const anyDone = Object.values(final.cells).some(c => c.status === 'done');
             if (anyDone && !controller.signal.aborted) {
@@ -578,6 +593,16 @@ export default function GridView() {
                         )}
 
                         <div className="flex-1" />
+
+                        {runStats && !running && (
+                            <span
+                                title={`${runStats.cells} cells in ${runStats.wallS}s · extrapolated to 100 cells`}
+                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-sm text-xs font-mono ${runStats.per100S <= 60 ? 'text-[color:var(--up)]' : 'text-[color:var(--text-3)]'}`}
+                            >
+                                <Clock className="w-3 h-3" />
+                                {runStats.per100S}s/100
+                            </span>
+                        )}
 
                         {state && !running && progress && progress.done > 0 && (
                             <>
