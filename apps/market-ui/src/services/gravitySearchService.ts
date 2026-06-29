@@ -6,7 +6,7 @@
 // returns empty results so Deep Research still works web-only.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GRAVITY_API_URL = import.meta.env.VITE_GRAVITY_API_URL || 'http://localhost:8000';
+const GRAVITY_API_URL = import.meta.env?.VITE_GRAVITY_API_URL || 'http://localhost:8000';
 const RAG_TIMEOUT_MS = 45_000; // 45s — agentic pipeline needs up to 40s
 
 export interface GravityRAGSource {

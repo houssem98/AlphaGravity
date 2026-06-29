@@ -124,6 +124,46 @@ export interface CellRunnerDeps {
     searchGravity?: (query: string, ticker: string, signal?: AbortSignal) => Promise<GravityRAGResult>;
 }
 
+// Build the cross-doc comparison prompt for a synthesis cell. Groups answers BY
+// DIMENSION (each prompt → every ticker side-by-side) rather than by ticker, so
+// the LLM can compare head-to-head per dimension instead of summarising blobs.
+// Returns null when no completed cells exist to compare. Pure → unit-testable.
+export function buildSynthesisPrompt(
+    def: GridDef,
+    state: GridState,
+    prompt: GridPrompt,
+): string | null {
+    const nonSynthesis = def.prompts.filter(p => !p.synthesis);
+
+    const byDimension: string[] = [];
+    let anyAnswers = false;
+    for (const p of nonSynthesis) {
+        const perTicker: string[] = [];
+        for (const t of def.tickers) {
+            const cell = state.cells[cellKey(t, p.id)];
+            if (cell?.status === 'done' && cell.answer) {
+                anyAnswers = true;
+                perTicker.push(`  - ${t}: ${cell.answer}`);
+            }
+        }
+        if (perTicker.length > 0) {
+            byDimension.push(`### ${p.label}\n${perTicker.join('\n')}`);
+        }
+    }
+
+    if (!anyAnswers) return null;
+
+    return (
+        `You are comparing ${def.tickers.length} companies head-to-head. Below is the ` +
+        `research grouped BY DIMENSION (each section lists every company's answer for ` +
+        `that dimension):\n\n${byDimension.join('\n\n')}\n\n` +
+        `${prompt.prompt}\n\n` +
+        `Format: lead with a markdown comparison table (rows = companies, columns = the ` +
+        `key dimensions above, cells = a terse verdict/figure). Then a short ranked verdict ` +
+        `naming the winner per dimension and the overall pick. Cite specific figures where present.`
+    );
+}
+
 export async function runGridCell(
     def: GridDef,
     ticker: string,
@@ -146,24 +186,8 @@ export async function runGridCell(
     // ── Synthesis cells: compare all tickers ────────────────────────────
     if (prompt.synthesis && state) {
         try {
-            // Collect answers from ALL non-synthesis prompts across all tickers
-            const tickerAnswers: Record<string, string> = {};
-            const nonSynthesisPrompts = def.prompts.filter(p => !p.synthesis);
-
-            for (const t of def.tickers) {
-                const answers: string[] = [];
-                for (const p of nonSynthesisPrompts) {
-                    const cell = state.cells[cellKey(t, p.id)];
-                    if (cell?.status === 'done' && cell.answer) {
-                        answers.push(`**${p.label}:** ${cell.answer}`);
-                    }
-                }
-                if (answers.length > 0) {
-                    tickerAnswers[t] = answers.join('\n\n');
-                }
-            }
-
-            if (Object.keys(tickerAnswers).length === 0) {
+            const synthesisPrompt = buildSynthesisPrompt(def, state, prompt);
+            if (!synthesisPrompt) {
                 return {
                     ticker,
                     promptId,
@@ -172,10 +196,6 @@ export async function runGridCell(
                     durationMs: Date.now() - started,
                 };
             }
-
-            const synthesisPrompt = `Below is research for each ticker:\n\n${Object.entries(tickerAnswers)
-                .map(([t, ans]) => `${t}:\n${ans}`)
-                .join('\n\n---\n\n')}\n\n${prompt.prompt}`;
 
             const { text, model } = await deps.callLLM(synthesisPrompt, signal);
             return {
