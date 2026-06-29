@@ -4,8 +4,8 @@ Durable state ledger for the `/loop` engineering run. **Read this first every it
 One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
 - **Branch:** `roadmap/world-class` — PUSHED to origin, **PR #1 open** (https://github.com/houssem98/antigravity/pull/1).
-- **ITERATION COMPLETE:** P1-d span-level citations implemented (commit 0e751a5). Infrastructure ready; value accrues with new ingestions (current corpus 2020-2026, no offsets until re-ingest).
-- **NEXT:** Numeric lever = deterministic structured-fact pinning (via priority-pin logic in search_pipeline.py). Target: move numeric from ~50%→60%+ by ensuring exact XBRL facts survive context cut. Also P2-a transcripts ingestion (low-hanging corpus expansion).
+- **ITERATION COMPLETE:** P2-a earnings transcript backfill script (commit 8b54094). Run on Fly to index.
+- **NEXT:** P2-b news/press source, OR P3-a source viewer, OR latency (P4-a — biggest benchmark gap, 18s p50 vs 2s target).
 - ⚠️ **ROTATE KEYS:** committed config files (`.claude/settings.json`, `.claude/settings.local.json`, `scripts/hermes.bat`) held live OpenRouter/Supabase/Anthropic keys. Purged from pushed history via git-filter-repo + `.gitignore`d on origin (PR #1). They remain in LOCAL history (commit 2bf71c6) → **rotate them**.
 - ✅ **RECONCILE DONE:** local `roadmap/world-class` == origin (`f040457`, identical), WIP + configs preserved (configs now gitignored, untracked). `core.longpaths true` set.
 - 🚨 **PUBLIC SECRET LEAK (user handling):** repo is PUBLIC and `origin/main` (commits `423e07b`, `a09c2fd`) contains 4 live keys (OpenRouter, Supabase Secret, Supabase PAT, Anthropic). User said they'll fix. Keys MUST be rotated (already public). Local branches main/hermes-integration/fix-* + `backup/roadmap-pre-scrub` still hold them in history.
@@ -28,7 +28,7 @@ One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 - [x] **P1-d** Span-level citations (store char offsets at ingest; highlight exact passage) — *DONE (infrastructure). Chunker computes char_offset_start/char_offset_end by text search; offsets flow through RetrievalResult → API → frontend. SourceContext highlights cited passage if offsets present. MVP: visual indicator (background highlight) when offsets available. VALUE: accrues with new documents; existing corpus (2020-2026) won't have offsets until re-ingest. Infrastructure ready for FinanceBench-targeted 2016-19 filing backfill (planned post-P1). Commit 0e751a5.*
 
 ### P2 — Corpus moat
-- [ ] **P2-a** Add earnings-call transcripts ingestion source
+- [x] **P2-a** Add earnings-call transcripts ingestion source — *DONE. `scripts/backfill_transcripts.py` added. Uses `EarningsTranscriptSource.fetch_transcript()` (EDGAR 8-K free path, Quartr/AlphaVantage optional). Pipes full_text → `pipeline.ingest_bytes(filing_type="earnings_transcript")` → full vec+keyword+structured pipeline. Top-100 S&P tickers, 3s/ticker, resume support. **Run on Fly to actually index:** `BULK_FAST_INGEST=true python scripts/backfill_transcripts.py --limit 100 --resume`. Infra complete; corpus expansion deferred to Fly run. Commit 8b54094.*
 - [ ] **P2-b** Add news / press-release source
 - [ ] **P2-c** Freshness SLA: ingest < 1h of EDGAR publish
 
