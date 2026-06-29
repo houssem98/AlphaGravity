@@ -50,9 +50,12 @@ def get_embedder():
     if settings.google_api_key:
         from app.embeddings.gemini_embedder import GeminiEmbedder
         providers.append(("gemini", GeminiEmbedder))
-    # Local self-hosted fallback — no API key, always last resort.
-    from app.embeddings.local_embedder import LocalEmbedder
-    providers.append(("local", LocalEmbedder))
+    # Local self-hosted fallback — only when explicitly enabled (loads ~2GB model,
+    # OOM-kills constrained containers like Fly 512MB machines otherwise).
+    import os
+    if os.getenv("LOCAL_EMBEDDER_ENABLED", "").lower() in ("1", "true", "yes"):
+        from app.embeddings.local_embedder import LocalEmbedder
+        providers.append(("local", LocalEmbedder))
 
     logger.info("embedder_chain", providers=[p[0] for p in providers])
     base = FallbackEmbedder(providers)
