@@ -4,8 +4,9 @@ Durable state ledger for the `/loop` engineering run. **Read this first every it
 One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
 - **Branch:** `roadmap/world-class` — PUSHED to origin, **PR #1 open** (https://github.com/houssem98/antigravity/pull/1).
-- **ITERATION COMPLETE:** P2-c freshness SLA metric (commit bfc7972). **P2 corpus moat ALL DONE.**
-- **NEXT:** P3-a source viewer (frontend, uses P1-d offsets), OR P3-c save/share grid, OR P3-d cross-doc compare.
+- **ITERATION COMPLETE:** P3-a source viewer + jump-to-span (commit 63c9458, frontend not yet deployed).
+- **NEXT:** P3-c save/share grid views, OR P3-d cross-doc compare. (P3-b already done.)
+- **DEPLOY NOTE:** market-ui frontend changes (P1-d highlight, P3-a viewer) not yet deployed to Vercel — batch-deploy when P3 frontend work is done.
 - **P4-a LATENCY = SPEND-BLOCKED (triangulated 4x):** p50 ~18s dominated by DeepSeek generation (~12-15s). DeepSeek is FIRST for all tiers in router because it's the only FUNDED model that reads in-context XBRL facts (gemini/groq/gpt = free-tier rate-limited/no-quota). Terse-prompt + max_tokens levers already pulled. <2s target UNREACHABLE without a funded fast model (Groq dev tier / funded OpenAI). A deterministic query-understanding fast-path was considered + rejected: risks mis-routing → regresses correctness for ~2s that doesn't hit the 2s target anyway. **SKIP P4-a until paid fast key.**
 - ⚠️ **ROTATE KEYS:** committed config files (`.claude/settings.json`, `.claude/settings.local.json`, `scripts/hermes.bat`) held live OpenRouter/Supabase/Anthropic keys. Purged from pushed history via git-filter-repo + `.gitignore`d on origin (PR #1). They remain in LOCAL history (commit 2bf71c6) → **rotate them**.
 - ✅ **RECONCILE DONE:** local `roadmap/world-class` == origin (`f040457`, identical), WIP + configs preserved (configs now gitignored, untracked). `core.longpaths true` set.
@@ -34,7 +35,7 @@ One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 - [x] **P2-c** Freshness SLA: ingest < 1h of EDGAR publish — *DONE. Poller already polls every 5min (300s) → lag structurally <1h; the gap was it was UNMEASURABLE (`filing_date` truncated Atom `updated` to date-only, discarding publish time). Fixed: preserve full `accepted_at` timestamp + log `edgar_freshness_lag_s`/`within_sla` per ingested filing → continuous SLA metric (queryable in Fly logs). `_freshness_lag_seconds` parser + 4 tests (tz-aware/naive/unparseable). No polling rebuild needed. Commit bfc7972.*
 
 ### P3 — Source viewer + workflow
-- [ ] **P3-a** Filing/PDF source viewer with citation jump-to-span
+- [x] **P3-a** Filing/PDF source viewer with citation jump-to-span — *DONE (frontend). Widened the citation panel's context window 1→2 (fuller filing stretch); auto-scrolls the cited passage into view on open (jump-to); `highlightSpan` highlights the EXACT cited snippet substring within the chunk (offset-independent string match, whole-chunk fallback if not verbatim — works on existing corpus, no re-ingest). Scrollable viewer. Built clean. NOTE: not a true PDF/page-image viewer (chunk-text based); a real PDF viewer needs PageIndex page-image rendering (dormant, separate lever). Commit 63c9458.*
 - [x] **P3-b** Export grid → Excel — *DONE (pre-existing). `gridExcel.exportGridToXLSX` → Grid + Sources + FinData + Validation sheets; wired to Excel + CSV buttons. Verified.*
 - [ ] **P3-c** Save/share grid views
 - [ ] **P3-d** Deepen cross-doc comparison in grid
