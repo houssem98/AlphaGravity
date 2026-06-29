@@ -179,6 +179,10 @@ class RetrievalResult:
     document_type: str = ""   # "10-K" | "earnings_transcript" | "news" etc.
     source_quality: int = 5   # 1–10 authority score per roadmap §6.1
 
+    # Char offsets for citation highlighting (span-level citations)
+    char_offset_start: int | None = None
+    char_offset_end: int | None = None
+
     def __post_init__(self):
         # Auto-compute authority score from document type / URL / title.
         if self.source_quality == 5 and (self.document_type or self.document_title or self.metadata):

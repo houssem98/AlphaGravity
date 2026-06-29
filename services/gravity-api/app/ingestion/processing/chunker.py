@@ -112,6 +112,7 @@ class HierarchicalChunker:
         """
         chunks = []
         position = 0
+        doc_text = text  # Store for offset computation
 
         # If no sections detected, create a single section from the full text
         if not sections:
@@ -223,6 +224,13 @@ class HierarchicalChunker:
                 ))
                 position += 1
 
+        # Compute char offsets for citation highlighting
+        for chunk in chunks:
+            offset_tuple = self._find_text_offset(chunk.text, doc_text)
+            if offset_tuple:
+                chunk.metadata["char_offset_start"] = offset_tuple[0]  # type: ignore
+                chunk.metadata["char_offset_end"] = offset_tuple[1]  # type: ignore
+
         logger.info(
             "chunked_document",
             document_id=metadata.document_id,
@@ -244,6 +252,8 @@ class HierarchicalChunker:
         page: int | None = None,
         position: int = 0,
         extra_metadata: dict | None = None,
+        char_offset_start: int | None = None,
+        char_offset_end: int | None = None,
     ) -> ChunkOutput:
         """Create a chunk with metadata prepended for embedding."""
         # Build metadata prefix
@@ -275,6 +285,11 @@ class HierarchicalChunker:
         }
         if extra_metadata:
             meta_dict.update(extra_metadata)
+
+        # Store char offsets in metadata for citation highlighting
+        if char_offset_start is not None and char_offset_end is not None:
+            meta_dict["char_offset_start"] = char_offset_start  # type: ignore
+            meta_dict["char_offset_end"] = char_offset_end  # type: ignore
 
         return ChunkOutput(
             id=str(uuid.uuid4()),
@@ -342,3 +357,10 @@ class HierarchicalChunker:
             chunks.append("\n\n".join(current))
 
         return chunks
+
+    def _find_text_offset(self, text: str, source: str) -> tuple[int, int] | None:
+        """Find char offset of text in source. Returns (start, end) or None."""
+        idx = source.find(text)
+        if idx == -1:
+            return None
+        return (idx, idx + len(text))

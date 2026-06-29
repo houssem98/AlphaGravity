@@ -77,6 +77,8 @@ class SparseSearch:
                 page=r.get("page"),
                 filing_date=r.get("filing_date", "") or "",
                 ticker=r.get("ticker", "") or "",
+                char_offset_start=r.get("char_offset_start"),
+                char_offset_end=r.get("char_offset_end"),
             ))
         logger.info("sparse_search_supabase", results=len(out),
                     tickers=tickers, q_len=len(q))
@@ -124,6 +126,8 @@ class SparseSearch:
                     page=src.get("page"),
                     filing_date=src.get("filing_date", ""),
                     ticker=src.get("ticker", ""),
+                    char_offset_start=src.get("char_offset_start"),
+                    char_offset_end=src.get("char_offset_end"),
                 ))
             logger.info("sparse_search_es", results=len(output))
             return output

@@ -1940,7 +1940,10 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
 
         _tk = c.get("ticker") or _pf("ticker")
         _sec = c.get("section") or _pf("section")
-        out.append({
+        _offset_start = c.get("char_offset_start") or (getattr(p, "char_offset_start", None) if p is not None else None)
+        _offset_end = c.get("char_offset_end") or (getattr(p, "char_offset_end", None) if p is not None else None)
+
+        citation = {
             # Frontend/WS shape …
             "citation_number": num,
             "chunk_id": chunk_id,
@@ -1953,7 +1956,14 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
             "id": num,
             "source": doc_title,
             "date": c.get("filing_date") or _pf("filing_date"),
-        })
+        }
+
+        # Add char offsets for span-level citation highlighting
+        if _offset_start is not None and _offset_end is not None:
+            citation["char_offset_start"] = _offset_start
+            citation["char_offset_end"] = _offset_end
+
+        out.append(citation)
 
     # Resilience: the model degrades under rate-limit and drops the citations
     # array entirely, leaving the source panel empty even though passages WERE

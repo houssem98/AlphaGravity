@@ -38,6 +38,8 @@ export interface GravityRAGResult {
         source_id: string;
         document_title: string;
         text: string;
+        char_offset_start?: number;
+        char_offset_end?: number;
     }>;
     confidence: string;
     latency_ms: number;

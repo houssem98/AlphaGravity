@@ -40,6 +40,8 @@ export interface GravityCitation {
     ticker: string;
     section: string;
     is_verified: boolean;
+    char_offset_start?: number;
+    char_offset_end?: number;
 }
 
 export interface GravityMetric {

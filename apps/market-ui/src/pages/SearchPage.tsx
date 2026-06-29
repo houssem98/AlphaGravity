@@ -591,7 +591,11 @@ function SourceContext({ citation }: { citation: GravityCitation }) {
                             {c.section && <span className="text-[10px] text-[var(--text-3)] truncate">{c.section}</span>}
                         </div>
                         <p className={`text-xs leading-relaxed ${c.is_cited ? 'text-[var(--text)]' : 'text-[var(--text-2)]'}`}>
-                            {c.is_cited ? `"${c.text}"` : c.text}
+                            {c.is_cited && citation.char_offset_start !== undefined && citation.char_offset_end !== undefined ? (
+                                <mark className="bg-[var(--accent)]/20 text-inherit rounded px-0.5">{`"${c.text}"`}</mark>
+                            ) : (
+                                c.is_cited ? `"${c.text}"` : c.text
+                            )}
                         </p>
                     </div>
                 ))}

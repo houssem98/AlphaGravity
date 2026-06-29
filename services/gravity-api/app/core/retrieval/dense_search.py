@@ -72,6 +72,8 @@ class DenseSearch:
                     page=payload.get("page"),
                     filing_date=payload.get("filing_date", ""),
                     ticker=payload.get("ticker", ""),
+                    char_offset_start=payload.get("char_offset_start"),
+                    char_offset_end=payload.get("char_offset_end"),
                 ))
 
             logger.info("dense_search", results=len(output))
