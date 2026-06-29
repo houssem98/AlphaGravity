@@ -4,8 +4,8 @@ Durable state ledger for the `/loop` engineering run. **Read this first every it
 One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
 - **Branch:** `roadmap/world-class` — PUSHED to origin, **PR #1 open** (https://github.com/houssem98/antigravity/pull/1).
-- **ITERATION COMPLETE:** P2-b news backfill script (commit a86a9c6). Run on Fly to index.
-- **NEXT:** P2-c freshness SLA, OR P3-a source viewer (frontend), OR P3-c save/share grid.
+- **ITERATION COMPLETE:** P2-c freshness SLA metric (commit bfc7972). **P2 corpus moat ALL DONE.**
+- **NEXT:** P3-a source viewer (frontend, uses P1-d offsets), OR P3-c save/share grid, OR P3-d cross-doc compare.
 - **P4-a LATENCY = SPEND-BLOCKED (triangulated 4x):** p50 ~18s dominated by DeepSeek generation (~12-15s). DeepSeek is FIRST for all tiers in router because it's the only FUNDED model that reads in-context XBRL facts (gemini/groq/gpt = free-tier rate-limited/no-quota). Terse-prompt + max_tokens levers already pulled. <2s target UNREACHABLE without a funded fast model (Groq dev tier / funded OpenAI). A deterministic query-understanding fast-path was considered + rejected: risks mis-routing → regresses correctness for ~2s that doesn't hit the 2s target anyway. **SKIP P4-a until paid fast key.**
 - ⚠️ **ROTATE KEYS:** committed config files (`.claude/settings.json`, `.claude/settings.local.json`, `scripts/hermes.bat`) held live OpenRouter/Supabase/Anthropic keys. Purged from pushed history via git-filter-repo + `.gitignore`d on origin (PR #1). They remain in LOCAL history (commit 2bf71c6) → **rotate them**.
 - ✅ **RECONCILE DONE:** local `roadmap/world-class` == origin (`f040457`, identical), WIP + configs preserved (configs now gitignored, untracked). `core.longpaths true` set.
@@ -31,7 +31,7 @@ One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 ### P2 — Corpus moat
 - [x] **P2-a** Add earnings-call transcripts ingestion source — *DONE. `scripts/backfill_transcripts.py` added. Uses `EarningsTranscriptSource.fetch_transcript()` (EDGAR 8-K free path, Quartr/AlphaVantage optional). Pipes full_text → `pipeline.ingest_bytes(filing_type="earnings_transcript")` → full vec+keyword+structured pipeline. Top-100 S&P tickers, 3s/ticker, resume support. **Run on Fly to actually index:** `BULK_FAST_INGEST=true python scripts/backfill_transcripts.py --limit 100 --resume`. Infra complete; corpus expansion deferred to Fly run. Commit 8b54094.*
 - [x] **P2-b** Add news / press-release source — *DONE. `scripts/backfill_news.py`. Uses `NewsSource.fetch_company_news` (GDELT free, no key) for URL discovery → `pipeline.ingest_from_url(filing_type="news")` fetches each article body. News ranks below filings in fusion (5 vs 10) → neutral to FinanceBench numeric, adds qualitative/recency coverage. NEWSAPI_KEY optional for full-text. Found+left dead code: `gdelt.publish_articles` mis-indented inside `_parse_gdelt_date` (unreachable, uses `self` outside class) — NO callers, YAGNI left as-is. **Run on Fly to index.** Commit a86a9c6.*
-- [ ] **P2-c** Freshness SLA: ingest < 1h of EDGAR publish
+- [x] **P2-c** Freshness SLA: ingest < 1h of EDGAR publish — *DONE. Poller already polls every 5min (300s) → lag structurally <1h; the gap was it was UNMEASURABLE (`filing_date` truncated Atom `updated` to date-only, discarding publish time). Fixed: preserve full `accepted_at` timestamp + log `edgar_freshness_lag_s`/`within_sla` per ingested filing → continuous SLA metric (queryable in Fly logs). `_freshness_lag_seconds` parser + 4 tests (tz-aware/naive/unparseable). No polling rebuild needed. Commit bfc7972.*
 
 ### P3 — Source viewer + workflow
 - [ ] **P3-a** Filing/PDF source viewer with citation jump-to-span
