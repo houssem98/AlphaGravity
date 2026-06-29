@@ -6,7 +6,7 @@ import { useState, useRef, useEffect, Children, type ReactNode } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Play, X, Grid as GridIcon, Sparkles, Loader2, Check, AlertCircle, Download, Clock, Trash2, Copy, Check as CheckIcon, ExternalLink } from 'lucide-react';
+import { Play, X, Grid as GridIcon, Sparkles, Loader2, Check, AlertCircle, Download, Clock, Trash2, Copy, Check as CheckIcon, ExternalLink, Share2 } from 'lucide-react';
 import type { Citation } from '../../services/deepResearchService';
 import {
     initializeGrid,
@@ -25,6 +25,7 @@ import {
 import { queryGravityRAG } from '../../services/gravitySearchService';
 import { saveGridRun, loadLatestGridRun, listGridRuns, loadGridRun, deleteGridRun, type SavedGridRow } from '../../services/gridStore';
 import { exportGridToXLSX, downloadBlob } from '../../services/gridExcel';
+import { buildShareLink, readSharedGridFromUrl, clearSharedGridFromUrl } from '../../services/gridShare';
 
 const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/llm/chat`;
 
@@ -71,6 +72,7 @@ export default function GridView() {
     const [sortDesc, setSortDesc] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [copiedCell, setCopiedCell] = useState<string | null>(null);
+    const [shareMsg, setShareMsg] = useState<string | null>(null);
     const [burst, setBurst] = useState(false);
     const [activeCitation, setActiveCitation] = useState<number | null>(null);
     const abortRef = useRef<AbortController | null>(null);
@@ -96,9 +98,19 @@ export default function GridView() {
         setHistory(rows);
     };
 
-    // Restore last run on mount (best-effort; silent on failure/signed-out)
+    // Mount: a shared grid in the URL wins over last-run restore. Otherwise
+    // restore the user's last run (best-effort; silent on failure/signed-out).
     useEffect(() => {
         let cancelled = false;
+        const shared = readSharedGridFromUrl();
+        if (shared) {
+            setState(shared);
+            setTickersInput(shared.def.tickers.join(', '));
+            setPromptIds(shared.def.prompts.map(p => p.id));
+            clearSharedGridFromUrl();
+            refreshHistory();
+            return () => { cancelled = true; };
+        }
         loadLatestGridRun()
             .then(last => {
                 if (cancelled || !last) return;
@@ -268,6 +280,19 @@ export default function GridView() {
         if (!state) return;
         const blob = await exportGridToXLSX(state);
         downloadBlob(blob, stampedName('xlsx'));
+    };
+
+    const handleShare = async () => {
+        if (!state) return;
+        const link = buildShareLink(state);
+        if (!link) {
+            setShareMsg('Grid too large to share by link — use Excel export');
+            setTimeout(() => setShareMsg(null), 3500);
+            return;
+        }
+        await navigator.clipboard.writeText(link);
+        setShareMsg('Share link copied');
+        setTimeout(() => setShareMsg(null), 2000);
     };
 
     const handleLoadHistory = async (id: string) => {
@@ -571,6 +596,14 @@ export default function GridView() {
                                 >
                                     <Download className="w-3.5 h-3.5" />
                                     Excel
+                                </button>
+                                <button
+                                    onClick={handleShare}
+                                    title="Copy a shareable link to this grid"
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-[color:var(--text-2)] border border-[color:var(--line)] hover:text-[color:var(--text)] hover:border-[color:var(--text-2)] hover:shadow-sm hover:bg-[color:var(--surface-2)] transition-all"
+                                >
+                                    <Share2 className="w-3.5 h-3.5" />
+                                    {shareMsg ?? 'Share'}
                                 </button>
                             </>
                         )}
