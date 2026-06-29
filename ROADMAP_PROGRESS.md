@@ -4,8 +4,8 @@ Durable state ledger for the `/loop` engineering run. **Read this first every it
 One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
 - **Branch:** `roadmap/world-class` — PUSHED to origin, **PR #1 open** (https://github.com/houssem98/antigravity/pull/1).
-- **ITERATION COMPLETE:** P3-d cross-doc comparison (commit 1ed32d3). **P3 COMPLETE.** Only P4 left.
-- **NEXT:** P4-b grid throughput /100 cells <60s (measurable, non-blocked — concurrency already 6 for paid models). P4-a latency SPEND-blocked. P4-c (entitlements/audit/SSO) = big enterprise scope.
+- **ITERATION COMPLETE:** P4-b grid throughput instrumented (commit 1ff2ff9); target spend-blocked like P4-a.
+- **NEXT:** P4-c entitlements/audit/SSO — last roadmap item. Audit-log code exists (`compliance/audit_log.py`); entitlements/permissions likely partial. Assess scope, ship the non-blocked slice. After P4-c, only spend-blocked items (P4-a, P4-b target, rerank quality) remain → loop near exit.
 - **DEPLOY NOTE:** market-ui frontend changes (P1-d highlight, P3-a viewer, P3-c share, P3-d comparison) NOT yet deployed to Vercel — batch-deploy now P3 is done: `vercel --prod --yes` from repo root (project market-ui).
 - **P4-a LATENCY = SPEND-BLOCKED (triangulated 4x):** p50 ~18s dominated by DeepSeek generation (~12-15s). DeepSeek is FIRST for all tiers in router because it's the only FUNDED model that reads in-context XBRL facts (gemini/groq/gpt = free-tier rate-limited/no-quota). Terse-prompt + max_tokens levers already pulled. <2s target UNREACHABLE without a funded fast model (Groq dev tier / funded OpenAI). A deterministic query-understanding fast-path was considered + rejected: risks mis-routing → regresses correctness for ~2s that doesn't hit the 2s target anyway. **SKIP P4-a until paid fast key.**
 - ⚠️ **ROTATE KEYS:** committed config files (`.claude/settings.json`, `.claude/settings.local.json`, `scripts/hermes.bat`) held live OpenRouter/Supabase/Anthropic keys. Purged from pushed history via git-filter-repo + `.gitignore`d on origin (PR #1). They remain in LOCAL history (commit 2bf71c6) → **rotate them**.
@@ -42,7 +42,7 @@ One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
 ### P4 — Scale / enterprise
 - [ ] **P4-a** Quick-answer p95 < 2s
-- [ ] **P4-b** Grid 100 cells < 60s
+- [~] **P4-b** Grid 100 cells < 60s — *INSTRUMENTED + structurally spend-blocked. Added throughput measurement (actual wall-time + extrapolated s/100-cells, toolbar stat green if ≤60s + console log) — the SLA was UNMEASURED (P0-c flagged). Honest ceiling: per-cell = one gravity-api /v1/search (~13-18s, DeepSeek wall) and the small Fly box caps concurrency (load→timeouts), so 100 cells/6-conc ≈ 250s. Hitting <60s needs backend scale + a fast model = SAME spend wall as P4-a. Client concurrency stays 6 (blind bump → backend timeouts). Measurement shipped; target itself spend-blocked. Commit 1ff2ff9.*
 - [ ] **P4-c** Enforce entitlements/permissions, audit log, SSO
 
 ---
