@@ -56,6 +56,20 @@ _POLL_INTERVAL_SECONDS = int(__import__("os").getenv("EDGAR_POLL_INTERVAL_SECOND
 _INTER_FILING_SLEEP_S = float(__import__("os").getenv("EDGAR_INTER_FILING_SLEEP_S", "1.5"))
 
 
+def _freshness_lag_seconds(accepted_at: str) -> float | None:
+    """Seconds between EDGAR publish (Atom `updated`) and now. None if unparseable."""
+    if not accepted_at:
+        return None
+    try:
+        from datetime import timezone
+        dt = datetime.fromisoformat(accepted_at)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - dt).total_seconds()
+    except (ValueError, TypeError):
+        return None
+
+
 class SECEdgarSource:
     """
     Monitors SEC EDGAR for new filings and publishes them to the ingestion pipeline.
@@ -156,6 +170,12 @@ class SECEdgarSource:
                 await self._ingest_filing(filing)
                 await self._mark_seen(accession)
                 new_count += 1
+                # Freshness SLA metric: lag from EDGAR publish to index (target <1h).
+                _lag = _freshness_lag_seconds(filing.get("accepted_at", ""))
+                if _lag is not None:
+                    logger.info("edgar_freshness_lag_s", lag_s=round(_lag, 1),
+                                within_sla=_lag < 3600, filing_type=filing_type,
+                                ticker=filing.get("ticker", ""), accession=accession)
                 asyncio.create_task(self._fire_webhooks(filing))
                 await asyncio.sleep(_INTER_FILING_SLEEP_S)
             except Exception as e:
@@ -272,6 +292,10 @@ class SECEdgarSource:
                     "url": url,
                     "accession_number": accession,
                     "filing_date": updated[:10] if updated else "",
+                    # Full publish timestamp (EDGAR acceptance) — kept for the
+                    # freshness SLA: lag = indexed_at - accepted_at. filing_date
+                    # truncates to date so it can't measure a <1h SLA.
+                    "accepted_at": updated or "",
                     "title": title,
                     "summary": summary,
                 })
