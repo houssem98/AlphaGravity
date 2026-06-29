@@ -3,6 +3,9 @@
 Durable state ledger for the `/loop` engineering run. **Read this first every iteration.**
 One shippable task per iteration. P0 before P1, etc. Skip BLOCKED tasks.
 
+- **COMPLETION: tasks 15/19 done = 79%** (P0 5/5, P1 3/4, P2 3/3, P3 4/4, P4 0/3 + b instrumented). Only P4-c left unstarted; P4-a + P4-b-target spend-blocked.
+- **BENCHMARK-WEIGHTED (real world-class) ≈ 35%:** halluc ✅(0%), extraction 86%/95%, numeric 50%/80%, corpus 283/500 (+news/transcript infra unrun on Fly), citation 27%/95%, latency 18s/2s + grid /100 ~250s/60s both SPEND-blocked. Scaffolding done; hard accuracy/latency targets walled on spend (funded fast model + paid reranker) and the structured-fact-surfacing wall.
+
 - **Branch:** `roadmap/world-class` — PUSHED to origin, **PR #1 open** (https://github.com/houssem98/antigravity/pull/1).
 - **ITERATION COMPLETE:** P4-b grid throughput instrumented (commit 1ff2ff9); target spend-blocked like P4-a.
 - **NEXT:** P4-c entitlements/audit/SSO — last roadmap item. Audit-log code exists (`compliance/audit_log.py`); entitlements/permissions likely partial. Assess scope, ship the non-blocked slice. After P4-c, only spend-blocked items (P4-a, P4-b target, rerank quality) remain → loop near exit.
