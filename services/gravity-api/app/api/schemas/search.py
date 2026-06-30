@@ -81,6 +81,9 @@ class Citation(BaseModel):
     ticker: str = Field("", description="Company ticker")
     text: str = Field(..., description="Exact source text supporting the claim")
     url: str = Field("", description="Link to the original document")
+    chunk_id: str = Field("", description="Qdrant chunk ID for drill-to-source")
+    char_offset_start: int | None = Field(None, description="Char offset of cited span in chunk text")
+    char_offset_end: int | None = Field(None, description="Char offset end of cited span in chunk text")
 
 
 class SourcePassage(BaseModel):
@@ -114,6 +117,12 @@ class SearchMetadata(BaseModel):
     retrieval_channels: list[str] = Field(default_factory=list)
     passages_used: int = 0
     cache_hit: bool = False
+    # Per-stage latency breakdown (P4.3 observability) — 0 when not measured.
+    understanding_ms: float = 0.0
+    retrieval_ms: float = 0.0
+    rerank_ms: float = 0.0
+    reasoning_ms: float = 0.0
+    validation_ms: float = 0.0
 
 
 class Contradiction(BaseModel):

@@ -106,6 +106,8 @@ class VectorIndexer:
                         "filing_type": chunk.metadata.get("filing_type", ""),
                         "filing_date": chunk.metadata.get("filing_date", ""),
                         "document_title": chunk.metadata.get("document_title", ""),
+                        "char_offset_start": chunk.metadata.get("char_offset_start"),
+                        "char_offset_end": chunk.metadata.get("char_offset_end"),
                         # ACL — pre-retrieval entitlement check (plan §6.11)
                         "entitlements": entitlements,
                     },

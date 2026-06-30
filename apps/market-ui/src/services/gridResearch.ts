@@ -13,6 +13,129 @@
 import type { Citation, ResearchModelId } from './deepResearchService';
 import { queryGravityRAG, formatRAGSourcesForPrompt, type GravityRAGResult } from './gravitySearchService';
 
+// The backend answer ends with a "Sources" footer (rich `[N] label: value`
+// lines) that duplicates the source list AND defeats the cited-only filter
+// (every [N] appears there). Split it off: return prose-only + the rich labels
+// keyed by id, so the UI renders ONE clickable list with the good labels.
+// P3.1: the comparison/synthesis row is built FROM the per-ticker cells, so its
+// evidence is the union of those cells' citations. Dedupe by title+url, renumber.
+export function aggregateCitations(def: GridDef, state: GridState): Citation[] {
+    const seen = new Set<string>();
+    const out: Citation[] = [];
+    for (const p of def.prompts) {
+        if (p.synthesis) continue;
+        for (const t of def.tickers) {
+            for (const c of state.cells[cellKey(t, p.id)]?.citations ?? []) {
+                const key = `${c.title || ''}|${c.url || ''}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                out.push({ ...c, id: out.length + 1 });
+            }
+        }
+    }
+    return out;
+}
+
+// M4: render the whole grid as a polished Markdown research memo — the analyst's
+// deliverable, done. Sectioned by company, each question with its answer, outlier
+// callouts, and real sources. Pure → testable, downloadable as .md.
+export function buildMemo(state: GridState, outliers?: Map<string, string[]>): string {
+    const { def, cells } = state;
+    const out: string[] = [];
+    const regular = def.prompts.filter(p => !p.synthesis);
+    out.push(`# ${def.name} — Research Memo`);
+    out.push(`*Generated ${new Date().toISOString().slice(0, 10)} · ${def.tickers.length} companies × ${regular.length} questions*`);
+    out.push('');
+    for (const ticker of def.tickers) {
+        out.push(`## ${ticker}`);
+        for (const p of regular) {
+            const cell = cells[cellKey(ticker, p.id)];
+            if (!cell?.answer) continue;
+            out.push(`### ${p.label}`);
+            const o = outliers?.get(cellKey(ticker, p.id));
+            if (o?.length) out.push(`> ⚡ Unique to ${ticker}: ${o.join(', ')}`);
+            out.push(cell.answer.trim());
+            if (cell.citations?.length) {
+                out.push('');
+                out.push('**Sources:**');
+                for (const c of cell.citations) {
+                    const link = c.url && !c.url.startsWith('gravity://') ? ` — ${c.url}` : '';
+                    out.push(`- [${c.id}] ${c.title}${link}`);
+                }
+            }
+            out.push('');
+        }
+    }
+    for (const p of def.prompts.filter(p => p.synthesis)) {
+        const cell = cells[cellKey('ALL', p.id)];
+        if (cell?.answer) {
+            out.push(`## ${p.label}`);
+            out.push(cell.answer.trim());
+            out.push('');
+        }
+    }
+    return out.join('\n');
+}
+
+// M2 outlier highlighting: salient risk/event terms. A term that appears in
+// exactly ONE cell of a column is "distinctive" — e.g. only one company in the
+// grid flags litigation. That's the insight a wall of cells hides.
+const SALIENT_TERMS = [
+    'litigation', 'lawsuit', 'investigation', 'subpoena', 'antitrust', 'impairment',
+    'going concern', 'restructuring', 'recall', 'data breach', 'dilution', 'covenant',
+    'default', 'tariff', 'sanction', 'layoff', 'material weakness', 'write-down',
+    'guidance cut', 'decline', 'shortage', 'dependence', 'concentration',
+];
+
+// For a column's cell texts (in order), return the salient terms UNIQUE to each
+// cell within that column (present here, in no sibling). Empty array = not an outlier.
+export function distinctiveTerms(texts: string[]): string[][] {
+    const lower = texts.map(t => (t || '').toLowerCase());
+    return lower.map(text => {
+        if (!text) return [];
+        return SALIENT_TERMS.filter(term =>
+            text.includes(term) && lower.filter(t => t.includes(term)).length === 1
+        );
+    });
+}
+
+// Material-change detection for re-runs (P2.3). LLM phrasing drifts every run,
+// so a raw text diff is all false positives. What actually matters is whether the
+// NUMBERS moved — new figure = new data = worth flagging. Extract the financial
+// figures (ignoring [N] citation markers) and compare the sets.
+export function extractFigures(text: string): string[] {
+    if (!text) return [];
+    const clean = text.replace(/\[\d+\]/g, ' ');
+    const m = clean.match(/\$?\d[\d,]*(?:\.\d+)?\s?(?:%|bn|billion|trillion|million|[mbk])?\b/gi) || [];
+    return [...new Set(m.map(s => s.replace(/\s+/g, '').toLowerCase()))].sort();
+}
+
+export function figuresChanged(oldText: string, newText: string): boolean {
+    const a = extractFigures(oldText);
+    const b = extractFigures(newText);
+    return a.length !== b.length || a.join('|') !== b.join('|');
+}
+
+// Hallucination guard: every [N] marker in the prose must map to a returned
+// citation id. Returns the sorted unique ids that DON'T — i.e. fabricated cites
+// the LLM emitted with no backing source. Empty = clean.
+export function findUnmappedCites(text: string, citations: { id: number }[]): number[] {
+    const ids = new Set(citations.map(c => c.id));
+    const used = new Set([...text.matchAll(/\[(\d+)\]/g)].map(m => Number(m[1])));
+    return [...used].filter(n => !ids.has(n)).sort((a, b) => a - b);
+}
+
+export function splitAnswerSources(answer: string): { prose: string; labels: Map<number, string> } {
+    const labels = new Map<number, string>();
+    const m = answer.match(/\n+\s*#{0,6}\s*\**\s*Sources\s*\**\s*\n([\s\S]*)$/i);
+    if (!m || m.index === undefined) return { prose: answer, labels };
+    const lineRe = /^\s*\[(\d+)\]\s*(.+?)\s*$/gm;
+    let hit: RegExpExecArray | null;
+    while ((hit = lineRe.exec(m[1]))) labels.set(Number(hit[1]), hit[2]);
+    if (labels.size === 0) return { prose: answer, labels };
+    return { prose: answer.slice(0, m.index).trimEnd(), labels };
+}
+
 export interface GridPrompt {
     id: string;
     label: string;                 // column header
@@ -203,6 +326,7 @@ export async function runGridCell(
                 promptId,
                 status: 'done',
                 answer: text,
+                citations: aggregateCitations(def, state),
                 durationMs: Date.now() - started,
                 modelUsed: model,
             };
@@ -233,17 +357,56 @@ export async function runGridCell(
 
         // If RAG returned a grounded answer, use it directly — no LLM call needed.
         if (ragResult?.available && ragResult.answer) {
-            const ragCitations: Citation[] = ragResult.sources.map((s, i) => ({
-                id: i + 1,
-                title: [s.title, s.ticker && `(${s.ticker})`, s.date && `[${s.date}]`].filter(Boolean).join(' '),
-                url: `gravity://source/${s.id}`,
-                source: 'gravity',
-                publishedDate: s.date || undefined,
-            }));
+            // Strip the baked-in "Sources" footer; keep its rich labels by id.
+            const { prose, labels } = splitAnswerSources(ragResult.answer);
+            // The answer's inline [N] markers map to citation.id. Prefer the
+            // footer's rich labels (e.g. "AAPL 10-K FY2020, Revenue (SEC XBRL)…")
+            // for the title — the structured citations' `source` is often just
+            // the ticker — and pull passage text from the structured citation by
+            // id for the click-through modal.
+            const structById = new Map((ragResult.citations ?? []).map(c => [c.id, c]));
+            let ragCitations: Citation[];
+            if (labels.size > 0) {
+                ragCitations = [...labels.entries()].sort((a, b) => a[0] - b[0]).map(([id, label]) => {
+                    const c = structById.get(id);
+                    return {
+                        id,
+                        title: label,
+                        url: c?.url || `gravity://source/${id}`,
+                        source: 'gravity',
+                        publishedDate: c?.date || undefined,
+                        chunk_id: c?.chunk_id,
+                        char_offset_start: c?.char_offset_start,
+                        char_offset_end: c?.char_offset_end,
+                        sourceData: { text: c?.text || label, ticker: c?.ticker, date: c?.date, section: c?.section },
+                    };
+                });
+            } else if (ragResult.citations && ragResult.citations.length > 0) {
+                ragCitations = ragResult.citations.map(c => ({
+                    id: c.id,
+                    title: [c.source, c.ticker && `(${c.ticker})`, c.date && `[${c.date}]`].filter(Boolean).join(' '),
+                    url: c.url || `gravity://source/${c.id}`,
+                    source: 'gravity',
+                    publishedDate: c.date || undefined,
+                    chunk_id: c.chunk_id,
+                    char_offset_start: c.char_offset_start,
+                    char_offset_end: c.char_offset_end,
+                    sourceData: { text: c.text, ticker: c.ticker, date: c.date, section: c.section },
+                }));
+            } else {
+                ragCitations = ragResult.sources.map((s, i) => ({
+                    id: i + 1,
+                    title: [s.title, s.ticker && `(${s.ticker})`, s.date && `[${s.date}]`].filter(Boolean).join(' '),
+                    url: `gravity://source/${s.id}`,
+                    source: 'gravity',
+                    publishedDate: s.date || undefined,
+                    sourceData: { text: s.text, ticker: s.ticker, date: s.date, documentType: s.document_type, section: s.section },
+                }));
+            }
             return {
                 ticker, promptId,
                 status: 'done',
-                answer: ragResult.answer,
+                answer: prose,
                 citations: ragCitations,
                 durationMs: Date.now() - started,
                 modelUsed: 'gravity-rag',

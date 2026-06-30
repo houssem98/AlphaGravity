@@ -7,6 +7,7 @@ GET  /v1/search/batch/{id}   — poll batch job status
 """
 
 import asyncio
+import time
 import uuid
 from datetime import datetime
 from typing import Any
@@ -41,6 +42,7 @@ async def search(
 
     pipeline = get_search_pipeline()
     search_id = f"search_{uuid.uuid4().hex[:12]}"
+    _t0 = time.perf_counter()
 
     # Inject rate limit headers
     headers = await check_rate_limit(auth["user_id"], auth.get("tier", "free"))
@@ -81,10 +83,25 @@ async def search(
             metadata_info = event.data or {}
 
     from app.api.schemas.search import SearchMetadata
+    # Build metadata defensively — never return null. Keep only known schema
+    # fields (the pipeline emits extras), and backfill the required ones from a
+    # route-level timer so observability survives even if the metadata event
+    # was dropped upstream.
     try:
-        meta_model = SearchMetadata(**metadata_info) if metadata_info else None
-    except Exception:
-        meta_model = None
+        known = set(SearchMetadata.model_fields.keys())
+        info = {k: v for k, v in (metadata_info or {}).items() if k in known}
+        info.setdefault("trace_id", search_id)
+        info.setdefault("latency_ms", round((time.perf_counter() - _t0) * 1000, 1))
+        info.setdefault("model_used", "unknown")
+        info.setdefault("complexity", "simple")
+        meta_model = SearchMetadata(**info)
+    except Exception as _md_err:
+        logger.warning("search_metadata_build_failed", error=str(_md_err)[:200])
+        meta_model = SearchMetadata(
+            trace_id=search_id,
+            latency_ms=round((time.perf_counter() - _t0) * 1000, 1),
+            model_used="unknown", complexity="simple",
+        )
 
     # Coerce citations to the REST Citation schema (id + source required). The
     # pipeline emits the frontend shape (citation_number/document_title) and
@@ -101,6 +118,9 @@ async def search(
             "ticker": c.get("ticker", "") or "",
             "text": c.get("text", "") or "",
             "url": c.get("url", "") or "",
+            "chunk_id": c.get("chunk_id", "") or "",
+            "char_offset_start": c.get("char_offset_start"),
+            "char_offset_end": c.get("char_offset_end"),
         }
     citations = [_coerce_citation(c, i) for i, c in enumerate(citations or [])]
 

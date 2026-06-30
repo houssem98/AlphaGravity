@@ -365,6 +365,17 @@ export interface Citation {
     url: string;
     source: string;
     publishedDate?: string;
+    chunk_id?: string;
+    char_offset_start?: number;
+    char_offset_end?: number;
+    // Gravity source metadata for modal viewing
+    sourceData?: {
+        text: string;
+        ticker?: string;
+        date?: string;
+        documentType?: string;
+        section?: string;
+    };
 }
 
 export interface ResearchReport {

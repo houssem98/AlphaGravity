@@ -33,11 +33,18 @@ export interface GravityRAGResult {
         entity?: string;
         source_id?: string;
     }>;
+    // Matches the gravity-api REST Citation schema. The answer's inline [N]
+    // markers map to `id`; each citation is self-contained (carries its own text).
     citations: Array<{
-        citation_number: number;
-        source_id: string;
-        document_title: string;
-        text: string;
+        id: number;
+        source: string;     // document title
+        section?: string;
+        page?: number | null;
+        date?: string;
+        ticker?: string;
+        text: string;       // exact source passage supporting the claim
+        url?: string;
+        chunk_id?: string;
         char_offset_start?: number;
         char_offset_end?: number;
     }>;

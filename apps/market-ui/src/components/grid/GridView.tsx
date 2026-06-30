@@ -2,11 +2,11 @@
 // Rows=tickers × Columns=analyst prompts. Each cell is an independent
 // cancellable LLM call with per-cell status.
 
-import { useState, useRef, useEffect, Children, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useMemo, Children, type ReactNode } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Play, X, Grid as GridIcon, Sparkles, Loader2, Check, AlertCircle, Download, Clock, Trash2, Copy, Check as CheckIcon, ExternalLink, Share2 } from 'lucide-react';
+import { Play, X, Grid as GridIcon, Sparkles, Loader2, Check, AlertCircle, Download, Clock, Trash2, Copy, Check as CheckIcon, Share2, ExternalLink } from 'lucide-react';
 import type { Citation } from '../../services/deepResearchService';
 import {
     initializeGrid,
@@ -17,6 +17,11 @@ import {
     SEED_GRID_PROMPTS,
     cellKey,
     resolvePrompt,
+    findUnmappedCites,
+    figuresChanged,
+    distinctiveTerms,
+    buildMemo,
+    type GridPrompt,
     type GridDef,
     type GridState,
     type GridCell,
@@ -29,6 +34,7 @@ import { buildShareLink, readSharedGridFromUrl, clearSharedGridFromUrl } from '.
 import { recordExport } from '../../services/auditClient';
 
 const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/llm/chat`;
+const GRAVITY_API = import.meta.env.VITE_GRAVITY_API_URL || 'http://localhost:8000';
 
 const MODEL_CONFIG: Record<string, { provider: string; model: string }> = {
     deepseek: { provider: 'deepseek', model: 'deepseek-chat' },
@@ -58,9 +64,28 @@ async function searchGravityCell(query: string, ticker: string, signal?: AbortSi
 
 const DEFAULT_TICKERS = ['NVDA', 'AAPL', 'MSFT', 'GOOGL'];
 
+const SEED_PROMPT_IDS = new Set(SEED_GRID_PROMPTS.map(p => p.id));
+const customFromDef = (def: GridDef): GridPrompt[] => def.prompts.filter(p => !SEED_PROMPT_IDS.has(p.id));
+
+interface SourceViewerData {
+    title: string;
+    text: string;
+    ticker?: string;
+    date?: string;
+    documentType?: string;
+    section?: string;
+    url?: string;
+    chunk_id?: string;
+    char_offset_start?: number;
+    char_offset_end?: number;
+}
+
 export default function GridView() {
     const [tickersInput, setTickersInput] = useState(DEFAULT_TICKERS.join(', '));
     const [promptIds, setPromptIds] = useState<string[]>(SEED_GRID_PROMPTS.map(p => p.id));
+    // NL custom columns: analyst-authored prompts on top of the seed set.
+    const [customPrompts, setCustomPrompts] = useState<GridPrompt[]>([]);
+    const [newColInput, setNewColInput] = useState('');
     const [state, setState] = useState<GridState | null>(null);
     const [running, setRunning] = useState(false);
     const [selectedCell, setSelectedCell] = useState<GridCell | null>(null);
@@ -74,6 +99,10 @@ export default function GridView() {
     const [searchQuery, setSearchQuery] = useState('');
     const [copiedCell, setCopiedCell] = useState<string | null>(null);
     const [shareMsg, setShareMsg] = useState<string | null>(null);
+    // Cells whose figures changed vs the previous run (P2.3 change-alerts).
+    const [changedCells, setChangedCells] = useState<Set<string>>(new Set());
+    const [sourceViewer, setSourceViewer] = useState<SourceViewerData | null>(null);
+    const [chunkFullText, setChunkFullText] = useState<string | null>(null);
     // P4-b throughput: actual wall-time + cells/sec for the last run, so the
     // /100-cell SLA is measurable (was unmeasured).
     const [runStats, setRunStats] = useState<{ cells: number; wallS: number; per100S: number } | null>(null);
@@ -111,7 +140,24 @@ export default function GridView() {
             setState(shared);
             setTickersInput(shared.def.tickers.join(', '));
             setPromptIds(shared.def.prompts.map(p => p.id));
+            setCustomPrompts(customFromDef(shared.def));
             clearSharedGridFromUrl();
+            refreshHistory();
+            return () => { cancelled = true; };
+        }
+        // Deep link from Research Library: ?gridRun=<id> opens that saved run.
+        const runId = new URLSearchParams(window.location.search).get('gridRun');
+        if (runId) {
+            loadGridRun(runId).then(s => {
+                if (cancelled || !s) return;
+                setState(s);
+                setTickersInput(s.def.tickers.join(', '));
+                setPromptIds(s.def.prompts.map(p => p.id));
+                setCustomPrompts(customFromDef(s.def));
+            }).catch(() => { /* ignore */ });
+            const url = new URL(window.location.href);
+            url.searchParams.delete('gridRun');
+            window.history.replaceState(null, '', url.pathname + url.search);
             refreshHistory();
             return () => { cancelled = true; };
         }
@@ -121,6 +167,7 @@ export default function GridView() {
                 setState(last);
                 setTickersInput(last.def.tickers.join(', '));
                 setPromptIds(last.def.prompts.map(p => p.id));
+                setCustomPrompts(customFromDef(last.def));
             })
             .catch(() => { /* ignore */ });
         refreshHistory();
@@ -186,10 +233,63 @@ export default function GridView() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedCell, state]);
 
-    const activePrompts = SEED_GRID_PROMPTS.filter(p => promptIds.includes(p.id));
+    // M3: fetch full chunk text from the backend when the source modal opens with a chunk_id.
+    useEffect(() => {
+        setChunkFullText(null);
+        if (!sourceViewer?.chunk_id) return;
+        let alive = true;
+        (async () => {
+            try {
+                const res = await fetch(
+                    `${GRAVITY_API}/v1/documents/chunk/${encodeURIComponent(sourceViewer.chunk_id!)}/context?window=1`,
+                    { headers: { 'X-API-Key': 'deep-research-internal' } },
+                );
+                const data = res.ok ? await res.json() : null;
+                const cited = (data?.chunks ?? []).find((ch: any) => ch.is_cited);
+                if (alive && cited?.text) setChunkFullText(cited.text);
+            } catch { /* silent; falls back to sourceViewer.text */ }
+        })();
+        return () => { alive = false; };
+    }, [sourceViewer?.chunk_id]);
+
+    const allPrompts = [...SEED_GRID_PROMPTS, ...customPrompts];
+    const activePrompts = allPrompts.filter(p => promptIds.includes(p.id));
+
+    // M2 outliers: per column, salient terms unique to one company's cell.
+    const outliersByCell = useMemo(() => {
+        const map = new Map<string, string[]>();
+        if (!state) return map;
+        for (const p of state.def.prompts) {
+            if (p.synthesis) continue;
+            const texts = state.def.tickers.map(t => state.cells[cellKey(t, p.id)]?.answer || '');
+            const dts = distinctiveTerms(texts);
+            state.def.tickers.forEach((t, i) => {
+                if (dts[i].length) map.set(cellKey(t, p.id), dts[i]);
+            });
+        }
+        return map;
+    }, [state]);
 
     const togglePrompt = (id: string) => {
         setPromptIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]);
+    };
+
+    // NL custom column: the analyst types a question; it becomes a new column.
+    // Ensure a {ticker} slot so resolvePrompt can fill the row's company.
+    const addColumn = () => {
+        const q = newColInput.trim();
+        if (!q) return;
+        const prompt = /\{ticker\}/.test(q) ? q : `For {ticker}: ${q}`;
+        const id = `custom-${Date.now()}`;
+        const label = q.length > 24 ? `${q.slice(0, 24)}…` : q;
+        setCustomPrompts(prev => [...prev, { id, label, prompt }]);
+        setPromptIds(ids => [...ids, id]);
+        setNewColInput('');
+    };
+
+    const removeColumn = (id: string) => {
+        setCustomPrompts(prev => prev.filter(p => p.id !== id));
+        setPromptIds(ids => ids.filter(x => x !== id));
     };
 
     const startRun = async () => {
@@ -202,8 +302,12 @@ export default function GridView() {
             tickers,
             prompts: activePrompts,
         };
+        // Snapshot the previous run's answers (same ticker×prompt) to flag cells
+        // whose figures move on this re-run. Empty on first run / changed grid.
+        const prevCells = state?.cells ?? {};
         const initial = initializeGrid(def);
         setState(initial);
+        setChangedCells(new Set());
         setRunning(true);
         setRunStats(null);
         const t0 = performance.now();
@@ -222,7 +326,15 @@ export default function GridView() {
                 // run the grid concurrently for them (huge wall-time win).
                 concurrency: selectedModel === 'gemini' ? 1 : 6,
                 signal: controller.signal,
-                onCellUpdate: (s) => { setState({ ...s }); },
+                onCellUpdate: (s, cell) => {
+                    setState({ ...s });
+                    if (cell.status === 'done' && cell.answer) {
+                        const prev = prevCells[cellKey(cell.ticker, cell.promptId)];
+                        if (prev?.answer && figuresChanged(prev.answer, cell.answer)) {
+                            setChangedCells(prevSet => new Set(prevSet).add(cellKey(cell.ticker, cell.promptId)));
+                        }
+                    }
+                },
             });
             setState(final);
             // P4-b: record actual throughput. per100S extrapolates this run's
@@ -300,6 +412,13 @@ export default function GridView() {
         recordExport('xlsx', { bytes: blob.size, destination: stampedName('xlsx') });
     };
 
+    const handleExportMemo = () => {
+        if (!state) return;
+        const blob = new Blob([buildMemo(state, outliersByCell)], { type: 'text/markdown;charset=utf-8' });
+        downloadBlob(blob, stampedName('md'));
+        recordExport('memo', { bytes: blob.size, destination: stampedName('md') });
+    };
+
     const handleShare = async () => {
         if (!state) return;
         const link = buildShareLink(state);
@@ -321,6 +440,7 @@ export default function GridView() {
             setState(loaded);
             setTickersInput(loaded.def.tickers.join(', '));
             setPromptIds(loaded.def.prompts.map(p => p.id));
+            setCustomPrompts(customFromDef(loaded.def));
         }
     };
 
@@ -535,9 +655,10 @@ export default function GridView() {
                     </div>
 
                     <label className="text-xs font-bold text-[#d4af37] block mt-4 mb-3 uppercase tracking-wider">Analyst Prompts</label>
-                    <div className="flex flex-wrap gap-2 mb-6">
-                        {SEED_GRID_PROMPTS.map(p => {
+                    <div className="flex flex-wrap gap-2 mb-3">
+                        {allPrompts.map(p => {
                             const active = promptIds.includes(p.id);
+                            const isCustom = p.id.startsWith('custom-');
                             return (
                                 <motion.button
                                     key={p.id}
@@ -546,15 +667,39 @@ export default function GridView() {
                                     whileHover={{ scale: running ? 1 : 1.03 }}
                                     whileTap={{ scale: running ? 1 : 0.98 }}
                                     transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                                    className={`px-4 py-2 rounded-full text-xs font-bold border uppercase tracking-wider ${active
+                                    className={`group px-4 py-2 rounded-full text-xs font-bold border uppercase tracking-wider inline-flex items-center gap-1.5 ${active
                                         ? 'border-[#00f0ff] text-white bg-[#00f0ff]/20 glow-cyan'
                                         : 'border-[#d4af37]/40 text-[#a0a8b8] hover:text-[#d4af37] hover:border-[#d4af37]/60'
                                         } disabled:opacity-40 cursor-pointer`}
                                 >
                                     {p.label}
+                                    {isCustom && (
+                                        <X
+                                            className="w-3 h-3 opacity-50 hover:opacity-100"
+                                            onClick={(e) => { e.stopPropagation(); removeColumn(p.id); }}
+                                        />
+                                    )}
                                 </motion.button>
                             );
                         })}
+                    </div>
+                    {/* NL custom column — type a question, get a column */}
+                    <div className="flex items-center gap-2 mb-6">
+                        <input
+                            value={newColInput}
+                            onChange={(e) => setNewColInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') addColumn(); }}
+                            disabled={running}
+                            placeholder='+ Add a custom column — e.g. "pricing power evidence" or "exposure to China"'
+                            className="flex-1 px-4 py-2 rounded-full text-xs bg-[#0a0a0a] border border-[#d4af37]/30 text-[#e8e8f0] placeholder-[#5a6070] focus:border-[#00f0ff]/60 focus:outline-none disabled:opacity-40"
+                        />
+                        <button
+                            onClick={addColumn}
+                            disabled={running || !newColInput.trim()}
+                            className="px-4 py-2 rounded-full text-xs font-bold border border-[#00f0ff]/50 text-[#00f0ff] hover:bg-[#00f0ff]/10 disabled:opacity-40 cursor-pointer uppercase tracking-wider"
+                        >
+                            Add
+                        </button>
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -625,6 +770,14 @@ export default function GridView() {
                                 >
                                     <Download className="w-3.5 h-3.5" />
                                     Excel
+                                </button>
+                                <button
+                                    onClick={handleExportMemo}
+                                    title="Export a formatted research memo (Markdown, with sources + outliers)"
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-[color:var(--text-2)] border border-[color:var(--line)] hover:text-[color:var(--text)] hover:border-[color:var(--text-2)] hover:shadow-sm hover:bg-[color:var(--surface-2)] transition-all"
+                                >
+                                    <Download className="w-3.5 h-3.5" />
+                                    Memo
                                 </button>
                                 <button
                                     onClick={handleShare}
@@ -794,6 +947,8 @@ export default function GridView() {
                                                 }
                                                 const cell = state.cells[cellKey(ticker, p.id)];
                                                 const isCopied = copiedCell === `${ticker}::${p.id}`;
+                                                const isChanged = changedCells.has(cellKey(ticker, p.id));
+                                                const outlierTerms = outliersByCell.get(cellKey(ticker, p.id));
                                                 return (
                                                     <td
                                                         key={p.id}
@@ -804,6 +959,22 @@ export default function GridView() {
                                                         }`}
                                                         onClick={() => cell?.status === 'done' && setSelectedCell(cell)}
                                                     >
+                                                        {isChanged && (
+                                                            <span
+                                                                title="Figures changed vs your last run"
+                                                                className="absolute top-1 right-1 z-10 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-amber-400/20 text-amber-300 border border-amber-400/40"
+                                                            >
+                                                                Changed
+                                                            </span>
+                                                        )}
+                                                        {outlierTerms && outlierTerms.length > 0 && (
+                                                            <span
+                                                                title={`Only ${ticker} flags: ${outlierTerms.join(', ')}`}
+                                                                className="absolute top-1 left-1 z-10 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-violet-500/25 text-violet-200 border border-violet-400/40"
+                                                            >
+                                                                ⚡ {outlierTerms[0]}
+                                                            </span>
+                                                        )}
                                                         <CellContent cell={cell} loading={running} />
                                                         {cell?.status === 'done' && cell?.answer && (
                                                             <button
@@ -910,7 +1081,7 @@ export default function GridView() {
                                     {selectedCell.ticker}
                                 </div>
                                 <h2 className="font-display text-3xl font-bold text-[color:var(--text)]">
-                                    {SEED_GRID_PROMPTS.find(p => p.id === selectedCell.promptId)?.label}
+                                    {allPrompts.find(p => p.id === selectedCell.promptId)?.label}
                                 </h2>
                             </div>
                             <button
@@ -927,9 +1098,22 @@ export default function GridView() {
                                 onOpenCitation={openCitation}
                             />
                         </div>
-                        {selectedCell.citations && selectedCell.citations.length > 0 && (
-                            <CellSources citations={selectedCell.citations} activeId={activeCitation} />
-                        )}
+                        {(() => {
+                            // Regular cells: show only sources the answer cites ([N] markers).
+                            // Synthesis/comparison cells (ticker 'ALL'): show the full
+                            // aggregated evidence base — it's built from the cells, not
+                            // inline-cited, so a [N] filter would hide everything.
+                            const isSynthesis = selectedCell.ticker === 'ALL';
+                            const all = selectedCell.citations ?? [];
+                            let shown = all;
+                            if (!isSynthesis) {
+                                const cited = new Set([...(selectedCell.answer ?? '').matchAll(/\[(\d+)\]/g)].map(m => Number(m[1])));
+                                shown = all.filter(c => cited.has(c.id));
+                            }
+                            return shown.length > 0 && (
+                                <CellSources citations={shown} activeId={activeCitation} onOpenSource={setSourceViewer} />
+                            );
+                        })()}
                         <div className="mt-8 flex items-center justify-between pt-6 border-t-2 border-[color:color-mix(in_oklch,var(--accent)_20%,transparent)]">
                             <div className="flex items-center gap-2.5 text-xs text-[color:var(--text-3)]">
                                 <span className="font-bold">{((selectedCell.durationMs ?? 0) / 1000).toFixed(1)}s</span>
@@ -1015,6 +1199,73 @@ export default function GridView() {
                                 Cancel
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Source viewer modal */}
+            {sourceViewer && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm"
+                    style={{ background: 'color-mix(in oklch, var(--bg) 88%, transparent)' }}
+                    onClick={() => setSourceViewer(null)}
+                >
+                    <div
+                        className="w-full max-w-4xl max-h-[85vh] overflow-y-auto rounded-2xl p-8 bg-[color:var(--surface)] border border-[color:var(--line)] shadow-2xl shadow-[color:color-mix(in_oklch,var(--accent)_15%,transparent)]"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between gap-4 mb-6">
+                            <div>
+                                <div className="inline-block px-3 py-1.5 mb-3 rounded-lg text-xs font-bold text-[color:var(--accent)] bg-[color:color-mix(in_oklch,var(--accent)_18%,transparent)] border border-[color:color-mix(in_oklch,var(--accent)_35%,transparent)] uppercase tracking-wide">
+                                    {sourceViewer.documentType || 'Source'}
+                                </div>
+                                <h2 className="font-display text-2xl font-bold text-[color:var(--text)]">
+                                    {sourceViewer.title}
+                                </h2>
+                                {sourceViewer.date && (
+                                    <p className="text-xs text-[color:var(--text-3)] mt-2">{sourceViewer.date}</p>
+                                )}
+                                {sourceViewer.section && (
+                                    <p className="text-xs text-[color:var(--text-3)] mt-1">Section: {sourceViewer.section}</p>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => setSourceViewer(null)}
+                                className="flex-shrink-0 p-2.5 rounded-lg text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <div className="prose prose-invert max-w-none text-sm leading-relaxed text-[color:var(--text-2)] bg-[color:var(--bg)] rounded-lg p-4 border border-[color:var(--line)]">
+                            {(() => {
+                                const full = chunkFullText || sourceViewer.text;
+                                const s = sourceViewer.char_offset_start;
+                                const e = sourceViewer.char_offset_end;
+                                if (chunkFullText && s != null && e != null && s >= 0 && e > s && e <= full.length) {
+                                    return (
+                                        <p className="whitespace-pre-wrap">
+                                            {full.slice(0, s)}
+                                            <mark className="bg-[color:color-mix(in_oklch,var(--accent)_30%,transparent)] text-[color:var(--text)] rounded px-0.5">
+                                                {full.slice(s, e)}
+                                            </mark>
+                                            {full.slice(e)}
+                                        </p>
+                                    );
+                                }
+                                return <p className="whitespace-pre-wrap">{full}</p>;
+                            })()}
+                        </div>
+                        {sourceViewer.url && (
+                            <a
+                                href={sourceViewer.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 mt-4 text-xs font-semibold text-[color:var(--accent)] hover:underline"
+                            >
+                                View on SEC EDGAR
+                                <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                        )}
                     </div>
                 </div>
             )}
@@ -1156,7 +1407,14 @@ function injectCites(
             if (!m) return part;
             const num = parseInt(m[1], 10);
             if (!map.has(num)) {
-                return <sup key={i} className="text-[#00f0ff] text-xs">[{num}]</sup>;
+                // Unverified: LLM emitted [N] with no matching source. Flag it
+                // amber so it can't be mistaken for a real, clickable citation.
+                return (
+                    <sup key={i} title="Unverified — no source returned for this citation"
+                         className="text-amber-400/80 text-[10px] font-bold align-super cursor-help">
+                        [{num}?]
+                    </sup>
+                );
             }
             return (
                 <button
@@ -1180,9 +1438,16 @@ function CellAnswer({ text, citations, onOpenCitation }: {
     const map = new Map(citations.map(c => [c.id, c]));
     const cite = (children: ReactNode) => injectCites(children, map, onOpenCitation);
     const md = text.trim().replace(/\n{3,}/g, '\n\n');
+    const unmapped = findUnmappedCites(text, citations);
 
     return (
         <div className="text-[#e8e8f0] text-sm leading-7 space-y-3.5 break-words">
+            {unmapped.length > 0 && (
+                <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    <span>{unmapped.length} citation{unmapped.length > 1 ? 's' : ''} ({unmapped.map(n => `[${n}]`).join(', ')}) have no source — treat as unverified.</span>
+                </div>
+            )}
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -1230,38 +1495,50 @@ function CellAnswer({ text, citations, onOpenCitation }: {
     );
 }
 
-function CellSources({ citations, activeId }: { citations: Citation[]; activeId: number | null }) {
+function CellSources({ citations, activeId, onOpenSource }: { citations: Citation[]; activeId: number | null; onOpenSource?: (data: SourceViewerData) => void }) {
+    const handleSourceClick = (e: React.MouseEvent, c: Citation) => {
+        // Always open the passage modal (never navigate). Real SEC URLs are shown
+        // as a "View on EDGAR" link inside the modal; gravity:// is internal-only.
+        e.preventDefault();
+        const isGravity = c.url?.startsWith('gravity://');
+        onOpenSource?.({
+            title: c.title,
+            text: c.sourceData?.text || 'Source text not available for this run. Re-run the cell to capture passage text.',
+            ticker: c.sourceData?.ticker,
+            date: c.sourceData?.date,
+            documentType: c.sourceData?.documentType,
+            section: c.sourceData?.section,
+            url: isGravity ? undefined : c.url,
+            chunk_id: c.chunk_id,
+            char_offset_start: c.char_offset_start,
+            char_offset_end: c.char_offset_end,
+        });
+    };
+
     return (
         <div className="mt-8 pt-6 border-t border-[#d4af37]/20">
             <h3 className="font-bold text-xs text-[#d4af37] mb-3 uppercase tracking-wider">
                 Sources ({citations.length})
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-1.5">
                 {citations.map(c => {
                     const active = activeId === c.id;
-                    const hasUrl = !!c.url && c.url !== '#';
-                    const Tag: any = hasUrl ? 'a' : 'div';
+                    // Split "Label: value" so the value reads as an italic quote/figure.
+                    const ci = c.title.indexOf(': ');
+                    const label = ci >= 0 ? c.title.slice(0, ci) : c.title;
+                    const value = ci >= 0 ? c.title.slice(ci + 2) : '';
                     return (
                         <li key={c.id} id={`grid-src-${c.id}`}>
-                            <Tag
-                                {...(hasUrl ? { href: c.url, target: '_blank', rel: 'noopener noreferrer' } : {})}
-                                className={`flex items-start gap-3 p-3 rounded-xl border transition-all ${
-                                    active
-                                        ? 'border-[#00f0ff] bg-[#00f0ff]/10 ring-1 ring-[#00f0ff]/50 shadow-[0_0_16px_rgba(0,240,255,0.25)]'
-                                        : 'border-white/[0.08] bg-white/[0.02] hover:border-[#00f0ff]/40 hover:bg-[#00f0ff]/[0.04]'
-                                } ${hasUrl ? 'cursor-pointer' : ''}`}
+                            <button
+                                onClick={(e: React.MouseEvent) => handleSourceClick(e, c)}
+                                className={`group block w-full text-left text-xs leading-relaxed cursor-pointer rounded px-1 -mx-1 transition-colors ${
+                                    active ? 'bg-[#00f0ff]/10' : 'hover:bg-white/[0.04]'
+                                }`}
                             >
-                                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#00f0ff]/15 text-[#00f0ff] text-[11px] font-bold flex items-center justify-center">
-                                    {c.id}
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                    <span className="block text-xs text-[#e8e8f0] leading-relaxed">{c.title}</span>
-                                    {c.source && (
-                                        <span className="block text-[10px] text-[#a0a8b8] mt-0.5 truncate">{c.source}</span>
-                                    )}
-                                </span>
-                                {hasUrl && <ExternalLink className="w-3.5 h-3.5 text-[#a0a8b8] flex-shrink-0 mt-0.5" />}
-                            </Tag>
+                                <sup className="text-[#00f0ff] font-semibold mr-1.5 align-super text-[10px]">[{c.id}]</sup>
+                                <span className="text-[#e8e8f0] group-hover:text-white transition-colors">{label}</span>
+                                {value && <span className="italic text-[#9aa4b8]">: {value}</span>}
+                            </button>
                         </li>
                     );
                 })}
