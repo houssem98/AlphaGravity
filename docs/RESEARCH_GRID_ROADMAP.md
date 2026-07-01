@@ -8,10 +8,10 @@ Dates are absolute. Items are checkboxes so a loop can execute top-down.
 
 ---
 
-## 📊 Progress — 68% shipped (15 / 22) · updated 2026-06-30
+## 📊 Progress — 73% shipped (16 / 22) · updated 2026-07-01
 
 ```
-Overall   ██████████████░░░░░░  68%  shipped (15/22)
+Overall   ███████████████░░░░░  73%  shipped (16/22)
 Table-stakes floor (P0+P1)  ██████████████████░░  90%  (trust+speed: done or decided)
 Magnets   ████████████████████  100% (M1, M2, M3, M4 all shipped)
 ```
@@ -20,7 +20,7 @@ Magnets   ████████████████████  100% (M1
 |------|---------|--------|
 | **P0 Trust** | 4/5 | 0.1✅ 0.2✅ 0.4✅ 0.5✅ · 0.3 low-pri |
 | **P1 Speed** | 1/3 | 1.2✅ · 1.1 & 1.3 deferred (decided, not building) |
-| **P2 Lock-in** | 3/4 | 2.1✅ 2.3✅ 2.4✅ · 2.2 blocked(infra) |
+| **P2 Lock-in** | 4/4 | 2.1✅ 2.2✅ 2.3✅ 2.4✅ |
 | **⭐ Magnets** | 4/4 | M1✅ M2✅ M3✅ M4✅ |
 | **P3 Moat** | 2/3 | 3.1✅ 3.2✅ · 3.3 open(heuristic-only without backend) |
 | **P4 Health** | 1/3 | 4.3✅ · 4.1 (risky refactor, no user value) · 4.2 (needs jsdom infra) |
@@ -126,7 +126,7 @@ The moment their saved work, alerts, and exports live *only* here, leaving is ex
   **DONE 2026-06-30:** `/history` now shows a "Research Grids" section (from `listGridRuns`);
   each card deep-links to `/search?mode=grid&gridRun=<id>` → GridView loads that run on mount.
   Deployed to prod.
-- [~] **P2.2 Scheduled grid refresh + email digest.** "Re-run my NVDA/AMD/AVGO risk grid every
+- [x] **P2.2 Scheduled grid refresh + email digest.** "Re-run my NVDA/AMD/AVGO risk grid every
   Monday, email me the diff." This is the single biggest anti-cancel feature — it makes the
   product show up in their inbox doing work. Done when a saved grid can be scheduled and emails a diff.
   **BUILT 2026-07-01 (pending key + DDL + deploy-verify):** all in gravity-api —
@@ -137,14 +137,14 @@ The moment their saved work, alerts, and exports live *only* here, leaving is ex
   (the loop). In-process scheduler loop in `main.py` gated behind `GRID_SCHEDULER_ENABLED` (15-min
   tick, reuses the always-on Fly machine — no new infra). Schedules live in a new
   `lib_grid_schedules` table (DDL: `supabase/migrations/0005_grid_schedules.sql`).
-  **VERIFIED LIVE 2026-07-01:** deployed to Fly with `RESEND_API_KEY`/`RESEND_FROM` set;
-  `POST /v1/grid/run-now` against a real saved grid (NVDA+GOOGL × 6) re-ran 12 cells, diffed
-  **12 changed** vs the saved baseline, and emailed the digest (`emailed:true`). Rerun→diff→email
-  path proven end-to-end in prod.
-  **REMAINING to enable the automated cadence:** (1) apply the DDL in the Supabase dashboard SQL
-  editor (`CREATE TABLE` can't go through PostgREST); (2) `fly secrets set GRID_SCHEDULER_ENABLED=true`;
-  (3) insert a `lib_grid_schedules` row (grid_run_id + email + cadence). The 15-min loop then runs
-  it. Manual/on-demand refresh already works without any of this via `/v1/grid/run-now`.
+  **DONE + VERIFIED LIVE 2026-07-01:** full automated path proven in prod. DDL applied via the
+  Supabase Management API; `lib_grid_schedules` table live. `POST /v1/grid/run-scheduled` picked up
+  a due weekly schedule (NVDA+GOOGL × 6), re-ran 12 cells, diffed **12 changed**, emailed the digest
+  (received), and advanced the row (`next_run_at` +7d, `last_run_at` set). `GRID_SCHEDULER_ENABLED=true`
+  on Fly → the 15-min in-process loop now runs due schedules automatically. On-demand refresh also
+  works via `/v1/grid/run-now`. Resend `RESEND_API_KEY`/`RESEND_FROM` set as Fly secrets.
+  **Follow-ups (small):** a frontend UI to create/list/delete schedules (today: rows inserted via
+  PostgREST); dedup identical baselines so a "no-change" week doesn't persist a redundant run.
 - [x] **P2.3 Cell-level change alerts.** Flag when a re-run's answer materially changes vs last
   run (new risk, changed number). Done when diff highlighting renders on re-run.
   **DONE 2026-06-30:** `figuresChanged()` (compares the FIGURES, not phrasing — LLM wording
