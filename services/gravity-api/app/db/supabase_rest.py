@@ -80,6 +80,28 @@ async def sb_rpc(fn: str, params: dict) -> list[dict]:
         return []
 
 
+async def sb_update(table: str, filters: dict, patch: dict) -> int:
+    """PATCH rows matching PostgREST filters. Returns rows attempted (0 on failure)."""
+    url, key = _cfg()
+    if not url or not key or not patch:
+        return 0
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as c:
+            r = await c.patch(
+                f"{url}/rest/v1/{table}",
+                headers=_headers(key, {"Prefer": "return=minimal"}),
+                params=dict(filters),
+                json=patch,
+            )
+        if r.status_code >= 300:
+            logger.warning("sb_update_failed", table=table, status=r.status_code, body=r.text[:200])
+            return 0
+        return 1
+    except Exception as e:
+        logger.warning("sb_update_error", table=table, error=str(e)[:160])
+        return 0
+
+
 async def sb_select(table: str, filters: dict, select: str = "*", limit: int = 10) -> list[dict]:
     """GET rows with PostgREST filters, e.g. {'ticker': 'eq.AAPL', 'metric_name': 'ilike.*revenue*'}."""
     url, key = _cfg()

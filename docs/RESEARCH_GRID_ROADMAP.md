@@ -91,6 +91,12 @@ resolve to a real filing. This phase is non-negotiable.
   assertions vs LIVE prod, currently 12/12. Kept OUT of unit `test` (network/live) by design.
   **Finding (→ P0.1):** broad multi-year queries under-retrieve (a "FY2020-2025" query returned
   only 3 of 6 AAPL years); focused per-year queries hit 12/12. Real recall gap, backend-owned.
+  **FIXED 2026-07-01 (deployed to Fly):** root cause was `structured_search._search_supabase`
+  expanding each named year to `(y, y-1)` — a range names only its endpoints, so "FY2020-2025"
+  fetched FY2019/2020/2024/2025 and dropped 2021-2023. Now multi-year queries fetch the FULL
+  span `range(min, max+1)`; the search_pipeline exact-fact pin cap also scales with the year
+  SPAN (not the count named in text) so no year is evicted at context assembly. Probe now runs
+  a broad-range case (6 assertions from ONE query) → **18/18 green** (was 15/18 pre-fix).
 
 ## P1 — Speed (slowness erodes daily use → they drift away)
 
@@ -120,12 +126,25 @@ The moment their saved work, alerts, and exports live *only* here, leaving is ex
   **DONE 2026-06-30:** `/history` now shows a "Research Grids" section (from `listGridRuns`);
   each card deep-links to `/search?mode=grid&gridRun=<id>` → GridView loads that run on mount.
   Deployed to prod.
-- [ ] **P2.2 Scheduled grid refresh + email digest.** "Re-run my NVDA/AMD/AVGO risk grid every
+- [~] **P2.2 Scheduled grid refresh + email digest.** "Re-run my NVDA/AMD/AVGO risk grid every
   Monday, email me the diff." This is the single biggest anti-cancel feature — it makes the
   product show up in their inbox doing work. Done when a saved grid can be scheduled and emails a diff.
-  **BLOCKED (infra):** needs a backend scheduler (cron worker on Fly) + an email provider
-  (Resend/SES) + the diff job. Not a frontend deploy — own session. P2.3's `figuresChanged` is
-  the diff primitive it will reuse.
+  **BUILT 2026-07-01 (pending key + DDL + deploy-verify):** all in gravity-api —
+  `app/core/grid_scheduler.py` re-runs a saved `lib_grid_runs` grid cell-by-cell via the fast
+  search pipeline, diffs vs the last run with a Python port of `figuresChanged` (parity test:
+  `tests/test_grid_scheduler.py`, 4/4), persists the fresh run as the next baseline, and emails
+  the diff via Resend. Endpoints: `POST /v1/grid/run-now` (manual/verify) + `/v1/grid/run-scheduled`
+  (the loop). In-process scheduler loop in `main.py` gated behind `GRID_SCHEDULER_ENABLED` (15-min
+  tick, reuses the always-on Fly machine — no new infra). Schedules live in a new
+  `lib_grid_schedules` table (DDL: `supabase/migrations/0005_grid_schedules.sql`).
+  **VERIFIED LIVE 2026-07-01:** deployed to Fly with `RESEND_API_KEY`/`RESEND_FROM` set;
+  `POST /v1/grid/run-now` against a real saved grid (NVDA+GOOGL × 6) re-ran 12 cells, diffed
+  **12 changed** vs the saved baseline, and emailed the digest (`emailed:true`). Rerun→diff→email
+  path proven end-to-end in prod.
+  **REMAINING to enable the automated cadence:** (1) apply the DDL in the Supabase dashboard SQL
+  editor (`CREATE TABLE` can't go through PostgREST); (2) `fly secrets set GRID_SCHEDULER_ENABLED=true`;
+  (3) insert a `lib_grid_schedules` row (grid_run_id + email + cadence). The 15-min loop then runs
+  it. Manual/on-demand refresh already works without any of this via `/v1/grid/run-now`.
 - [x] **P2.3 Cell-level change alerts.** Flag when a re-run's answer materially changes vs last
   run (new risk, changed number). Done when diff highlighting renders on re-run.
   **DONE 2026-06-30:** `figuresChanged()` (compares the FIGURES, not phrasing — LLM wording

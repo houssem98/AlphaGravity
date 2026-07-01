@@ -107,6 +107,13 @@ async def lifespan(app: FastAPI):
     # Start hourly routing-override recomputation task
     _override_task = asyncio.create_task(_hourly_routing_recompute())
 
+    # Start scheduled-grid refresh loop (roadmap P2.2). Opt-in: re-runs saved
+    # grids + emails a diff, which spends LLM budget, so gate it like EDGAR.
+    _grid_sched_task = None
+    if os.getenv("GRID_SCHEDULER_ENABLED", "").lower() == "true":
+        _grid_sched_task = asyncio.create_task(_grid_scheduler_loop())
+        logger.info("grid_scheduler_started")
+
     # Start SEC EDGAR background polling (new filings every 60 s).
     # Opt-in via env: heavy on Voyage tokens + Anthropic credits, easy to flood
     # the LLM budget on a fresh deploy. Set EDGAR_POLLING_ENABLED=true to turn on.
@@ -131,6 +138,8 @@ async def lifespan(app: FastAPI):
     yield
 
     _override_task.cancel()
+    if _grid_sched_task:
+        _grid_sched_task.cancel()
     if _edgar_source:
         await _edgar_source.stop()
 
@@ -177,6 +186,21 @@ async def _hourly_routing_recompute():
             break
         except Exception as e:
             logger.warning("hourly_recompute_failed", error=str(e))
+
+
+async def _grid_scheduler_loop():
+    """Background task: run due grid schedules every 15 min (roadmap P2.2)."""
+    from app.core.grid_scheduler import run_due_schedules
+    while True:
+        await asyncio.sleep(900)
+        try:
+            out = await run_due_schedules()
+            if out["ran"]:
+                logger.info("grid_schedules_ran", ran=out["ran"])
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.warning("grid_scheduler_error", error=str(e))
 
 
 async def _init_pageindex_registry():
@@ -317,6 +341,8 @@ app.include_router(usage.router, prefix="/v1", tags=["Usage"])
 app.include_router(workspaces.router, prefix="/v1", tags=["Workspaces"])
 app.include_router(feedback.router, tags=["Feedback"])
 app.include_router(grid_search.router, tags=["Grid"])
+from app.api.routes import grid_schedule
+app.include_router(grid_schedule.router, tags=["Grid Schedule"])
 app.include_router(analytics.router, tags=["Analytics"])
 app.include_router(sso.router, tags=["SSO/SCIM"])
 app.include_router(auth_routes.router)
