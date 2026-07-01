@@ -216,6 +216,7 @@ export function useGravitySearch() {
             };
 
             ws.onmessage = (ev) => {
+                if (wsRef.current !== ws) return; // superseded — discard late frames
                 try {
                     const msg = JSON.parse(ev.data as string);
                     const { type, data } = msg;
@@ -283,6 +284,11 @@ export function useGravitySearch() {
             };
 
             ws.onclose = () => {
+                // If a newer search has already replaced this WS, ignore — otherwise
+                // the old closure's connect() would re-fire the previous query and
+                // overwrite the new search's results (stale-answer bug).
+                if (wsRef.current !== ws) return;
+
                 setState(prev => {
                     // Terminal already, or an answer/sources arrived → clean finish.
                     // Do NOT reconnect: the server closes the socket after delivering
@@ -306,7 +312,7 @@ export function useGravitySearch() {
                 });
             };
 
-            ws.onerror = () => { /* onclose handles reconnect */ };
+            ws.onerror = () => { if (wsRef.current !== ws) return; /* onclose handles reconnect */ };
         }
 
         void connect(); // each attempt (incl. reconnects) fetches its own fresh token
