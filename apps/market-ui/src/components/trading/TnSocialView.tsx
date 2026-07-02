@@ -1,5 +1,67 @@
 import React, { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, Minus, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ExternalLink, Loader2, RefreshCw, Gauge } from 'lucide-react';
+
+// ── Engine score card (deterministic multi-factor, /api/tn/engine) ──────────
+interface EngineData {
+  score: number; label: 'bullish' | 'bearish' | 'neutral';
+  factors: Record<string, { score: number; detail: string }>;
+}
+const FACTOR_LABELS: Record<string, string> = { momentum: 'Momentum', volume: 'Volume', news: 'News tone', liquidity: 'Liquidity' };
+
+const EngineCard: React.FC<{ asset: string }> = ({ asset }) => {
+  const [data, setData] = useState<EngineData | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    let live = true;
+    setData(null);
+    fetch(`/api/tn/engine?symbol=${encodeURIComponent(asset)}`)
+      .then((r) => r.json())
+      .then((d) => { if (live && typeof d.score === 'number') setData(d); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [asset]);
+
+  if (!data) return null;
+  const color = data.label === 'bullish' ? '#00C853' : data.label === 'bearish' ? '#FF3D3D' : '#8A92A6';
+  return (
+    <div className="px-4 py-3 border-b border-[#1B2236] shrink-0">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-2.5 group">
+        <div className="relative w-10 h-10 shrink-0">
+          <svg viewBox="0 0 40 40" className="w-10 h-10 -rotate-90">
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#1B2236" strokeWidth="4" />
+            <circle cx="20" cy="20" r="16" fill="none" stroke={color} strokeWidth="4"
+              strokeDasharray={`${(data.score / 100) * 100.5} 100.5`} strokeLinecap="round" />
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white">{data.score}</span>
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <div className="flex items-center gap-1.5">
+            <Gauge className="w-3 h-3 text-[#5A6478]" />
+            <span className="text-[11px] font-bold text-white">Engine Score</span>
+          </div>
+          <span className="text-[10px] capitalize" style={{ color }}>{data.label} · 4 factors</span>
+        </div>
+        <span className="text-[10px] text-[#5A6478] group-hover:text-white">{open ? '−' : '+'}</span>
+      </button>
+      {open && (
+        <div className="mt-2.5 space-y-1.5">
+          {Object.entries(data.factors).map(([k, f]) => (
+            <div key={k}>
+              <div className="flex justify-between text-[10px] mb-0.5">
+                <span className="text-[#8A92A6]">{FACTOR_LABELS[k] || k}</span>
+                <span className="text-[#5A6478]">{f.detail}</span>
+              </div>
+              <div className="h-1 rounded-full bg-[#1B2236]">
+                <div className="h-full rounded-full" style={{ width: `${f.score}%`, background: f.score >= 65 ? '#00C853' : f.score <= 35 ? '#FF3D3D' : '#5A6478' }} />
+              </div>
+            </div>
+          ))}
+          <div className="text-[9px] text-[#3A4358] pt-1">Deterministic — momentum 35% · volume 25% · news 25% · liquidity 15%. Not investment advice.</div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface TnSocialViewProps {
   asset: string;
@@ -77,6 +139,9 @@ export const TnSocialView: React.FC<TnSocialViewProps> = ({ asset, name }) => {
           <RefreshCw className={`w-3.5 h-3.5 ${status === 'loading' ? 'animate-spin' : ''}`} />
         </button>
       </div>
+
+      {/* Engine multi-factor score */}
+      <EngineCard asset={asset} />
 
       {/* Gauge */}
       {status === 'ready' && (

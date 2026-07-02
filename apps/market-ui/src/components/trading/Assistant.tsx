@@ -17,9 +17,12 @@ interface AssistantProps {
   onDraw: (type: string, data: any) => void;
   currentAsset: string;
   onClose?: () => void;
+  market?: import('../../lib/markets').MarketId;
+  assetName?: string;
 }
 
-export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onClose }) => {
+export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onClose, market, assetName }) => {
+  const isTN = market === 'tunisia';
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -203,8 +206,16 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
         - Self-Validation: Check your own work and iterate until tasks are complete.
         
         The user's chart currently displays:
-        - Asset: ${currentAsset}
-        - Current Real-time Price: ${currentPrice !== null ? '$' + currentPrice : 'Unknown'}
+        - Asset: ${currentAsset}${isTN ? ` (${assetName || currentAsset} — listed on the Bourse de Tunis / BVMT, quoted in Tunisian Dinar TND)` : ''}
+        - Current Real-time Price: ${currentPrice !== null ? (isTN ? currentPrice + ' TND' : '$' + currentPrice) : 'Unknown'}${isTN ? `
+
+        IMPORTANT — Tunisian listing: all prices are in TND, not USD. Chart data
+        comes live from the BVMT feed (intraday candles; daily history is short —
+        it accumulates one bar per session). Fundamental ratios (P/E, EPS) and
+        financial statements are NOT available yet for BVMT listings; getFundamentalData
+        returns live market stats (price, change, volume, turnover, bid/ask, ISIN)
+        plus a deterministic 4-factor Engine score (momentum/volume/news/liquidity).
+        Answer in the user's language (French is common for Tunisian finance).` : ''}
         - Candlestick price action
         - Volume histogram at the bottom
         - 20-period Simple Moving Average (SMA 20) in blue
@@ -262,9 +273,23 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
             const limit = Math.min(days, 365);
             
             let data;
-            const isCrypto = isCryptoAsset(currentAsset);
-            
-            if (isCrypto) {
+            const isCrypto = !isTN && isCryptoAsset(currentAsset);
+
+            if (isTN) {
+              // BVMT: daily bars from our snapshot store + today's intraday candles.
+              const [hist, intra] = await Promise.all([
+                fetch(`/api/tn/history?symbol=${currentAsset}`).then((r) => r.json()).catch(() => ({})),
+                fetch(`/api/tn/intraday?symbol=${currentAsset}&interval=15`).then((r) => r.json()).catch(() => ({})),
+              ]);
+              const daily = (hist.candles || []).map((c: any) => ({ date: new Date(c.time * 1000).toISOString().split('T')[0], ...c, time: undefined }));
+              data = {
+                currency: 'TND',
+                dailyBars: daily.slice(-limit),
+                dailyBarsNote: `daily history accumulates from 2026-07-02 onward (${daily.length} bars so far)`,
+                todayIntraday15m: (intra.candles || []),
+                prevClose: intra.prevClose, last: intra.last,
+              };
+            } else if (isCrypto) {
               // Fetch real data from Binance
               const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${currentAsset}USDT&interval=1d&limit=${limit}`);
               const rawData = await res.json();
@@ -314,10 +339,27 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
             functionResponsesText += `\n\n[drawTechnicalAnalysis Result]: Successfully drew ${args.type} on the chart.`;
           } else if (call.name === 'getFundamentalData') {
             let data: any = {};
-            const isCrypto = isCryptoAsset(currentAsset);
+            const isCrypto = !isTN && isCryptoAsset(currentAsset);
             let symbol = currentAsset;
             if (isCrypto) {
               symbol = `${currentAsset}-USD`;
+            }
+            if (isTN) {
+              try {
+                const [mkts, eng] = await Promise.all([
+                  fetch('/api/tn/markets').then((r) => r.json()),
+                  fetch(`/api/tn/engine?symbol=${currentAsset}`).then((r) => r.json()).catch(() => null),
+                ]);
+                const row = (mkts.rows || []).find((r: any) => r.symbol === currentAsset);
+                data = row
+                  ? { ...row, currency: 'TND', engineScore: eng?.score, engineFactors: eng?.factors,
+                      note: 'P/E, EPS and dividend data not yet available for BVMT listings — live market stats + Engine score only.' }
+                  : { error: 'Symbol not found on the BVMT board.' };
+              } catch {
+                data = { error: 'BVMT feed unreachable.' };
+              }
+              functionResponsesText += `\n\n[getFundamentalData Result for ${currentAsset}]:\n${JSON.stringify(data)}`;
+              continue;
             }
             try {
               const quoteRes = await fetch(`/api/quote?symbols=${symbol}`);
@@ -349,9 +391,11 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
             functionResponsesText += `\n\n[getFundamentalData Result for ${currentAsset}]:\n${JSON.stringify(data)}`;
           } else if (call.name === 'getFinancialStatements') {
             let data: any = {};
-            const isCrypto = isCryptoAsset(currentAsset);
+            const isCrypto = !isTN && isCryptoAsset(currentAsset);
             let symbol = currentAsset;
-            if (isCrypto) {
+            if (isTN) {
+              data = { error: 'Financial statements are not available yet for BVMT listings. Point the user to the official fiche-valeur on bvmt.com.tn for filings.' };
+            } else if (isCrypto) {
               data = { error: "Financial statements are not applicable for cryptocurrencies." };
             } else {
               try {
@@ -417,10 +461,10 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
     sendMessage(`Please analyze the current chart for ${currentAsset}, provide insights, predictions based on technical indicators, and explain your reasoning.`);
   };
 
-  // Reset chat when asset changes
+  // Reset chat when asset or market changes
   useEffect(() => {
     chatRef.current = initChat();
-  }, [currentAsset]);
+  }, [currentAsset, market]);
 
   return (
     <div className="flex flex-col h-full bg-[#0B0E14] border-l border-[#1F2937] shadow-xl">

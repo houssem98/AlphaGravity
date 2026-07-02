@@ -131,14 +131,18 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   *Acceptance:* ratios visible, comparator ranks by PER/yield. `[deploy]`
 
 ### Phase 11 — AI engine (our "Finansya Engine")
-- [ ] **T22** — TN analysis via gravity-api. Wire `Assistant` / a new
-  `TnEnginePanel` to call gravity-api with BVMT quote + intraday + news +
-  fundamentals as context; return a structured multi-factor read (trend, volume,
-  news tone, valuation) in French.
-  *Acceptance:* "Analyse AB" → grounded, cited, French synthesis.
-- [ ] **T23** — Multi-factor score. Deterministic 0–100 from
-  momentum + volume + news sentiment + (T20) valuation; badge on list + panel.
-  *Acceptance:* score reproducible, explained by factor breakdown. `[deploy]`
+- [x] **T22** — TN-aware Assistant. The existing Gemini function-calling
+  Assistant (not gravity-api — it's the tool already wired into the trading UI)
+  now has TN branches: `getChartData` → `/api/tn/history` + 15m intraday,
+  `getFundamentalData` → live BVMT row + Engine score/factors (honest note: no
+  P/E yet), `getFinancialStatements` → honest unavailable + fiche-valeur pointer.
+  System prompt carries BVMT/TND context + answer-in-French hint; chat re-inits
+  on market switch.
+- [x] **T23** — Multi-factor score. `/api/tn/engine?symbol=` — deterministic
+  0–100: momentum 35% (±3% day move), volume 25% (turnover percentile on board),
+  news 25% (FR/EN lexicon over 7d Tunisian press), liquidity 15% (L1 spread).
+  Every factor returns its `detail` (traceable). `EngineCard` gauge + expandable
+  factor bars at the top of the TN right rail (`TnSocialView`).
 
 ---
 
@@ -184,4 +188,11 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   8 metrics, best-per-metric highlight, Compare button in TN MarketList). T19
   price alerts in TnChart (localStorage threshold, browser Notification on cross
   while chart open). T18 (52w monitor) deferred — needs accumulated daily history.
+  tsc 0, build ok, deployed.
+- 2026-07-02 T22/T23 — Phase 11. /api/tn/engine: deterministic 4-factor score
+  (momentum 35% / volume-percentile 25% / news-lexicon 25% / spread-liquidity 15%),
+  every factor traceable via `detail`. EngineCard gauge + factor bars atop the TN
+  right rail. Assistant TN-aware: getChartData→tn/history+intraday,
+  getFundamentalData→BVMT row+engine, getFinancialStatements→honest unavailable;
+  BVMT/TND system context + French hint; chat re-inits on market change.
   tsc 0, build ok, deployed.

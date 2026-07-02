@@ -615,7 +615,7 @@ export default function TradingAssistantPage() {
         {/* Floating Assistant Widget */}
         {isAssistantOpen && (
           <div className="absolute bottom-20 right-4 w-[380px] h-[600px] max-h-[80vh] z-50 flex flex-col overflow-hidden rounded-[6px] bg-[color:var(--surface)] border border-[color:var(--line-strong)]">
-            <Assistant onDraw={handleDraw} currentAsset={currentAsset} onClose={() => setIsAssistantOpen(false)} />
+            <Assistant onDraw={handleDraw} currentAsset={currentAsset} market={activeMarket} assetName={assetName} onClose={() => setIsAssistantOpen(false)} />
           </div>
         )}
 

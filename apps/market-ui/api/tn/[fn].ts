@@ -146,7 +146,74 @@ async function snapshot(req: any, res: any) {
   res.json({ ok: code === 200, date, stocks: n, storage: code });
 }
 
-const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot };
+// ── Engine: deterministic multi-factor score (0–100) ────────────────────────
+// Momentum (day change), Volume activity (turnover vs board), Liquidity
+// (spread + book presence), News tone (FR/EN lexicon over Tunisian press).
+// No LLM, no black box — every factor traceable to its inputs.
+const POS = ['hausse', 'progress', 'bénéfice', 'benefice', 'croissance', 'record', 'gain', 'succès', 'succes', 'dividende', 'surperform', 'rachat', 'accord', 'partenariat', 'expansion', 'profit', 'surge', 'rise', 'beat', 'growth', 'upgrade', 'strong', 'jump'];
+const NEG = ['baisse', 'perte', 'chute', 'recul', 'déficit', 'deficit', 'sanction', 'litige', 'dette', 'défaut', 'defaut', 'fraude', 'enquête', 'enquete', 'suspension', 'avertissement', 'downgrade', 'drop', 'fall', 'loss', 'weak', 'plunge', 'probe', 'warning'];
+const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
+
+async function engine(req: any, res: any) {
+  res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
+  const symbol = String(req.query.symbol || '').toUpperCase();
+  if (!symbol) return res.status(400).json({ error: 'symbol required' });
+  const g = await groups();
+  const { isin, name, row } = await resolveIsin(symbol, g);
+  if (!row) return res.status(404).json({ error: `unknown ticker ${symbol}` });
+
+  const price = row.last || row.close || 0;
+  const changePct = row.change || 0;
+  const turnover = row.caps || 0;
+  // BVMT swapped fields (see markets()): their `ask` is the bid.
+  const bid = row.limit?.ask || 0, ask = row.limit?.bid || 0;
+
+  // Momentum: ±3% day move maps to 0..100 around 50.
+  const momentum = clamp(50 + (changePct / 3) * 50);
+
+  // Volume activity: this stock's turnover percentile across today's board.
+  const turnovers = (g?.markets || []).map((m: any) => m.caps || 0).filter((t: number) => t > 0).sort((a: number, b: number) => a - b);
+  const rank = turnovers.length ? turnovers.filter((t: number) => t <= turnover).length / turnovers.length : 0;
+  const volumeScore = clamp(rank * 100);
+
+  // Liquidity: tight spread = liquid. 0% spread→100, ≥4%→0; no book→25.
+  const spreadPct = bid && ask && price ? ((ask - bid) / price) * 100 : null;
+  const liquidity = spreadPct === null ? 25 : clamp(100 - (spreadPct / 4) * 100);
+
+  // News tone: last-7d Tunisian press headlines, lexicon-scored.
+  let newsScore = 50, bulls = 0, bears = 0, headlines = 0;
+  try {
+    const q = encodeURIComponent(`${name} Bourse Tunis`);
+    const xml = await (await fetch(`https://news.google.com/rss/search?q=${q}&hl=fr&gl=TN&ceid=TN:fr`, { headers: UA })).text();
+    const titles = (xml.match(/<item>[\s\S]*?<\/item>/g) || []).slice(0, 24)
+      .map((b) => (b.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1'));
+    headlines = titles.length;
+    for (const t of titles) {
+      const lo = t.toLowerCase();
+      let s = 0;
+      for (const w of POS) if (lo.includes(w)) s++;
+      for (const w of NEG) if (lo.includes(w)) s--;
+      if (s > 0) bulls++; else if (s < 0) bears++;
+    }
+    if (headlines) newsScore = clamp(50 + ((bulls - bears) / headlines) * 50);
+  } catch { /* keep neutral 50 */ }
+
+  // Composite: momentum 35%, volume 25%, news 25%, liquidity 15%.
+  const score = clamp(momentum * 0.35 + volumeScore * 0.25 + newsScore * 0.25 + liquidity * 0.15);
+  res.json({
+    symbol, name, isin, price, changePct, score,
+    label: score >= 65 ? 'bullish' : score <= 35 ? 'bearish' : 'neutral',
+    factors: {
+      momentum:  { score: momentum,    detail: `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}% today` },
+      volume:    { score: volumeScore, detail: `top ${Math.max(1, Math.round(100 - rank * 100))}% of board by turnover` },
+      news:      { score: newsScore,   detail: `${bulls} bull / ${bears} bear of ${headlines} headlines (7d)` },
+      liquidity: { score: liquidity,   detail: spreadPct === null ? 'no live book' : `${spreadPct.toFixed(2)}% spread` },
+    },
+    weights: { momentum: 0.35, volume: 0.25, news: 0.25, liquidity: 0.15 },
+  });
+}
+
+const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine };
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
