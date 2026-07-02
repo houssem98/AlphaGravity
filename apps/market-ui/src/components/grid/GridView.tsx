@@ -32,6 +32,7 @@ import { saveGridRun, loadLatestGridRun, listGridRuns, loadGridRun, deleteGridRu
 import { exportGridToXLSX, downloadBlob } from '../../services/gridExcel';
 import { buildShareLink, readSharedGridFromUrl, clearSharedGridFromUrl } from '../../services/gridShare';
 import { recordExport } from '../../services/auditClient';
+import sp500 from '../../lib/sp500.json';
 
 const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/llm/chat`;
 const GRAVITY_API = import.meta.env.VITE_GRAVITY_API_URL || 'http://localhost:8000';
@@ -63,6 +64,31 @@ async function searchGravityCell(query: string, ticker: string, signal?: AbortSi
 }
 
 const DEFAULT_TICKERS = ['NVDA', 'AAPL', 'MSFT', 'GOOGL'];
+
+// Typo guard: warn (never block — non-S&P tickers are valid, on-demand ingest
+// covers them) when a ticker isn't in the S&P 500 list, and suggest the
+// closest symbol at edit distance 1 (catches APPL→AAPL, MSFTT→MSFT, etc.).
+const KNOWN_SYMBOLS = new Set((sp500 as { symbol: string }[]).map(s => s.symbol));
+
+function editDistance(a: string, b: string): number {
+    const dp = Array.from({ length: a.length + 1 }, (_, i) => {
+        const row = new Array<number>(b.length + 1).fill(0);
+        row[0] = i;
+        return row;
+    });
+    for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+    for (let i = 1; i <= a.length; i++)
+        for (let j = 1; j <= b.length; j++)
+            dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return dp[a.length][b.length];
+}
+
+function closestSymbol(ticker: string): string | null {
+    for (const s of KNOWN_SYMBOLS) {
+        if (Math.abs(s.length - ticker.length) <= 1 && editDistance(ticker, s) === 1) return s;
+    }
+    return null;
+}
 
 const SEED_PROMPT_IDS = new Set(SEED_GRID_PROMPTS.map(p => p.id));
 const customFromDef = (def: GridDef): GridPrompt[] => def.prompts.filter(p => !SEED_PROMPT_IDS.has(p.id));
@@ -290,6 +316,19 @@ export default function GridView() {
     const removeColumn = (id: string) => {
         setCustomPrompts(prev => prev.filter(p => p.id !== id));
         setPromptIds(ids => ids.filter(x => x !== id));
+    };
+
+    const tickerWarnings = useMemo(() => {
+        const tickers = tickersInput.split(',').map(t => t.trim().toUpperCase()).filter(Boolean);
+        return [...new Set(tickers)]
+            .filter(t => !KNOWN_SYMBOLS.has(t))
+            .map(t => ({ ticker: t, suggestion: closestSymbol(t) }));
+    }, [tickersInput]);
+
+    const fixTicker = (from: string, to: string) => {
+        setTickersInput(prev =>
+            prev.split(',').map(t => (t.trim().toUpperCase() === from ? to : t.trim())).filter(Boolean).join(', ')
+        );
     };
 
     const startRun = async () => {
@@ -628,6 +667,25 @@ export default function GridView() {
                         disabled={running}
                         className="w-full px-4 py-2.5 rounded-md text-sm bg-[#0a0a0a] border border-[#d4af37]/30 text-[#00d9ff] placeholder:text-[#666] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] disabled:opacity-40 transition-all"
                     />
+                    {tickerWarnings.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                            {tickerWarnings.map(w => (
+                                <span key={w.ticker} className="inline-flex items-center gap-1.5 text-xs text-amber-400">
+                                    <AlertCircle className="w-3.5 h-3.5" />
+                                    {w.ticker} is not in the S&amp;P 500
+                                    {w.suggestion && (
+                                        <button
+                                            onClick={() => fixTicker(w.ticker, w.suggestion!)}
+                                            disabled={running}
+                                            className="font-bold text-[#00f0ff] hover:underline cursor-pointer disabled:opacity-40"
+                                        >
+                                            Did you mean {w.suggestion}?
+                                        </button>
+                                    )}
+                                </span>
+                            ))}
+                        </div>
+                    )}
 
                     <label className="text-xs font-bold text-[#d4af37] block mt-4 mb-3 uppercase tracking-wider">LLM Model</label>
                     <div className="flex gap-2 mb-6">
