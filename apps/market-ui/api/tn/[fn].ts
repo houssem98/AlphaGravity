@@ -102,19 +102,24 @@ async function intraday(req: any, res: any) {
   });
 }
 
-// ── Daily candles from the Storage snapshot blob ────────────────────────────
+// ── Daily candles — real OHLC aggregated from the exchange's raw_market ──────
+// (~5 months of intraday snapshots → one bar per session). Live, always current.
 async function history(req: any, res: any) {
   res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=86400');
   const symbol = String(req.query.symbol || '').toUpperCase();
   let isin = String(req.query.isin || '');
   if (!symbol && !isin) return res.status(400).json({ error: 'symbol or isin required' });
-  if (!process.env.SUPABASE_URL) return res.status(500).json({ error: 'supabase env missing' });
   if (!isin) { const r = await resolveIsin(symbol); if (!r.isin) return res.status(404).json({ error: `unknown ticker ${symbol}` }); isin = r.isin; }
-  const blob = await store().get();
-  const bars = blob[isin]?.b || {};
-  const candles = Object.entries(bars)
-    .map(([dt, v]: [string, any]) => ({ time: Math.floor(Date.parse(dt) / 1000), open: v[0], high: v[1], low: v[2], close: v[3], volume: v[4] }))
-    .sort((a, b) => a.time - b.time);
+  if (!/^[A-Z0-9]+$/.test(isin)) return res.status(400).json({ error: 'bad isin' });
+
+  const sql =
+    `SELECT d, max(price) hi, min(price) lo, (array_agg(price ORDER BY t))[1] op, (array_agg(price ORDER BY t DESC))[1] cl, max(qty) vol FROM (` +
+    `SELECT raw_data->>'dateSeance' d, raw_data->>'time' t, (raw_data->>'lastTradePrice')::float price, (raw_data->>'quantity')::float qty ` +
+    `FROM raw_market WHERE raw_data->>'codeIsin'='${isin}' AND raw_data->>'lastTradePrice' IS NOT NULL) x GROUP BY d ORDER BY d`;
+  const rows = await gqueryTable(sql);
+  const candles = rows
+    .filter((r) => r.d && r.cl != null)
+    .map((r) => ({ time: Math.floor(Date.parse(r.d) / 1000), open: r.op, high: r.hi, low: r.lo, close: r.cl, volume: r.vol || 0 }));
   res.json({ symbol, isin, candles });
 }
 
@@ -234,6 +239,21 @@ async function gquery(rawSql: string): Promise<any[]> {
 
 async function tnIndices() {
   return gquery('SELECT raw_data FROM indice_live WHERE ingested_at=(SELECT max(ingested_at) FROM indice_live)');
+}
+
+// Column-oriented query → array of row objects (for aggregations, not JSON blobs).
+async function gqueryTable(rawSql: string): Promise<any[]> {
+  const r = await fetch(GRAFANA, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Referer: 'https://tunis-stockexchange.com/grafana/', 'User-Agent': 'Mozilla/5.0' },
+    body: JSON.stringify({ queries: [{ refId: 'A', datasource: { uid: DS_UID, type: 'grafana-postgresql-datasource' }, rawSql, format: 'table' }] }),
+  });
+  const j = await r.json();
+  const frame = j?.results?.A?.frames?.[0];
+  const cols: string[] = (frame?.schema?.fields || []).map((f: any) => f.name);
+  const vals: any[][] = frame?.data?.values || [];
+  if (!cols.length || !vals.length) return [];
+  return vals[0].map((_: any, i: number) => Object.fromEntries(cols.map((c, ci) => [c, vals[ci][i]])));
 }
 
 async function index(req: any, res: any) {
