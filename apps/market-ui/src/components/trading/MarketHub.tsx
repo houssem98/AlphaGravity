@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { MARKETS, type MarketDef, type MarketId } from '../../lib/markets';
 import { fetchHeadline, fetchCloses, fmtPrice, fmtPct, type AssetRow } from '../../services/marketsHub';
 
@@ -134,6 +134,7 @@ function MarketCard({
 }
 
 export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAsset }) => {
+  const reduce = useReducedMotion();
   const [rowsByMarket, setRowsByMarket] = useState<Record<string, AssetRow[]>>({});
   const [seriesByMarket, setSeriesByMarket] = useState<Record<string, { v: number }[]>>({
     tunisia: TN_SERIES,
@@ -195,10 +196,10 @@ export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAs
           className="grid grid-cols-1 lg:grid-cols-3 gap-4"
           initial="hidden"
           animate="show"
-          variants={{ show: { transition: { staggerChildren: 0.06 } } }}
+          variants={{ show: { transition: { staggerChildren: reduce ? 0 : 0.06 } } }}
         >
           {MARKETS.map((def) => (
-            <motion.div key={def.id} variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}>
+            <motion.div key={def.id} variants={{ hidden: { opacity: reduce ? 1 : 0, y: reduce ? 0 : 12 }, show: { opacity: 1, y: 0 } }}>
               <MarketCard
                 def={def}
                 rows={rowsByMarket[def.id] || []}

@@ -62,7 +62,7 @@ than one iteration, split it in-file (add sub-tasks) and do the first.
   Replace bare "LOADING…" with skeleton rows in MarketHub cards + MarketList.
   Show a retry line on fetch failure.
   *Acceptance:* throttle network → skeletons, then data; kill an endpoint → retry UI.
-- [ ] **T6** — Formatting + reduced-motion pass.
+- [x] **T6** — Formatting + reduced-motion pass.
   Audit currency/number formatting (TND vs USD), negative signs, tiny prices.
   Respect `prefers-reduced-motion` on hub stagger/ticker.
   *Acceptance:* TN prices read "x.xx TND"; motion off when OS reduce-motion set. `[deploy]`
@@ -95,3 +95,4 @@ correct currencies, graceful charts.
 2026-07-02 T3 — full S&P 500 (503 syms, lib/sp500.json from datahub, dots→dashes); fetchQuotes chunks ≤50; MarketList page-based fetch (25/page, only visible page quoted) + PREV/NEXT — tsc 0, build ok
 2026-07-02 T4 — MarketList per-market watchlist (localStorage hub_watchlist_<id>, star col + Watchlist(N) filter, persists across reload). Sparkline SKIPPED (ponytail): US is paged→25 /api/history calls/page = Yahoo burst risk; crypto Markets already has sparklines. — tsc 0, build ok, deployed
 2026-07-02 T5 — skeleton rows (MarketList 10-row pulse, MarketHub card lead+constituents pulse) replacing bare LOADING…; MarketList error + RETRY (reloadKey) on full-load failure — tsc 0, build ok
+2026-07-02 T6 — hub stagger honors useReducedMotion (JS anim the global CSS media query can't stop); formatting already correct via fmtPrice/fmtPct/fmtCompact (TND/USD, tiny prices, negatives); global prefers-reduced-motion CSS already covers decorative anims — tsc 0, build ok, deployed
