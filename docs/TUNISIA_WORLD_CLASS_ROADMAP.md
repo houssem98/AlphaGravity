@@ -89,16 +89,22 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   turnover, Bid/Ask (L1), spread, ISIN — all from the enriched BVMT row.
 
 ### Phase 8 — Historical data engine (unlocks daily candles + index)
-- [ ] **T13** — Daily snapshot cron. Vercel Cron (or gravity-api job) writes each
-  session's OHLCV per ISIN to Supabase `tn_daily`. Idempotent per (isin, date).
-  *Acceptance:* row inserted post-close; re-run doesn't dup.
-- [ ] **T14** — Daily candlestick source. `/api/tn/intraday` gains
-  `?range=daily` reading `tn_daily`; `TnChart` timeframe switch (1D intraday /
-  1M / 1Y daily). Backfill note: history grows from launch forward.
-  *Acceptance:* daily candles render once ≥2 sessions stored. `[deploy]`
-- [ ] **T15** — Live TUNINDEX. Resolve the BVMT index endpoint (or compute a
-  cap-weighted proxy from constituents); replace the mock in `marketsHub`.
-  *Acceptance:* hub TUNINDEX moves with the market, "indicative" label gone.
+- [x] **T13** — Daily snapshot cron. `/api/tn/snapshot` writes each session's
+  OHLCV per ISIN to **Supabase Storage** (JSON blob `market-data/tn_daily.json`)
+  — no table/DDL needed (the `sb_secret` key can't DDL; Storage sidesteps it).
+  Vercel Cron `0 14 * * *`, weekend-guarded, `CRON_SECRET` auth, idempotent per
+  (isin, date). Open = prev-close proxy (BVMT `open` is always 0); H/L/C/V real.
+- [x] **T14** — Daily candlestick source. `/api/tn/history` reads the blob;
+  `TnChart` has an **Intraday / Daily** toggle. History grows from launch
+  forward (seeded 2026-07-02: 75 stocks, 1 bar each).
+- [ ] **T15** — Live TUNINDEX. **Blocked**: no public BVMT index endpoint
+  (`market/indices` → Tomcat 500, all guesses 404). Options: compute a
+  turnover-weighted proxy from constituents, or scrape. Stays indicative for now.
+
+> Infra note: all `tn/*` endpoints are ONE Vercel function `api/tn/[fn].ts`
+> (Hobby caps at 12 functions). The `/api/*`→Fly rewrite had to exclude `/api/tn/`
+> — Vercel serves static function files before rewrites but NOT dynamic `[fn]`
+> routes, so the dynamic one was being proxied to Fly (404) until excluded.
 
 ### Phase 9 — Terminal features (match finansya)
 - [ ] **T16** — Screener. Filter/sort the 75 listings by change%, volume,
@@ -163,3 +169,12 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
 - 2026-07-02 T11 — Topbar hides Markets/Yield/Holders for TN (Chart/News/About
   only); page effect snaps activeTab→Chart on market switch; removed Topbar
   console.logs. tsc 0, build ok, deployed.
+- 2026-07-02 T13+T14 — Daily-history engine on Supabase Storage (no DDL): bucket
+  `market-data`, blob `tn_daily.json`. /api/tn/snapshot (cron 14:00 UTC,
+  weekend-guarded, CRON_SECRET) + /api/tn/history + TnChart Intraday/Daily toggle.
+  Consolidated all tn routes into api/tn/[fn].ts (Hobby 12-fn cap) + excluded
+  /api/tn/ from the Fly rewrite (dynamic routes lose the fn-vs-rewrite race).
+  Seeded 2026-07-02: 75 stocks. Verified: AB daily bar O84.49 H87.49 L84.18 C86.9
+  V32509. tsc 0, build ok, deployed. Env added to Vercel: SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET.
+- 2026-07-02 T15 — deferred: no public BVMT index endpoint (all probes 404/500).
