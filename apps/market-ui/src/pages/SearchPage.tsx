@@ -821,6 +821,7 @@ export default function SearchPage() {
         const q = searchParams.get('q');
         const m = searchParams.get('mode');
         if (m === 'research') setMode('research');
+        if (m === 'grid') setMode('grid');  // GridView reads ?gridRun itself
         if (q?.trim()) {
             setSearchParams({}, { replace: true });
             if (m === 'research') {

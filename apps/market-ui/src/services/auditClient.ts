@@ -7,7 +7,7 @@ import { getAccessToken } from './supabase';
 const GRAVITY_API = import.meta.env?.VITE_GRAVITY_API_URL || 'http://localhost:8000';
 
 export async function recordExport(
-    format: 'csv' | 'xlsx' | 'pdf' | 'share_link' | 'email',
+    format: 'csv' | 'xlsx' | 'pdf' | 'memo' | 'share_link' | 'email',
     opts: { bytes?: number; destination?: string; eventId?: string } = {},
 ): Promise<void> {
     try {

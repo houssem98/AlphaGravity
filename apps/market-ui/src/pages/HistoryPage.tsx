@@ -7,6 +7,7 @@ import {
     ArrowRight, Filter, SortDesc
 } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { listGridRuns, type SavedGridRow } from '../services/gridStore';
 
 interface ReportSummary {
     id: string;
@@ -20,6 +21,7 @@ interface ReportSummary {
 
 export default function HistoryPage() {
     const [reports, setReports] = useState<ReportSummary[]>([]);
+    const [grids, setGrids] = useState<SavedGridRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
@@ -28,6 +30,7 @@ export default function HistoryPage() {
 
     useEffect(() => {
         fetchReports();
+        listGridRuns(20).then(setGrids).catch(() => { /* signed out / no table */ });
     }, []);
 
     const fetchReports = async () => {
@@ -174,6 +177,41 @@ export default function HistoryPage() {
                 )}
             </div>
 
+            {/* ═══ RESEARCH GRIDS ═══ */}
+            {grids.length > 0 && (
+                <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-3">
+                        <BarChart3 className="w-4 h-4 text-[#00F0FF]" />
+                        <h2 className="text-sm font-semibold text-[#F4F6FF] uppercase tracking-wider">Research Grids</h2>
+                        <span className="text-[11px] text-[#A7B0C8]/40">{grids.length}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {grids.map(g => {
+                            const tickers = g.def?.tickers ?? [];
+                            const cellCount = Object.keys(g.cells ?? {}).length;
+                            return (
+                                <button
+                                    key={g.id}
+                                    onClick={() => navigate(`/search?mode=grid&gridRun=${g.id}`)}
+                                    className="group text-left p-4 rounded-xl transition-all hover:scale-[1.01]"
+                                    style={{ background: 'rgba(13,18,37,0.85)', borderWidth: 1, borderColor: 'rgba(0,240,255,0.08)' }}
+                                >
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="font-medium text-[13px] text-[#F4F6FF] group-hover:text-[#00F0FF] transition-colors truncate">{g.name || 'Untitled grid'}</span>
+                                        <ChevronRight className="w-4 h-4 text-[#A7B0C8]/20 group-hover:text-[#00F0FF] transition-all flex-shrink-0" />
+                                    </div>
+                                    <div className="text-[11px] text-[#A7B0C8]/50 truncate">{tickers.slice(0, 6).join(', ') || '—'}</div>
+                                    <div className="flex items-center gap-3 mt-2 text-[10px] text-[#A7B0C8]/40">
+                                        <span className="flex items-center gap-1"><Database className="w-3 h-3" />{cellCount} cells</span>
+                                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{formatDate(g.created_at)}</span>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {/* ═══ SEARCH & FILTER BAR ═══ */}
             {reports.length > 0 && (
                 <div className="flex items-center gap-3 mb-6">
@@ -232,7 +270,7 @@ export default function HistoryPage() {
             )}
 
             {/* ═══ EMPTY STATE ═══ */}
-            {!loading && reports.length === 0 && (
+            {!loading && reports.length === 0 && grids.length === 0 && (
                 <div className="text-center py-24 px-8">
                     <div className="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center"
                         style={{

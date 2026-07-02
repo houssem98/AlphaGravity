@@ -84,14 +84,18 @@ class StructuredSearch:
         else:
             flt["ticker"] = "in.(" + ",".join(tickers) + ")"
 
-        # Filter to the asked fiscal year(s) + one prior (change/CAGR/growth). This
-        # keeps the facts on the right period without flooding context (returning the
-        # whole 60-fact statement regressed accuracy + caused timeouts).
+        # Filter to the asked fiscal year(s). Single year → + one prior (change/CAGR/
+        # growth). Multi-year → EVERY year in the span, not just the endpoints: a
+        # "FY2020-2025" query only names 2020 & 2025 in text, so the old per-year
+        # (y, y-1) expansion fetched FY2019,2020,2024,2025 and dropped 2021-2023 —
+        # the measured "3 of 6 years" recall gap. This keeps facts on the right
+        # periods without flooding (the metric filter below still narrows the rows).
         years = sorted({int(y) for y in re.findall(r"((?:19|20)\d{2})", query or "")})
         if years:
-            wanted: set[int] = set()
-            for y in years:
-                wanted.update((y, y - 1))
+            if len(years) >= 2:
+                wanted: set[int] = set(range(years[0], years[-1] + 1))
+            else:
+                wanted = {years[0], years[0] - 1}
             flt["period"] = "in.(" + ",".join(f"FY{y}" for y in sorted(wanted)) + ")"
 
         # When the query names a metric, narrow to it (precise lookup). Otherwise

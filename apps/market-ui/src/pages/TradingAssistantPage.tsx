@@ -17,6 +17,9 @@ import { OrderBlockModal } from '../components/trading/OrderBlockModal';
 import { SymbolSearchModal } from '../components/trading/SymbolSearchModal';
 import { PortfolioPanel } from '../components/trading/PortfolioPanel';
 import { Markets } from '../components/trading/Markets';
+import { MarketHub } from '../components/trading/MarketHub';
+import { MarketList } from '../components/trading/MarketList';
+import { getMarket, type MarketId } from '../lib/markets';
 import { NewsTab } from '../components/trading/tabs/NewsTab';
 import { HoldersTab } from '../components/trading/tabs/HoldersTab';
 import { YieldTab } from '../components/trading/tabs/YieldTab';
@@ -42,7 +45,8 @@ export default function TradingAssistantPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const handleSignOut = async () => { await signOut(); navigate('/auth'); };
-  const [currentView, setCurrentView] = useState<'markets' | 'chart'>('markets');
+  const [currentView, setCurrentView] = useState<'hub' | 'markets' | 'chart'>('hub');
+  const [activeMarket, setActiveMarket] = useState<MarketId>('crypto');
   // Left icon rail collapse (persisted) — toggle to free page width.
   const [railOpen, setRailOpen] = useState<boolean>(() => localStorage.getItem('trading.railOpen') !== 'false');
   useEffect(() => { localStorage.setItem('trading.railOpen', String(railOpen)); }, [railOpen]);
@@ -396,18 +400,18 @@ export default function TradingAssistantPage() {
           >
             {railOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
           </button>
-          {currentView === 'chart' && (
+          {currentView !== 'hub' && (
             <button
-              onClick={() => setCurrentView('markets')}
+              onClick={() => setCurrentView(currentView === 'chart' ? 'markets' : 'hub')}
               className="w-7 h-7 rounded-sm flex items-center justify-center transition-colors text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)]"
-              title="Back to markets"
+              title="Back"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
           )}
           <div
             className="flex items-center gap-2 cursor-pointer"
-            onClick={() => setCurrentView('markets')}
+            onClick={() => setCurrentView('hub')}
           >
             <div className="w-6 h-6 rounded-sm flex items-center justify-center bg-[color:var(--accent)] glint chrome">
               <span className="text-[color:var(--accent-ink)] font-bold text-[13px] leading-none">M</span>
@@ -420,7 +424,7 @@ export default function TradingAssistantPage() {
               return (
                 <button
                   key={label}
-                  onClick={i === 0 ? () => setCurrentView('markets') : undefined}
+                  onClick={i === 0 ? () => { setActiveMarket('crypto'); setCurrentView('markets'); } : undefined}
                   className={`text-body font-medium transition-colors ${
                     isActive
                       ? 'text-[color:var(--text)]'
@@ -483,11 +487,24 @@ export default function TradingAssistantPage() {
         )}
       </AnimatePresence>
 
-      {currentView === 'markets' ? (
-        <Markets onAssetSelect={(asset) => {
-          setCurrentAsset(asset);
-          setCurrentView('chart');
-        }} />
+      {currentView === 'hub' ? (
+        <MarketHub
+          onSelectMarket={(id) => { setActiveMarket(id); setCurrentView('markets'); }}
+          onSelectAsset={(asset) => { setCurrentAsset(asset); setCurrentView('chart'); }}
+        />
+      ) : currentView === 'markets' ? (
+        activeMarket === 'crypto' ? (
+          <Markets onAssetSelect={(asset) => {
+            setCurrentAsset(asset);
+            setCurrentView('chart');
+          }} />
+        ) : (
+          <MarketList
+            market={getMarket(activeMarket)}
+            onAssetSelect={(asset) => { setCurrentAsset(asset); setCurrentView('chart'); }}
+            onBack={() => setCurrentView('hub')}
+          />
+        )
       ) : (
         <>
           {/* 3-column layout: left info | chart | right community */}
@@ -495,7 +512,7 @@ export default function TradingAssistantPage() {
 
             {/* Left: Coin info (resizable) */}
             <div className="shrink-0 h-full" style={{ width: leftW }}>
-              <AssetInfoPanel asset={currentAsset} onAskAI={() => setIsAssistantOpen(true)} />
+              <AssetInfoPanel asset={currentAsset} market={activeMarket} onAskAI={() => setIsAssistantOpen(true)} />
             </div>
             <ResizeHandle value={leftW} min={240} max={520} dir={1} onChange={setLeftW} ariaLabel="Resize info panel" />
 

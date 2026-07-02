@@ -27,6 +27,7 @@ import structlog
 
 from app.config import settings
 from app.api.middleware.pii_filter import PIIFilter
+from app.core.query_understanding import suppresses_xbrl
 from app.core.retrieval.fusion import RetrievalResult, authority_aware_rrf
 from app.core.reasoning.prompts import (
     FINANCIAL_ANALYST_SYSTEM,
@@ -684,9 +685,20 @@ class SearchPipeline:
                     _sf = _ordered_sf
                 # Cap exact-fact pins by entity count: a 3-4 way comparison needs ~2
                 # facts per company, so a fixed 6 would drop a company. Scale with
-                # tickers (×4 → ~4 facts/company), capped at 14.
-                _struct_cap = min(14, max(6, 4 * max(_n_tickers, 1)))
-                _struct_pin = _sf[:_struct_cap]            # exact facts — highest authority
+                # tickers (×4 → ~4 facts/company). ALSO scale with the requested
+                # fiscal-year SPAN: a broad "FY2020-2025 revenue" query needs one pin
+                # per year, and a fixed 6 dropped the middle years (the recall gap).
+                # Use the span (max-min+1), not the count of years named in text — a
+                # range only names its two endpoints. +2 headroom for a prior/derived
+                # component row. Capped at 18 to avoid context flooding.
+                _yrs = sorted({int(y) for y in re.findall(r"(?:19|20)\d{2}", query)})
+                _span = (_yrs[-1] - _yrs[0] + 1) if len(_yrs) >= 2 else len(_yrs)
+                _struct_cap = min(18, max(6, 4 * max(_n_tickers, 1),
+                                          (_span + 2) * max(_n_tickers, 1)))
+                # P0.1: for qualitative-analytical queries (risks/moat/strategy with
+                # no numeric ask), exact XBRL rows are noise, not evidence — they
+                # crowded out the 10-K risk-factor prose. Don't pin them.
+                _struct_pin = [] if suppresses_xbrl(query) else _sf[:_struct_cap]
                 _pin_ids = {_cid(p) for p in _struct_pin}
                 _tn_pin = [p for p in _tn if _cid(p) not in _pin_ids][:3]
                 _pin_ids |= {_cid(p) for p in _tn_pin}
@@ -1893,6 +1905,21 @@ def _default_follow_ups(query: str, query_plan: dict, passages: list) -> list[st
     ]
 
 
+def _edgar_browse_url(ticker: str, filing_type: str = "") -> str:
+    """P0.2: derive an EDGAR filing-list URL from ticker (+ filing type). EDGAR's
+    browse-edgar resolves ticker symbols in the CIK field, so this lands the user
+    on the company's real filings without needing the accession number (which the
+    index doesn't store yet). Empty when there's no ticker to key on."""
+    t = (ticker or "").strip().upper()
+    if not t:
+        return ""
+    url = f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={t}&dateb=&owner=include&count=40"
+    ft = (filing_type or "").strip()
+    if ft:
+        url += f"&type={ft}"
+    return url
+
+
 def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
     """
     Enrich citations into the shape the frontend expects
@@ -1940,6 +1967,8 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
 
         _tk = c.get("ticker") or _pf("ticker")
         _sec = c.get("section") or _pf("section")
+        _ftype = c.get("document_type") or _pf("document_type") or _pf("filing_type")
+        _url = c.get("url") or _pf("url") or _edgar_browse_url(_tk, _ftype)
         _offset_start = c.get("char_offset_start") or (getattr(p, "char_offset_start", None) if p is not None else None)
         _offset_end = c.get("char_offset_end") or (getattr(p, "char_offset_end", None) if p is not None else None)
 
@@ -1956,6 +1985,7 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
             "id": num,
             "source": doc_title,
             "date": c.get("filing_date") or _pf("filing_date"),
+            "url": _url,
         }
 
         # Add char offsets for span-level citation highlighting
@@ -1981,6 +2011,10 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
                 "id": i,
                 "source": getattr(p, "document_title", "") or getattr(p, "ticker", "") or "Source",
                 "date": getattr(p, "filing_date", "") or "",
+                "url": _edgar_browse_url(
+                    getattr(p, "ticker", "") or "",
+                    getattr(p, "document_type", "") or "",
+                ),
             })
         return out
 

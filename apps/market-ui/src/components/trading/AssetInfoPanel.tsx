@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { isCryptoAsset, CRYPTO_ASSETS, STOCK_ASSETS } from '../../constants/tradingAssets';
+import { getMarket, type MarketId } from '../../lib/markets';
+import { fetchMarket, fmtPrice } from '../../services/marketsHub';
 import {
   Info, Star, Globe, FileText, Copy, Check, ChevronDown, ChevronRight,
   Edit2, Unlock, CheckCircle2, ExternalLink, Play, ArrowLeftRight, Shield,
@@ -563,9 +565,10 @@ const ROW = ({ label, value, change, hasArrow, tooltip }: { label: string; value
 interface AssetInfoPanelProps {
   asset: string;
   onAskAI?: () => void;
+  market?: MarketId;
 }
 
-export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI }) => {
+export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, market }) => {
   const [price,     setPrice]     = useState<number | null>(null);
   const [change,    setChange]    = useState<number | null>(null);
   const [marketCap, setMarketCap] = useState<number | null>(null);
@@ -590,11 +593,15 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI }
   const [copiedUcid,   setCopiedUcid]     = useState(false);
   const [copiedContract, setCopiedContract] = useState<string | null>(null);
 
+  const isTN      = market === 'tunisia';
+  const currency: 'USD' | 'TND' = market ? getMarket(market).currency : 'USD';
+  const exchangeLabel = isTN ? 'BVMT' : market === 'us' ? 'US' : '';
   const assetInfo = [...CRYPTO_ASSETS, ...STOCK_ASSETS].find(a => a.symbol === asset);
-  const assetName = assetInfo?.name || asset;
-  const isCrypto  = isCryptoAsset(asset);
+  const tnRow     = isTN ? getMarket('tunisia').symbols.find(s => s.symbol === asset) : undefined;
+  const assetName = tnRow?.name || assetInfo?.name || asset;
+  const isCrypto  = !isTN && isCryptoAsset(asset);
   const meta      = isCrypto ? (ASSET_META[asset] ?? null) : null;
-  const stockMeta = !isCrypto ? (STOCK_META[asset]) : null;
+  const stockMeta = (!isCrypto && !isTN) ? (STOCK_META[asset]) : null;
   const rank      = meta?.rank ?? 1;
 
   // ── Live price feed ──────────────────────────────────────────────────────
@@ -602,6 +609,16 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI }
     let live = true;
     const load = async () => {
       try {
+        if (isTN) {
+          const rows = await fetchMarket(getMarket('tunisia'));
+          const row = rows.find(r => r.symbol === asset);
+          if (row && live) {
+            setPrice(row.price); setChange(row.changePct);
+            setMarketCap(null); setVolume(null); setSupply(null);
+            setMaxSupply(null); setLow24h(null); setHigh24h(null);
+          }
+          return;
+        }
         if (isCrypto) {
           const [b, c] = await Promise.allSettled([
             fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${asset}USDT`).then(r => r.json()),
@@ -640,7 +657,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI }
     load();
     const iv = setInterval(load, 12000);
     return () => { live = false; clearInterval(iv); };
-  }, [asset, isCrypto]);
+  }, [asset, isCrypto, isTN]);
 
   // ── Converter sync ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -679,9 +696,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI }
     setActiveTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
   };
 
-  const priceStr = price !== null
-    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: price < 1 ? 4 : 2, maximumFractionDigits: price < 1 ? 6 : 2 }).format(price)
-    : '...';
+  const priceStr = price !== null ? fmtPrice(price, currency) : '...';
   const positive  = (change ?? 0) >= 0;
   const fdv       = price && maxSupply ? price * maxSupply : null;
   const volMktCap = volume && marketCap ? (volume / marketCap) * 100 : null;
@@ -756,7 +771,8 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI }
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[16px] font-bold text-white">{assetName}</span>
               <span className="text-[12px] font-bold px-1.5 py-0.5 rounded" style={{ color: '#5A6478', background: '#0E1320' }}>{asset}</span>
-              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ color: '#5A6478', background: '#0E1320' }}>#{rank}</span>
+              {isCrypto && <span className="text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ color: '#5A6478', background: '#0E1320' }}>#{rank}</span>}
+              {exchangeLabel && <span className="text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ color: '#5A6478', background: '#0E1320' }}>{exchangeLabel}</span>}
             </div>
           </div>
 
@@ -1170,7 +1186,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI }
         <div className="px-4 py-3" style={{ borderTop: '1px solid #1B2236' }}>
           <div className="flex items-center justify-between mb-3">
             <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#5A6478' }}>
-              {asset} ↔ USD Converter
+              {asset} ↔ {currency} Converter
             </div>
             <ArrowLeftRight className="w-3.5 h-3.5" style={{ color: '#5A6478' }} />
           </div>
@@ -1193,7 +1209,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI }
             {/* USD input */}
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all"
               style={{ background: '#0E1320', border: '1px solid #1B2236' }}>
-              <span className="text-[12px] font-bold w-10 shrink-0" style={{ color: '#2962FF' }}>USD</span>
+              <span className="text-[12px] font-bold w-10 shrink-0" style={{ color: '#2962FF' }}>{currency}</span>
               <input
                 type="number"
                 min="0"
@@ -1207,7 +1223,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI }
           </div>
           {price && (
             <div className="text-[11px] mt-2 text-right" style={{ color: '#5A6478' }}>
-              1 {asset} = {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: price < 1 ? 6 : 2 }).format(price)}
+              1 {asset} = {fmtPrice(price, currency)}
             </div>
           )}
         </div>

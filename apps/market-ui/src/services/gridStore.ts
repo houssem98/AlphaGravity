@@ -18,7 +18,7 @@ export async function saveGridRun(state: GridState): Promise<string | null> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
 
-    const { data, error } = await supabase.from('grid_runs').insert({
+    const { data, error } = await supabase.from('lib_grid_runs').insert({
         user_id: session.user.id,
         name: state.def.name,
         def: state.def,
@@ -36,7 +36,7 @@ export async function loadLatestGridRun(): Promise<GridState | null> {
     if (!session) return null;
 
     const { data } = await supabase
-        .from('grid_runs')
+        .from('lib_grid_runs')
         .select('*')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
@@ -49,7 +49,7 @@ export async function loadLatestGridRun(): Promise<GridState | null> {
 
 export async function loadGridRun(id: string): Promise<GridState | null> {
     const { data } = await supabase
-        .from('grid_runs')
+        .from('lib_grid_runs')
         .select('*')
         .eq('id', id)
         .maybeSingle();
@@ -62,7 +62,7 @@ export async function listGridRuns(limit = 20): Promise<SavedGridRow[]> {
     if (!session) return [];
 
     const { data } = await supabase
-        .from('grid_runs')
+        .from('lib_grid_runs')
         .select('id, name, def, cells, started_at, completed_at, created_at')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
@@ -72,7 +72,7 @@ export async function listGridRuns(limit = 20): Promise<SavedGridRow[]> {
 }
 
 export async function deleteGridRun(id: string): Promise<boolean> {
-    const { error } = await supabase.from('grid_runs').delete().eq('id', id);
+    const { error } = await supabase.from('lib_grid_runs').delete().eq('id', id);
     return !error;
 }
 

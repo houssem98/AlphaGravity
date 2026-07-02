@@ -65,6 +65,31 @@ def classify_temporal_intent(query: str) -> dict:
     return {"temporal_intent": "historical", "needs_live_data": False}
 
 
+# Qualitative-analytical topics where exact XBRL facts (revenue/margin rows) are
+# NOISE, not evidence — the answer lives in 10-K prose (risk factors, MD&A).
+_QUAL_TOPIC = _re.compile(
+    r"\b(risk|risks|downside|headwind|tailwind|moat|competitive\s+advantage|"
+    r"competiti|strateg|business\s+model|governance|management\s+quality|"
+    r"outlook|swot|bull\s+case|bear\s+case|thesis|catalyst|threat|opportunit|"
+    r"regulat|litigation|lawsuit)\b",
+    _re.IGNORECASE,
+)
+# If the query also asks for a number, keep XBRL (e.g. "revenue at risk").
+_NUMERIC_TERMS = _re.compile(
+    r"\b(revenue|sales|margin|eps|earnings|profit|income|growth|cash\s*flow|"
+    r"debt|ratio|fcf|ebitda|capex|dividend|yield|valuation|multiple|"
+    r"\$|\bhow much\b|\bwhat (?:was|is|were) the\b)\b",
+    _re.IGNORECASE,
+)
+
+
+def suppresses_xbrl(query: str) -> bool:
+    """True when the query is qualitative-analytical with no numeric ask, so the
+    structured-XBRL channel should NOT be pinned into the LLM context (P0.1)."""
+    q = query or ""
+    return bool(_QUAL_TOPIC.search(q)) and not _NUMERIC_TERMS.search(q)
+
+
 class QueryUnderstanding:
     """Analyze user queries to plan retrieval strategy."""
 

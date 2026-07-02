@@ -26,7 +26,10 @@ Magnets   ████████████████████  100% (M1
 | **P4 Health** | 1/3 | 4.3✅ · 4.1 (risky refactor, no user value) · 4.2 (needs jsdom infra) |
 
 **ALL MAGNETS SHIPPED 2026-06-30.** M3 drill-to-source deployed (backend + frontend).
-Remaining items are either low-value (P3.3 heuristic, P4.1 refactor), need new infra (P4.2 tests, P2.2 scheduler+email).
+**Multi-year recall gap CLOSED 2026-07-01** (P0.5 finding): broad "FY2020-2025" range queries
+now surface every year (was 3/6); probe 18/18 green. The 6 remaining items are all either
+low-value (P0.3, P3.3 heuristic, P4.1 refactor) or need new infra (P4.2 jsdom tests) —
+nothing worth-doing-and-unblocked is left in the trust/speed/magnet floor.
 Char-offset highlighting activates for newly indexed chunks; existing corpus shows full passage text (no re-index needed for the modal to work).
 
 ---
