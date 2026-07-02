@@ -213,3 +213,7 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   cap. Wired into AssetInfoPanel (Sector, Market cap) + AboutTab (sector, shares,
   listed-since). PER/EPS/dividends still absent from this DB (publication links
   only) → need statement ingestion. tsc 0, build ok, deployed.
+- 2026-07-02 Market overview — /api/tn/index now also returns market breadth
+  (total cap, advancers/decliners, trades) from raw_market_statistics.
+  TnMarketOverview strip atop the TN board: TUNINDEX + TUNINDEX20 (level/day%/1Y),
+  breadth line, and all 12 sector indices as live chips. tsc 0, build ok, deployed.

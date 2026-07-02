@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import type { MarketDef } from '../../lib/markets';
 import { fetchMarket, fetchQuotes, fetchSparks, fmtPrice, fmtPct, fmtCompact, type AssetRow } from '../../services/marketsHub';
 import { TnComparator } from './TnComparator';
+import { TnMarketOverview } from './TnMarketOverview';
 
 // Market-appropriate external links (crypto's COINMARKETCAP/COINGECKO equivalent).
 function assetLinks(market: MarketDef, r: AssetRow): { label: string; url: string }[] {
@@ -288,6 +289,9 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
             Live from the BVMT feed — quotes (15-min cache) and the official TUNINDEX.
           </div>
         )}
+
+        {/* Live indices + market breadth (official BVMT feed) */}
+        {market.id === 'tunisia' && !query && !watchOnly && <TnMarketOverview />}
 
         {/* Highlights */}
         {!query && !watchOnly && (

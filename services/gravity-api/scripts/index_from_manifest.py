@@ -60,7 +60,12 @@ def main() -> None:
     if not args.token:
         print("No token. Pass --token or set GRAVITY_TOKEN."); sys.exit(1)
 
-    headers = {"Authorization": f"Bearer {args.token}"}
+    # JWTs have two dots; anything else is an X-API-Key (Redis apikey:* entry).
+    headers = (
+        {"Authorization": f"Bearer {args.token}"}
+        if args.token.count(".") == 2
+        else {"X-API-Key": args.token}
+    )
     url = f"{args.api.rstrip('/')}/v1/documents/ingest"
 
     items = [

@@ -238,7 +238,10 @@ async function tnIndices() {
 
 async function index(req: any, res: any) {
   res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=600');
-  const rows = await tnIndices();
+  const [rows, statRows] = await Promise.all([
+    tnIndices(),
+    gquery('SELECT raw_data FROM raw_market_statistics ORDER BY ingested_at DESC LIMIT 1'),
+  ]);
   const indices = rows.map((o: any) => ({
     name: o.fullIndiceName,
     level: parseFloat(o.indexLevel),
@@ -251,7 +254,18 @@ async function index(req: any, res: any) {
     seance: o.dateSeance || null,
   }));
   const tunindex = indices.find((i: any) => i.name === 'TUNINDEX') || null;
-  res.json({ tunindex, indices });
+  const s = statRows[0] || {};
+  const stats = Object.keys(s).length ? {
+    marketCap: parseFloat(s.capi) || null,
+    advancers: s.hausses ?? null,
+    decliners: s.baisses ?? null,
+    turnover: s.capitaux ?? null,
+    volume: s.quantite ?? null,
+    trades: s.transactions ?? null,
+    listed: s.nbSocieteCote ?? null,
+    active: s.nbSocieteActives ?? null,
+  } : null;
+  res.json({ tunindex, indices, stats });
 }
 
 // ── Reference data: sector + shares outstanding (→ market cap) ───────────────

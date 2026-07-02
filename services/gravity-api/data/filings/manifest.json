@@ -1,0 +1,110 @@
+{
+  "created": "2026-07-02T20:55:15.243333+00:00",
+  "filings": {
+    "0001555280-26-000024": {
+      "ticker": "ZTS",
+      "company_name": "Zoetis Inc.",
+      "filing_type": "10-Q",
+      "filing_date": "2026-05-07",
+      "accession_number": "0001555280-26-000024",
+      "url": "https://www.sec.gov/Archives/edgar/data/1555280/000155528026000024/zts-20260331.htm",
+      "path": "data\\filings\\ZTS\\2026\\ZTS_10-Q_2026-05-07_0001555280-26-000024.html",
+      "bytes": 1694398,
+      "sha256": "fb0b0a33710cc668c7cc7a4d479d04e5ce8412bd85cf252774787236483edc65",
+      "status": "downloaded",
+      "downloaded_at": "2026-07-02T21:00:56.696378+00:00"
+    },
+    "0001555280-26-000011": {
+      "ticker": "ZTS",
+      "company_name": "Zoetis Inc.",
+      "filing_type": "10-K",
+      "filing_date": "2026-02-12",
+      "accession_number": "0001555280-26-000011",
+      "url": "https://www.sec.gov/Archives/edgar/data/1555280/000155528026000011/zts-20251231.htm",
+      "path": "data\\filings\\ZTS\\2026\\ZTS_10-K_2026-02-12_0001555280-26-000011.html",
+      "bytes": 3307949,
+      "sha256": "f967ea9cc1140377f1ac4861adf492e4c1790cc5a82ac8f5d9f519dc62dc4ec0",
+      "status": "downloaded",
+      "downloaded_at": "2026-07-02T21:00:58.589151+00:00"
+    },
+    "0001555280-25-000274": {
+      "ticker": "ZTS",
+      "company_name": "Zoetis Inc.",
+      "filing_type": "10-Q",
+      "filing_date": "2025-11-04",
+      "accession_number": "0001555280-25-000274",
+      "url": "https://www.sec.gov/Archives/edgar/data/1555280/000155528025000274/zts-20250930.htm",
+      "path": "data\\filings\\ZTS\\2025\\ZTS_10-Q_2025-11-04_0001555280-25-000274.html",
+      "bytes": 2335864,
+      "sha256": "3bad381c5f554501acbe1678e17d864703864336dcb9d20fdc6583d7e67e802a",
+      "status": "downloaded",
+      "downloaded_at": "2026-07-02T21:01:00.593075+00:00"
+    },
+    "0001555280-25-000261": {
+      "ticker": "ZTS",
+      "company_name": "Zoetis Inc.",
+      "filing_type": "10-Q",
+      "filing_date": "2025-08-05",
+      "accession_number": "0001555280-25-000261",
+      "url": "https://www.sec.gov/Archives/edgar/data/1555280/000155528025000261/zts-20250630.htm",
+      "path": "data\\filings\\ZTS\\2025\\ZTS_10-Q_2025-08-05_0001555280-25-000261.html",
+      "bytes": 2306844,
+      "sha256": "2f3c7a3601db1d4e9b81ec758d8b2249b3772510129c89e189dd9f46560bc593",
+      "status": "downloaded",
+      "downloaded_at": "2026-07-02T21:01:02.722192+00:00"
+    },
+    "0001555280-25-000203": {
+      "ticker": "ZTS",
+      "company_name": "Zoetis Inc.",
+      "filing_type": "10-Q",
+      "filing_date": "2025-05-06",
+      "accession_number": "0001555280-25-000203",
+      "url": "https://www.sec.gov/Archives/edgar/data/1555280/000155528025000203/zts-20250331.htm",
+      "path": "data\\filings\\ZTS\\2025\\ZTS_10-Q_2025-05-06_0001555280-25-000203.html",
+      "bytes": 1621389,
+      "sha256": "329aa5c94ed6201309c082f3958533480b0682ad5e5b0c400ac3762c9969df65",
+      "status": "downloaded",
+      "downloaded_at": "2026-07-02T21:01:04.991143+00:00"
+    },
+    "0001555280-25-000102": {
+      "ticker": "ZTS",
+      "company_name": "Zoetis Inc.",
+      "filing_type": "10-K",
+      "filing_date": "2025-02-13",
+      "accession_number": "0001555280-25-000102",
+      "url": "https://www.sec.gov/Archives/edgar/data/1555280/000155528025000102/zts-20241231.htm",
+      "path": "data\\filings\\ZTS\\2025\\ZTS_10-K_2025-02-13_0001555280-25-000102.html",
+      "bytes": 3268475,
+      "sha256": "99a6bdd0cae0edc022798bc77673b7aaca4148fee5527fda8587cc435b0a1ad3",
+      "status": "downloaded",
+      "downloaded_at": "2026-07-02T21:01:07.120191+00:00"
+    },
+    "0001555280-24-000332": {
+      "ticker": "ZTS",
+      "company_name": "Zoetis Inc.",
+      "filing_type": "10-Q",
+      "filing_date": "2024-11-04",
+      "accession_number": "0001555280-24-000332",
+      "url": "https://www.sec.gov/Archives/edgar/data/1555280/000155528024000332/zts-20240930.htm",
+      "path": "data\\filings\\ZTS\\2024\\ZTS_10-Q_2024-11-04_0001555280-24-000332.html",
+      "bytes": 2373384,
+      "sha256": "970ce639f5368a8d9680515c4cbd1c3a4ae13ca4a36ceee8b9d3e90048450762",
+      "status": "downloaded",
+      "downloaded_at": "2026-07-02T21:01:08.505179+00:00"
+    },
+    "0001555280-24-000299": {
+      "ticker": "ZTS",
+      "company_name": "Zoetis Inc.",
+      "filing_type": "10-Q",
+      "filing_date": "2024-08-06",
+      "accession_number": "0001555280-24-000299",
+      "url": "https://www.sec.gov/Archives/edgar/data/1555280/000155528024000299/zts-20240630.htm",
+      "path": "data\\filings\\ZTS\\2024\\ZTS_10-Q_2024-08-06_0001555280-24-000299.html",
+      "bytes": 2341901,
+      "sha256": "a193be529fed4c803216dba38185d8c9cae039a1b28ed48a6b8a36dd00cc11dd",
+      "status": "downloaded",
+      "downloaded_at": "2026-07-02T21:01:10.091764+00:00"
+    }
+  },
+  "updated": "2026-07-02T21:01:10.227259+00:00"
+}
