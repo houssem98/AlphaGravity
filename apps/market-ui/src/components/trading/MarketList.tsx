@@ -3,6 +3,7 @@ import { Search, ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Star, Troph
 import { motion, AnimatePresence } from 'motion/react';
 import type { MarketDef } from '../../lib/markets';
 import { fetchMarket, fetchQuotes, fetchSparks, fmtPrice, fmtPct, fmtCompact, type AssetRow } from '../../services/marketsHub';
+import { TnComparator } from './TnComparator';
 
 // Market-appropriate external links (crypto's COINMARKETCAP/COINGECKO equivalent).
 function assetLinks(market: MarketDef, r: AssetRow): { label: string; url: string }[] {
@@ -123,6 +124,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
     try { return JSON.parse(localStorage.getItem(WKEY) || '[]'); } catch { return []; }
   });
   const [watchOnly, setWatchOnly] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
   useEffect(() => {
     try { setWatchlist(JSON.parse(localStorage.getItem(WKEY) || '[]')); } catch { setWatchlist([]); }
     setWatchOnly(false);
@@ -319,6 +321,14 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
               </button>
             );
           })}
+          {market.id === 'tunisia' && (
+            <button
+              onClick={() => setShowCompare(true)}
+              className="ml-auto mb-1 flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-body font-medium text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5" /> Compare
+            </button>
+          )}
         </div>
 
         {/* Table */}
@@ -576,6 +586,12 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
           )}
         </div>
       </div>
+      {showCompare && (
+        <TnComparator
+          onClose={() => setShowCompare(false)}
+          onOpenAsset={(s) => { setShowCompare(false); onAssetSelect(s); }}
+        />
+      )}
     </div>
   );
 };

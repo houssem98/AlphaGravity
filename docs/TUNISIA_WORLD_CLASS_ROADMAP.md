@@ -107,18 +107,19 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
 > routes, so the dynamic one was being proxied to Fly (404) until excluded.
 
 ### Phase 9 — Terminal features (match finansya)
-- [ ] **T16** — Screener. Filter/sort the 75 listings by change%, volume,
-  turnover, price (client-side over `/api/tn/markets`). Saved views in localStorage.
-  *Acceptance:* "top gainers today", "most traded" work. `[deploy]`
-- [ ] **T17** — Comparator. Side-by-side 2–4 TN stocks: price, change, turnover,
-  (later) ratios. Reuse existing grid components.
-  *Acceptance:* compare AB vs BIAT vs ATTIJARI in one view.
-- [ ] **T18** — 52-week-high / breakout monitor (needs T13 history). Flag stocks
-  at/near session or N-day highs from `tn_daily`.
-  *Acceptance:* list of stocks at new highs, updates post-session.
-- [ ] **T19** — Price alerts. Per-stock threshold in localStorage; browser
-  notification when `/api/tn/markets` crosses it. (No backend push needed.)
-  *Acceptance:* set alert on AB, fires on cross. `[deploy]`
+- [x] **T16** — Screener. **Already in `MarketList`**: sortable columns (name,
+  price, change%, volume), TOP GAINERS / TOP LOSERS / MOST ACTIVE cards, watchlist
+  filter, search — all client-side over the board. Not adding a turnover column
+  (marginal; would need turnover threaded through `AssetRow`).
+- [x] **T17** — Comparator. `TnComparator` modal: pick up to 4 stocks (searchable),
+  compare price, change%, day range, prev close, volume, turnover, spread, ISIN;
+  best-per-metric highlighted; click a column → open that asset. "Compare" button
+  in the TN `MarketList`.
+- [ ] **T18** — 52-week-high / breakout monitor. **Data-gated** on T13 history
+  (only 1 daily bar so far). Build once `tn_daily` has ~weeks of bars.
+- [x] **T19** — Price alerts. Bell in `TnChart` toolbar → threshold (above/below)
+  in localStorage; fires a browser `Notification` when the live price crosses
+  while the chart is open. (Client-only: no server push — fires while tab open.)
 
 ### Phase 10 — Fundamentals (the moat)
 - [ ] **T20** — Fundamentals ingestion. Pull BVMT quarterly indicator bulletins /
@@ -178,3 +179,9 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   V32509. tsc 0, build ok, deployed. Env added to Vercel: SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET.
 - 2026-07-02 T15 — deferred: no public BVMT index endpoint (all probes 404/500).
+- 2026-07-02 T16/T17/T19 — Phase 9. T16 screener already in MarketList (sort +
+  gainers/losers/most-active + watchlist). T17 TnComparator modal (≤4 stocks,
+  8 metrics, best-per-metric highlight, Compare button in TN MarketList). T19
+  price alerts in TnChart (localStorage threshold, browser Notification on cross
+  while chart open). T18 (52w monitor) deferred — needs accumulated daily history.
+  tsc 0, build ok, deployed.

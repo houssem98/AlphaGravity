@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, HistogramSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, IPriceLine, Time } from 'lightweight-charts';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Bell, BellRing } from 'lucide-react';
 
 interface TnChartProps {
   asset: string;
@@ -31,6 +31,38 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
   const [mode, setMode] = useState<'intraday' | 'daily'>('intraday');
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
   const [meta, setMeta] = useState<Intraday | null>(null);
+
+  // Price alert (localStorage per asset). Fires a browser notification when the
+  // live price crosses the threshold while the chart is open.
+  const alertKey = `tn_alert_${asset}`;
+  const [alert, setAlert] = useState<{ dir: 'above' | 'below'; price: number } | null>(null);
+  const [showAlertUi, setShowAlertUi] = useState(false);
+  const [alertInput, setAlertInput] = useState('');
+  const alertRef = useRef<{ dir: 'above' | 'below'; price: number } | null>(null);
+  useEffect(() => {
+    try { const a = JSON.parse(localStorage.getItem(alertKey) || 'null'); setAlert(a); alertRef.current = a; }
+    catch { setAlert(null); alertRef.current = null; }
+    setShowAlertUi(false);
+  }, [asset]);
+  const saveAlert = (a: { dir: 'above' | 'below'; price: number } | null) => {
+    setAlert(a); alertRef.current = a;
+    if (a) localStorage.setItem(alertKey, JSON.stringify(a)); else localStorage.removeItem(alertKey);
+  };
+  const armAlert = (dir: 'above' | 'below') => {
+    const p = parseFloat(alertInput);
+    if (!p) return;
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission();
+    saveAlert({ dir, price: p }); setShowAlertUi(false); setAlertInput('');
+  };
+  const checkAlert = (last: number) => {
+    const a = alertRef.current;
+    if (!a || !last) return;
+    if ((a.dir === 'above' && last >= a.price) || (a.dir === 'below' && last <= a.price)) {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted')
+        new Notification(`${name || asset} ${a.dir} ${a.price}`, { body: `Now ${last.toFixed(2)} TND · BVMT` });
+      saveAlert(null);
+    }
+  };
 
   // Create chart + series once.
   useEffect(() => {
@@ -81,6 +113,7 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
           });
         }
         chartRef.current?.timeScale().fitContent();
+        if (mode === 'intraday') checkAlert(d.last);
         setMeta(d); setStatus('ready');
       } catch {
         if (live) setStatus('error');
@@ -131,6 +164,29 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
             ))}
           </div>
         )}
+
+        {/* Price alert */}
+        <div className="relative">
+          <button onClick={() => { setShowAlertUi((v) => !v); setAlertInput(alert ? String(alert.price) : (meta?.last ? meta.last.toFixed(2) : '')); }}
+            title={alert ? `Alert ${alert.dir} ${alert.price}` : 'Set price alert'}
+            className={`p-1 rounded-md border transition-colors ${alert ? 'bg-[#1B2236] border-[#2962FF]/50 text-[#2962FF]' : 'bg-[#0F1420] border-[#1B2236] text-[#5A6478] hover:text-white'}`}>
+            {alert ? <BellRing className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
+          </button>
+          {showAlertUi && (
+            <div className="absolute top-full right-0 mt-1 z-30 w-52 p-3 rounded-md bg-[#0F1420] border border-[#1B2236] shadow-xl">
+              <div className="text-[11px] text-[#8A92A6] mb-2">Notify when {name || asset} is</div>
+              <input type="number" step="0.01" value={alertInput} onChange={(e) => setAlertInput(e.target.value)} placeholder="price (TND)"
+                className="w-full mb-2 px-2 py-1 rounded bg-[#151B29] text-[12px] text-white placeholder:text-[#5A6478] focus:outline-none border border-[#1B2236] focus:border-[#2962FF]/50" />
+              <div className="flex gap-1.5">
+                <button onClick={() => armAlert('above')} className="flex-1 py-1 rounded text-[11px] font-medium bg-[#00C853]/15 text-[#00C853] hover:bg-[#00C853]/25">≥ Above</button>
+                <button onClick={() => armAlert('below')} className="flex-1 py-1 rounded text-[11px] font-medium bg-[#FF3D3D]/15 text-[#FF3D3D] hover:bg-[#FF3D3D]/25">≤ Below</button>
+              </div>
+              {alert && (
+                <button onClick={() => { saveAlert(null); setShowAlertUi(false); }} className="w-full mt-1.5 py-1 rounded text-[11px] text-[#5A6478] hover:text-white">Clear alert</button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div ref={containerRef} className="w-full h-full" />
