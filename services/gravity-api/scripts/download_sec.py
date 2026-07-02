@@ -52,7 +52,16 @@ def _save_manifest(path: Path, manifest: dict) -> None:
     manifest["updated"] = datetime.now(timezone.utc).isoformat()
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    tmp.replace(path)  # atomic on same filesystem
+    # Windows: a concurrent reader (monitoring, editor, AV scan) holding the
+    # file open makes os.replace fail with WinError 5 — retry briefly.
+    for attempt in range(5):
+        try:
+            tmp.replace(path)  # atomic on same filesystem
+            return
+        except PermissionError:
+            if attempt == 4:
+                raise
+            time.sleep(0.5)
 
 
 def _key(rec: dict) -> str:
