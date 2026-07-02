@@ -126,6 +126,11 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   });
   const [watchOnly, setWatchOnly] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
+  const [tnHighs, setTnHighs] = useState<Record<string, { highRatio: number; high: number; last: number }>>({});
+  useEffect(() => {
+    if (market.id !== 'tunisia') return;
+    fetch('/api/tn/highs').then((r) => r.json()).then((j) => setTnHighs(j.byIsin || {})).catch(() => {});
+  }, [market.id]);
   useEffect(() => {
     try { setWatchlist(JSON.parse(localStorage.getItem(WKEY) || '[]')); } catch { setWatchlist([]); }
     setWatchOnly(false);
@@ -228,6 +233,12 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   const gainers = [...loadedRows].sort((a, b) => b.changePct - a.changePct);
   const losers = [...loadedRows].sort((a, b) => a.changePct - b.changePct);
   const active = [...loadedRows].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+  // TN breakout monitor: stocks within 2% of their ~5-month high (≥20d history).
+  const nearHighs = market.id === 'tunisia'
+    ? loadedRows
+        .filter((r) => r.isin && tnHighs[r.isin] && tnHighs[r.isin].highRatio >= 0.98)
+        .sort((a, b) => tnHighs[b.isin!].highRatio - tnHighs[a.isin!].highRatio)
+    : [];
   const nUp = loadedRows.filter((r) => r.changePct > 0).length;
   const nDown = loadedRows.filter((r) => r.changePct < 0).length;
 
@@ -298,7 +309,9 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 stagger">
             <HighlightCard title="TOP GAINERS" icon={Trophy} data={gainers} onSelect={onAssetSelect} />
             <HighlightCard title="TOP LOSERS" icon={TrendingDown} data={losers} onSelect={onAssetSelect} />
-            <HighlightCard title="MOST ACTIVE" icon={Activity} data={hasVol ? active : gainers.slice(3)} onSelect={onAssetSelect} />
+            {market.id === 'tunisia' && nearHighs.length > 0
+              ? <HighlightCard title="NEAR HIGHS" icon={TrendingUp} data={nearHighs} onSelect={onAssetSelect} />
+              : <HighlightCard title="MOST ACTIVE" icon={Activity} data={hasVol ? active : gainers.slice(3)} onSelect={onAssetSelect} />}
           </div>
         )}
 

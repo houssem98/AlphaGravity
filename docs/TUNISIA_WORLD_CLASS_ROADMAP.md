@@ -119,8 +119,11 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   compare price, change%, day range, prev close, volume, turnover, spread, ISIN;
   best-per-metric highlighted; click a column → open that asset. "Compare" button
   in the TN `MarketList`.
-- [ ] **T18** — 52-week-high / breakout monitor. **Data-gated** on T13 history
-  (only 1 daily bar so far). Build once `tn_daily` has ~weeks of bars.
+- [x] **T18** — Breakout monitor. **Unblocked** — the exchange `raw_market`
+  has ~5 months of intraday snapshots, so `/api/tn/highs` gives each stock's
+  period high/low/last (≥20 trading days). "NEAR HIGHS" card on the TN board
+  flags stocks within 2% of their period high. (Window ~5 months, not a full
+  52 weeks yet — grows as the feed extends.)
 - [x] **T19** — Price alerts. Bell in `TnChart` toolbar → threshold (above/below)
   in localStorage; fires a browser `Notification` when the live price crosses
   while the chart is open. (Client-only: no server push — fires while tab open.)
@@ -217,3 +220,7 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   (total cap, advancers/decliners, trades) from raw_market_statistics.
   TnMarketOverview strip atop the TN board: TUNINDEX + TUNINDEX20 (level/day%/1Y),
   breadth line, and all 12 sector indices as live chips. tsc 0, build ok, deployed.
+- 2026-07-02 Real daily history + T18. /api/tn/history now aggregates raw_market
+  (~81 sessions, Feb-Jul 2026) into real daily OHLC (AB 59.5→86.9). /api/tn/highs
+  = per-stock period high/low/last (≥20d). "NEAR HIGHS" breakout card on the TN
+  board (within 2% of period high). tsc 0, build ok, deployed.

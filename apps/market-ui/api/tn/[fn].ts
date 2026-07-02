@@ -310,7 +310,29 @@ async function ref(_req: any, res: any) {
   res.json({ ref: out });
 }
 
-const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref };
+// ── Period high/low monitor (breakouts) from raw_market ─────────────────────
+// Per stock over its ~5-month history: high, low, last, and how close to the
+// high (ratio). Only stocks with ≥20 trading days count (thin names excluded).
+async function highs(_req: any, res: any) {
+  res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=86400');
+  const sql =
+    `SELECT codeisin, max(price) hi, min(price) lo, (array_agg(price ORDER BY t DESC))[1] last, count(DISTINCT d) days FROM (` +
+    `SELECT raw_data->>'codeIsin' codeisin, raw_data->>'time' t, raw_data->>'dateSeance' d, (raw_data->>'lastTradePrice')::float price ` +
+    `FROM raw_market WHERE raw_data->>'lastTradePrice' IS NOT NULL) x GROUP BY codeisin HAVING count(DISTINCT d) >= 20`;
+  const rows = await gqueryTable(sql);
+  const out: Record<string, any> = {};
+  for (const r of rows) {
+    if (!r.codeisin || !r.hi || !r.last) continue;
+    out[r.codeisin] = {
+      high: r.hi, low: r.lo, last: r.last, days: r.days,
+      highRatio: r.hi ? r.last / r.hi : 0,
+      lowRatio: r.lo ? r.last / r.lo : 0,
+    };
+  }
+  res.json({ byIsin: out });
+}
+
+const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref, highs };
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
