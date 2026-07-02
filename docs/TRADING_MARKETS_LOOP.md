@@ -58,7 +58,7 @@ than one iteration, split it in-file (add sub-tasks) and do the first.
   *Acceptance:* star persists across reload; sparklines render. `[deploy]`
 
 ### Phase 5 — Polish / sync
-- [ ] **T5** — Loading skeletons + error states.
+- [x] **T5** — Loading skeletons + error states.
   Replace bare "LOADING…" with skeleton rows in MarketHub cards + MarketList.
   Show a retry line on fetch failure.
   *Acceptance:* throttle network → skeletons, then data; kill an endpoint → retry UI.
@@ -94,3 +94,4 @@ correct currencies, graceful charts.
 2026-07-02 T2 — TN chart placeholder ("Chart unavailable" for BVMT) instead of empty chart when activeMarket==='tunisia' — tsc 0, build ok, deployed
 2026-07-02 T3 — full S&P 500 (503 syms, lib/sp500.json from datahub, dots→dashes); fetchQuotes chunks ≤50; MarketList page-based fetch (25/page, only visible page quoted) + PREV/NEXT — tsc 0, build ok
 2026-07-02 T4 — MarketList per-market watchlist (localStorage hub_watchlist_<id>, star col + Watchlist(N) filter, persists across reload). Sparkline SKIPPED (ponytail): US is paged→25 /api/history calls/page = Yahoo burst risk; crypto Markets already has sparklines. — tsc 0, build ok, deployed
+2026-07-02 T5 — skeleton rows (MarketList 10-row pulse, MarketHub card lead+constituents pulse) replacing bare LOADING…; MarketList error + RETRY (reloadKey) on full-load failure — tsc 0, build ok

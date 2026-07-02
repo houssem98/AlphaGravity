@@ -20,6 +20,8 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   const [fullRows, setFullRows] = useState<AssetRow[]>([]);
   const [quotes, setQuotes] = useState<Record<string, AssetRow>>({});
   const [loading, setLoading] = useState(!paged);
+  const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const WKEY = `hub_watchlist_${market.id}`;
@@ -44,15 +46,16 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   useEffect(() => {
     if (paged) return;
     let alive = true;
-    setLoading(true);
+    setLoading(true); setError(false);
     const load = () =>
       fetchMarket(market)
-        .then((r) => { if (alive) { setFullRows(r); setLoading(false); } })
-        .catch(() => { if (alive) setLoading(false); });
+        .then((r) => { if (alive) { setFullRows(r); setLoading(false); setError(false); } })
+        .catch(() => { if (alive) { setLoading(false); if (fullRows.length === 0) setError(true); } });
     load();
     const t = market.source === 'tunisia-mock' ? undefined : setInterval(load, 15000);
     return () => { alive = false; if (t) clearInterval(t); };
-  }, [market, paged]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [market, paged, reloadKey]);
 
   useEffect(() => { setPage(1); }, [query, market, watchOnly]);
 
@@ -179,7 +182,20 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={5} className="py-10 text-center label text-[color:var(--text-3)]">LOADING…</td></tr>
+                  Array.from({ length: 10 }).map((_, i) => (
+                    <tr key={i} className="border-b border-[color:var(--line)]">
+                      <td className="py-3 px-4"><div className="w-3.5 h-3.5 rounded-sm bg-[color:var(--surface-2)] animate-pulse" /></td>
+                      <td className="py-3 px-4"><div className="flex items-center gap-2.5"><div className="w-6 h-6 rounded-full bg-[color:var(--surface-2)] animate-pulse" /><div className="h-3 w-40 rounded bg-[color:var(--surface-2)] animate-pulse" /></div></td>
+                      <td className="py-3 px-4"><div className="h-3 w-20 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>
+                      <td className="py-3 px-4"><div className="h-3 w-14 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>
+                      {hasMcap && <td className="py-3 px-4 hidden sm:table-cell"><div className="h-3 w-16 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>}
+                    </tr>
+                  ))
+                ) : error ? (
+                  <tr><td colSpan={5} className="py-10 text-center">
+                    <div className="text-body text-[color:var(--text-3)] mb-2">Couldn't load {market.label}.</div>
+                    <button onClick={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} className="px-3 py-1.5 rounded-sm text-label font-semibold bg-[color:var(--surface-2)] border border-[color:var(--line)] text-[color:var(--text-2)] hover:text-[color:var(--text)] hover:border-[color:var(--line-strong)] transition-colors">RETRY</button>
+                  </td></tr>
                 ) : pageView.length === 0 ? (
                   <tr><td colSpan={5} className="py-10 text-center text-body text-[color:var(--text-3)]">No assets found.</td></tr>
                 ) : (

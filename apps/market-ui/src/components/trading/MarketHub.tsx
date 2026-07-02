@@ -60,7 +60,7 @@ function MarketCard({
       <div className="flex items-end justify-between mb-3 pb-3 border-b border-[color:var(--line)]">
         <div>
           <div className="font-mono text-h3 text-[color:var(--text)] leading-none">
-            {lead ? fmtPrice(lead.price, def.currency) : '—'}
+            {lead ? fmtPrice(lead.price, def.currency) : <span className="inline-block h-6 w-28 rounded bg-[color:var(--surface-2)] animate-pulse align-middle" />}
           </div>
           <div className="mt-1 flex items-center gap-2">
             <span className="label">{def.indices[0]?.name}</span>
@@ -86,6 +86,13 @@ function MarketCard({
 
       {/* Constituents */}
       <div className="space-y-1.5 flex-1">
+        {rows.length === 0 &&
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between px-2 py-1.5">
+              <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-[color:var(--surface-2)] animate-pulse" /><div className="h-3 w-16 rounded bg-[color:var(--surface-2)] animate-pulse" /></div>
+              <div className="h-3 w-20 rounded bg-[color:var(--surface-2)] animate-pulse" />
+            </div>
+          ))}
         {rows.slice(1, 5).map((r) => (
           <button
             key={r.symbol}
