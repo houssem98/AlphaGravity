@@ -1,0 +1,19 @@
+# market-ui deploys from repo root (project rootDirectory=apps/market-ui).
+# Anchored with / — bare names match at any depth (killed src/services once).
+node_modules
+.git
+/AionUi
+/ponytail
+/graphify-out
+/docs
+/infra
+/scripts
+/services
+/packages
+/apps/gravity-ui
+/apps/market-ui/dist
+/apps/market-ui/eval
+/apps/market-ui/scripts
+*.png
+*.log
+/entities.json

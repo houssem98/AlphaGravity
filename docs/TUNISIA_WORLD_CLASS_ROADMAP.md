@@ -224,3 +224,7 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   (~81 sessions, Feb-Jul 2026) into real daily OHLC (AB 59.5→86.9). /api/tn/highs
   = per-stock period high/low/last (≥20d). "NEAR HIGHS" breakout card on the TN
   board (within 2% of period high). tsc 0, build ok, deployed.
+- 2026-07-02 Deploy fix — root .vercelignore (anchored patterns; bare `services`
+  had matched src/services and broke the remote build; uploads were 280MB+ of
+  monorepo and dying on flaky net → now seconds). T18 verified on prod: 80 stocks
+  ≥20d, 17 near highs. All 6 tn endpoints 200.
