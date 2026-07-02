@@ -126,10 +126,13 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   while the chart is open. (Client-only: no server push — fires while tab open.)
 
 ### Phase 10 — Fundamentals (the moat)
-- [ ] **T20** — Fundamentals ingestion. Pull BVMT quarterly indicator bulletins /
-  ilboursa into Supabase `tn_fundamentals` (PER, BPA/EPS, dividend, yield, book
-  value). Start with the ~30 most-traded.
-  *Acceptance:* AB shows a real PER + last dividend sourced + dated.
+- [~] **T20** — Reference fundamentals (partial). The exchange Grafana DB
+  (`raw_referentiels`, equity "Ligne Mère" per issuer) gives real **sector**,
+  **shares outstanding**, nominal, and listing date → real **market cap**
+  (price × shares). `/api/tn/ref` (cached 1d) surfaces them in `AssetInfoPanel`
+  (Sector + Market cap) and `AboutTab` (sector, shares, listed-since). PER / EPS /
+  dividend / yield are NOT in this DB (only publication *links* in
+  `raw_publications`) — those still need financial-statement ingestion (PDF).
 - [ ] **T21** — Fundamentals UI. New `FundamentalsTab` (TN) + ratio row in
   `AssetInfoPanel`; feed the comparator (T17) and screener (T16).
   *Acceptance:* ratios visible, comparator ranks by PER/yield. `[deploy]`
@@ -205,3 +208,8 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   Postgres proxy. /api/tn/index reads indice_live → TUNINDEX 19841.33 +0.15% +
   13 more indices, real levels. Wired into marketsHub headline (mock 9847.32
   retired). Read-only, cached 120s. tsc 0, build ok, deployed.
+- 2026-07-02 T20 (partial) — /api/tn/ref from Grafana raw_referentiels (Ligne
+  Mère per issuer): real sector + shares outstanding + listing date → real market
+  cap. Wired into AssetInfoPanel (Sector, Market cap) + AboutTab (sector, shares,
+  listed-since). PER/EPS/dividends still absent from this DB (publication links
+  only) → need statement ingestion. tsc 0, build ok, deployed.

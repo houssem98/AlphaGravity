@@ -219,19 +219,21 @@ async function engine(req: any, res: any) {
 const GRAFANA = 'https://tunis-stockexchange.com/grafana/api/ds/query';
 const DS_UID = 'ef4kunff033eoe';
 
-async function tnIndices() {
+// Read-only query against the exchange's public dashboard datasource. Returns the
+// first column of the first frame (we store rows as one JSON blob per row).
+async function gquery(rawSql: string): Promise<any[]> {
   const r = await fetch(GRAFANA, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Referer: 'https://tunis-stockexchange.com/grafana/', 'User-Agent': 'Mozilla/5.0' },
-    body: JSON.stringify({ queries: [{
-      refId: 'A', datasource: { uid: DS_UID, type: 'grafana-postgresql-datasource' },
-      rawSql: 'SELECT raw_data FROM indice_live WHERE ingested_at=(SELECT max(ingested_at) FROM indice_live)',
-      format: 'table',
-    }] }),
+    body: JSON.stringify({ queries: [{ refId: 'A', datasource: { uid: DS_UID, type: 'grafana-postgresql-datasource' }, rawSql, format: 'table' }] }),
   });
   const j = await r.json();
   const raw = j?.results?.A?.frames?.[0]?.data?.values?.[0] || [];
   return raw.map((s: any) => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean);
+}
+
+async function tnIndices() {
+  return gquery('SELECT raw_data FROM indice_live WHERE ingested_at=(SELECT max(ingested_at) FROM indice_live)');
 }
 
 async function index(req: any, res: any) {
@@ -252,7 +254,29 @@ async function index(req: any, res: any) {
   res.json({ tunindex, indices });
 }
 
-const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index };
+// ── Reference data: sector + shares outstanding (→ market cap) ───────────────
+// From the exchange's `raw_referentiels` (equity "mother line" per issuer).
+// Ref data is near-static → cache a day. Keyed by ticker (mnemo).
+async function ref(_req: any, res: any) {
+  res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800');
+  const rows = await gquery("SELECT raw_data FROM raw_referentiels WHERE raw_data->>'grp_description' LIKE 'Ligne M%re'");
+  const out: Record<string, any> = {};
+  for (const o of rows) {
+    if (!o?.mnemo) continue;
+    out[o.mnemo] = {
+      sector: o.secteur || null,
+      issuer: o.emetteur || null,
+      isin: o.codeEmetteur || null,
+      shares: parseInt(o.nb_titres_emis, 10) || null,
+      nominal: parseFloat(o.nominal) || null,
+      listingDate: o.date_de_cotation || null,
+      market: o.marche_De_Negociation || o.marche || null,
+    };
+  }
+  res.json({ ref: out });
+}
+
+const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref };
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');

@@ -45,22 +45,29 @@ const ASSET_INFO: Record<string, any> = {
 // ── Tunisian company profile (real data only) ──────────────────────────────
 const TnAbout: React.FC<{ asset: string; name?: string }> = ({ asset, name }) => {
   const [isin, setIsin] = useState<string | null>(null);
+  const [rf, setRf] = useState<any>(null);
   useEffect(() => {
     let live = true;
-    fetch('/api/tn/markets')
-      .then((r) => r.json())
-      .then((j) => { if (live) setIsin((j.rows || []).find((x: any) => x.symbol === asset)?.isin ?? null); })
-      .catch(() => {});
+    Promise.all([
+      fetch('/api/tn/markets').then((r) => r.json()).catch(() => ({})),
+      fetch('/api/tn/ref').then((r) => r.json()).catch(() => ({ ref: {} })),
+    ]).then(([mk, refJson]) => {
+      if (!live) return;
+      setIsin((mk.rows || []).find((x: any) => x.symbol === asset)?.isin ?? null);
+      setRf(refJson?.ref?.[asset] || null);
+    });
     return () => { live = false; };
   }, [asset]);
 
   const company = name || asset;
-  const sector = TN_SECTOR[asset] || 'BVMT-listed';
+  const sector = rf?.sector ? rf.sector.charAt(0) + rf.sector.slice(1).toLowerCase() : (TN_SECTOR[asset] || 'BVMT-listed');
   const details = [
     { label: 'Exchange', value: 'Bourse de Tunis (BVMT)' },
     { label: 'Sector', value: sector },
     { label: 'Currency', value: 'Tunisian Dinar (TND)' },
-    { label: 'ISIN', value: isin || '—' },
+    { label: 'ISIN', value: isin || rf?.isin || '—' },
+    ...(rf?.shares ? [{ label: 'Shares outstanding', value: rf.shares.toLocaleString('en-US') }] : []),
+    ...(rf?.listingDate ? [{ label: 'Listed since', value: rf.listingDate }] : []),
   ];
   const links = [
     isin && { label: 'BVMT fiche-valeur', url: `https://www.bvmt.com.tn/fr/content/fiche-valeur?isin=${isin}`, icon: Building2 },

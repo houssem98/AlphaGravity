@@ -611,13 +611,17 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
     const load = async () => {
       try {
         if (isTN) {
-          const j = await (await fetch('/api/tn/markets')).json();
+          const [j, refJson] = await Promise.all([
+            fetch('/api/tn/markets').then((r) => r.json()),
+            fetch('/api/tn/ref').then((r) => r.json()).catch(() => ({ ref: {} })),
+          ]);
           const row = (j?.rows || []).find((r: any) => r.symbol === asset);
+          const rf = refJson?.ref?.[asset] || null;
           if (row && live) {
             setPrice(row.price); setChange(row.changePct);
             setVolume(row.volume || null); setLow24h(row.low || null); setHigh24h(row.high || null);
-            setMarketCap(null); setSupply(null); setMaxSupply(null);
-            setTnStats(row);
+            setMarketCap(rf?.shares ? row.price * rf.shares : null); setSupply(null); setMaxSupply(null);
+            setTnStats({ ...row, ...(rf ? { sector: rf.sector, shares: rf.shares, listingDate: rf.listingDate } : {}) });
           }
           return;
         }
@@ -813,6 +817,8 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
             <>
               {(() => { const t = tnStats || {}; const tnd = (v: number) => v ? `${fmt(v)} TND` : '—'; const spread = t.ask && t.bid ? (t.ask - t.bid) : null; return (
                 <>
+                  {t.sector && <ROW label="Sector" value={t.sector} tooltip="BVMT sector classification" />}
+                  <ROW label="Market cap"  value={marketCap ? `${fmt(marketCap)} TND` : '—'} tooltip="Price × shares outstanding" />
                   <ROW label="Day range"   value={t.low && t.high ? `${t.low.toFixed(2)} – ${t.high.toFixed(2)}` : '—'} tooltip="Session low – high (TND)" />
                   <ROW label="Prev close"  value={t.close ? `${t.close.toFixed(2)} TND` : '—'} tooltip="Previous session close" />
                   <ROW label="Volume"      value={t.volume ? fmt(t.volume) : '—'} tooltip="Shares traded this session" />
