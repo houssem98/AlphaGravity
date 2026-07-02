@@ -5,7 +5,7 @@
 import sp500 from './sp500.json';
 
 export type MarketId = 'crypto' | 'us' | 'tunisia' | 'commodities' | 'bonds' | 'forex';
-export type MarketSource = 'crypto' | 'yahoo' | 'tunisia-mock';
+export type MarketSource = 'crypto' | 'yahoo' | 'tunisia';
 // How a quote reads: $ price, TND price, % yield (bonds), or bare rate (forex).
 export type Unit = 'USD' | 'TND' | 'PCT' | 'RATE';
 
@@ -103,7 +103,7 @@ export const MARKETS: MarketDef[] = [
     label: 'Tunisian Market',
     blurb: 'TUNINDEX & Bourse de Tunis (BVMT)',
     currency: 'TND',
-    source: 'tunisia-mock',
+    source: 'tunisia',
     indices: [{ symbol: 'TUNINDEX', name: 'TUNINDEX' }],
     symbols: TN_STOCKS,
   },

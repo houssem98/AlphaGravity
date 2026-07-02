@@ -73,7 +73,7 @@ than one iteration, split it in-file (add sub-tasks) and do the first.
   `^TNX ^TYX`; `EURUSD=X GBPUSD=X USDJPY=X`). Flip the hub "coming soon" cards to
   real cards. No UI refactor — registry + adapter already handle it.
   *Acceptance:* three new hub cards with live quotes; drill-down lists work. `[deploy]`
-- [ ] **T8** — Real Tunisia feed.
+- [x] **T8** — Real Tunisia feed.
   `services/market-server` route `GET /api/tn/markets` returning daily-seeded JSON
   (cron scrape of ilboursa / bvmt.com.tn; low-frequency, cache 24h). Change
   `marketsHub.ts` source `tunisia-mock`→`tunisia` (one line). Remove the mock
@@ -97,3 +97,4 @@ correct currencies, graceful charts.
 2026-07-02 T5 — skeleton rows (MarketList 10-row pulse, MarketHub card lead+constituents pulse) replacing bare LOADING…; MarketList error + RETRY (reloadKey) on full-load failure — tsc 0, build ok
 2026-07-02 T6 — hub stagger honors useReducedMotion (JS anim the global CSS media query can't stop); formatting already correct via fmtPrice/fmtPct/fmtCompact (TND/USD, tiny prices, negatives); global prefers-reduced-motion CSS already covers decorative anims — tsc 0, build ok, deployed
 2026-07-02 T7 — Commodities/Bonds/Forex markets added to registry (Yahoo); Unit type (USD/TND/PCT/RATE) so bonds read % and forex read bare rate; hub now 6 real cards (coming-soon block removed); verified prod quotes GC=F/^TNX/EURUSD=X/CL=F — tsc 0, build ok, deployed
+2026-07-02 T8 — Real Tunisia feed WITHOUT scraping or market-server: BVMT exposes a public REST API (bvmt.com.tn/rest_api/rest/market/groups/11,12,52,95,99 → 75 listings, `change` already %). New Vercel fn api/tn/markets.ts (15-min s-maxage) + client source tunisia-mock→tunisia (fetchTunisia, mock kept as offline fallback); hub TN card = TUNINDEX (indicative) + top-4 by volume live; banner updated. TUNINDEX index endpoint not public — stays indicative (ponytail). Verified prod: AMEN BANK 86.9 TND +2.85% séance 2 juil. 2026 — tsc 0, build ok, deployed

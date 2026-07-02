@@ -86,7 +86,30 @@ export async function fetchQuotes(defs: SymbolDef[]): Promise<AssetRow[]> {
     }));
 }
 
-// ponytail: static indicative TN data. Real BVMT feed = Phase 6, same shape.
+// Live BVMT stocks via our /api/tn/markets proxy (15-min CDN cache).
+// Falls back to the static mock below if the proxy or BVMT is down.
+async function fetchTunisia(defs: SymbolDef[]): Promise<AssetRow[]> {
+  try {
+    const res = await fetch('/api/tn/markets');
+    if (!res.ok) throw new Error('tn fetch failed');
+    const j = await res.json();
+    const rows = (j?.rows || []) as any[];
+    if (!rows.length) throw new Error('tn empty');
+    return rows.map((r) => ({
+      symbol: r.symbol,
+      name: r.name,
+      price: r.price,
+      changePct: r.changePct,
+      volume: r.volume || undefined,
+      currency: 'TND' as const,
+    }));
+  } catch {
+    return fetchTunisiaMock(defs);
+  }
+}
+
+// ponytail: TUNINDEX still indicative (no public BVMT index endpoint found);
+// stocks are live. Mock doubles as offline fallback.
 const TN_MOCK: Record<string, { name: string; price: number; changePct: number }> = {
   TUNINDEX: { name: 'TUNINDEX', price: 9847.32, changePct: -0.18 },
   BIAT: { name: 'Banque Internationale Arabe de Tunisie', price: 118.45, changePct: 0.92 },
@@ -123,8 +146,8 @@ export function fetchMarket(def: MarketDef): Promise<AssetRow[]> {
       return fetchCrypto();
     case 'yahoo':
       return fetchQuotes(def.symbols);
-    case 'tunisia-mock':
-      return Promise.resolve(fetchTunisiaMock(def.symbols));
+    case 'tunisia':
+      return fetchTunisia(def.symbols);
   }
 }
 
@@ -138,8 +161,12 @@ export function fetchHeadline(def: MarketDef): Promise<AssetRow[]> {
       });
     case 'yahoo':
       return fetchQuotes(def.indices);
-    case 'tunisia-mock':
-      return Promise.resolve(fetchTunisiaMock(def.indices));
+    case 'tunisia':
+      // Lead = TUNINDEX (indicative), then most-traded live stocks.
+      return fetchTunisia(def.symbols).then((rows) => [
+        ...fetchTunisiaMock(def.indices),
+        ...rows.sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 4),
+      ]);
   }
 }
 

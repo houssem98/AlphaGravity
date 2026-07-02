@@ -52,7 +52,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
         .then((r) => { if (alive) { setFullRows(r); setLoading(false); setError(false); } })
         .catch(() => { if (alive) { setLoading(false); if (fullRows.length === 0) setError(true); } });
     load();
-    const t = market.source === 'tunisia-mock' ? undefined : setInterval(load, 15000);
+    const t = setInterval(load, 15000);
     return () => { alive = false; if (t) clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [market, paged, reloadKey]);
@@ -150,10 +150,10 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
           </div>
         </div>
 
-        {market.source === 'tunisia-mock' && (
+        {market.id === 'tunisia' && (
           <div className="mb-3 flex items-center gap-2 text-label text-[color:var(--text-3)] bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm px-3 py-2">
             <AlertTriangle className="w-3.5 h-3.5 text-[color:var(--accent)]" />
-            Indicative data — live BVMT feed coming soon.
+            Stock quotes live from BVMT (15-min cache) — TUNINDEX value indicative.
           </div>
         )}
 
