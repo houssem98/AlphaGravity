@@ -24,10 +24,12 @@ export default async function handler(req: any, res: any) {
         low: m.low || 0,
         close: m.close || 0,           // previous session close
         turnover: m.caps || 0,         // traded value (TND)
-        bid: m.limit?.bid || 0,        // L1 best bid
-        ask: m.limit?.ask || 0,        // L1 best ask
-        bidQty: m.limit?.bidQty || 0,
-        askQty: m.limit?.askQty || 0,
+        // BVMT swaps the field names: their `limit.bid` is the ASK, `limit.ask`
+        // is the BID (verified — `last` sits inside the corrected range).
+        bid: m.limit?.ask || 0,        // L1 best bid
+        ask: m.limit?.bid || 0,        // L1 best ask
+        bidQty: m.limit?.askQty || 0,
+        askQty: m.limit?.bidQty || 0,
       }))
       .filter((x: any) => x.price > 0);
     res.json({ rows, updated: rows[0]?.seance || null });
