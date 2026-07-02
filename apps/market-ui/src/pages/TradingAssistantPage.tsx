@@ -551,7 +551,14 @@ export default function TradingAssistantPage() {
                     <Sidebar onToolClick={handleToolClick} activeTool={activeTool} activeIndicators={activeIndicators} onIndicatorToggle={handleIndicatorToggle} />
                   </div>
                   <div className="flex-1 relative min-w-0">
-                    <Chart ref={chartRef} asset={currentAsset} timeframe={currentTimeframe} colors={chartColors} activeIndicators={activeIndicators} activeTool={activeTool} drawingPoints={drawingPoints} drawingConfig={drawingConfig} onChartClick={handleChartClick} />
+                    {activeMarket === 'tunisia' ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[color:var(--bg)] text-center px-6">
+                        <span className="text-h4 font-display font-semibold text-[color:var(--text-2)]">Chart unavailable</span>
+                        <span className="text-body text-[color:var(--text-3)] max-w-sm">Intraday charts for BVMT ({currentAsset}) aren't available yet — Tunisian market data is indicative. Live charts land with the real BVMT feed.</span>
+                      </div>
+                    ) : (
+                      <Chart ref={chartRef} asset={currentAsset} timeframe={currentTimeframe} colors={chartColors} activeIndicators={activeIndicators} activeTool={activeTool} drawingPoints={drawingPoints} drawingConfig={drawingConfig} onChartClick={handleChartClick} />
+                    )}
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[480px] max-w-[90%] z-20">
                       <div className="rounded-sm p-1.5 flex items-center gap-2 cursor-text transition-colors bg-[color:var(--surface)] border border-[color:var(--line-strong)] hover:border-[color:var(--accent)]" onClick={() => setIsAssistantOpen(true)}>
                         <div className="w-7 h-7 rounded-sm flex items-center justify-center shrink-0 bg-[color:var(--accent)] glint chrome">

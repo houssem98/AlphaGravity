@@ -41,7 +41,7 @@ than one iteration, split it in-file (add sub-tasks) and do the first.
   currency and an exchange label (NASDAQ/NYSE / BVMT / —).
   *Acceptance:* open AAPL and a TN stock from the list → panel shows right price,
   currency, no crypto-only fields leaking; no console errors.
-- [ ] **T2** — TN chart graceful state.
+- [x] **T2** — TN chart graceful state.
   TN symbols aren't on Yahoo → `Chart` renders empty. Add a "Chart unavailable
   for BVMT (indicative data)" placeholder when `activeMarket==='tunisia'`.
   *Acceptance:* click a TN stock → placeholder, not a broken/empty chart. `[deploy]`
@@ -91,3 +91,4 @@ correct currencies, graceful charts.
 ## Progress log
 <!-- append one line per completed task: YYYY-MM-DD Txx — what — verify result -->
 2026-07-02 T1 — AssetInfoPanel now market-aware (currency USD/TND, TN mock branch, BVMT/US exchange pill, rank hidden for non-crypto, converter currency-aware) — tsc 0 errors, build ok
+2026-07-02 T2 — TN chart placeholder ("Chart unavailable" for BVMT) instead of empty chart when activeMarket==='tunisia' — tsc 0, build ok, deployed
