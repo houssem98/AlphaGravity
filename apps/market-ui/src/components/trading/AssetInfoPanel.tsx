@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { isCryptoAsset, CRYPTO_ASSETS, STOCK_ASSETS } from '../../constants/tradingAssets';
-import { getMarket, type MarketId } from '../../lib/markets';
+import { getMarket, type MarketId, type Unit } from '../../lib/markets';
 import { fetchMarket, fmtPrice } from '../../services/marketsHub';
 import {
   Info, Star, Globe, FileText, Copy, Check, ChevronDown, ChevronRight,
@@ -594,7 +594,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
   const [copiedContract, setCopiedContract] = useState<string | null>(null);
 
   const isTN      = market === 'tunisia';
-  const currency: 'USD' | 'TND' = market ? getMarket(market).currency : 'USD';
+  const currency: Unit = market ? getMarket(market).currency : 'USD';
   const exchangeLabel = isTN ? 'BVMT' : market === 'us' ? 'US' : '';
   const assetInfo = [...CRYPTO_ASSETS, ...STOCK_ASSETS].find(a => a.symbol === asset);
   const tnRow     = isTN ? getMarket('tunisia').symbols.find(s => s.symbol === asset) : undefined;

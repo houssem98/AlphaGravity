@@ -68,7 +68,7 @@ than one iteration, split it in-file (add sub-tasks) and do the first.
   *Acceptance:* TN prices read "x.xx TND"; motion off when OS reduce-motion set. `[deploy]`
 
 ### Phase 6 — Real data + more markets (decoupled; do last)
-- [ ] **T7** — Commodities / Bonds / Forex live.
+- [x] **T7** — Commodities / Bonds / Forex live.
   Add three Yahoo-backed markets to `MARKETS` (e.g. `GC=F SI=F CL=F NG=F`;
   `^TNX ^TYX`; `EURUSD=X GBPUSD=X USDJPY=X`). Flip the hub "coming soon" cards to
   real cards. No UI refactor — registry + adapter already handle it.
@@ -96,3 +96,4 @@ correct currencies, graceful charts.
 2026-07-02 T4 — MarketList per-market watchlist (localStorage hub_watchlist_<id>, star col + Watchlist(N) filter, persists across reload). Sparkline SKIPPED (ponytail): US is paged→25 /api/history calls/page = Yahoo burst risk; crypto Markets already has sparklines. — tsc 0, build ok, deployed
 2026-07-02 T5 — skeleton rows (MarketList 10-row pulse, MarketHub card lead+constituents pulse) replacing bare LOADING…; MarketList error + RETRY (reloadKey) on full-load failure — tsc 0, build ok
 2026-07-02 T6 — hub stagger honors useReducedMotion (JS anim the global CSS media query can't stop); formatting already correct via fmtPrice/fmtPct/fmtCompact (TND/USD, tiny prices, negatives); global prefers-reduced-motion CSS already covers decorative anims — tsc 0, build ok, deployed
+2026-07-02 T7 — Commodities/Bonds/Forex markets added to registry (Yahoo); Unit type (USD/TND/PCT/RATE) so bonds read % and forex read bare rate; hub now 6 real cards (coming-soon block removed); verified prod quotes GC=F/^TNX/EURUSD=X/CL=F — tsc 0, build ok, deployed

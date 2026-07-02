@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
+import { ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { motion, useReducedMotion } from 'motion/react';
 import { MARKETS, type MarketDef, type MarketId } from '../../lib/markets';
@@ -13,7 +13,10 @@ interface MarketHubProps {
 // Static indicative TUNINDEX series (mock — Phase 6 replaces with real BVMT).
 const TN_SERIES = [9640, 9710, 9680, 9820, 9790, 9880, 9847].map((v) => ({ v }));
 
-const leadSymbol: Record<MarketId, string> = { us: '^GSPC', crypto: 'BTC-USD', tunisia: 'TUNINDEX' };
+const leadSymbol: Record<MarketId, string> = {
+  us: '^GSPC', crypto: 'BTC-USD', tunisia: 'TUNINDEX',
+  commodities: 'GC=F', bonds: '^TNX', forex: 'EURUSD=X',
+};
 
 const Delta = ({ pct }: { pct: number }) => {
   const up = pct >= 0;
@@ -150,7 +153,7 @@ export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAs
       });
     };
     // Sparklines: fetch once (Yahoo intraday); TN is static.
-    (['us', 'crypto'] as MarketId[]).forEach((id) => {
+    (['us', 'crypto', 'commodities', 'bonds', 'forex'] as MarketId[]).forEach((id) => {
       fetchCloses(leadSymbol[id]).then((closes) => {
         if (alive && closes.length) setSeriesByMarket((p) => ({ ...p, [id]: closes.map((v) => ({ v })) }));
       });
@@ -211,21 +214,6 @@ export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAs
           ))}
         </motion.div>
 
-        {/* Coming soon */}
-        <div className="mt-6">
-          <p className="label mb-2">MORE MARKETS</p>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {['Commodities', 'Bonds', 'Forex'].map((label) => (
-              <div key={label} className="bg-[color:var(--surface)] border border-dashed border-[color:var(--line)] rounded-[6px] p-4 flex items-center justify-between opacity-60">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[color:var(--text-3)]" />
-                  <span className="text-body font-medium text-[color:var(--text-2)]">{label}</span>
-                </div>
-                <span className="label text-[color:var(--text-3)]">SOON</span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

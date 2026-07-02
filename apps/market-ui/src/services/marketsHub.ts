@@ -1,7 +1,7 @@
 // One adapter for every market. Normalizes crypto / Yahoo / TN-mock into AssetRow.
 // Swapping a source is a one-line change in fetchMarket().
 
-import type { MarketDef, SymbolDef } from '../lib/markets';
+import type { MarketDef, SymbolDef, Unit } from '../lib/markets';
 
 export interface AssetRow {
   symbol: string;
@@ -12,7 +12,7 @@ export interface AssetRow {
   changePct7d?: number;
   marketCap?: number;
   volume?: number;
-  currency: 'USD' | 'TND';
+  currency: Unit;
   logo?: string;
 }
 
@@ -26,10 +26,12 @@ export const fmtCompact = (n: number) => {
   return n.toFixed(2);
 };
 
-export const fmtPrice = (n: number, currency: 'USD' | 'TND') => {
+export const fmtPrice = (n: number, unit: Unit) => {
+  if (unit === 'PCT') return `${n.toFixed(2)}%`;
+  if (unit === 'RATE') return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   const digits = Math.abs(n) < 1 ? (Math.abs(n) < 0.01 ? 6 : 4) : 2;
   const v = n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: digits });
-  return currency === 'TND' ? `${v} TND` : `$${v}`;
+  return unit === 'TND' ? `${v} TND` : `$${v}`;
 };
 
 export const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;

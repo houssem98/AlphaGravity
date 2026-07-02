@@ -4,8 +4,10 @@
 
 import sp500 from './sp500.json';
 
-export type MarketId = 'crypto' | 'us' | 'tunisia';
+export type MarketId = 'crypto' | 'us' | 'tunisia' | 'commodities' | 'bonds' | 'forex';
 export type MarketSource = 'crypto' | 'yahoo' | 'tunisia-mock';
+// How a quote reads: $ price, TND price, % yield (bonds), or bare rate (forex).
+export type Unit = 'USD' | 'TND' | 'PCT' | 'RATE';
 
 export interface SymbolDef {
   symbol: string;
@@ -16,7 +18,7 @@ export interface MarketDef {
   id: MarketId;
   label: string;
   blurb: string;
-  currency: 'USD' | 'TND';
+  currency: Unit;
   source: MarketSource;
   indices: SymbolDef[]; // headline instruments shown on the hub card
   symbols: SymbolDef[]; // full drill-down list (crypto pulls its own)
@@ -44,6 +46,34 @@ const TN_STOCKS: SymbolDef[] = [
   { symbol: 'SAH', name: 'SAH Lilas' },
   { symbol: 'ATTIJARI', name: 'Attijari Bank' },
   { symbol: 'CELLCOM', name: 'Cellcom' },
+];
+
+const COMMODITIES: SymbolDef[] = [
+  { symbol: 'GC=F', name: 'Gold' },
+  { symbol: 'SI=F', name: 'Silver' },
+  { symbol: 'CL=F', name: 'Crude Oil (WTI)' },
+  { symbol: 'BZ=F', name: 'Brent Crude' },
+  { symbol: 'NG=F', name: 'Natural Gas' },
+  { symbol: 'HG=F', name: 'Copper' },
+  { symbol: 'PL=F', name: 'Platinum' },
+  { symbol: 'ZC=F', name: 'Corn' },
+];
+
+const BONDS: SymbolDef[] = [
+  { symbol: '^TNX', name: 'US 10Y Treasury' },
+  { symbol: '^TYX', name: 'US 30Y Treasury' },
+  { symbol: '^FVX', name: 'US 5Y Treasury' },
+  { symbol: '^IRX', name: 'US 13W T-Bill' },
+];
+
+const FOREX: SymbolDef[] = [
+  { symbol: 'EURUSD=X', name: 'Euro / US Dollar' },
+  { symbol: 'GBPUSD=X', name: 'British Pound / US Dollar' },
+  { symbol: 'USDJPY=X', name: 'US Dollar / Japanese Yen' },
+  { symbol: 'USDCHF=X', name: 'US Dollar / Swiss Franc' },
+  { symbol: 'AUDUSD=X', name: 'Australian Dollar / US Dollar' },
+  { symbol: 'USDCAD=X', name: 'US Dollar / Canadian Dollar' },
+  { symbol: 'USDTND=X', name: 'US Dollar / Tunisian Dinar' },
 ];
 
 export const MARKETS: MarketDef[] = [
@@ -76,6 +106,33 @@ export const MARKETS: MarketDef[] = [
     source: 'tunisia-mock',
     indices: [{ symbol: 'TUNINDEX', name: 'TUNINDEX' }],
     symbols: TN_STOCKS,
+  },
+  {
+    id: 'commodities',
+    label: 'Commodities',
+    blurb: 'Gold, oil, metals & agriculture',
+    currency: 'USD',
+    source: 'yahoo',
+    indices: [COMMODITIES[0], COMMODITIES[2]],
+    symbols: COMMODITIES,
+  },
+  {
+    id: 'bonds',
+    label: 'Bonds',
+    blurb: 'US Treasury yields across the curve',
+    currency: 'PCT',
+    source: 'yahoo',
+    indices: [BONDS[0], BONDS[1]],
+    symbols: BONDS,
+  },
+  {
+    id: 'forex',
+    label: 'Forex',
+    blurb: 'Major currency pairs',
+    currency: 'RATE',
+    source: 'yahoo',
+    indices: [FOREX[0], FOREX[2]],
+    symbols: FOREX,
   },
 ];
 
