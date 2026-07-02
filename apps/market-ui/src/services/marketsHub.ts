@@ -53,15 +53,23 @@ async function fetchCrypto(): Promise<AssetRow[]> {
   }));
 }
 
-async function fetchYahoo(defs: SymbolDef[]): Promise<AssetRow[]> {
+// Public: fetch live quotes for an arbitrary symbol list (used for page-based
+// fetching of the full S&P 500 so we never hit Yahoo for 500 symbols at once).
+export async function fetchQuotes(defs: SymbolDef[]): Promise<AssetRow[]> {
   const nameMap = new Map(defs.map((d) => [d.symbol, d.name]));
-  const q = defs.map((d) => d.symbol).join(',');
-  const res = await fetch(`/api/quote?symbols=${encodeURIComponent(q)}`);
-  if (!res.ok) throw new Error('yahoo fetch failed');
-  const j = await res.json();
-  const result = j?.quoteResponse?.result || [];
-  // Preserve registry order (Yahoo may reorder / drop symbols).
-  const bySym = new Map<string, any>(result.map((r: any) => [r.symbol, r]));
+  const chunks: SymbolDef[][] = [];
+  for (let i = 0; i < defs.length; i += 50) chunks.push(defs.slice(i, i + 50));
+  const results = await Promise.all(
+    chunks.map(async (chunk) => {
+      const q = chunk.map((d) => d.symbol).join(',');
+      const res = await fetch(`/api/quote?symbols=${encodeURIComponent(q)}`);
+      if (!res.ok) return [];
+      const j = await res.json();
+      return (j?.quoteResponse?.result || []) as any[];
+    }),
+  );
+  const bySym = new Map<string, any>(results.flat().map((r: any) => [r.symbol, r]));
+  // Preserve input order (Yahoo may reorder / drop symbols).
   return defs
     .map((d) => bySym.get(d.symbol))
     .filter(Boolean)
@@ -112,7 +120,7 @@ export function fetchMarket(def: MarketDef): Promise<AssetRow[]> {
     case 'crypto':
       return fetchCrypto();
     case 'yahoo':
-      return fetchYahoo(def.symbols);
+      return fetchQuotes(def.symbols);
     case 'tunisia-mock':
       return Promise.resolve(fetchTunisiaMock(def.symbols));
   }
@@ -127,7 +135,7 @@ export function fetchHeadline(def: MarketDef): Promise<AssetRow[]> {
         return def.indices.map((d) => bySym.get(d.symbol)).filter(Boolean) as AssetRow[];
       });
     case 'yahoo':
-      return fetchYahoo(def.indices);
+      return fetchQuotes(def.indices);
     case 'tunisia-mock':
       return Promise.resolve(fetchTunisiaMock(def.indices));
   }

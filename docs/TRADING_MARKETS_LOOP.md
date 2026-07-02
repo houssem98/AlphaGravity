@@ -47,7 +47,7 @@ than one iteration, split it in-file (add sub-tasks) and do the first.
   *Acceptance:* click a TN stock → placeholder, not a broken/empty chart. `[deploy]`
 
 ### Phase 2 — US market fullness
-- [ ] **T3** — Full S&P 500 list.
+- [x] **T3** — Full S&P 500 list.
   Add `lib/sp500.json` (~500 `{symbol,name}`). Point US market `symbols` at it.
   Batch `/api/quote` in chunks (≤50 symbols/request) in `fetchYahoo`. Reuse
   MarketList pagination (add if missing, 25/page).
@@ -92,3 +92,4 @@ correct currencies, graceful charts.
 <!-- append one line per completed task: YYYY-MM-DD Txx — what — verify result -->
 2026-07-02 T1 — AssetInfoPanel now market-aware (currency USD/TND, TN mock branch, BVMT/US exchange pill, rank hidden for non-crypto, converter currency-aware) — tsc 0 errors, build ok
 2026-07-02 T2 — TN chart placeholder ("Chart unavailable" for BVMT) instead of empty chart when activeMarket==='tunisia' — tsc 0, build ok, deployed
+2026-07-02 T3 — full S&P 500 (503 syms, lib/sp500.json from datahub, dots→dashes); fetchQuotes chunks ≤50; MarketList page-based fetch (25/page, only visible page quoted) + PREV/NEXT — tsc 0, build ok

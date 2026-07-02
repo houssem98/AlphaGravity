@@ -2,6 +2,8 @@
 // Adding a market = one entry here. Swapping a data source = change `source`.
 // See docs/TRADING_MARKETS_ROADMAP.md.
 
+import sp500 from './sp500.json';
+
 export type MarketId = 'crypto' | 'us' | 'tunisia';
 export type MarketSource = 'crypto' | 'yahoo' | 'tunisia-mock';
 
@@ -27,28 +29,8 @@ const US_INDICES: SymbolDef[] = [
   { symbol: '^RUT', name: 'Russell 2000' },
 ];
 
-const US_STOCKS: SymbolDef[] = [
-  { symbol: 'AAPL', name: 'Apple' },
-  { symbol: 'MSFT', name: 'Microsoft' },
-  { symbol: 'NVDA', name: 'NVIDIA' },
-  { symbol: 'GOOGL', name: 'Alphabet' },
-  { symbol: 'AMZN', name: 'Amazon' },
-  { symbol: 'META', name: 'Meta Platforms' },
-  { symbol: 'TSLA', name: 'Tesla' },
-  { symbol: 'BRK-B', name: 'Berkshire Hathaway' },
-  { symbol: 'JPM', name: 'JPMorgan Chase' },
-  { symbol: 'V', name: 'Visa' },
-  { symbol: 'UNH', name: 'UnitedHealth' },
-  { symbol: 'XOM', name: 'Exxon Mobil' },
-  { symbol: 'LLY', name: 'Eli Lilly' },
-  { symbol: 'JNJ', name: 'Johnson & Johnson' },
-  { symbol: 'MA', name: 'Mastercard' },
-  { symbol: 'AVGO', name: 'Broadcom' },
-  { symbol: 'HD', name: 'Home Depot' },
-  { symbol: 'PG', name: 'Procter & Gamble' },
-  { symbol: 'COST', name: 'Costco' },
-  { symbol: 'NFLX', name: 'Netflix' },
-];
+// Full S&P 500 constituents (generated from datahub CSV; dots→dashes for Yahoo).
+const US_STOCKS: SymbolDef[] = sp500 as SymbolDef[];
 
 // ponytail: mock BVMT list — swap fetchTunisiaMock→/api/tn/markets in Phase 6.
 const TN_STOCKS: SymbolDef[] = [
