@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, ArrowLeft, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Search, ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Star } from 'lucide-react';
 import type { MarketDef } from '../../lib/markets';
 import { fetchMarket, fetchQuotes, fmtPrice, fmtPct, fmtCompact, type AssetRow } from '../../services/marketsHub';
 
@@ -22,6 +22,20 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   const [loading, setLoading] = useState(!paged);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
+  const WKEY = `hub_watchlist_${market.id}`;
+  const [watchlist, setWatchlist] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(WKEY) || '[]'); } catch { return []; }
+  });
+  const [watchOnly, setWatchOnly] = useState(false);
+  useEffect(() => {
+    try { setWatchlist(JSON.parse(localStorage.getItem(WKEY) || '[]')); } catch { setWatchlist([]); }
+    setWatchOnly(false);
+  }, [WKEY]);
+  useEffect(() => { localStorage.setItem(WKEY, JSON.stringify(watchlist)); }, [WKEY, watchlist]);
+  const toggleWatch = (e: React.MouseEvent, sym: string) => {
+    e.stopPropagation();
+    setWatchlist((p) => (p.includes(sym) ? p.filter((s) => s !== sym) : [...p, sym]));
+  };
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>(
     paged ? { key: 'name', dir: 'asc' } : { key: 'marketCap', dir: 'desc' },
   );
@@ -40,7 +54,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
     return () => { alive = false; if (t) clearInterval(t); };
   }, [market, paged]);
 
-  useEffect(() => { setPage(1); }, [query, market]);
+  useEffect(() => { setPage(1); }, [query, market, watchOnly]);
 
   // Base rows: stubs (name/symbol) for paged, live rows otherwise.
   const baseRows: AssetRow[] = useMemo(
@@ -59,14 +73,16 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   const view = useMemo(() => {
     const q = query.toLowerCase();
     const filtered = baseRows.filter(
-      (r) => r.symbol.toLowerCase().includes(q) || r.name.toLowerCase().includes(q),
+      (r) =>
+        (!watchOnly || watchlist.includes(r.symbol)) &&
+        (r.symbol.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)),
     );
     const dir = sort.dir === 'asc' ? 1 : -1;
     return filtered.sort((a, b) => {
       if (sort.key === 'name') return a.name.localeCompare(b.name) * dir;
       return (((a[sort.key] as number) || 0) - ((b[sort.key] as number) || 0)) * dir;
     });
-  }, [baseRows, query, sort]);
+  }, [baseRows, query, sort, watchOnly, watchlist]);
 
   const totalPages = Math.max(1, Math.ceil(view.length / PAGE));
   const pageView = view.slice((page - 1) * PAGE, page * PAGE);
@@ -107,15 +123,27 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
               <p className="text-body text-[color:var(--text-3)] mt-1">{market.blurb} · {market.currency}</p>
             </div>
           </div>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[color:var(--text-3)]" />
-            <input
-              type="text"
-              placeholder="Search assets..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="bg-[color:var(--surface)] border border-[color:var(--line)] text-[color:var(--text)] placeholder:text-[color:var(--text-3)] text-body pl-8 pr-3 py-1.5 rounded-sm focus:outline-none focus:border-[color:var(--line-strong)] w-full md:w-72 transition-colors"
-            />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setWatchOnly((w) => !w)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-label font-semibold border transition-colors ${
+                watchOnly
+                  ? 'bg-[color:color-mix(in_oklch,var(--accent)_12%,transparent)] border-[color:var(--accent)] text-[color:var(--accent)]'
+                  : 'bg-[color:var(--surface)] border-[color:var(--line)] text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:border-[color:var(--line-strong)]'
+              }`}
+            >
+              <Star className={`w-3.5 h-3.5 ${watchOnly ? 'fill-[color:var(--accent)]' : ''}`} /> Watchlist ({watchlist.length})
+            </button>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[color:var(--text-3)]" />
+              <input
+                type="text"
+                placeholder="Search assets..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="bg-[color:var(--surface)] border border-[color:var(--line)] text-[color:var(--text)] placeholder:text-[color:var(--text-3)] text-body pl-8 pr-3 py-1.5 rounded-sm focus:outline-none focus:border-[color:var(--line-strong)] w-full md:w-72 transition-colors"
+              />
+            </div>
           </div>
         </div>
 
@@ -132,6 +160,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
             <table className="w-full text-left border-collapse whitespace-nowrap">
               <thead>
                 <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
+                  <th className="py-2 px-4 w-8" />
                   {([
                     { key: 'name', label: 'Name', cls: '' },
                     { key: 'price', label: 'Price', cls: 'text-right' },
@@ -150,9 +179,9 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={4} className="py-10 text-center label text-[color:var(--text-3)]">LOADING…</td></tr>
+                  <tr><td colSpan={5} className="py-10 text-center label text-[color:var(--text-3)]">LOADING…</td></tr>
                 ) : pageView.length === 0 ? (
-                  <tr><td colSpan={4} className="py-10 text-center text-body text-[color:var(--text-3)]">No assets found.</td></tr>
+                  <tr><td colSpan={5} className="py-10 text-center text-body text-[color:var(--text-3)]">No assets found.</td></tr>
                 ) : (
                   pageView.map((r) => {
                     const loaded = r.price > 0;
@@ -163,6 +192,9 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                         onClick={() => onAssetSelect(r.symbol)}
                         className="border-b border-[color:var(--line)] hover:bg-[color:var(--surface-2)] cursor-pointer transition-colors"
                       >
+                        <td className="py-2.5 px-4" onClick={(e) => toggleWatch(e, r.symbol)}>
+                          <Star className={`w-3.5 h-3.5 transition-colors ${watchlist.includes(r.symbol) ? 'text-[color:var(--accent)] fill-[color:var(--accent)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text)]'}`} />
+                        </td>
                         <td className="py-2.5 px-4">
                           <div className="flex items-center gap-2.5">
                             {r.logo ? (

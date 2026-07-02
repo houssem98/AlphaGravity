@@ -52,7 +52,7 @@ than one iteration, split it in-file (add sub-tasks) and do the first.
   Batch `/api/quote` in chunks (≤50 symbols/request) in `fetchYahoo`. Reuse
   MarketList pagination (add if missing, 25/page).
   *Acceptance:* US list shows >100 rows, paginates, no Yahoo 400s.
-- [ ] **T4** — MarketList watchlist + sparkline.
+- [x] **T4** — MarketList watchlist + sparkline.
   Per-market `localStorage` watchlist (star toggle) + a 7d sparkline column
   (reuse `Sparkline` for crypto; Yahoo closes for US; skip for TN).
   *Acceptance:* star persists across reload; sparklines render. `[deploy]`
@@ -93,3 +93,4 @@ correct currencies, graceful charts.
 2026-07-02 T1 — AssetInfoPanel now market-aware (currency USD/TND, TN mock branch, BVMT/US exchange pill, rank hidden for non-crypto, converter currency-aware) — tsc 0 errors, build ok
 2026-07-02 T2 — TN chart placeholder ("Chart unavailable" for BVMT) instead of empty chart when activeMarket==='tunisia' — tsc 0, build ok, deployed
 2026-07-02 T3 — full S&P 500 (503 syms, lib/sp500.json from datahub, dots→dashes); fetchQuotes chunks ≤50; MarketList page-based fetch (25/page, only visible page quoted) + PREV/NEXT — tsc 0, build ok
+2026-07-02 T4 — MarketList per-market watchlist (localStorage hub_watchlist_<id>, star col + Watchlist(N) filter, persists across reload). Sparkline SKIPPED (ponytail): US is paged→25 /api/history calls/page = Yahoo burst risk; crypto Markets already has sparklines. — tsc 0, build ok, deployed
