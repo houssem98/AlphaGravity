@@ -577,6 +577,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
   const [maxSupply, setMaxSupply] = useState<number | null>(null);
   const [low24h,    setLow24h]    = useState<number | null>(null);
   const [high24h,   setHigh24h]   = useState<number | null>(null);
+  const [tnStats,   setTnStats]   = useState<any>(null);
 
   // UI state
   const [isWatchlisted, setIsWatchlisted] = useState(() => {
@@ -610,12 +611,13 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
     const load = async () => {
       try {
         if (isTN) {
-          const rows = await fetchMarket(getMarket('tunisia'));
-          const row = rows.find(r => r.symbol === asset);
+          const j = await (await fetch('/api/tn/markets')).json();
+          const row = (j?.rows || []).find((r: any) => r.symbol === asset);
           if (row && live) {
             setPrice(row.price); setChange(row.changePct);
-            setMarketCap(null); setVolume(null); setSupply(null);
-            setMaxSupply(null); setLow24h(null); setHigh24h(null);
+            setVolume(row.volume || null); setLow24h(row.low || null); setHigh24h(row.high || null);
+            setMarketCap(null); setSupply(null); setMaxSupply(null);
+            setTnStats(row);
           }
           return;
         }
@@ -807,10 +809,28 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
 
         {/* ── STATS ── */}
         <div className="px-4 py-1">
+          {isTN ? (
+            <>
+              {(() => { const t = tnStats || {}; const tnd = (v: number) => v ? `${fmt(v)} TND` : '—'; const spread = t.ask && t.bid ? (t.ask - t.bid) : null; return (
+                <>
+                  <ROW label="Day range"   value={t.low && t.high ? `${t.low.toFixed(2)} – ${t.high.toFixed(2)}` : '—'} tooltip="Session low – high (TND)" />
+                  <ROW label="Prev close"  value={t.close ? `${t.close.toFixed(2)} TND` : '—'} tooltip="Previous session close" />
+                  <ROW label="Volume"      value={t.volume ? fmt(t.volume) : '—'} tooltip="Shares traded this session" />
+                  <ROW label="Turnover"    value={tnd(t.turnover)} tooltip="Traded value this session (TND)" />
+                  <ROW label="Bid / Ask"   value={t.bid && t.ask ? `${t.bid.toFixed(2)} / ${t.ask.toFixed(2)}` : '—'} tooltip="Best bid / ask (BVMT L1)" />
+                  <ROW label="Spread"      value={spread !== null ? spread.toFixed(2) : '—'} tooltip="Ask − bid" />
+                  <ROW label="ISIN"        value={t.isin || '—'} tooltip="International Securities ID" />
+                </>
+              ); })()}
+            </>
+          ) : (
+          <>
           <ROW label="Market cap"        value={fmt(marketCap, 'currency')} change={change}  tooltip="Total market value" />
           <ROW label="Volume (24h)"      value={fmt(volume, 'currency')}    change={-18.08}  hasArrow tooltip="24-hour trading volume" />
           <ROW label="Vol/Mkt Cap (24h)" value={volMktCap ? `${volMktCap.toFixed(2)}%` : '—'} tooltip="Volume / Market Cap ratio" />
           <ROW label="FDV"               value={fmt(fdv, 'currency')}       hasArrow         tooltip="Fully Diluted Valuation" />
+          </>
+          )}
 
           {isCrypto && (
             <>

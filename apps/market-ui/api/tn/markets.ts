@@ -19,6 +19,15 @@ export default async function handler(req: any, res: any) {
         volume: m.volume || 0,
         isin: m.isin || m.referentiel.isin || null,
         seance: m.seance || null,
+        open: m.open || 0,
+        high: m.high || 0,
+        low: m.low || 0,
+        close: m.close || 0,           // previous session close
+        turnover: m.caps || 0,         // traded value (TND)
+        bid: m.limit?.bid || 0,        // L1 best bid
+        ask: m.limit?.ask || 0,        // L1 best ask
+        bidQty: m.limit?.bidQty || 0,
+        askQty: m.limit?.askQty || 0,
       }))
       .filter((x: any) => x.price > 0);
     res.json({ rows, updated: rows[0]?.seance || null });

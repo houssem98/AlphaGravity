@@ -46,11 +46,28 @@ export default async function handler(req: any, res: any) {
     const points = [...bySec.values()].sort((a, b) => a.time - b.time);
     const last = points.length ? points[points.length - 1].value : prevClose;
 
+    // Bucket ticks into OHLC candles. interval in minutes (1/5/15…).
+    const interval = Math.max(1, Math.min(60, +req.query.interval || 5));
+    const step = interval * 60;
+    const buckets = new Map<number, { time: number; open: number; high: number; low: number; close: number; volume: number }>();
+    for (const p of points) {
+      const t = Math.floor(p.time / step) * step;
+      const b = buckets.get(t);
+      if (!b) buckets.set(t, { time: t, open: p.value, high: p.value, low: p.value, close: p.value, volume: p.volume });
+      else {
+        b.high = Math.max(b.high, p.value);
+        b.low = Math.min(b.low, p.value);
+        b.close = p.value;
+        b.volume += p.volume;
+      }
+    }
+    const candles = [...buckets.values()].sort((a, b) => a.time - b.time);
+
     res.json({
-      symbol, name, isin, prevClose, last,
+      symbol, name, isin, prevClose, last, interval,
       changePct: prevClose ? ((last - prevClose) / prevClose) * 100 : 0,
       seance: d?.intradays?.[0]?.seance || null,
-      points,
+      points, candles,
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

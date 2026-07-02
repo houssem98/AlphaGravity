@@ -63,6 +63,10 @@ export default function TradingAssistantPage() {
   );
   const [currentTimeframe, setCurrentTimeframe] = useState<string>('1D');
   const [activeTab, setActiveTab] = useState<string>('Chart');
+  // TN has no Markets/Yield/Holders tabs — snap back to Chart if one was open.
+  useEffect(() => {
+    if (activeMarket === 'tunisia' && ['Markets', 'Yield', 'Holders'].includes(activeTab)) setActiveTab('Chart');
+  }, [activeMarket, activeTab]);
   const [chartColors, setChartColors] = useState<ChartColors>({
     upColor: '#00E676',
     downColor: '#FF1744',
@@ -536,7 +540,8 @@ export default function TradingAssistantPage() {
                 isOrderBookOpen={isOrderBookOpen}
                 onToggleOrderBook={() => setIsOrderBookOpen(!isOrderBookOpen)}
                 activeTab={activeTab}
-                onTabChange={(tab) => { console.log('setActiveTab:', tab); setActiveTab(tab); }}
+                market={activeMarket}
+                onTabChange={(tab) => setActiveTab(tab)}
               />
 
               {/* Phase 3T: Risk Alert Banner */}
@@ -592,7 +597,7 @@ export default function TradingAssistantPage() {
               ) : activeTab === 'Holders' ? (
                 <HoldersTab asset={currentAsset} />
               ) : activeTab === 'About' ? (
-                <AboutTab asset={currentAsset} />
+                <AboutTab asset={currentAsset} name={assetName} market={activeMarket} />
               ) : (
                 <div className="flex-1 text-center text-[color:var(--text-3)] p-8">Unknown tab</div>
               )

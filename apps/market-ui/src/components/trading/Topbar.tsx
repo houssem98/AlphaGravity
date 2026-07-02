@@ -3,6 +3,8 @@ import { BarChart2, Activity, ChevronDown, TrendingUp, SlidersHorizontal } from 
 import type { ChartColors } from './Chart';
 
 const COIN_TABS = ['Chart', 'Markets', 'News', 'Yield', 'Holders', 'About'] as const;
+// BVMT has no crypto exchanges / whale holders / staking yield — hide those.
+const TN_TABS = ['Chart', 'News', 'About'] as const;
 const TIMEFRAMES = ['1h', '24h', '1W', '1M', '1Y', 'ALL'];
 
 interface TopbarProps {
@@ -19,6 +21,7 @@ interface TopbarProps {
   onBuyClick?: () => void;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
+  market?: import('../../lib/markets').MarketId;
 }
 
 /** Two-row topbar: section tabs + CTA, then chart controls.
@@ -32,8 +35,9 @@ export const Topbar: React.FC<TopbarProps> = ({
   onBuyClick,
   activeTab = 'Chart',
   onTabChange,
+  market,
 }) => {
-  console.log('Topbar rendering, activeTab:', activeTab, 'onTabChange exists:', !!onTabChange);
+  const tabs = market === 'tunisia' ? TN_TABS : COIN_TABS;
 
   const [chartType, setChartType] = useState<'candles' | 'line'>('candles');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -47,13 +51,12 @@ export const Topbar: React.FC<TopbarProps> = ({
       {/* ── Row 1 : section tabs + CTA ─────────────────────────────── */}
       <div className="flex items-stretch h-10 border-b border-[color:var(--line)]">
         <div className="flex items-stretch">
-          {COIN_TABS.map((tab) => {
+          {tabs.map((tab) => {
             const isActive = activeTab === tab;
-            console.log('Rendering tab button:', tab, 'isActive:', isActive);
             return (
               <button
                 key={tab}
-                onClick={() => { console.log('onClick fired for:', tab); onTabChange?.(tab); }}
+                onClick={() => onTabChange?.(tab)}
                 className={`relative flex items-center px-4 text-body font-medium whitespace-nowrap transition-colors ${
                   isActive
                     ? 'text-[color:var(--text)]'
