@@ -28,6 +28,7 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
   const volRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const priceLineRef = useRef<IPriceLine | null>(null);
   const [interval, setInterval_] = useState<number>(5);
+  const [mode, setMode] = useState<'intraday' | 'daily'>('intraday');
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
   const [meta, setMeta] = useState<Intraday | null>(null);
 
@@ -53,14 +54,17 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
     return () => { chart.remove(); chartRef.current = null; candleRef.current = null; volRef.current = null; };
   }, []);
 
-  // Load + poll for the current asset / interval.
+  // Load (and, intraday only, poll) for the current asset / interval / mode.
   useEffect(() => {
     let live = true;
     setStatus('loading');
+    chartRef.current?.applyOptions({ timeScale: { timeVisible: mode === 'intraday' } });
     const load = async () => {
       try {
-        const r = await fetch(`/api/tn/intraday?symbol=${encodeURIComponent(asset)}&interval=${interval}`);
-        const d: Intraday = await r.json();
+        const u = mode === 'daily'
+          ? `/api/tn/history?symbol=${encodeURIComponent(asset)}`
+          : `/api/tn/intraday?symbol=${encodeURIComponent(asset)}&interval=${interval}`;
+        const d: Intraday = await (await fetch(u)).json();
         if (!live || !candleRef.current || !volRef.current) return;
         if (!d.candles?.length) { candleRef.current.setData([]); volRef.current.setData([]); setStatus('empty'); setMeta(d); return; }
         candleRef.current.setData(d.candles.map((c) => ({
@@ -69,11 +73,13 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
         volRef.current.setData(d.candles.map((c) => ({
           time: c.time as Time, value: c.volume, color: c.close >= c.open ? `${UP}55` : `${DOWN}55`,
         })));
-        if (priceLineRef.current) candleRef.current.removePriceLine(priceLineRef.current);
-        priceLineRef.current = candleRef.current.createPriceLine({
-          price: d.prevClose, color: '#5A6478', lineWidth: 1,
-          lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: 'prev',
-        });
+        if (priceLineRef.current) { candleRef.current.removePriceLine(priceLineRef.current); priceLineRef.current = null; }
+        if (mode === 'intraday' && d.prevClose) {
+          priceLineRef.current = candleRef.current.createPriceLine({
+            price: d.prevClose, color: '#5A6478', lineWidth: 1,
+            lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: 'prev',
+          });
+        }
         chartRef.current?.timeScale().fitContent();
         setMeta(d); setStatus('ready');
       } catch {
@@ -81,9 +87,12 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
       }
     };
     load();
-    const iv = window.setInterval(load, 60_000);
-    return () => { live = false; window.clearInterval(iv); };
-  }, [asset, interval]);
+    if (mode === 'intraday') {
+      const iv = window.setInterval(load, 60_000);
+      return () => { live = false; window.clearInterval(iv); };
+    }
+    return () => { live = false; };
+  }, [asset, interval, mode]);
 
   return (
     <div className="relative w-full h-full bg-[#0A0E17]">
@@ -91,24 +100,37 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
         {meta && status === 'ready' && (
           <>
             <span className="text-body font-semibold text-[color:var(--text)]">{name || asset}</span>
-            <span className="text-label text-[color:var(--text-3)]">{interval}m · BVMT intraday{meta.seance ? ` · ${meta.seance}` : ''}</span>
+            <span className="text-label text-[color:var(--text-3)]">
+              {mode === 'daily' ? 'Daily · BVMT' : `${interval}m · BVMT intraday${meta.seance ? ` · ${meta.seance}` : ''}`}
+            </span>
           </>
         )}
       </div>
 
-      {/* Interval selector */}
-      <div className="absolute top-3 right-4 z-20 flex gap-1 p-0.5 rounded-md bg-[#0F1420] border border-[#1B2236]">
-        {INTERVALS.map((n) => (
-          <button
-            key={n}
-            onClick={() => setInterval_(n)}
-            className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-              interval === n ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
-            }`}
-          >
-            {n}m
-          </button>
-        ))}
+      {/* Mode + interval selectors */}
+      <div className="absolute top-3 right-4 z-20 flex items-center gap-2">
+        <div className="flex gap-1 p-0.5 rounded-md bg-[#0F1420] border border-[#1B2236]">
+          {(['intraday', 'daily'] as const).map((m) => (
+            <button key={m} onClick={() => setMode(m)}
+              className={`px-2 py-0.5 rounded text-[11px] font-medium capitalize transition-colors ${
+                mode === m ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
+              }`}>
+              {m}
+            </button>
+          ))}
+        </div>
+        {mode === 'intraday' && (
+          <div className="flex gap-1 p-0.5 rounded-md bg-[#0F1420] border border-[#1B2236]">
+            {INTERVALS.map((n) => (
+              <button key={n} onClick={() => setInterval_(n)}
+                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                  interval === n ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
+                }`}>
+                {n}m
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div ref={containerRef} className="w-full h-full" />
@@ -116,10 +138,16 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
       {status !== 'ready' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6 pointer-events-none">
           {status === 'loading' && <Loader2 className="w-5 h-5 animate-spin text-[color:var(--text-3)]" />}
-          {status === 'empty' && (
+          {status === 'empty' && mode === 'intraday' && (
             <>
               <span className="text-body font-semibold text-[color:var(--text-2)]">No trades this session</span>
               <span className="text-label text-[color:var(--text-3)] max-w-xs">BVMT hasn't printed a tick for {name || asset} yet today — candles fill in as trades clear.</span>
+            </>
+          )}
+          {status === 'empty' && mode === 'daily' && (
+            <>
+              <span className="text-body font-semibold text-[color:var(--text-2)]">Building daily history</span>
+              <span className="text-label text-[color:var(--text-3)] max-w-xs">Daily candles for {name || asset} accumulate one bar per session from the BVMT close — check back after the next close.</span>
             </>
           )}
           {status === 'error' && (
