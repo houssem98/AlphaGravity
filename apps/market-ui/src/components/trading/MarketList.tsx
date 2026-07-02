@@ -1,7 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Star, Trophy, Activity, ArrowUpDown } from 'lucide-react';
+import { Search, ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Star, Trophy, Activity, ArrowUpDown, BarChart2, ExternalLink } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import type { MarketDef } from '../../lib/markets';
 import { fetchMarket, fetchQuotes, fetchSparks, fmtPrice, fmtPct, fmtCompact, type AssetRow } from '../../services/marketsHub';
+
+// Market-appropriate external links (crypto's COINMARKETCAP/COINGECKO equivalent).
+function assetLinks(market: MarketDef, r: AssetRow): { label: string; url: string }[] {
+  const clean = r.symbol.replace('^', '').replace('=F', '').replace('=X', '');
+  if (market.id === 'tunisia') {
+    const links = [{ label: 'ILBOURSA', url: `https://www.ilboursa.com/marches/cotation_${r.symbol}` }];
+    if (r.isin) links.unshift({ label: 'BVMT', url: `https://www.bvmt.com.tn/fr/content/fiche-valeur?isin=${r.isin}` });
+    return links;
+  }
+  const links = [
+    { label: 'YAHOO FINANCE', url: `https://finance.yahoo.com/quote/${encodeURIComponent(r.symbol)}` },
+    { label: 'TRADINGVIEW', url: `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(clean)}` },
+  ];
+  if (market.id === 'us') links.push({ label: 'SEC EDGAR', url: `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(clean)}&type=10-K` });
+  return links;
+}
 
 interface MarketListProps {
   market: MarketDef;
@@ -97,6 +114,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>(
     paged ? { key: 'name', dir: 'asc' } : { key: 'marketCap', dir: 'desc' },
   );
@@ -130,7 +148,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [market, paged, reloadKey]);
 
-  useEffect(() => { setPage(1); }, [query, market, watchOnly, perPage]);
+  useEffect(() => { setPage(1); setExpanded(null); }, [query, market, watchOnly, perPage]);
 
   const baseRows: AssetRow[] = useMemo(
     () =>
@@ -146,7 +164,15 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   const hasMcap = baseRows.some((r) => r.marketCap);
   const hasVol = baseRows.some((r) => r.volume);
   const showSpark = market.source === 'yahoo';
-  const nCols = 5 + (hasVol ? 1 : 0) + (hasMcap ? 1 : 0) + (showSpark ? 1 : 0);
+  const nCols = 6 + (hasVol ? 1 : 0) + (hasMcap ? 1 : 0) + (showSpark ? 1 : 0);
+
+  // 7d % — from the batch sparkline series (first vs last close).
+  const pct7d = (r: AssetRow): number | null => {
+    if (typeof r.changePct7d === 'number') return r.changePct7d;
+    const s = sparks[r.symbol];
+    if (s && s.length > 1 && s[0] !== 0) return ((s[s.length - 1] - s[0]) / s[0]) * 100;
+    return null;
+  };
 
   const view = useMemo(() => {
     const q = query.toLowerCase();
@@ -307,17 +333,18 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                     { key: 'name', label: 'Name', cls: '' },
                     { key: 'price', label: 'Price', cls: 'text-right' },
                     { key: 'changePct', label: '24h %', cls: 'text-right' },
+                    { key: null, label: '7d %', cls: 'text-right hidden md:table-cell' },
                     ...(hasVol ? [{ key: 'volume', label: 'Volume', cls: 'text-right hidden lg:table-cell' }] : []),
                     ...(hasMcap ? [{ key: 'marketCap', label: 'Market Cap', cls: 'text-right hidden sm:table-cell' }] : []),
-                  ] as { key: SortKey; label: string; cls: string }[]).map((h) => (
+                  ] as { key: SortKey | null; label: string; cls: string }[]).map((h) => (
                     <th
-                      key={h.key}
-                      onClick={() => toggleSort(h.key)}
-                      className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group ${h.cls}`}
+                      key={h.label}
+                      onClick={() => h.key && toggleSort(h.key)}
+                      className={`py-2 px-4 label transition-colors group ${h.cls} ${h.key ? 'cursor-pointer hover:text-[color:var(--text)]' : ''}`}
                     >
                       <div className={`flex items-center gap-1 ${h.cls.includes('text-right') ? 'justify-end' : ''}`}>
                         {h.label}
-                        <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        {h.key && <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />}
                       </div>
                     </th>
                   ))}
@@ -333,6 +360,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                       <td className="py-3 px-4"><div className="flex items-center gap-2.5"><div className="w-6 h-6 rounded-full bg-[color:var(--surface-2)] animate-pulse" /><div className="h-3 w-40 rounded bg-[color:var(--surface-2)] animate-pulse" /></div></td>
                       <td className="py-3 px-4"><div className="h-3 w-20 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>
                       <td className="py-3 px-4"><div className="h-3 w-14 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>
+                      <td className="py-3 px-4 hidden md:table-cell"><div className="h-3 w-14 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>
                       {hasVol && <td className="py-3 px-4 hidden lg:table-cell"><div className="h-3 w-14 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>}
                       {hasMcap && <td className="py-3 px-4 hidden sm:table-cell"><div className="h-3 w-16 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>}
                       {showSpark && <td className="py-3 px-4 hidden md:table-cell"><div className="h-6 w-24 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>}
@@ -351,11 +379,15 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                   pageView.map((r, i) => {
                     const loaded = r.price > 0;
                     const up = r.changePct >= 0;
+                    const isExpanded = expanded === r.symbol;
+                    const p7 = pct7d(r);
+                    const s = sparks[r.symbol] || [];
+                    const prevClose = loaded ? r.price / (1 + r.changePct / 100) : null;
                     return (
+                      <React.Fragment key={r.symbol}>
                       <tr
-                        key={r.symbol}
-                        onClick={() => onAssetSelect(r.symbol)}
-                        className="border-b border-[color:var(--line)] hover:bg-[color:var(--surface-2)] cursor-pointer transition-colors group"
+                        onClick={() => setExpanded(isExpanded ? null : r.symbol)}
+                        className={`border-b border-[color:var(--line)] hover:bg-[color:var(--surface-2)] cursor-pointer transition-colors group ${isExpanded ? 'bg-[color:var(--surface-2)]' : ''}`}
                       >
                         <td className="py-2.5 px-4" onClick={(e) => toggleWatch(e, r.symbol)}>
                           <Star className={`w-3.5 h-3.5 transition-colors ${watchlist.includes(r.symbol) ? 'text-[color:var(--accent)] fill-[color:var(--accent)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text)]'}`} />
@@ -373,6 +405,9 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                         <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text)]">{loaded ? fmtPrice(r.price, r.currency) : '—'}</td>
                         <td className={`py-2.5 px-4 text-right text-data ${loaded ? (up ? 'up' : 'down') : 'text-[color:var(--text-3)]'}`}>
                           {loaded ? <Delta pct={r.changePct} /> : '—'}
+                        </td>
+                        <td className={`py-2.5 px-4 text-right text-data hidden md:table-cell ${p7 !== null ? (p7 >= 0 ? 'up' : 'down') : 'text-[color:var(--text-3)]'}`}>
+                          {p7 !== null ? <span className="font-mono">{fmtPct(p7)}</span> : '—'}
                         </td>
                         {hasVol && (
                           <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
@@ -403,6 +438,94 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                           </td>
                         )}
                       </tr>
+
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.tr
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="bg-[color:var(--bg)] border-b border-[color:var(--line)]"
+                          >
+                            <td colSpan={nCols} className="p-0">
+                              <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2.5">
+                                    <AssetIcon r={r} />
+                                    <div>
+                                      <h3 className="text-h4 font-display font-semibold text-[color:var(--text)]">{r.name}</h3>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="label">RANK #{(page - 1) * perPage + i + 1}</span>
+                                        <span className="font-mono text-label text-[color:var(--text-3)]">{r.symbol.replace('^', '')}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onAssetSelect(r.symbol); }}
+                                    className="flex items-center gap-1.5 bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 px-3 py-1.5 rounded-sm text-label font-semibold transition-colors shiny chrome cta-glow press"
+                                    style={{ letterSpacing: '0.04em' }}
+                                  >
+                                    <BarChart2 className="w-3.5 h-3.5" />
+                                    ADVANCED CHART
+                                  </button>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <div>
+                                    <div className="label mb-0.5">PRICE</div>
+                                    <div className="font-mono text-data text-[color:var(--text)]">{loaded ? fmtPrice(r.price, r.currency) : '—'}</div>
+                                  </div>
+                                  <div>
+                                    <div className="label mb-0.5">PREV CLOSE</div>
+                                    <div className="font-mono text-data text-[color:var(--text)]">{prevClose ? fmtPrice(prevClose, r.currency) : '—'}</div>
+                                  </div>
+                                  <div>
+                                    <div className="label mb-0.5">DAY CHANGE</div>
+                                    <div className="font-mono text-data">{loaded ? <Delta pct={r.changePct} /> : '—'}</div>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <div>
+                                    <div className="label mb-0.5">MARKET CAP</div>
+                                    <div className="font-mono text-data text-[color:var(--text)]">{r.marketCap ? '$' + fmtCompact(r.marketCap) : '—'}</div>
+                                  </div>
+                                  <div>
+                                    <div className="label mb-0.5">VOLUME</div>
+                                    <div className="font-mono text-data text-[color:var(--text)]">{r.volume ? fmtCompact(r.volume) : '—'}</div>
+                                  </div>
+                                  <div>
+                                    <div className="label mb-0.5">7D RANGE</div>
+                                    <div className="font-mono text-data text-[color:var(--text)]">
+                                      {s.length > 1 ? `${fmtPrice(Math.min(...s), r.currency)} — ${fmtPrice(Math.max(...s), r.currency)}` : '—'}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <div className="label mb-1">LINKS</div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {assetLinks(market, r).map((l) => (
+                                      <a
+                                        key={l.label}
+                                        href={l.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex items-center gap-1 text-label font-semibold bg-[color:var(--surface-2)] hover:bg-[color:var(--surface)] text-[color:var(--text-2)] border border-[color:var(--line)] hover:border-[color:var(--line-strong)] px-2 py-1 rounded-sm transition-colors"
+                                        style={{ letterSpacing: '0.04em' }}
+                                      >
+                                        {l.label} <ExternalLink className="w-2.5 h-2.5" />
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </motion.tr>
+                        )}
+                      </AnimatePresence>
+                      </React.Fragment>
                     );
                   })
                 )}

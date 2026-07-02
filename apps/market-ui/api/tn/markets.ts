@@ -17,6 +17,7 @@ export default async function handler(req: any, res: any) {
         price: m.last || m.close || 0,
         changePct: m.change || 0, // BVMT `change` is already a percentage
         volume: m.volume || 0,
+        isin: m.isin || m.referentiel.isin || null,
         seance: m.seance || null,
       }))
       .filter((x: any) => x.price > 0);

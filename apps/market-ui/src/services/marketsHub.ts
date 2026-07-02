@@ -14,6 +14,7 @@ export interface AssetRow {
   volume?: number;
   currency: Unit;
   logo?: string;
+  isin?: string; // BVMT listings — used for official fiche-valeur links
 }
 
 // ── Formatting ────────────────────────────────────────────────
@@ -101,6 +102,7 @@ async function fetchTunisia(defs: SymbolDef[]): Promise<AssetRow[]> {
       price: r.price,
       changePct: r.changePct,
       volume: r.volume || undefined,
+      isin: r.isin || undefined,
       currency: 'TND' as const,
     }));
   } catch {
