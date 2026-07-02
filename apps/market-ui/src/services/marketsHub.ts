@@ -170,6 +170,18 @@ export function fetchHeadline(def: MarketDef): Promise<AssetRow[]> {
   }
 }
 
+// Batch 7d sparklines for a page of Yahoo symbols. {} on failure.
+export async function fetchSparks(symbols: string[]): Promise<Record<string, number[]>> {
+  if (!symbols.length) return {};
+  try {
+    const res = await fetch(`/api/spark?symbols=${encodeURIComponent(symbols.join(','))}`);
+    if (!res.ok) return {};
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
 // Intraday close series for a Yahoo symbol (hub area charts). [] on failure.
 export async function fetchCloses(symbol: string, range = '1d', interval = '15m'): Promise<number[]> {
   try {
