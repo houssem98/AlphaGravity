@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search, RefreshCw, ExternalLink, TrendingUp, TrendingDown, Minus, Zap, AlertCircle, Youtube, PlayCircle, Volume2, VolumeX, Maximize2 } from 'lucide-react';
+import { TnSocialView } from './TnSocialView';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3002';
 
@@ -29,7 +30,7 @@ interface Influencer {
 }
 
 type FilterTab = 'all' | 'bullish' | 'bearish' | 'neutral' | 'reddit' | 'youtube' | 'twitter' | 'linkedin';
-interface CommunityPanelProps { currentAsset: string }
+interface CommunityPanelProps { currentAsset: string; market?: import('../../lib/markets').MarketId; name?: string }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function hashColor(str: string): [string, string] {
@@ -526,7 +527,9 @@ function Avatar({ name, avatarUrl, colors, size = 36 }:
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export const CommunityPanel: React.FC<CommunityPanelProps> = ({ currentAsset }) => {
+export const CommunityPanel: React.FC<CommunityPanelProps> = ({ currentAsset, market, name }) => {
+  // BVMT listings aren't on the crypto social feed — show real Tunisian press sentiment instead.
+  if (market === 'tunisia') return <TnSocialView asset={currentAsset} name={name} />;
   const [influencers, setInfluencers] = useState<Influencer[]>([]);
   const [status, setStatus]         = useState<'idle' | 'loading' | 'live' | 'error'>('idle');
   const [source, setSource]         = useState('');

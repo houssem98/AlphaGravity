@@ -7,6 +7,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Chart } from '../components/trading/Chart';
 import type { ChartRef, ChartColors } from '../components/trading/Chart';
+import { TnChart } from '../components/trading/TnChart';
 import { Assistant } from '../components/trading/Assistant';
 import { Sidebar } from '../components/trading/Sidebar';
 import { Topbar } from '../components/trading/Topbar';
@@ -56,6 +57,10 @@ export default function TradingAssistantPage() {
   useEffect(() => { localStorage.setItem('trading.leftW.v2', String(leftW)); }, [leftW]);
   useEffect(() => { localStorage.setItem('trading.rightW.v2', String(rightW)); }, [rightW]);
   const [currentAsset, setCurrentAsset] = useState<string>('BTC');
+  const assetName = useMemo(
+    () => getMarket(activeMarket).symbols.find((s) => s.symbol === currentAsset)?.name,
+    [activeMarket, currentAsset],
+  );
   const [currentTimeframe, setCurrentTimeframe] = useState<string>('1D');
   const [activeTab, setActiveTab] = useState<string>('Chart');
   const [chartColors, setChartColors] = useState<ChartColors>({
@@ -552,10 +557,7 @@ export default function TradingAssistantPage() {
                   </div>
                   <div className="flex-1 relative min-w-0">
                     {activeMarket === 'tunisia' ? (
-                      <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[color:var(--bg)] text-center px-6">
-                        <span className="text-h4 font-display font-semibold text-[color:var(--text-2)]">Chart unavailable</span>
-                        <span className="text-body text-[color:var(--text-3)] max-w-sm">Intraday charts for BVMT ({currentAsset}) aren't available yet — Tunisian market data is indicative. Live charts land with the real BVMT feed.</span>
-                      </div>
+                      <TnChart asset={currentAsset} name={assetName} />
                     ) : (
                       <Chart ref={chartRef} asset={currentAsset} timeframe={currentTimeframe} colors={chartColors} activeIndicators={activeIndicators} activeTool={activeTool} drawingPoints={drawingPoints} drawingConfig={drawingConfig} onChartClick={handleChartClick} />
                     )}
@@ -584,7 +586,7 @@ export default function TradingAssistantPage() {
               ) : activeTab === 'Markets' ? (
                 <MarketsTab asset={currentAsset} />
               ) : activeTab === 'News' ? (
-                <NewsTab asset={currentAsset} />
+                <NewsTab asset={currentAsset} name={assetName} market={activeMarket} />
               ) : activeTab === 'Yield' ? (
                 <YieldTab asset={currentAsset} />
               ) : activeTab === 'Holders' ? (
@@ -600,7 +602,7 @@ export default function TradingAssistantPage() {
             {/* Right: Community / Twitter tracker (resizable) */}
             <ResizeHandle value={rightW} min={260} max={560} dir={-1} onChange={setRightW} ariaLabel="Resize social panel" />
             <div className="shrink-0 h-full" style={{ width: rightW }}>
-              <CommunityPanel currentAsset={currentAsset} />
+              <CommunityPanel key={activeMarket === 'tunisia' ? 'tn' : 'default'} currentAsset={currentAsset} market={activeMarket} name={assetName} />
             </div>
 
           </div>
