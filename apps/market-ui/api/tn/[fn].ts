@@ -213,7 +213,46 @@ async function engine(req: any, res: any) {
   });
 }
 
-const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine };
+// ── Official BVMT indices (TUNINDEX + sectors) ──────────────────────────────
+// Source: the exchange's own public dashboard datasource (tunis-stockexchange.com
+// Grafana, anonymous read). Same numbers their site publishes — read-only, cached.
+const GRAFANA = 'https://tunis-stockexchange.com/grafana/api/ds/query';
+const DS_UID = 'ef4kunff033eoe';
+
+async function tnIndices() {
+  const r = await fetch(GRAFANA, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Referer: 'https://tunis-stockexchange.com/grafana/', 'User-Agent': 'Mozilla/5.0' },
+    body: JSON.stringify({ queries: [{
+      refId: 'A', datasource: { uid: DS_UID, type: 'grafana-postgresql-datasource' },
+      rawSql: 'SELECT raw_data FROM indice_live WHERE ingested_at=(SELECT max(ingested_at) FROM indice_live)',
+      format: 'table',
+    }] }),
+  });
+  const j = await r.json();
+  const raw = j?.results?.A?.frames?.[0]?.data?.values?.[0] || [];
+  return raw.map((s: any) => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean);
+}
+
+async function index(req: any, res: any) {
+  res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=600');
+  const rows = await tnIndices();
+  const indices = rows.map((o: any) => ({
+    name: o.fullIndiceName,
+    level: parseFloat(o.indexLevel),
+    changePct: parseFloat(o.varLastPrice),
+    yearPct: o.yearlyVariation ?? null,
+    high: parseFloat(o.dailyHigh) || null,
+    low: parseFloat(o.dailyLow) || null,
+    prevClose: parseFloat(o.prevcDayClose) || null,
+    isin: o.codeIsin || null,
+    seance: o.dateSeance || null,
+  }));
+  const tunindex = indices.find((i: any) => i.name === 'TUNINDEX') || null;
+  res.json({ tunindex, indices });
+}
+
+const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index };
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');

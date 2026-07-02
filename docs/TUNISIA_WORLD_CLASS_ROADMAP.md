@@ -97,9 +97,13 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
 - [x] **T14** — Daily candlestick source. `/api/tn/history` reads the blob;
   `TnChart` has an **Intraday / Daily** toggle. History grows from launch
   forward (seeded 2026-07-02: 75 stocks, 1 bar each).
-- [ ] **T15** — Live TUNINDEX. **Blocked**: no public BVMT index endpoint
-  (`market/indices` → Tomcat 500, all guesses 404). Options: compute a
-  turnover-weighted proxy from constituents, or scrape. Stays indicative for now.
+- [x] **T15** — Live TUNINDEX. **Solved.** The old `bvmt.com.tn` REST has no
+  index endpoint, but the exchange's *new* official site
+  (`tunis-stockexchange.com`) serves its public dashboards from an anonymous
+  Grafana over Postgres (`market_watch_db`, uid `ef4kunff033eoe`). `/api/tn/index`
+  reads `indice_live` (latest batch) → TUNINDEX + TUNINDEX20 + 12 sector indices,
+  real level / day% / yearly%. Replaces the mock in `marketsHub.fetchHeadline`;
+  banner copy updated. Read-only, cached 120s — same numbers the site publishes.
 
 > Infra note: all `tn/*` endpoints are ONE Vercel function `api/tn/[fn].ts`
 > (Hobby caps at 12 functions). The `/api/*`→Fly rewrite had to exclude `/api/tn/`
@@ -196,3 +200,8 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   getFundamentalData→BVMT row+engine, getFinancialStatements→honest unavailable;
   BVMT/TND system context + French hint; chat re-inits on market change.
   tsc 0, build ok, deployed.
+- 2026-07-02 T15 — Live TUNINDEX SOLVED. Found the exchange's new site
+  (tunis-stockexchange.com) serving public dashboards from an anonymous Grafana
+  Postgres proxy. /api/tn/index reads indice_live → TUNINDEX 19841.33 +0.15% +
+  13 more indices, real levels. Wired into marketsHub headline (mock 9847.32
+  retired). Read-only, cached 120s. tsc 0, build ok, deployed.

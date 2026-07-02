@@ -164,11 +164,25 @@ export function fetchHeadline(def: MarketDef): Promise<AssetRow[]> {
     case 'yahoo':
       return fetchQuotes(def.indices);
     case 'tunisia':
-      // Lead = TUNINDEX (indicative), then most-traded live stocks.
-      return fetchTunisia(def.symbols).then((rows) => [
-        ...fetchTunisiaMock(def.indices),
+      // Lead = live TUNINDEX (official), then most-traded live stocks.
+      return Promise.all([fetchTunisia(def.symbols), fetchTnIndex()]).then(([rows, idx]) => [
+        idx
+          ? { symbol: 'TUNINDEX', name: 'TUNINDEX', price: idx.level, changePct: idx.changePct, currency: 'TND' as const }
+          : fetchTunisiaMock(def.indices)[0],
         ...rows.sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 4),
       ]);
+  }
+}
+
+// Live official TUNINDEX level + day change (BVMT indices feed). null on failure.
+export async function fetchTnIndex(): Promise<{ level: number; changePct: number } | null> {
+  try {
+    const res = await fetch('/api/tn/index');
+    if (!res.ok) return null;
+    const j = await res.json();
+    return j?.tunindex ? { level: j.tunindex.level, changePct: j.tunindex.changePct } : null;
+  } catch {
+    return null;
   }
 }
 

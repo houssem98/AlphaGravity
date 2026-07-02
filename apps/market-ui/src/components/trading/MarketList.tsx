@@ -285,7 +285,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
         {market.id === 'tunisia' && (
           <div className="mb-3 flex items-center gap-2 text-label text-[color:var(--text-3)] bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm px-3 py-2">
             <AlertTriangle className="w-3.5 h-3.5 text-[color:var(--accent)]" />
-            Stock quotes live from BVMT (15-min cache) — TUNINDEX value indicative.
+            Live from the BVMT feed — quotes (15-min cache) and the official TUNINDEX.
           </div>
         )}
 
