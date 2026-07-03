@@ -149,8 +149,12 @@ class QueryUnderstanding:
 
         except Exception as e:
             logger.warning("query_understanding_failed", error=str(e))
+            import copy as _copy
             return {
-                **DEFAULT_QUERY_PLAN,
+                # deepcopy: shallow spread shares DEFAULT_QUERY_PLAN's nested
+                # entities/filters/channels across every defaulted request →
+                # in-place enrichment leaks one query's entities into the next.
+                **_copy.deepcopy(DEFAULT_QUERY_PLAN),
                 "expanded_terms": {"original": query.split()},
                 **classify_temporal_intent(query),
             }
