@@ -525,14 +525,17 @@ export async function runGrid(
 // Typical analyst workflow: one ticker × these 6 questions answers ~80% of
 // quick triage on a watchlist.
 
+// Phrased for what the corpus actually holds (SEC 10-K/10-Q filings): MD&A,
+// Item 1A risk factors, reported financials. Asking for analyst consensus /
+// price targets / peer multiples yields honest-but-empty declines.
 export const SEED_GRID_PROMPTS: GridPrompt[] = [
-    { id: 'thesis',    label: 'Thesis',       prompt: 'What is the core investment thesis for {ticker}? State the bull and bear case in one sentence each.' },
-    { id: 'moat',      label: 'Moat',         prompt: 'What is {ticker}\'s competitive moat? How durable is it?' },
-    { id: 'catalysts', label: 'Catalysts',    prompt: 'What are the top 3 near-term catalysts (next 6 months) for {ticker}?' },
-    { id: 'risks',     label: 'Risks',        prompt: 'What are the top 3 downside risks for {ticker}? Quantify where possible.' },
-    { id: 'valuation', label: 'Valuation',    prompt: 'What is {ticker}\'s current valuation vs peers and historical average? Flag any dislocations.' },
-    { id: 'preview',   label: 'Next Print',   prompt: 'What are consensus expectations for {ticker}\'s next earnings print? Where could it surprise?' },
-    { id: 'synthesis', label: '🔍 Comparison', prompt: 'Synthesize the individual theses across all tickers. Rank them by conviction. Which has the strongest near-term edge? Most durable moat? Biggest risk?', synthesis: true },
+    { id: 'thesis',    label: 'Thesis',       prompt: 'Based on {ticker}\'s recent filings, what is the core investment thesis? One-sentence bull case (growth drivers, margins) and one-sentence bear case (disclosed risks, headwinds).' },
+    { id: 'moat',      label: 'Moat',         prompt: 'From {ticker}\'s business description and MD&A: what competitive advantages does management describe (ecosystem, switching costs, scale, brand, IP)? How durable do the filings suggest they are?' },
+    { id: 'catalysts', label: 'Growth Drivers', prompt: 'What growth drivers and strategic initiatives does {ticker}\'s management highlight in the MD&A? Which segments or products are growing fastest, with figures?' },
+    { id: 'risks',     label: 'Risks',        prompt: 'What are the top 3 risk factors {ticker} discloses (Item 1A / MD&A)? Quantify exposure where the filings give figures.' },
+    { id: 'valuation', label: 'Financials',   prompt: 'Summarize {ticker}\'s financial trajectory from its filings: revenue, margins, and profitability over the reported periods. Is the trend improving or deteriorating, with figures?' },
+    { id: 'preview',   label: 'Latest Quarter', prompt: 'From {ticker}\'s most recent 10-Q: how did revenue, margins, and earnings compare to the prior-year quarter? What changes does management call out?' },
+    { id: 'synthesis', label: '🔍 Comparison', prompt: 'Synthesize the individual theses across all tickers. Rank them by conviction. Which has the strongest growth trajectory? Most durable moat? Biggest disclosed risk?', synthesis: true },
 ];
 
 // ─── CSV Export ──────────────────────────────────────────────────────────────
