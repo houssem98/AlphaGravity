@@ -360,6 +360,8 @@ async function fundamentals(req: any, res: any) {
       const row = (g?.markets || []).find((m: any) => m?.referentiel?.ticker?.toUpperCase() === symbol);
       const price = row?.last || row?.close || 0;
       if (price) { f.per = f.eps ? price / f.eps : null; if (f.dividend) f.yield = (f.dividend / price) * 100; }
+      // Equity extraction is noisier than net income — drop implausible P/B.
+      if (f.pb != null && (f.pb < 0.2 || f.pb > 12)) f.pb = null;
     }
     return res.json({ symbol, fundamentals: f });
   }
