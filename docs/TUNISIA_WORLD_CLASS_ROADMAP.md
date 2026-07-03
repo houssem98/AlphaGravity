@@ -133,12 +133,16 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   (`raw_referentiels`, equity "Ligne Mère" per issuer) gives real **sector**,
   **shares outstanding**, nominal, and listing date → real **market cap**
   (price × shares). `/api/tn/ref` (cached 1d) surfaces them in `AssetInfoPanel`
-  (Sector + Market cap) and `AboutTab` (sector, shares, listed-since). PER / EPS /
-  dividend / yield are NOT in this DB (only publication *links* in
-  `raw_publications`) — those still need financial-statement ingestion (PDF).
-- [ ] **T21** — Fundamentals UI. New `FundamentalsTab` (TN) + ratio row in
-  `AssetInfoPanel`; feed the comparator (T17) and screener (T16).
-  *Acceptance:* ratios visible, comparator ranks by PER/yield. `[deploy]`
+  (Sector + Market cap) and `AboutTab` (sector, shares, listed-since). Also
+  **free float %** + TUNINDEX/20 membership (from `raw_composition_indices`) →
+  Free-float row + index badge in `AssetInfoPanel`. PER / EPS / dividend / yield
+  are NOT in this DB (only publication *links* in `raw_publications`) — those need
+  financial-statement ingestion (PDF).
+- [ ] **T21** — Earnings ratios (PER/EPS/dividend/yield). **Genuinely blocked** on
+  a data source: not in the exchange DB, not in any BVMT REST endpoint. ilboursa
+  renders them in fragile JS charts (rejected as non-production). Real path =
+  parse BVMT financial-statement / quarterly-indicator PDFs through the gravity
+  ingestion pipeline. Needs a source decision before building.
 
 ### Phase 11 — AI engine (our "Finansya Engine")
 - [x] **T22** — TN-aware Assistant. The existing Gemini function-calling
@@ -228,3 +232,8 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   had matched src/services and broke the remote build; uploads were 280MB+ of
   monorepo and dying on flaky net → now seconds). T18 verified on prod: 80 stocks
   ≥20d, 17 near highs. All 6 tn endpoints 200.
+- 2026-07-03 Free float — /api/tn/ref joins raw_composition_indices →
+  flottantArrondiDixPourcent (free-float %) + TUNINDEX/20 membership. AssetInfoPanel
+  shows Free float + TUNINDEX20 badge. AB=30%, 75/77 covered. Exhausted the exchange
+  DB for structured fundamentals — PER/EPS/dividends confirmed absent (earnings →
+  PDF only). tsc 0, build ok, deployed.
