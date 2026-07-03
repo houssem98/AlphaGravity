@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { X, Globe, ArrowUp, Loader2, ExternalLink, ClipboardCopy, Check, Sparkles, Link as LinkIcon, Cpu } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { safeUrl } from '../../lib/safeUrl';
 import {
     scrapeUrl,
     answerWithContext,
@@ -164,7 +165,7 @@ export default function FirecrawlScrapePanel({ open, onClose }: Props) {
                                         {result.cached && <span className="text-[var(--up)]">⚡ cached</span>}
                                         {meta?.sourceURL && (
                                             <a
-                                                href={meta.sourceURL}
+                                                href={safeUrl(meta.sourceURL)}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="ml-auto flex items-center gap-1 text-[var(--accent)] hover:underline"

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import type { MarketDef } from '../../lib/markets';
 import { fetchMarket, fetchQuotes, fetchSparks, fmtPrice, fmtPct, fmtCompact, type AssetRow } from '../../services/marketsHub';
 import { TnComparator } from './TnComparator';
+import { safeUrl } from '../../lib/safeUrl';
 import { TnMarketOverview } from './TnMarketOverview';
 
 // Market-appropriate external links (crypto's COINMARKETCAP/COINGECKO equivalent).
@@ -535,7 +536,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                                     {assetLinks(market, r).map((l) => (
                                       <a
                                         key={l.label}
-                                        href={l.url}
+                                        href={safeUrl(l.url)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}

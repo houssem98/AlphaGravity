@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { safeUrl } from '../../lib/safeUrl';
 import {
     ChevronDown, Share2, FileDown, Copy, Check,
     BookOpen, ExternalLink, Globe, BarChart3,
@@ -73,7 +74,7 @@ function SourceCard({ c }: { c: Citation }) {
 
     return (
         <a
-            href={c.url}
+            href={safeUrl(c.url)}
             target="_blank"
             rel="noopener noreferrer"
             className="group flex items-start gap-3 p-3.5 rounded-xl border transition-all"
@@ -216,7 +217,7 @@ function CitationTag({ id, citation }: { id: string; citation?: Citation }) {
                         {/* Open link */}
                         {citation.url && (
                             <a
-                                href={citation.url}
+                                href={safeUrl(citation.url)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-1 pl-7 transition-opacity hover:opacity-80"

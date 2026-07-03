@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search, RefreshCw, ExternalLink, TrendingUp, TrendingDown, Minus, Zap, AlertCircle, Youtube, PlayCircle, Volume2, VolumeX, Maximize2 } from 'lucide-react';
 import { TnSocialView } from './TnSocialView';
+import { safeUrl } from '../../lib/safeUrl';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3002';
 
@@ -965,7 +966,7 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ currentAsset, ma
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1 flex-wrap">
-                    <a href={inf.postUrl} target="_blank" rel="noopener noreferrer"
+                    <a href={safeUrl(inf.postUrl)} target="_blank" rel="noopener noreferrer"
                       className="text-[13px] font-bold text-white hover:underline leading-tight"
                       onClick={e => e.stopPropagation()}>
                       {inf.name}
@@ -1036,7 +1037,7 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ currentAsset, ma
                     <span className="text-[11px] font-semibold" style={{ color: '#5A6478' }}>{fmtNum(inf.replies)}</span>
                   </div>
                 )}
-                <a href={inf.postUrl} target="_blank" rel="noopener noreferrer"
+                <a href={safeUrl(inf.postUrl)} target="_blank" rel="noopener noreferrer"
                   className="ml-auto flex items-center gap-1 text-[11px] transition-colors"
                   style={{ color: '#5A6478' }}
                   onMouseEnter={e => (e.currentTarget.style.color = inf.source === 'youtube' ? '#FF0000' : inf.source === 'twitter' ? '#1DA1F2' : inf.source === 'linkedin' ? '#0A66C2' : '#FF4500')}

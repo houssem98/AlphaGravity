@@ -6,6 +6,7 @@ import { useState, useRef, useEffect, useMemo, Children, type ReactNode } from '
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { safeUrl } from '../../lib/safeUrl';
 import { Play, X, Grid as GridIcon, Sparkles, Loader2, Check, AlertCircle, Download, Clock, Trash2, Copy, Check as CheckIcon, Share2, ExternalLink } from 'lucide-react';
 import type { Citation } from '../../services/deepResearchService';
 import {
@@ -1315,7 +1316,7 @@ export default function GridView() {
                         </div>
                         {sourceViewer.url && (
                             <a
-                                href={sourceViewer.url}
+                                href={safeUrl(sourceViewer.url)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 mt-4 text-xs font-semibold text-[color:var(--accent)] hover:underline"

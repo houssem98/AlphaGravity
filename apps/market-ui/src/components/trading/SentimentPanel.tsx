@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { Activity, TrendingUp, TrendingDown, Minus, Loader2, ExternalLink } from 'lucide-react';
+import { safeUrl } from '../../lib/safeUrl';
 
 interface SentimentPanelProps {
   asset: string;
@@ -166,7 +167,7 @@ export const SentimentPanel: React.FC<SentimentPanelProps> = ({ asset }) => {
                     {data.sources.map((source, idx) => (
                       <a 
                         key={idx} 
-                        href={source.uri} 
+                        href={safeUrl(source.uri)}
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1.5 truncate"

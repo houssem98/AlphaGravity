@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ExternalLink, Loader2, RefreshCw } from 'lucide-react';
+import { safeUrl } from '../../../lib/safeUrl';
 import { motion } from 'motion/react';
 import type { MarketId } from '../../../lib/markets';
 
@@ -66,7 +67,7 @@ export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
             {items.map((item, idx) => (
               <motion.a
                 key={idx}
-                href={item.url}
+                href={safeUrl(item.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 initial={{ opacity: 0, y: 6 }}

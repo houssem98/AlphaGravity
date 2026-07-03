@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { isCryptoAsset, CRYPTO_ASSETS, STOCK_ASSETS } from '../../constants/tradingAssets';
 import { getMarket, type MarketId, type Unit } from '../../lib/markets';
 import { fetchMarket, fmtPrice } from '../../services/marketsHub';
+import { safeUrl } from '../../lib/safeUrl';
 import {
   Info, Star, Globe, FileText, Copy, Check, ChevronDown, ChevronRight,
   Edit2, Unlock, CheckCircle2, ExternalLink, Play, ArrowLeftRight, Shield,
@@ -920,7 +921,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
         {/* ── COINBITES / VIDEO WIDGET ── */}
         {meta?.videoUrl && (
           <a
-            href={meta.videoUrl}
+            href={safeUrl(meta.videoUrl)}
             target="_blank"
             rel="noopener noreferrer"
             className="mx-4 my-3 rounded-xl overflow-hidden flex items-center gap-3 p-3 transition-all"
@@ -956,7 +957,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
               <div style={linkRowStyle}>
                 <span style={labelStyle}>Website</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <a href={meta.website} target="_blank" rel="noopener noreferrer" style={pillStyle}>
+                  <a href={safeUrl(meta.website)} target="_blank" rel="noopener noreferrer" style={pillStyle}>
                     <Globe className="w-3.5 h-3.5" /> {meta.websiteLabel}
                   </a>
                   <a href={meta.whitepaper} target="_blank" rel="noopener noreferrer" style={pillStyle}>
@@ -1085,13 +1086,13 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
                       </button>
                       {/* Audit badge */}
                       {c.auditUrl && (
-                        <a href={c.auditUrl} target="_blank" rel="noopener noreferrer" title="View on block explorer" style={{ color: '#00C853', display: 'flex', alignItems: 'center' }}>
+                        <a href={safeUrl(c.auditUrl)} target="_blank" rel="noopener noreferrer" title="View on block explorer" style={{ color: '#00C853', display: 'flex', alignItems: 'center' }}>
                           <Shield className="w-3 h-3" />
                         </a>
                       )}
                       {/* Scanner link */}
                       {c.scanUrl && (
-                        <a href={c.scanUrl} target="_blank" rel="noopener noreferrer" title="Token scanner" style={{ color: '#5A6478', display: 'flex', alignItems: 'center' }}>
+                        <a href={safeUrl(c.scanUrl)} target="_blank" rel="noopener noreferrer" title="Token scanner" style={{ color: '#5A6478', display: 'flex', alignItems: 'center' }}>
                           <ExternalLink className="w-3 h-3" />
                         </a>
                       )}
@@ -1115,7 +1116,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
                 <span style={labelStyle}>Explorers</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
                   {meta.explorers[0] && (
-                    <a href={meta.explorers[0].url} target="_blank" rel="noopener noreferrer" style={pillStyle}>
+                    <a href={safeUrl(meta.explorers[0].url)} target="_blank" rel="noopener noreferrer" style={pillStyle}>
                       <ExternalLink className="w-3 h-3" /> {meta.explorers[0].label}
                     </a>
                   )}
@@ -1136,7 +1137,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
                           {meta.explorers.map((exp) => (
                             <a
                               key={exp.label}
-                              href={exp.url}
+                              href={safeUrl(exp.url)}
                               target="_blank"
                               rel="noopener noreferrer"
                               style={{
@@ -1164,7 +1165,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
                   {meta.wallets.map((w) => (
                     <a
                       key={w.label}
-                      href={w.url}
+                      href={safeUrl(w.url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       title={w.label}
@@ -1666,14 +1667,14 @@ function CommunityPrediction({ asset, assetName }: { asset: string; assetName: s
 
         {/* External links */}
         <div className="flex items-center gap-3 mt-3">
-          <a href={pm.url} target="_blank" rel="noopener noreferrer"
+          <a href={safeUrl(pm.url)} target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-all"
             style={{ color: '#8A92A6', background: '#0E1320', border: '1px solid #1B2236', textDecoration: 'none' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#4F46E5'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#1B2236'; (e.currentTarget as HTMLElement).style.color = '#8A92A6'; }}>
             <span style={{ fontSize: 14 }}>🟣</span> Polymarket <ExternalLink className="w-3 h-3" />
           </a>
-          <a href={(pm as any).kalshiUrl ?? 'https://kalshi.com'} target="_blank" rel="noopener noreferrer"
+          <a href={safeUrl((pm as any).kalshiUrl) ?? 'https://kalshi.com'} target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-all"
             style={{ color: '#8A92A6', background: '#0E1320', border: '1px solid #1B2236', textDecoration: 'none' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#00C853'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
@@ -1739,7 +1740,7 @@ function LinkRow({ label, icon, href, display }: { label: string; icon: React.Re
     <div className="flex items-center justify-between">
       <span className="text-[12px]" style={{ color: '#5A6478' }}>{label}</span>
       <a
-        href={href}
+        href={safeUrl(href)}
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-semibold transition-all"

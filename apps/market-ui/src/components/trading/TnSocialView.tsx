@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { TrendingUp, TrendingDown, Minus, ExternalLink, Loader2, RefreshCw, Gauge } from 'lucide-react';
+import { safeUrl } from '../../lib/safeUrl';
 
 // ── Engine score card (deterministic multi-factor, /api/tn/engine) ──────────
 interface EngineData {
@@ -177,7 +178,7 @@ export const TnSocialView: React.FC<TnSocialViewProps> = ({ asset, name }) => {
           <div className="flex items-center justify-center h-full text-center px-6 text-[11px] text-[#5A6478]">Couldn't load news.</div>
         )}
         {status === 'ready' && scored.map((item, i) => (
-          <a key={i} href={item.url} target="_blank" rel="noopener noreferrer"
+          <a key={i} href={safeUrl(item.url)} target="_blank" rel="noopener noreferrer"
             className="block px-4 py-3 border-b border-[#151B29] hover:bg-[#0F1420] transition-colors group">
             <div className="flex items-start gap-2">
               <span className="mt-0.5 text-[10px] font-bold shrink-0" style={{ color: TONE[item.tone].color }}>
