@@ -611,17 +611,19 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
     const load = async () => {
       try {
         if (isTN) {
-          const [j, refJson] = await Promise.all([
+          const [j, refJson, fundJson] = await Promise.all([
             fetch('/api/tn/markets').then((r) => r.json()),
             fetch('/api/tn/ref').then((r) => r.json()).catch(() => ({ ref: {} })),
+            fetch(`/api/tn/fundamentals?symbol=${asset}`).then((r) => r.json()).catch(() => ({})),
           ]);
           const row = (j?.rows || []).find((r: any) => r.symbol === asset);
           const rf = refJson?.ref?.[asset] || null;
+          const fund = fundJson?.fundamentals || null;
           if (row && live) {
             setPrice(row.price); setChange(row.changePct);
             setVolume(row.volume || null); setLow24h(row.low || null); setHigh24h(row.high || null);
             setMarketCap(rf?.shares ? row.price * rf.shares : null); setSupply(null); setMaxSupply(null);
-            setTnStats({ ...row, ...(rf ? { sector: rf.sector, shares: rf.shares, listingDate: rf.listingDate, freeFloat: rf.freeFloat, inTunindex20: rf.inTunindex20 } : {}) });
+            setTnStats({ ...row, ...(rf ? { sector: rf.sector, shares: rf.shares, listingDate: rf.listingDate, freeFloat: rf.freeFloat, inTunindex20: rf.inTunindex20 } : {}), fund });
           }
           return;
         }
@@ -826,6 +828,11 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
                   <ROW label="Turnover"    value={tnd(t.turnover)} tooltip="Traded value this session (TND)" />
                   <ROW label="Bid / Ask"   value={t.bid && t.ask ? `${t.bid.toFixed(2)} / ${t.ask.toFixed(2)}` : '—'} tooltip="Best bid / ask (BVMT L1)" />
                   <ROW label="Spread"      value={spread !== null ? spread.toFixed(2) : '—'} tooltip="Ask − bid" />
+                  {t.fund?.eps && <ROW label={`EPS (${t.fund.fiscalYear})`} value={`${t.fund.eps.toFixed(2)} TND`} tooltip="Net income ÷ shares (from financial statements)" />}
+                  {t.fund?.per && <ROW label="P/E" value={t.fund.per.toFixed(1)} tooltip="Price ÷ EPS" />}
+                  {t.fund?.pb && <ROW label="P/B" value={t.fund.pb.toFixed(2)} tooltip="Price ÷ book value per share" />}
+                  {t.fund?.dividend && <ROW label="Dividend" value={`${t.fund.dividend.toFixed(2)} TND`} tooltip="Dividend per share" />}
+                  {t.fund?.yield && <ROW label="Div yield" value={`${t.fund.yield.toFixed(2)}%`} tooltip="Dividend ÷ price" />}
                   <ROW label="ISIN"        value={t.isin || '—'} tooltip="International Securities ID" />
                 </>
               ); })()}

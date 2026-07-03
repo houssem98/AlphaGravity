@@ -341,7 +341,32 @@ async function highs(_req: any, res: any) {
   res.json({ byIsin: out });
 }
 
-const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref, highs };
+// ── Fundamentals (PER/EPS/dividend/yield) from the extraction blob ───────────
+// Populated offline by scripts/tn_fundamentals.py (PDF → LLM → ratios). Empty
+// until that runs; PER/yield are recomputed here against the live price.
+async function fundamentals(req: any, res: any) {
+  res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
+  const symbol = String(req.query.symbol || '').toUpperCase();
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return res.status(500).json({ error: 'supabase env missing' });
+  const r = await fetch(`${url}/storage/v1/object/market-data/tn_fundamentals.json`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+  const blob = r.ok ? await r.json() : {};
+  if (symbol) {
+    const f = blob[symbol] || null;
+    if (f && f.eps) {
+      // Refresh price-relative ratios against today's quote.
+      const g = await groups();
+      const row = (g?.markets || []).find((m: any) => m?.referentiel?.ticker?.toUpperCase() === symbol);
+      const price = row?.last || row?.close || 0;
+      if (price) { f.per = f.eps ? price / f.eps : null; if (f.dividend) f.yield = (f.dividend / price) * 100; }
+    }
+    return res.json({ symbol, fundamentals: f });
+  }
+  res.json({ fundamentals: blob });
+}
+
+const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref, highs, fundamentals };
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
