@@ -138,11 +138,15 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   Free-float row + index badge in `AssetInfoPanel`. PER / EPS / dividend / yield
   are NOT in this DB (only publication *links* in `raw_publications`) — those need
   financial-statement ingestion (PDF).
-- [ ] **T21** — Earnings ratios (PER/EPS/dividend/yield). **Genuinely blocked** on
-  a data source: not in the exchange DB, not in any BVMT REST endpoint. ilboursa
-  renders them in fragile JS charts (rejected as non-production). Real path =
-  parse BVMT financial-statement / quarterly-indicator PDFs through the gravity
-  ingestion pipeline. Needs a source decision before building.
+- [~] **T21** — Earnings ratios (PER/EPS/P·B/dividend/yield). **Pipeline built &
+  proven; batch run gated on a live LLM key.** `scripts/tn_fundamentals.py`:
+  `raw_publications` → latest statement PDF → `pdftotext` → LLM (Claude) extracts
+  net income / equity / dividend → EPS/PER/P·B/yield → Supabase Storage blob.
+  `/api/tn/fundamentals` serves it (PER & yield recomputed vs live price);
+  `AssetInfoPanel` shows the ratios when present. **AB seeded from its real
+  filing** (NI 248.65 MDT, EPS 8.22, P/E 10.6, P/B 1.54 — verified live). Every
+  LLM key in `.env` is dead (401/403), so the `--all` run over the other 74
+  companies is blocked until a working key is supplied.
 
 ### Phase 11 — AI engine (our "Finansya Engine")
 - [x] **T22** — TN-aware Assistant. The existing Gemini function-calling
@@ -237,3 +241,9 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   shows Free float + TUNINDEX20 badge. AB=30%, 75/77 covered. Exhausted the exchange
   DB for structured fundamentals — PER/EPS/dividends confirmed absent (earnings →
   PDF only). tsc 0, build ok, deployed.
+- 2026-07-03 T21 fundamentals pipeline. Proved feasible: raw_publications →
+  statement PDF (pdftotext) → extract net income/equity/dividend → EPS/PER/PB/yield
+  → Storage blob; /api/tn/fundamentals + AssetInfoPanel ratios. AB seeded real
+  (NI 248.65M, EPS 8.22, P/E 10.6, P/B 1.54). BLOCKED: all .env LLM keys dead
+  (401/403) → `python tn_fundamentals.py --all` needs a working key to cover 74
+  more. tsc 0, build ok, deployed.
