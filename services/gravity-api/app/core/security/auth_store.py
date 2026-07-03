@@ -457,9 +457,13 @@ class AuthStore:
         }
         return jwt.encode(claims, _jwt_secret(), algorithm=JWT_ALGO)
 
-    def decode_token(self, token: str) -> Optional[dict]:
+    def decode_token(self, token: str, expected_type: Optional[str] = None) -> Optional[dict]:
         try:
-            return jwt.decode(token, _jwt_secret(), algorithms=[JWT_ALGO])
+            claims = jwt.decode(token, _jwt_secret(), algorithms=[JWT_ALGO])
         except JWTError as e:
             logger.debug("jwt_decode_failed", error=str(e))
             return None
+        if expected_type is not None and claims.get("type") != expected_type:
+            logger.debug("jwt_type_mismatch", expected=expected_type, got=claims.get("type"))
+            return None
+        return claims

@@ -1597,7 +1597,7 @@ export function buildExtractorPrompt(
 ): string {
     const usable = readers.filter(r => r.summary && !r.failed && !r.noRelevantFacts);
     const sourceBlock = usable.map((r, i) =>
-        `[${i + 1}] url=${r.url}\n    title="${r.title}"\n    facts:\n${r.summary.split('\n').map(l => '      ' + l.replace(/^\s*[-*]\s*/, '• ')).join('\n')}`
+        `[${i + 1}] url=${r.url}\n    title="${sanitizeAndTrack(r.title)}"\n    facts:\n${r.summary.split('\n').map(l => '      ' + l.replace(/^\s*[-*]\s*/, '• ')).join('\n')}`
     ).join('\n\n');
     return `You are the supervising research analyst. Merge the per-source fact summaries below into the round ${round + 1} intelligence brief.
 
@@ -2831,7 +2831,7 @@ export async function auditClaimsWithLLM(
     const evidence = [
         inputs.knowledgeBase,
         inputs.sourceAnalysis,
-        ...inputs.webSources.slice(0, 20).map(s => `${s.title}: ${s.content}`),
+        ...inputs.webSources.slice(0, 20).map(s => `${sanitizeAndTrack(s.title)}: ${sanitizeAndTrack(s.content)}`),
         ...(inputs.ragResult?.available ? inputs.ragResult.sources.slice(0, 10).map(s => s.text) : []),
     ].join('\n\n').slice(0, 8000);
 

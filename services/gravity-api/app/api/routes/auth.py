@@ -125,8 +125,8 @@ async def _current_user(
     store = get_auth_store(request)
 
     # 1. Try legacy gravity-api JWT first (own AUTH_JWT_SECRET).
-    claims = store.decode_token(token)
-    if claims is not None and claims.get("type") == "access":
+    claims = store.decode_token(token, expected_type="access")
+    if claims is not None:
         user = await store.get_by_id(claims["sub"])
         if user is None or user.disabled:
             raise HTTPException(status_code=401, detail="user not found or disabled")
@@ -243,8 +243,8 @@ async def login(req: LoginRequest, request: Request):
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(req: RefreshRequest, request: Request):
     store = get_auth_store(request)
-    claims = store.decode_token(req.refresh_token)
-    if claims is None or claims.get("type") != "refresh":
+    claims = store.decode_token(req.refresh_token, expected_type="refresh")
+    if claims is None:
         raise HTTPException(status_code=401, detail="invalid refresh token")
     user = await store.get_by_id(claims["sub"])
     if user is None or user.disabled:
