@@ -621,7 +621,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
             setPrice(row.price); setChange(row.changePct);
             setVolume(row.volume || null); setLow24h(row.low || null); setHigh24h(row.high || null);
             setMarketCap(rf?.shares ? row.price * rf.shares : null); setSupply(null); setMaxSupply(null);
-            setTnStats({ ...row, ...(rf ? { sector: rf.sector, shares: rf.shares, listingDate: rf.listingDate } : {}) });
+            setTnStats({ ...row, ...(rf ? { sector: rf.sector, shares: rf.shares, listingDate: rf.listingDate, freeFloat: rf.freeFloat, inTunindex20: rf.inTunindex20 } : {}) });
           }
           return;
         }
@@ -817,8 +817,9 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
             <>
               {(() => { const t = tnStats || {}; const tnd = (v: number) => v ? `${fmt(v)} TND` : '—'; const spread = t.ask && t.bid ? (t.ask - t.bid) : null; return (
                 <>
-                  {t.sector && <ROW label="Sector" value={t.sector} tooltip="BVMT sector classification" />}
+                  {t.sector && <ROW label="Sector" value={t.sector + (t.inTunindex20 ? ' · TUNINDEX20' : '')} tooltip="BVMT sector · index membership" />}
                   <ROW label="Market cap"  value={marketCap ? `${fmt(marketCap)} TND` : '—'} tooltip="Price × shares outstanding" />
+                  {t.freeFloat != null && <ROW label="Free float" value={`${Math.round(t.freeFloat * 100)}%`} tooltip="Free-float fraction (BVMT index basis)" />}
                   <ROW label="Day range"   value={t.low && t.high ? `${t.low.toFixed(2)} – ${t.high.toFixed(2)}` : '—'} tooltip="Session low – high (TND)" />
                   <ROW label="Prev close"  value={t.close ? `${t.close.toFixed(2)} TND` : '—'} tooltip="Previous session close" />
                   <ROW label="Volume"      value={t.volume ? fmt(t.volume) : '—'} tooltip="Shares traded this session" />

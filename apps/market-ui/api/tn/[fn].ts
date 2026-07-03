@@ -293,10 +293,16 @@ async function index(req: any, res: any) {
 // Ref data is near-static → cache a day. Keyed by ticker (mnemo).
 async function ref(_req: any, res: any) {
   res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800');
-  const rows = await gquery("SELECT raw_data FROM raw_referentiels WHERE raw_data->>'grp_description' LIKE 'Ligne M%re'");
+  const [rows, comp] = await Promise.all([
+    gquery("SELECT raw_data FROM raw_referentiels WHERE raw_data->>'grp_description' LIKE 'Ligne M%re'"),
+    gquery('SELECT raw_data FROM raw_composition_indices'),
+  ]);
+  const byTicker: Record<string, any> = {};
+  for (const c of comp) if (c?.mnemonic) byTicker[c.mnemonic] = c;
   const out: Record<string, any> = {};
   for (const o of rows) {
     if (!o?.mnemo) continue;
+    const c = byTicker[o.mnemo];
     out[o.mnemo] = {
       sector: o.secteur || null,
       issuer: o.emetteur || null,
@@ -305,6 +311,9 @@ async function ref(_req: any, res: any) {
       nominal: parseFloat(o.nominal) || null,
       listingDate: o.date_de_cotation || null,
       market: o.marche_De_Negociation || o.marche || null,
+      freeFloat: c?.flottantArrondiDixPourcent ?? null,   // fraction (0.3 = 30%)
+      inTunindex: c ? !!c.tunIndex : null,
+      inTunindex20: c ? !!c.tunIndex20 : null,
     };
   }
   res.json({ ref: out });
