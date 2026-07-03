@@ -528,14 +528,23 @@ export async function runGrid(
 // Phrased for what the corpus actually holds (SEC 10-K/10-Q filings): MD&A,
 // Item 1A risk factors, reported financials. Asking for analyst consensus /
 // price targets / peer multiples yields honest-but-empty declines.
+//
+// Each prompt carries an output contract: retrieval keywords lead (the text is
+// also the search query), format rules trail. STYLE forbids the two answer
+// pathologies that make cells unreadable: meta-narration about "the provided
+// sources", and multi-paragraph apologetic declines.
+const STYLE = 'Format: 3-5 tight bullet points, bold every figure, cite inline. '
+    + 'Never describe or apologize for the sources; if the filings lack something, '
+    + 'give ONE short line saying what they do show instead.';
+
 export const SEED_GRID_PROMPTS: GridPrompt[] = [
-    { id: 'thesis',    label: 'Thesis',       prompt: 'Based on {ticker}\'s recent filings, what is the core investment thesis? One-sentence bull case (growth drivers, margins) and one-sentence bear case (disclosed risks, headwinds).' },
-    { id: 'moat',      label: 'Moat',         prompt: 'From {ticker}\'s business description and MD&A: what competitive advantages does management describe (ecosystem, switching costs, scale, brand, IP)? How durable do the filings suggest they are?' },
-    { id: 'catalysts', label: 'Growth Drivers', prompt: 'What growth drivers and strategic initiatives does {ticker}\'s management highlight in the MD&A? Which segments or products are growing fastest, with figures?' },
-    { id: 'risks',     label: 'Risks',        prompt: 'What are the top 3 risk factors {ticker} discloses (Item 1A / MD&A)? Quantify exposure where the filings give figures.' },
-    { id: 'valuation', label: 'Financials',   prompt: 'Summarize {ticker}\'s financial trajectory from its filings: revenue, margins, and profitability over the reported periods. Is the trend improving or deteriorating, with figures?' },
-    { id: 'preview',   label: 'Latest Quarter', prompt: 'From {ticker}\'s most recent 10-Q: how did revenue, margins, and earnings compare to the prior-year quarter? What changes does management call out?' },
-    { id: 'synthesis', label: '🔍 Comparison', prompt: 'Synthesize the individual theses across all tickers. Rank them by conviction. Which has the strongest growth trajectory? Most durable moat? Biggest disclosed risk?', synthesis: true },
+    { id: 'thesis',    label: 'Thesis',         prompt: `{ticker} investment thesis, growth drivers, margins, disclosed risks and headwinds from recent 10-K and 10-Q filings. Give BULL: 2 bullets (drivers + figures) then BEAR: 2 bullets (risks + figures). ${STYLE}` },
+    { id: 'moat',      label: 'Moat',           prompt: `{ticker} competitive advantages, market position, scale, switching costs, brand, intellectual property, network effects as described in the business section and MD&A. 3 bullets naming each advantage + evidence, end with one line: how durable and why. ${STYLE}` },
+    { id: 'catalysts', label: 'Growth Drivers', prompt: `{ticker} growth drivers, strategic initiatives, fastest growing segments and products management highlights in MD&A. 3 bullets, each = driver → segment/product → growth figure. ${STYLE}` },
+    { id: 'risks',     label: 'Risks',          prompt: `{ticker} risk factors, Item 1A, principal risks, quantified exposures disclosed in filings. Top 3, numbered, each with the quantified exposure where given. ${STYLE}` },
+    { id: 'valuation', label: 'Financials',     prompt: `{ticker} revenue, gross margin, operating margin, net income trajectory across reported fiscal periods. One bullet per metric with period-over-period figures, end with verdict: IMPROVING or DETERIORATING and the single biggest driver. ${STYLE}` },
+    { id: 'preview',   label: 'Latest Quarter', prompt: `{ticker} most recent 10-Q quarterly results versus prior-year quarter: revenue, margins, earnings deltas and management's stated drivers of change. One bullet per delta with both figures, one bullet for management's explanation. ${STYLE}` },
+    { id: 'synthesis', label: '🔍 Comparison',  prompt: 'Synthesize the individual theses across all tickers. Output a ranked list (strongest conviction first): each entry = ticker, one-line thesis, strongest edge, biggest disclosed risk. End with three one-liners: strongest growth trajectory, most durable moat, biggest risk overall.', synthesis: true },
 ];
 
 // ─── CSV Export ──────────────────────────────────────────────────────────────
