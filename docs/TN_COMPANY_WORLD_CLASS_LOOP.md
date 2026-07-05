@@ -105,7 +105,7 @@ verify, flip `[x]`, log one line with real numbers, commit.
   scale-normalization; re-upload the blob.
   *Acceptance:* no blank fundamentals cell anywhere; coverage count after
   retries logged (target ≥ 41).
-- [ ] **C8** — Crosshair OHLC legend + formatting parity.
+- [x] **C8** — Crosshair OHLC legend + formatting parity.
   Hover legend (O H L C V, colored by candle direction) top-left like the
   crypto Chart; TND prices on-chart formatted to 2 decimals (3 only when
   price < 1); loading skeleton; `prefers-reduced-motion` respected.
@@ -129,3 +129,4 @@ polish indistinguishable from the crypto coin view.
 2026-07-05 C5 — book() invariant in dispatcher (markets+engine): bid=min ask=max qty-follows-price, zero side→null, blind re-swap deleted, live-session re-verify comment in place. DEPLOYED — prod markets: 75 rows crossed=0, TINV 53.79/53.82 spread=+0.03 (was −0.03), BIAT +0.20, SFBT +0.11, 6 one-sided rows null; tsc 0, build ok. C4 shipped with this deploy.
 2026-07-05 C6 — assetLinks exported from MarketList, reused in TnAbout (BVMT fiche + ILBOURSA + News); sector badge pill in About header; Issuer row added; monogram fallback already existed — ref: AETEC=TECHNOLOGIE ALKIM=CHIMIE STPIL=PETROLE ET GAZ (issuer/shares/listingDate all present); links curl (curl.exe, PS5.1 TLS false-ERRs): 6/6 HTTP 200; tsc 0, build ok. Ships with C8 deploy.
 2026-07-05 C7 — honest "n/a — no recent filing" row when no fund blob (AssetInfoPanel); scale-normalization in tn_fundamentals.py (try ×1/×1000/×1e6, PER band 2..80 admits ≤1) — recovered NAKL(×1, EPS 1.69 PER 13.3), BNASS(×1000, EPS 0.20 PER 21.1), BL(×1e6, EPS 0.35 PER 8.4); STPIL still REJECTED (extraction raw=123456 garbage — guard correct). Coverage 39→42 (target ≥41 ✓), blob re-uploaded HTTP 200, prod endpoint serves all 3; pdftotext needs Git-Bash PATH on this box. tsc 0, build ok. UI n/a row ships with C8 deploy.
+2026-07-05 C8 — subscribeCrosshairMove legend (O H L C colored by direction + V) under title; priceFormat precision 2 (3 if price<1) set per load; loading skeleton (animate-pulse, motion-reduce:animate-none); legend values = the exact setData objects (identity with API payload by construction; spot-check BIAT 09:00 5m: O 169.20 H 170.00 L 169.20 C 170.00 V 109). DEPLOYED; tsc 0, build 0. C6+C7 UI shipped with this deploy. LOOP COMPLETE — 8/8.
