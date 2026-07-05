@@ -20,8 +20,30 @@ interface Intraday {
 }
 
 const INTERVALS = [1, 5, 15] as const;
+const TFS = ['D', 'W', 'M'] as const;
+type Tf = (typeof TFS)[number];
 const UP = '#00E676';
 const DOWN = '#FF1744';
+
+// D→W (ISO week, grouped by Monday) / D→M (calendar month). Bar time = first daily bar's.
+const aggDaily = (cs: Candle[], tf: Tf): Candle[] => {
+  if (tf === 'D') return cs;
+  const out: Candle[] = [];
+  let curKey = '';
+  for (const c of cs) {
+    const d = new Date(c.time * 1000);
+    const k = tf === 'M'
+      ? `${d.getUTCFullYear()}-${d.getUTCMonth()}`
+      : String(Math.floor((c.time - ((d.getUTCDay() + 6) % 7) * 86400) / 86400));
+    if (k !== curKey) { curKey = k; out.push({ ...c }); }
+    else {
+      const b = out[out.length - 1];
+      b.high = Math.max(b.high, c.high); b.low = Math.min(b.low, c.low);
+      b.close = c.close; b.volume += c.volume;
+    }
+  }
+  return out;
+};
 
 export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,6 +53,7 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
   const priceLineRef = useRef<IPriceLine | null>(null);
   const [interval, setInterval_] = useState<number>(5);
   const [mode, setMode] = useState<'intraday' | 'daily'>('intraday');
+  const [tf, setTf] = useState<Tf>('D');
   // C2: once the user picks a mode, auto-switching (illiquid names → daily) is disabled.
   const userPickedMode = useRef(false);
   useEffect(() => { if (!userPickedMode.current) setMode('intraday'); }, [asset]);
@@ -115,20 +138,21 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
         if (!live || !candleRef.current || !volRef.current) return;
         if (mode === 'intraday' && !userPickedMode.current && (d.candles?.length || 0) < 3) { setMode('daily'); return; }
         if (!d.candles?.length) { candleRef.current.setData([]); volRef.current.setData([]); setStatus('empty'); setMeta(d); return; }
+        const cs = mode === 'daily' ? aggDaily(d.candles, tf) : d.candles;
         type Bar = { time: Time; open: number; high: number; low: number; close: number } | { time: Time };
-        const bars: Bar[] = d.candles.map((c) => ({
+        const bars: Bar[] = cs.map((c) => ({
           time: c.time as Time, open: c.open, high: c.high, low: c.low, close: c.close,
         }));
         // Frame the whole session with whitespace so a lone candle doesn't fill the width.
         if (mode === 'intraday' && d.sessionStart && d.sessionEnd) {
           const step = interval * 60;
-          const seen = new Set(d.candles.map((c) => c.time));
+          const seen = new Set(cs.map((c) => c.time));
           for (let t = Math.floor(d.sessionStart / step) * step; t <= d.sessionEnd; t += step)
             if (!seen.has(t)) bars.push({ time: t as Time });
           bars.sort((a, b) => (a.time as number) - (b.time as number));
         }
         candleRef.current.setData(bars);
-        volRef.current.setData(d.candles.map((c) => ({
+        volRef.current.setData(cs.map((c) => ({
           time: c.time as Time, value: c.volume, color: c.close >= c.open ? `${UP}55` : `${DOWN}55`,
         })));
         if (priceLineRef.current) { candleRef.current.removePriceLine(priceLineRef.current); priceLineRef.current = null; }
@@ -151,7 +175,7 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
       return () => { live = false; window.clearInterval(iv); };
     }
     return () => { live = false; };
-  }, [asset, interval, mode]);
+  }, [asset, interval, mode, tf]);
 
   return (
     <div className="relative w-full h-full bg-[#0A0E17]">
@@ -160,36 +184,35 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
           <>
             <span className="text-body font-semibold text-[color:var(--text)]">{name || asset}</span>
             <span className="text-label text-[color:var(--text-3)]">
-              {mode === 'daily' ? 'Daily · BVMT' : `${interval}m · BVMT intraday${meta.seance ? ` · ${meta.seance}` : ''}`}
+              {mode === 'daily'
+                ? `${tf === 'D' ? 'Daily' : tf === 'W' ? 'Weekly' : 'Monthly'} · BVMT`
+                : `${interval}m · BVMT intraday${meta.seance ? ` · ${meta.seance}` : ''}`}
             </span>
           </>
         )}
       </div>
 
-      {/* Mode + interval selectors */}
+      {/* Timeframe selector: 1m 5m 15m · D W M */}
       <div className="absolute top-3 right-4 z-20 flex items-center gap-2">
-        <div className="flex gap-1 p-0.5 rounded-md bg-[#0F1420] border border-[#1B2236]">
-          {(['intraday', 'daily'] as const).map((m) => (
-            <button key={m} onClick={() => { userPickedMode.current = true; setMode(m); }}
-              className={`px-2 py-0.5 rounded text-[11px] font-medium capitalize transition-colors ${
-                mode === m ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
+        <div className="flex items-center gap-1 p-0.5 rounded-md bg-[#0F1420] border border-[#1B2236]">
+          {INTERVALS.map((n) => (
+            <button key={n} onClick={() => { userPickedMode.current = true; setMode('intraday'); setInterval_(n); }}
+              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                mode === 'intraday' && interval === n ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
               }`}>
-              {m}
+              {n}m
+            </button>
+          ))}
+          <div className="w-px h-3.5 bg-[#1B2236]" />
+          {TFS.map((t) => (
+            <button key={t} onClick={() => { userPickedMode.current = true; setMode('daily'); setTf(t); }}
+              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                mode === 'daily' && tf === t ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
+              }`}>
+              {t}
             </button>
           ))}
         </div>
-        {mode === 'intraday' && (
-          <div className="flex gap-1 p-0.5 rounded-md bg-[#0F1420] border border-[#1B2236]">
-            {INTERVALS.map((n) => (
-              <button key={n} onClick={() => setInterval_(n)}
-                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                  interval === n ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
-                }`}>
-                {n}m
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Price alert */}
         <div className="relative">

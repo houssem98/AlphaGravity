@@ -73,7 +73,7 @@ verify, flip `[x]`, log one line with real numbers, commit.
   to the right edge.
   *Acceptance:* TINV intraday = full-session axis, readable y-range, no
   stretched lone bar. `[deploy]`
-- [ ] **C4** — Weekly/Monthly timeframes.
+- [x] **C4** — Weekly/Monthly timeframes.
   Client-side aggregate the daily bars (D→W ISO-week, D→M calendar) in
   `TnChart.tsx`. Selector becomes `1m 5m 15m · D W M`. History endpoint
   already serves everything — do not touch it.
@@ -125,3 +125,4 @@ polish indistinguishable from the crypto coin view.
 2026-07-05 C1 — histogram lastValueVisible/priceLineVisible false (scale separation already existed; only the label was the bug) — tsc 0. Ships with next [deploy] task (C3).
 2026-07-05 C2 — auto-switch intraday→daily when candles<3 unless user picked mode (userPickedMode ref, reset default on asset change) — prod: TINV intraday=1→daily 79 bars, BIAT intraday=16 stays; tsc 0, build ok. Ships with C3 deploy.
 2026-07-05 C3 — intraday returns sessionStart/sessionEnd = min/max groups-feed `time` (data-derived, board of 75); client pads whitespace buckets + autoscaleInfoProvider min y-range 0.5%; last-price line = lightweight-charts default (spans whitespace). DEPLOYED — prod: TINV/BIAT sessionStart=09:15:00 sessionEnd=12:00:00 (Thu 2… séance 3 juil), TINV 1 candle framed in 34 5m slots; tsc 0, build ok. C1+C2 shipped with this deploy.
+2026-07-05 C4 — aggDaily D→W (ISO Monday) / D→M (calendar) client-side; selector now 1m 5m 15m · D W M — TINV: 79 dailies → W=19 M=6 (thin weeks, >16–17 estimate); hand-check week 2026-04-27 O=41 H=41 L=40.45 C=40.8 V=1783 == fold of its 4 dailies PASS; tsc 0, build ok. Ships with C5 deploy.
