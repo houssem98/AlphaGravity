@@ -98,7 +98,7 @@ verify, flip `[x]`, log one line with real numbers, commit.
   `assetLinks`). Monogram fallback icon where no logo.
   *Acceptance:* AETEC, ALKIM, STPIL — About filled, sector shown, both links
   resolve (curl 200).
-- [ ] **C7** — Fundamentals: honest n/a + reject retries.
+- [x] **C7** — Fundamentals: honest n/a + reject retries.
   36+ listings have NO fundamentals (39/75 covered). Render "n/a — no recent
   filing" instead of blanks. Then retry the 4 known unit-confusion rejects
   (NAKL, BNASS, BL, STPIL) in `scripts/tn_fundamentals.py` with
@@ -128,3 +128,4 @@ polish indistinguishable from the crypto coin view.
 2026-07-05 C4 — aggDaily D→W (ISO Monday) / D→M (calendar) client-side; selector now 1m 5m 15m · D W M — TINV: 79 dailies → W=19 M=6 (thin weeks, >16–17 estimate); hand-check week 2026-04-27 O=41 H=41 L=40.45 C=40.8 V=1783 == fold of its 4 dailies PASS; tsc 0, build ok. Ships with C5 deploy.
 2026-07-05 C5 — book() invariant in dispatcher (markets+engine): bid=min ask=max qty-follows-price, zero side→null, blind re-swap deleted, live-session re-verify comment in place. DEPLOYED — prod markets: 75 rows crossed=0, TINV 53.79/53.82 spread=+0.03 (was −0.03), BIAT +0.20, SFBT +0.11, 6 one-sided rows null; tsc 0, build ok. C4 shipped with this deploy.
 2026-07-05 C6 — assetLinks exported from MarketList, reused in TnAbout (BVMT fiche + ILBOURSA + News); sector badge pill in About header; Issuer row added; monogram fallback already existed — ref: AETEC=TECHNOLOGIE ALKIM=CHIMIE STPIL=PETROLE ET GAZ (issuer/shares/listingDate all present); links curl (curl.exe, PS5.1 TLS false-ERRs): 6/6 HTTP 200; tsc 0, build ok. Ships with C8 deploy.
+2026-07-05 C7 — honest "n/a — no recent filing" row when no fund blob (AssetInfoPanel); scale-normalization in tn_fundamentals.py (try ×1/×1000/×1e6, PER band 2..80 admits ≤1) — recovered NAKL(×1, EPS 1.69 PER 13.3), BNASS(×1000, EPS 0.20 PER 21.1), BL(×1e6, EPS 0.35 PER 8.4); STPIL still REJECTED (extraction raw=123456 garbage — guard correct). Coverage 39→42 (target ≥41 ✓), blob re-uploaded HTTP 200, prod endpoint serves all 3; pdftotext needs Git-Bash PATH on this box. tsc 0, build ok. UI n/a row ships with C8 deploy.

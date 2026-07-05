@@ -120,15 +120,23 @@ def main():
             data = extract(r.get("emetteur") or tk, pdf_excerpt(fetch(pdf_url)))
             if not data or not data.get("net_income_mdt"):
                 print(f"{tk}: extraction empty"); continue
-            ni = data["net_income_mdt"] * 1000.0          # mDT → TND
-            eq = (data.get("equity_mdt") or 0) * 1000.0
-            eps = ni / shares if shares else None
-            per = (price / eps) if eps and price else None
-            dps = data.get("dividend_per_share_tnd")
-            # Sanity guard — reject implausible extractions (wrong line / unit).
-            if not eps or eps <= 0 or not per or per < 2 or per > 80:
-                print(f"{tk}: REJECTED (EPS={eps} PER={per}) — extraction implausible, skipping")
+            # Statements aren't uniformly in mDT: some publish full TND, some
+            # millions. Try the three scales; the plausible-PER band (2..80,
+            # a 40x span) admits at most one of the 1000x-apart scales.
+            raw = data["net_income_mdt"]
+            scale = next((s for s in (1000.0, 1.0, 1e6)
+                          if shares and price and raw > 0
+                          and 2 <= price / (raw * s / shares) <= 80), None)
+            if scale is None:
+                print(f"{tk}: REJECTED (no scale gives plausible PER; raw={raw} shares={shares} price={price})")
                 continue
+            if scale != 1000.0:
+                print(f"{tk}: scale-normalized x{scale:g} (statement not in mDT)")
+            ni = raw * scale
+            eq = (data.get("equity_mdt") or 0) * scale
+            eps = ni / shares
+            per = price / eps
+            dps = data.get("dividend_per_share_tnd")
             blob[tk] = {
                 "fiscalYear": data.get("fiscal_year"),
                 "netIncome": ni, "equity": eq or None, "eps": eps,
