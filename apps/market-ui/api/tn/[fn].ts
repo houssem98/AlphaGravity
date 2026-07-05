@@ -33,6 +33,25 @@ async function resolveIsin(symbol: string, g?: any) {
 const round = (v: number) => Math.round(v * 1000) / 1000;
 const hms = (t: string) => { const [h = '0', m = '0', s = '0'] = String(t).split(':'); return +h * 3600 + +m * 60 + +s; };
 
+// OPEN QUESTION: which of BVMT's `limit.bid`/`limit.ask` is really the bid?
+// Closed-session payloads are contradictory (TINV raw bid<ask = sane; BIAT/SFBT/AB
+// crossed with one side == last = stale auction leftovers), so we do NOT map sides —
+// we enforce the book invariant: bid = lower price, ask = higher, qty follows its
+// price, a zero side is no quote (null). spread = ask − bid is ≥ 0 by construction.
+// Re-verify true field semantics against a LIVE session payload (Mon–Fri
+// 09:00–14:00 Tunis) before ever "correcting" sides again.
+function book(l: any) {
+  const s1 = { price: l?.bid || 0, qty: l?.bidQty || 0 };
+  const s2 = { price: l?.ask || 0, qty: l?.askQty || 0 };
+  const [lo, hi] = s1.price <= s2.price ? [s1, s2] : [s2, s1];
+  return {
+    bid: lo.price > 0 ? lo.price : null,
+    bidQty: lo.price > 0 ? lo.qty : null,
+    ask: hi.price > 0 ? hi.price : null,
+    askQty: hi.price > 0 ? hi.qty : null,
+  };
+}
+
 // ── Live quotes for the whole board ─────────────────────────────────────────
 async function markets(_req: any, res: any) {
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
@@ -52,11 +71,7 @@ async function markets(_req: any, res: any) {
       low: m.low || 0,
       close: m.close || 0,
       turnover: m.caps || 0,
-      // BVMT swaps the field names: their `limit.bid` is the ASK, `limit.ask` the BID.
-      bid: m.limit?.ask || 0,
-      ask: m.limit?.bid || 0,
-      bidQty: m.limit?.askQty || 0,
-      askQty: m.limit?.bidQty || 0,
+      ...book(m.limit),
     }))
     .filter((x: any) => x.price > 0);
   res.json({ rows, updated: rows[0]?.seance || null });
@@ -182,8 +197,7 @@ async function engine(req: any, res: any) {
   const price = row.last || row.close || 0;
   const changePct = row.change || 0;
   const turnover = row.caps || 0;
-  // BVMT swapped fields (see markets()): their `ask` is the bid.
-  const bid = row.limit?.ask || 0, ask = row.limit?.bid || 0;
+  const { bid, ask } = book(row.limit);
 
   // Momentum: ±3% day move maps to 0..100 around 50.
   const momentum = clamp(50 + (changePct / 3) * 50);
