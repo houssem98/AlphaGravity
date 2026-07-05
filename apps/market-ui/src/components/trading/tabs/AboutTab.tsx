@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Globe, Github, Twitter, MessageCircle, ExternalLink, Building2, Newspaper } from 'lucide-react';
 import { motion } from 'motion/react';
-import type { MarketId } from '../../../lib/markets';
+import type { MarketId, MarketDef } from '../../../lib/markets';
+import type { AssetRow } from '../../../services/marketsHub';
+import { assetLinks } from '../MarketList';
 
 interface AboutTabProps {
   asset: string;
@@ -66,14 +68,16 @@ const TnAbout: React.FC<{ asset: string; name?: string }> = ({ asset, name }) =>
     { label: 'Sector', value: sector },
     { label: 'Currency', value: 'Tunisian Dinar (TND)' },
     { label: 'ISIN', value: isin || rf?.isin || '—' },
+    ...(rf?.issuer ? [{ label: 'Issuer', value: rf.issuer }] : []),
     ...(rf?.shares ? [{ label: 'Shares outstanding', value: rf.shares.toLocaleString('en-US') }] : []),
     ...(rf?.listingDate ? [{ label: 'Listed since', value: rf.listingDate }] : []),
   ];
+  const icons: Record<string, any> = { BVMT: Building2, ILBOURSA: Globe };
   const links = [
-    isin && { label: 'BVMT fiche-valeur', url: `https://www.bvmt.com.tn/fr/content/fiche-valeur?isin=${isin}`, icon: Building2 },
+    ...assetLinks({ id: 'tunisia' } as MarketDef, { symbol: asset, isin: isin || undefined } as unknown as AssetRow)
+      .map((l) => ({ ...l, icon: icons[l.label] || ExternalLink })),
     { label: 'News', url: `https://news.google.com/search?q=${encodeURIComponent(`${company} Bourse Tunis`)}&hl=fr&gl=TN`, icon: Newspaper },
-    { label: 'BVMT', url: 'https://www.bvmt.com.tn', icon: Globe },
-  ].filter(Boolean) as { label: string; url: string; icon: any }[];
+  ];
 
   return (
     <div className="flex-1 overflow-y-auto bg-[color:var(--bg)]">
@@ -85,7 +89,10 @@ const TnAbout: React.FC<{ asset: string; name?: string }> = ({ asset, name }) =>
             </div>
             <div>
               <h1 className="text-h2 font-bold text-[color:var(--text)]">{company}</h1>
-              <p className="text-body text-[color:var(--text-3)]">{asset} • BVMT</p>
+              <div className="flex items-center gap-2">
+                <p className="text-body text-[color:var(--text-3)]">{asset} • BVMT</p>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-[color:var(--surface-2)] border border-[color:var(--line)] text-[color:var(--text-2)]">{sector}</span>
+              </div>
             </div>
           </div>
         </motion.div>

@@ -92,7 +92,7 @@ verify, flip `[x]`, log one line with real numbers, commit.
   shows negative spread. `[deploy]`
 
 ### C — Every company complete
-- [ ] **C6** — Universal About + identity.
+- [x] **C6** — Universal About + identity.
   Every listing gets sector badge + filled About tab from the existing `ref`
   endpoint (raw_referentiels) + BVMT fiche/ilboursa links (reuse
   `assetLinks`). Monogram fallback icon where no logo.
@@ -127,3 +127,4 @@ polish indistinguishable from the crypto coin view.
 2026-07-05 C3 — intraday returns sessionStart/sessionEnd = min/max groups-feed `time` (data-derived, board of 75); client pads whitespace buckets + autoscaleInfoProvider min y-range 0.5%; last-price line = lightweight-charts default (spans whitespace). DEPLOYED — prod: TINV/BIAT sessionStart=09:15:00 sessionEnd=12:00:00 (Thu 2… séance 3 juil), TINV 1 candle framed in 34 5m slots; tsc 0, build ok. C1+C2 shipped with this deploy.
 2026-07-05 C4 — aggDaily D→W (ISO Monday) / D→M (calendar) client-side; selector now 1m 5m 15m · D W M — TINV: 79 dailies → W=19 M=6 (thin weeks, >16–17 estimate); hand-check week 2026-04-27 O=41 H=41 L=40.45 C=40.8 V=1783 == fold of its 4 dailies PASS; tsc 0, build ok. Ships with C5 deploy.
 2026-07-05 C5 — book() invariant in dispatcher (markets+engine): bid=min ask=max qty-follows-price, zero side→null, blind re-swap deleted, live-session re-verify comment in place. DEPLOYED — prod markets: 75 rows crossed=0, TINV 53.79/53.82 spread=+0.03 (was −0.03), BIAT +0.20, SFBT +0.11, 6 one-sided rows null; tsc 0, build ok. C4 shipped with this deploy.
+2026-07-05 C6 — assetLinks exported from MarketList, reused in TnAbout (BVMT fiche + ILBOURSA + News); sector badge pill in About header; Issuer row added; monogram fallback already existed — ref: AETEC=TECHNOLOGIE ALKIM=CHIMIE STPIL=PETROLE ET GAZ (issuer/shares/listingDate all present); links curl (curl.exe, PS5.1 TLS false-ERRs): 6/6 HTTP 200; tsc 0, build ok. Ships with C8 deploy.

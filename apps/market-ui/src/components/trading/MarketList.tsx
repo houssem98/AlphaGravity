@@ -8,7 +8,7 @@ import { safeUrl } from '../../lib/safeUrl';
 import { TnMarketOverview } from './TnMarketOverview';
 
 // Market-appropriate external links (crypto's COINMARKETCAP/COINGECKO equivalent).
-function assetLinks(market: MarketDef, r: AssetRow): { label: string; url: string }[] {
+export function assetLinks(market: MarketDef, r: AssetRow): { label: string; url: string }[] {
   const clean = r.symbol.replace('^', '').replace('=F', '').replace('=X', '');
   if (market.id === 'tunisia') {
     const links = [{ label: 'ILBOURSA', url: `https://www.ilboursa.com/marches/cotation_${r.symbol}` }];
