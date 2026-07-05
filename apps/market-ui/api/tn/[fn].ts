@@ -68,7 +68,17 @@ async function intraday(req: any, res: any) {
   const symbol = String(req.query.symbol || '').toUpperCase();
   let isin = String(req.query.isin || ''), name = symbol;
   if (!symbol && !isin) return res.status(400).json({ error: 'symbol or isin required' });
-  if (!isin) { const r = await resolveIsin(symbol); if (!r.isin) return res.status(404).json({ error: `unknown ticker ${symbol}` }); isin = r.isin; name = r.name; }
+  // Session bounds = min/max last-update time across the whole board (data-derived,
+  // never hardcoded exchange hours). Only available when we fetch groups anyway.
+  let session: [number, number] | null = null;
+  if (!isin) {
+    const g = await groups();
+    const r = await resolveIsin(symbol, g);
+    if (!r.isin) return res.status(404).json({ error: `unknown ticker ${symbol}` });
+    isin = r.isin; name = r.name;
+    const secs = (g?.markets || []).map((m: any) => hms(m?.time || '')).filter((s: number) => s > 0);
+    if (secs.length) session = [Math.min(...secs), Math.max(...secs)];
+  }
 
   const d = await (await fetch(`https://www.bvmt.com.tn/rest_api/rest/intraday/${isin}`, { headers: UA })).json();
   const raw = (d?.intradays || []).filter((p: any) => p?.last > 0 && p?.time);
@@ -99,6 +109,8 @@ async function intraday(req: any, res: any) {
     symbol, name, isin, prevClose, last, interval: iv,
     changePct: prevClose ? ((last - prevClose) / prevClose) * 100 : 0,
     seance: d?.intradays?.[0]?.seance || null, points, candles,
+    sessionStart: session ? dayStart + session[0] : null,
+    sessionEnd: session ? dayStart + session[1] : null,
   });
 }
 

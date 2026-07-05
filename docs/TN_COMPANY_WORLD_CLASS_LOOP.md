@@ -65,7 +65,7 @@ verify, flip `[x]`, log one line with real numbers, commit.
   toggle always wins afterwards.
   *Acceptance:* TINV opens showing its 79 daily bars; BIAT (16 candles)
   stays intraday.
-- [ ] **C3** — Session framing + sane y-range for sparse intraday.
+- [x] **C3** — Session framing + sane y-range for sparse intraday.
   Derive today's session bounds FROM DATA (min/max tick time across the
   groups feed — do not hardcode exchange hours) and pad the x-axis with
   whitespace points so 1 candle doesn't fill the width; ensure y-autoscale
@@ -124,3 +124,4 @@ polish indistinguishable from the crypto coin view.
 <!-- YYYY-MM-DD Cxx — what — verify numbers -->
 2026-07-05 C1 — histogram lastValueVisible/priceLineVisible false (scale separation already existed; only the label was the bug) — tsc 0. Ships with next [deploy] task (C3).
 2026-07-05 C2 — auto-switch intraday→daily when candles<3 unless user picked mode (userPickedMode ref, reset default on asset change) — prod: TINV intraday=1→daily 79 bars, BIAT intraday=16 stays; tsc 0, build ok. Ships with C3 deploy.
+2026-07-05 C3 — intraday returns sessionStart/sessionEnd = min/max groups-feed `time` (data-derived, board of 75); client pads whitespace buckets + autoscaleInfoProvider min y-range 0.5%; last-price line = lightweight-charts default (spans whitespace). DEPLOYED — prod: TINV/BIAT sessionStart=09:15:00 sessionEnd=12:00:00 (Thu 2… séance 3 juil), TINV 1 candle framed in 34 5m slots; tsc 0, build ok. C1+C2 shipped with this deploy.

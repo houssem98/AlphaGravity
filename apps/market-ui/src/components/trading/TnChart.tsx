@@ -15,6 +15,8 @@ interface Intraday {
   changePct: number;
   seance: string | null;
   candles: Candle[];
+  sessionStart?: number | null;
+  sessionEnd?: number | null;
 }
 
 const INTERVALS = [1, 5, 15] as const;
@@ -81,6 +83,15 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
     chartRef.current = chart;
     candleRef.current = chart.addSeries(CandlestickSeries, {
       upColor: UP, downColor: DOWN, borderVisible: false, wickUpColor: UP, wickDownColor: DOWN,
+      // Sparse intraday (1–2 trades) autoscales to a sliver — keep ≥0.5% of price visible.
+      autoscaleInfoProvider: (orig: () => any) => {
+        const r = orig();
+        if (!r?.priceRange) return r;
+        const { minValue, maxValue } = r.priceRange;
+        const mid = (minValue + maxValue) / 2, span = mid * 0.005;
+        if (maxValue - minValue >= span) return r;
+        return { ...r, priceRange: { minValue: mid - span / 2, maxValue: mid + span / 2 } };
+      },
     });
     volRef.current = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' }, priceScaleId: '',
@@ -104,9 +115,19 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
         if (!live || !candleRef.current || !volRef.current) return;
         if (mode === 'intraday' && !userPickedMode.current && (d.candles?.length || 0) < 3) { setMode('daily'); return; }
         if (!d.candles?.length) { candleRef.current.setData([]); volRef.current.setData([]); setStatus('empty'); setMeta(d); return; }
-        candleRef.current.setData(d.candles.map((c) => ({
+        type Bar = { time: Time; open: number; high: number; low: number; close: number } | { time: Time };
+        const bars: Bar[] = d.candles.map((c) => ({
           time: c.time as Time, open: c.open, high: c.high, low: c.low, close: c.close,
-        })));
+        }));
+        // Frame the whole session with whitespace so a lone candle doesn't fill the width.
+        if (mode === 'intraday' && d.sessionStart && d.sessionEnd) {
+          const step = interval * 60;
+          const seen = new Set(d.candles.map((c) => c.time));
+          for (let t = Math.floor(d.sessionStart / step) * step; t <= d.sessionEnd; t += step)
+            if (!seen.has(t)) bars.push({ time: t as Time });
+          bars.sort((a, b) => (a.time as number) - (b.time as number));
+        }
+        candleRef.current.setData(bars);
         volRef.current.setData(d.candles.map((c) => ({
           time: c.time as Time, value: c.volume, color: c.close >= c.open ? `${UP}55` : `${DOWN}55`,
         })));
