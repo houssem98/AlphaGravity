@@ -59,7 +59,7 @@ verify, flip `[x]`, log one line with real numbers, commit.
   `TnChart.tsx` histogram series: add `lastValueVisible: false,
   priceLineVisible: false`. Nothing else — scale separation already exists.
   *Acceptance:* no volume number on the price axis (TINV + BIAT).
-- [ ] **C2** — Liquidity-aware default mode.
+- [x] **C2** — Liquidity-aware default mode.
   On intraday load: if candles < 3 and the user hasn't manually picked a
   mode this session, auto-switch to `daily` (TINV-class names). Manual
   toggle always wins afterwards.
@@ -123,3 +123,4 @@ polish indistinguishable from the crypto coin view.
 ## Progress log
 <!-- YYYY-MM-DD Cxx — what — verify numbers -->
 2026-07-05 C1 — histogram lastValueVisible/priceLineVisible false (scale separation already existed; only the label was the bug) — tsc 0. Ships with next [deploy] task (C3).
+2026-07-05 C2 — auto-switch intraday→daily when candles<3 unless user picked mode (userPickedMode ref, reset default on asset change) — prod: TINV intraday=1→daily 79 bars, BIAT intraday=16 stays; tsc 0, build ok. Ships with C3 deploy.

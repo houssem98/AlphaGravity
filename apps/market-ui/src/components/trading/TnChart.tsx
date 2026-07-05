@@ -29,6 +29,9 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
   const priceLineRef = useRef<IPriceLine | null>(null);
   const [interval, setInterval_] = useState<number>(5);
   const [mode, setMode] = useState<'intraday' | 'daily'>('intraday');
+  // C2: once the user picks a mode, auto-switching (illiquid names → daily) is disabled.
+  const userPickedMode = useRef(false);
+  useEffect(() => { if (!userPickedMode.current) setMode('intraday'); }, [asset]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
   const [meta, setMeta] = useState<Intraday | null>(null);
 
@@ -99,6 +102,7 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
           : `/api/tn/intraday?symbol=${encodeURIComponent(asset)}&interval=${interval}`;
         const d: Intraday = await (await fetch(u)).json();
         if (!live || !candleRef.current || !volRef.current) return;
+        if (mode === 'intraday' && !userPickedMode.current && (d.candles?.length || 0) < 3) { setMode('daily'); return; }
         if (!d.candles?.length) { candleRef.current.setData([]); volRef.current.setData([]); setStatus('empty'); setMeta(d); return; }
         candleRef.current.setData(d.candles.map((c) => ({
           time: c.time as Time, open: c.open, high: c.high, low: c.low, close: c.close,
@@ -145,7 +149,7 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
       <div className="absolute top-3 right-4 z-20 flex items-center gap-2">
         <div className="flex gap-1 p-0.5 rounded-md bg-[#0F1420] border border-[#1B2236]">
           {(['intraday', 'daily'] as const).map((m) => (
-            <button key={m} onClick={() => setMode(m)}
+            <button key={m} onClick={() => { userPickedMode.current = true; setMode(m); }}
               className={`px-2 py-0.5 rounded text-[11px] font-medium capitalize transition-colors ${
                 mode === m ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
               }`}>
