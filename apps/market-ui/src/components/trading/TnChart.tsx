@@ -81,6 +81,7 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
     });
     volRef.current = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' }, priceScaleId: '',
+      lastValueVisible: false, priceLineVisible: false,
     });
     volRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     return () => { chart.remove(); chartRef.current = null; candleRef.current = null; volRef.current = null; };
