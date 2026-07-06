@@ -55,7 +55,7 @@ Hard rules (every task):
   (temporarily bad URL) produces a red alert.
 - [ ] **H1.2** — Cron it: Mon–Fri 14:20 Tunis (post-close) + 09:20 (post-open).
   *Acceptance:* two consecutive scheduled runs delivered unattended.
-- [ ] **H1.3** — Cross-source drift check skill: TUNINDEX (our endpoint) vs
+- [x] **H1.3** — Cross-source drift check skill: TUNINDEX (our endpoint) vs
   TSE Grafana raw; crypto tape prices vs a second public source; alert at
   >0.5% unexplained divergence.
   *Acceptance:* one drift report with both sources' real numbers side by side.
@@ -199,3 +199,9 @@ from committed image (sha256:52952dd4) with `hermes gateway` as PID-1,
 restart=unless-stopped; cron status: 2 active jobs, next run
 2026-07-06T14:20+01:00. Acceptance pends 2 unattended runs (today 14:20 +
 tomorrow 09:20 Tunis) — verify on later loop wake.
+2026-07-06 H1.3 — tn-drift skill LIVE (box + agents/hermes/). Drift report,
+both sources side by side, same run: TUNINDEX ours=19755.5 vs TSE-Grafana
+=19755.5 drift 0.000% (limit 0.5%); BTC ours(Coinlore)=62871.39 vs
+Binance-spot=62780.13 drift 0.145%; ETH 1764.03 vs 1762.48 drift 0.088%
+(crypto limit 1.5% — aggregator lag documented). Exit 0. Gotcha fixed:
+Binance 400s on unknown params → cache-buster nonce only on our endpoints.
