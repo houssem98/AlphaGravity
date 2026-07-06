@@ -33,13 +33,17 @@ async function resolveIsin(symbol: string, g?: any) {
 const round = (v: number) => Math.round(v * 1000) / 1000;
 const hms = (t: string) => { const [h = '0', m = '0', s = '0'] = String(t).split(':'); return +h * 3600 + +m * 60 + +s; };
 
-// OPEN QUESTION: which of BVMT's `limit.bid`/`limit.ask` is really the bid?
-// Closed-session payloads are contradictory (TINV raw bid<ask = sane; BIAT/SFBT/AB
-// crossed with one side == last = stale auction leftovers), so we do NOT map sides —
-// we enforce the book invariant: bid = lower price, ask = higher, qty follows its
-// price, a zero side is no quote (null). spread = ask − bid is ≥ 0 by construction.
-// Re-verify true field semantics against a LIVE session payload (Mon–Fri
-// 09:00–14:00 Tunis) before ever "correcting" sides again.
+// RESOLVED 2026-07-06 (live-session capture, Mon 10:24+10:26 Tunis — see
+// agents/hermes/captures/groups-live-2026-07-06T09-2*.json): BVMT's raw
+// fields are SWAPPED. `limit.bid` holds the best ASK (higher price) and
+// `limit.ask` holds the best BID (lower price). Evidence: 60/67 two-sided
+// books had raw bid>ask during continuous trading (real books can't stay
+// crossed), and executions printed on both raw fields consistently only
+// under the swapped reading (BIAT traded at raw limit.ask 168.1 = real bid;
+// SFBT at raw limit.bid 14.4 = real ask). The invariant mapping below
+// (bid = lower price, ask = higher, qty follows its price, zero side = null)
+// therefore yields the CORRECT sides — keep it; it is also robust to stale
+// closed-session leftovers. spread = ask − bid stays ≥ 0 by construction.
 function book(l: any) {
   const s1 = { price: l?.bid || 0, qty: l?.bidQty || 0 };
   const s2 = { price: l?.ask || 0, qty: l?.askQty || 0 };
