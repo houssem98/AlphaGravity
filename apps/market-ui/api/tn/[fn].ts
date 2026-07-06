@@ -5,16 +5,16 @@ const GROUPS = 'https://www.bvmt.com.tn/rest_api/rest/market/groups/11,12,52,95,
 const FILE = 'tn_daily.json';
 
 // ── Supabase Storage (JSON blob, no table/DDL) ──────────────────────────────
-function store() {
+function store(file: string = FILE) {
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const h = { apikey: key!, Authorization: `Bearer ${key}` };
   return {
     async get() {
-      const r = await fetch(`${url}/storage/v1/object/market-data/${FILE}`, { headers: h });
+      const r = await fetch(`${url}/storage/v1/object/market-data/${file}`, { headers: h });
       return r.ok ? r.json() : {};
     },
     async put(body: any) {
-      const r = await fetch(`${url}/storage/v1/object/market-data/${FILE}`, {
+      const r = await fetch(`${url}/storage/v1/object/market-data/${file}`, {
         method: 'POST',
         headers: { ...h, 'Content-Type': 'application/json', 'x-upsert': 'true', 'cache-control': 'max-age=0' },
         body: JSON.stringify(body),
@@ -314,6 +314,20 @@ async function index(req: any, res: any) {
   res.json({ tunindex, indices, stats });
 }
 
+// ── Daily Brief (written by the Hermes agent, see agents/hermes/scripts/
+// tn_daily_brief.py; H4.1) — reads the rolling blob, serves latest or a
+// requested date. Read-only here; the agent is the only writer.
+async function brief(req: any, res: any) {
+  res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=86400');
+  const s = store('tn_brief.json');
+  const blob = await s.get();
+  const entries = blob.entries || {};
+  const dates = Object.keys(entries).sort();
+  if (!dates.length) return res.json({ brief: null });
+  const date = String(req.query.date || '') || dates[dates.length - 1];
+  res.json({ brief: entries[date] || null, available: dates });
+}
+
 // ── Reference data: sector + shares outstanding (→ market cap) ───────────────
 // From the exchange's `raw_referentiels` (equity "mother line" per issuer).
 // Ref data is near-static → cache a day. Keyed by ticker (mnemo).
@@ -394,7 +408,7 @@ async function fundamentals(req: any, res: any) {
   res.json({ fundamentals: blob });
 }
 
-const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref, highs, fundamentals };
+const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref, highs, fundamentals, brief };
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');

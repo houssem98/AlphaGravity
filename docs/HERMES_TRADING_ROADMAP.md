@@ -94,7 +94,7 @@ Hard rules (every task):
   Supabase blob `tn_brief.json` at 14:30 Tunis. Grounded rule 1 applies.
   *Acceptance:* 3 consecutive briefs; every number in them re-verifiable
   against that day's endpoints.
-- [ ] **H4.2** — Serve + render: `brief` route inside `api/tn/[fn].ts`
+- [x] **H4.2** — Serve + render: `brief` route inside `api/tn/[fn].ts`
   (reads blob; still 1 Vercel fn) + a Daily Brief card on the TN market page.
   *Acceptance:* card live in prod, shows yesterday's real brief; tsc 0 + build.
 - [ ] **H4.3** — Weekly sector deep-dive (rotating BVMT sector; fundamentals
@@ -229,6 +229,13 @@ DeepSeek wrote grounded paragraph (facts-only prompt), stored to
 market-data/tn_brief.json entries['2026-07-06'] (HTTP 200, 1 entry). Cron
 armed Mon-Fri 14:30 Tunis (next 2026-07-07). Acceptance needs 3 consecutive
 days — checkbox stays open until brief#3 lands.
+2026-07-06 H4.2 — brief route SHIPPED: store() parametrized by filename,
+`brief` route reads market-data/tn_brief.json (latest or ?date=), registered
+in ROUTES (still 1 Vercel fn). Daily Brief card added to TnMarketOverview.tsx
+(paragraph + top gainer/loser + breadth). tsc 0, build OK (1m9s), deployed
+vercel --prod --yes → market-ui-self.vercel.app. curl-verified live: date
+2026-07-06, TUNINDEX 19828.2 (-0.04%), 23▲/26▼/10= of 59 traded — matches
+brief#1 stored yesterday. Card renders on prod TN market page.
 2026-07-06 H1.3 — tn-drift skill LIVE (box + agents/hermes/). Drift report,
 both sources side by side, same run: TUNINDEX ours=19755.5 vs TSE-Grafana
 =19755.5 drift 0.000% (limit 0.5%); BTC ours(Coinlore)=62871.39 vs
