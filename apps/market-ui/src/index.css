@@ -172,6 +172,15 @@
   @keyframes meter-fill {
     from { transform: scaleX(0); } to { transform: scaleX(1); }
   }
+  /* Rolling ticker tape: track holds two identical copies, -50% = one copy. */
+  @keyframes tape-roll {
+    to { transform: translateX(-50%); }
+  }
+  .tape-roll { animation: tape-roll 45s linear infinite; }
+  .tape-roll:hover { animation-play-state: paused; }
+  @media (prefers-reduced-motion: reduce) {
+    .tape-roll { animation: none; }
+  }
   .rise-in   { animation: rise-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
   .fade-in   { animation: fade-in 240ms ease-out both; }
   .stagger > * { animation: rise-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }

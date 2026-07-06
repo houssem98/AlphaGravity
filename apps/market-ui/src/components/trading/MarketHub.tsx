@@ -171,13 +171,17 @@ export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAs
       {/* Ticker tape */}
       {tape.length > 0 && (
         <div className="border-b border-[color:var(--line)] bg-[color:var(--surface)] overflow-hidden">
-          <div className="flex items-center gap-6 px-4 py-2 whitespace-nowrap overflow-x-auto scrollbar-hide">
-            {tape.map((r, i) => (
-              <button key={`${r.symbol}-${i}`} onClick={() => onSelectAsset(r.symbol)} className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
-                <span className="text-data font-semibold text-[color:var(--text)]">{r.symbol.replace('^', '')}</span>
-                <span className="font-mono text-data text-[color:var(--text-2)]">{fmtPrice(r.price, r.currency)}</span>
-                <Delta pct={r.changePct} />
-              </button>
+          <div className="tape-roll flex w-max items-center py-2 whitespace-nowrap">
+            {[0, 1].map((copy) => (
+              <div key={copy} className="flex items-center gap-6 pl-6" aria-hidden={copy === 1}>
+                {tape.map((r, i) => (
+                  <button key={`${r.symbol}-${i}`} onClick={() => onSelectAsset(r.symbol)} tabIndex={copy === 1 ? -1 : 0} className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
+                    <span className="text-data font-semibold text-[color:var(--text)]">{r.symbol.replace('^', '')}</span>
+                    <span className="font-mono text-data text-[color:var(--text-2)]">{fmtPrice(r.price, r.currency)}</span>
+                    <Delta pct={r.changePct} />
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         </div>
