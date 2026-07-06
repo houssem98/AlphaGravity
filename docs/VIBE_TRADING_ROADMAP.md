@@ -32,7 +32,7 @@ Hard rules (every task):
 ---
 
 ## Phase V1 — Data resilience (fallback chains, Vibe's IP-ban-risk pattern)
-- [ ] **V1.1** — Probe + document fallback candidates with real payloads:
+- [x] **V1.1** — Probe + document fallback candidates with real payloads:
   stooq EOD CSV (`https://stooq.com/q/d/l/?s=<sym>.us&i=d`) and sina US quote
   for 3 symbols (AAPL, ^GSPC-equivalent, BRK-B edge case). Record exact
   column/field mapping, symbol-name translation rules, and what each source
@@ -115,3 +115,33 @@ sources with IP-ban-risk-ordered fallback chains; 456-factor alpha zoo
 shadow-account pipeline; REST/MCP server; DeepSeek = default model tier.
 Our stack same-day: 11/12 Vercel fns; /api/quote+history+spark = Yahoo-only;
 /api/crypto = CoinCap-only; tn engine = 4 naive factors.
+2026-07-06 — V1.1 probe, real curls:
+STOOQ DEAD for serverless — `curl https://stooq.com/q/d/l/?s=aapl.us&i=d`
+(also tried `^spx`, `brk-b.us`, browser UA, plain http) all return an
+anti-bot JS PoW challenge page (`crypto.subtle.digest` SHA-256 nonce-mining,
+then POST /__verify) — no CSV ever served, http even 301s to https first.
+Vercel Node/Edge fetch has no JS runtime to solve it -> stooq is NOT a usable
+V1.3 EOD fallback as scoped; need a different history source (candidate:
+Yahoo alt host/chart endpoint variant, or a keyed provider) before V1.3.
+SINA gb_ US quotes WORK (need `Referer: https://finance.sina.com.cn`, GBK
+name encoding). Real payload
+`gb_aapl="AAPL,308.6300,0.00,2026-07-06 21:25:11,...,306.1500,-0.80,-2.48,..."`
+— field[1]=live price (confirmed matches Yahoo-scale), field[21]=306.1500
+prevclose. field[22]/[23] (-0.80/-2.48) do NOT reconcile against
+price-prevclose (+2.48) — those two fields are stale/unreliable; V1.2 must
+compute changePct itself as (price-prevclose)/prevclose from field[1] &
+field[21], not trust field[23]. BRK-B edge case CONFIRMED BROKEN on sina:
+`gb_brkb="BRKB,0.0000,0.00,2019-09-24 09:30:43,...` — frozen/dead symbol,
+sina never updated it past 2019, price 0. No working sina symbol found for
+BRK-B (`gb_brk_b`, `gb_brka`, `gb_brk.b` all empty). Symbol rule: ticker
+lowercased, `-`/`.` stripped (`BRK-B`->`brkb`) but even the correct guess is
+dead data — BRK-B fallback must skip sina and either fall through to
+"no fallback available" (shadow-safe: stays on primary/empty) or add a 3rd
+source later. Index proxy for ^GSPC-equivalent: `gb_$inx` works, real
+payload price=7483.2402 (S&P500 series scale, timestamp 2026-07-06
+21:10:02); `gb_$dji`/`gb_$ixic` also live-ish. So: sina covers plain-ticker
+quote fallback (V1.2, incl. an index proxy) but does NOT cover BRK-B and
+categorically cannot serve EOD history/spark (quote-only feed) — V1.3 needs
+a different source than stooq entirely. Verdict: proceed V1.2 with sina as
+the quote/crypto-adjacent fallback per above field mapping; V1.3 blocked on
+finding a non-stooq EOD CSV source, flagged for that task's own probe step.
