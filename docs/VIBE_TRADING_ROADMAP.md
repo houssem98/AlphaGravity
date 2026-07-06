@@ -92,7 +92,7 @@ Hard rules (every task):
   *Acceptance:* verdict + evidence in the log; nothing deployed.
 
 ## Phase V5 — Shadow Account (parked until V1–V2 shipped)
-- [ ] **V5.1** — Spec only: survey Tunisian broker export formats (Tunisie
+- [x] **V5.1** — Spec only: survey Tunisian broker export formats (Tunisie
   Valeurs, BNA Capitaux…) — is a CSV/statement standard feasible? Go/no-go
   memo; no build.
   *Acceptance:* memo in docs/ with real format samples or documented absence.
@@ -361,3 +361,18 @@ single DECISION line), (2) NAV-percent sizing + hard stop in the verdict
 format. Alpha zoos beyond academic (gtja191/qlib158, 446 more) only
 become harvestable if we build a backtest engine — parked. Nothing
 deployed (acceptance ✓).
+2026-07-06 — V5.1 done. Memo: docs/TN_BROKER_EXPORT_MEMO.md. Verdict NO-GO
+on a CSV/statement standard, conditional GO on per-broker PDF parsing.
+Survey (public sources, same-day): NO Tunisian broker documents any
+machine-readable export. Only explicit format found: Tunisie Valeurs'
+Tval Mobile App Store listing — statements/portfolio/orders saved "in PDF
+format" + quarterly paper statement. BNA "Bourse Connect" = portfolio
+consult + relevé download, format unspecified. MAC SA (#1, 27.86% of 2024
+volume) MAC Online documents no export at all. Tunisie Clearing's TANIT =
+interbank CSD (T+3), never client-facing. No CMF portability mandate (no
+open-banking equivalent for TN securities accounts). Real statement
+samples: none exist publicly — documented absence per the acceptance's own
+fallback; layouts need actual client accounts. Workable path if ever
+prioritized: manual entry → PDF import for MAC SA + Tunisie Valeurs (~46%
+of traded capital) reusing the tn_fundamentals PDF→LLM pipeline; never
+credentialed portal scraping. ROADMAP COMPLETE 10/10.
