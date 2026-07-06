@@ -192,3 +192,10 @@ PER 17950); fixed blob host-side (eps→9.4427, PER→17.95, PB→2.92, PUT 200)
 watchdog re-verified green. Cache-buster added: script validates origin, not
 CDN staleness. Telegram delivery still pends token (H0.1); summary relays via
 agent output meanwhile.
+2026-07-06 H1.2 SETUP — timezone=Africa/Tunis; 2 cron jobs in box:
+bvmt-health-open (20 9 * * 1-5) + bvmt-health-close (20 14 * * 1-5), mode
+no-agent/--script, deliver local until Telegram token. Container recreated
+from committed image (sha256:52952dd4) with `hermes gateway` as PID-1,
+restart=unless-stopped; cron status: 2 active jobs, next run
+2026-07-06T14:20+01:00. Acceptance pends 2 unattended runs (today 14:20 +
+tomorrow 09:20 Tunis) — verify on later loop wake.
