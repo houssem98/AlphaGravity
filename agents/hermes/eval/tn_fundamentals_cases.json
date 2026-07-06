@@ -91,13 +91,8 @@
  },
  {
   "ticker": "BL",
-  "verdict": "accept",
-  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/best_lease_efd311225.pdf",
-  "expect": {
-   "fiscalYear": 2023,
-   "netIncome": 10500000,
-   "eps": 0.35
-  }
+  "verdict": "reject",
+  "reason": "latest statement PDF image-only (0-char excerpt, same class as STPIL); blob entry (FY2023 NI 10,500,000) came from an earlier text PDF recovery and is not replayable"
  },
  {
   "ticker": "BNA",

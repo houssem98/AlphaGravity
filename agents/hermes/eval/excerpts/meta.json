@@ -1,0 +1,272 @@
+{
+ "AB": {
+  "shares": 30264000,
+  "price": 86.11,
+  "name": "AMEN BANK",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/amen_bank_efd311225_0.pdf"
+ },
+ "AL": {
+  "shares": 1637504,
+  "price": 222.0,
+  "name": "AIR LIQUIDE TUNISIE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-06/air_liquide_efd311225.pdf"
+ },
+ "AMV": {
+  "shares": 25000000,
+  "price": 10.3,
+  "name": "ASSURANCES MAGHREBIA VIE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/assurances_mag_vie_ifrs_efd311225.pdf"
+ },
+ "ARTES": {
+  "shares": 38250000,
+  "price": 13.3,
+  "name": "AUTOMOBILE RESEAU TUNISIEN ET SERVICES",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-06/artes_efd311225.pdf"
+ },
+ "ASSAD": {
+  "shares": 24000000,
+  "price": 2.74,
+  "name": "SOCIETE L ACCUMULATEUR TUNISIEN ASSAD",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-06/accumulateur_tunisien_assad_ef_31.12.2025%20%281%29.pdf"
+ },
+ "ASSMA": {
+  "shares": 5500000,
+  "price": 71.02,
+  "name": "ASSURANCES MAGHREBIA",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/assurances_mag_ifrs_efd311225.pdf"
+ },
+ "AST": {
+  "shares": 6000000,
+  "price": 70.05,
+  "name": "COMPAGNIE D ASSURANCES ET DE REASSURANCES",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/astree_efd311225.pdf"
+ },
+ "ATL": {
+  "shares": 32500000,
+  "price": 12.48,
+  "name": "ARAB TUNISIAN LEASE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/societes/atl/etats-financiers/atl-etats-financiers-annuels-individuels-31-12-2025.pdf"
+ },
+ "BIAT": {
+  "shares": 40800000,
+  "price": 168.5,
+  "name": "BANQUE INTERNATIONALE ARABE DE TUNISIE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/biat_efd311225.pdf"
+ },
+ "BL": {
+  "shares": 30000000,
+  "price": 2.98,
+  "name": "BEST LEASE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/best_lease_efd311225.pdf"
+ },
+ "BNA": {
+  "shares": 64000000,
+  "price": 21.67,
+  "name": "BANQUE NATIONALE AGRICOLE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/bna_bank_efd311225.pdf"
+ },
+ "BNASS": {
+  "shares": 87391790,
+  "price": 4.28,
+  "name": "BNA ASSURANCES",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/bna_assurances_efd311225.pdf"
+ },
+ "BT": {
+  "shares": 270000000,
+  "price": 9.31,
+  "name": "BANQUE DE TUNISIE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/bt_efd311225.pdf"
+ },
+ "CELL": {
+  "shares": 4461532,
+  "price": 2.18,
+  "name": "CELLCOM",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-07/cellcom_efd31122025.pdf"
+ },
+ "CIL": {
+  "shares": 7000000,
+  "price": 36.0,
+  "name": "COMPAGNIE INTERNATIONALE DE LEASING",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/cil-etats-financiers-annuels-individuels-31-12-2025.pdf"
+ },
+ "DH": {
+  "shares": 109814524,
+  "price": 20.01,
+  "name": "SOCIETE DELICE HOLDING",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/delice_holding_efd311225.pdf"
+ },
+ "ECYCL": {
+  "shares": 9801000,
+  "price": 12.2,
+  "name": "EURO CYCLES",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/euro-cycles_efd311225.pdf"
+ },
+ "HL": {
+  "shares": 11000000,
+  "price": 11.24,
+  "name": "HANNIBAL LEASE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/hannibal_lease_efd311225_0.pdf"
+ },
+ "MGR": {
+  "shares": 13200000,
+  "price": 15.41,
+  "name": "SOCIETE TUNISIENNE DES MARCHES DE GROS",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/sotumag_efd311225.pdf"
+ },
+ "MNP": {
+  "shares": 25345736,
+  "price": 11.2,
+  "name": "SOCIETE NOUVELLE MAISON DE LA VILLE DE TUNIS",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/snmvt_efd311225.pdf"
+ },
+ "NAKL": {
+  "shares": 30000000,
+  "price": 22.52,
+  "name": "ENNAKL AUTOMOBILES",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/ennakl_auto_ifrs_efd311225.pdf"
+ },
+ "NBL": {
+  "shares": 4250400,
+  "price": 3.6,
+  "name": "SOCIETE NEW BODY LINE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-06/new_body_line_efd311225.pdf"
+ },
+ "OTH": {
+  "shares": 80400000,
+  "price": 12.6,
+  "name": "ONE TECH HOLDING",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/oth_efd311225.pdf"
+ },
+ "SAH": {
+  "shares": 84015979,
+  "price": 13.65,
+  "name": "SOCIETE D ARTICLES HYGIENIQUES",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-06/sah_efd311225.pdf"
+ },
+ "SAM": {
+  "shares": 5561635,
+  "price": 5.97,
+  "name": "SOCIETE ATELIER DU MEUBLE INTERIEURS",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-06/sam_efd311225.pdf"
+ },
+ "SFBT": {
+  "shares": 268125000,
+  "price": 14.5,
+  "name": "SOCIETE DE FABRICATION DES BOISSONS DE TUNISIE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/sfbt_efd311225.pdf"
+ },
+ "SIAME": {
+  "shares": 15444000,
+  "price": 4.75,
+  "name": "SOCIETE INDUSTRIELLE D APPAREILLAGE ET DE MATERIELS ELECTRIQ",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/siame_efd311225.pdf"
+ },
+ "SMART": {
+  "shares": 10123443,
+  "price": 28.0,
+  "name": "SMART TUNISIE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/smart_tunisie_efd311225.pdf"
+ },
+ "SOTET": {
+  "shares": 4636800,
+  "price": 24.74,
+  "name": "SOCIETE TUNISIENNE D ENTREPRISES DE TELECOMMUNICATIONS",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/sotetel_efd311225.pdf"
+ },
+ "SOTUV": {
+  "shares": 39254475,
+  "price": 28.5,
+  "name": "SOCIETE TUNISIENNE DE VERRERIES",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-06/sotuver_efd311225.pdf"
+ },
+ "STA": {
+  "shares": 2000000,
+  "price": 97.84,
+  "name": "SOCIETE TUNISIENNE D AUTOMOBILES",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/sta_efd311225.pdf"
+ },
+ "STAR": {
+  "shares": 10000003,
+  "price": 87.0,
+  "name": "SOCIETE TUNISIENNE D ASSURANCES ET DE REASSURANCES",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-06/star_efd311225.pdf"
+ },
+ "STB": {
+  "shares": 155375000,
+  "price": 6.01,
+  "name": "SOCIETE TUNISIENNE DE BANQUE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/stb_efc311225.pdf"
+ },
+ "TINV": {
+  "shares": 966000,
+  "price": 53.2,
+  "name": "TUNINVEST SICAR",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-06/tuninvest_sicar_efd311225.pdf"
+ },
+ "TJARI": {
+  "shares": 42000000,
+  "price": 90.6,
+  "name": "BANQUE ATTIJARI DE TUNISIE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/societes/attijari-bank/etats-financiers/tjari-etats-financiers-annuels-individuels-31-12-2025.pdf"
+ },
+ "TLNET": {
+  "shares": 12130800,
+  "price": 13.35,
+  "name": "TELNET HOLDING",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-06/telnet_holding_ef_31-12-2025.pdf"
+ },
+ "TLS": {
+  "shares": 10800000,
+  "price": 39.5,
+  "name": "TUNISIE LEASING ET FACTORING",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/tunisie_leasing_factoring_efd311225%20%281%29.pdf"
+ },
+ "TPR": {
+  "shares": 50000000,
+  "price": 15.2,
+  "name": "SOCIETE TUNISIE PROFILES ALUMINIUM",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/tpr_efd311225.pdf"
+ },
+ "TRE": {
+  "shares": 20000000,
+  "price": 13.3,
+  "name": "SOCIETE TUNISIENNE DE REASSURANCE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/tunis_re_efd311225.pdf"
+ },
+ "UBCI": {
+  "shares": 20001529,
+  "price": 39.99,
+  "name": "UNION BANCAIRE POUR LE COMMERCE ET L INDUSTRIE",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/ubci_efd311225_0.pdf"
+ },
+ "UIB": {
+  "shares": 32560000,
+  "price": 30.6,
+  "name": "UNION INTERNATIONALE DE BANQUES",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/uib_efd311225.pdf"
+ },
+ "UMED": {
+  "shares": 32000000,
+  "price": 10.3,
+  "name": "UNITE DE FABRICATION DE MEDICAMENTS",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/unimed_efd311225_0.pdf"
+ },
+ "STPIL": {
+  "shares": 4138200,
+  "price": 34.41,
+  "name": "SOCIETE DE TRANSPORT DES HYDROCARBURES PAR PIPELINES",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/sotrapil_efd311225.pdf"
+ },
+ "BTE": {
+  "shares": 1000000,
+  "price": 7.5,
+  "name": "BANQUE DE TUNISIE ET DES EMIRATS",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-04/bte_efd311225.pdf"
+ },
+ "TAIR": {
+  "shares": 106199280,
+  "price": 0.34,
+  "name": "SOCIETE TUNISIENNE DE L AIR",
+  "pdf": "https://tunis-stockexchange.com/sites/default/files/2026-05/tunisair_efd311223.pdf"
+ }
+}
