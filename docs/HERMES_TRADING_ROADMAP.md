@@ -97,7 +97,7 @@ Hard rules (every task):
 - [x] **H4.2** — Serve + render: `brief` route inside `api/tn/[fn].ts`
   (reads blob; still 1 Vercel fn) + a Daily Brief card on the TN market page.
   *Acceptance:* card live in prod, shows yesterday's real brief; tsc 0 + build.
-- [ ] **H4.3** — Weekly sector deep-dive (rotating BVMT sector; fundamentals
+- [x] **H4.3** — Weekly sector deep-dive (rotating BVMT sector; fundamentals
   table + 3-month performance from history endpoint) appended to the brief
   blob.
   *Acceptance:* first deep-dive live; spot-check 3 numbers vs endpoints.
@@ -236,6 +236,15 @@ in ROUTES (still 1 Vercel fn). Daily Brief card added to TnMarketOverview.tsx
 vercel --prod --yes → market-ui-self.vercel.app. curl-verified live: date
 2026-07-06, TUNINDEX 19828.2 (-0.04%), 23▲/26▼/10= of 59 traded — matches
 brief#1 stored yesterday. Card renders on prod TN market page.
+2026-07-06 H4.3 — tn-sector-deepdive LIVE, first deep-dive run (ISO week 27,
+27%16=11 -> SERVICES FINANCIERS, 10 tickers: ATL BHL BL CIL HL PLTU SPDIT
+TINV TJL TLS). Appended market-data/tn_brief.json.deepDives.week27 (HTTP
+200). Spot-checked 3 numbers vs endpoints: TINV EPS 2.39284265010352 exact
+match /api/tn/fundamentals; TINV PB 6.440832928227062 exact match; TINV PER
+22.49→22.23 differs only because fundamentals recomputes PER against the
+live quote each call (documented, not a bug) — EPS/PB are the invariant
+cross-check and both match exactly. Cron Fri 15:00 Tunis armed (next
+2026-07-10).
 2026-07-06 H1.3 — tn-drift skill LIVE (box + agents/hermes/). Drift report,
 both sources side by side, same run: TUNINDEX ours=19755.5 vs TSE-Grafana
 =19755.5 drift 0.000% (limit 0.5%); BTC ours(Coinlore)=62871.39 vs
