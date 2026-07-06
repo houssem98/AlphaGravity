@@ -164,3 +164,11 @@ GitHub API (pushed 2026-07-06T08:17Z, MIT, not archived). flyctl authed
 (user: create bot via @BotFather, put token in ~/.hermes/.env) → then
 `hermes gateway start` + reboot persistence; NOTE dev machine is NOT the
 sandboxed no-creds box the acceptance wants — final home should be Fly/VPS.
+2026-07-06 H0.1 PARTIAL(2) — sandboxed Docker box BUILT on user go-ahead:
+container hermes-daemon (python:3.11-slim, restart=unless-stopped), installed
+from GitHub clone commit c67aab763dd6 (2026-07-06) → Hermes v0.18.0 (2026.7.1);
+box creds = DeepSeek key ONLY (env grep vercel|supabase|github|anthropic|
+openai = 0 hits, .env = 1 line); end-to-end proof inside box: `hermes -z` →
+"HERMES-H01-BOX-OK"; survived docker restart with Provider: DeepSeek intact.
+ONLY remaining for [x]: TELEGRAM_BOT_TOKEN (@BotFather) → docker exec add to
+/root/.hermes/.env → `hermes gateway start`.
