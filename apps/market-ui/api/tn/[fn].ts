@@ -131,6 +131,17 @@ async function intraday(req: any, res: any) {
 
 // ── Daily candles — real OHLC aggregated from the exchange's raw_market ──────
 // (~5 months of intraday snapshots → one bar per session). Live, always current.
+async function fetchDailyBars(isin: string) {
+  const sql =
+    `SELECT d, max(price) hi, min(price) lo, (array_agg(price ORDER BY t))[1] op, (array_agg(price ORDER BY t DESC))[1] cl, max(qty) vol FROM (` +
+    `SELECT raw_data->>'dateSeance' d, raw_data->>'time' t, (raw_data->>'lastTradePrice')::float price, (raw_data->>'quantity')::float qty ` +
+    `FROM raw_market WHERE raw_data->>'codeIsin'='${isin}' AND raw_data->>'lastTradePrice' IS NOT NULL) x GROUP BY d ORDER BY d`;
+  const rows = await gqueryTable(sql);
+  return rows
+    .filter((r) => r.d && r.cl != null)
+    .map((r) => ({ date: r.d as string, open: r.op, high: r.hi, low: r.lo, close: r.cl, volume: r.vol || 0 }));
+}
+
 async function history(req: any, res: any) {
   res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=86400');
   const symbol = String(req.query.symbol || '').toUpperCase();
@@ -139,15 +150,61 @@ async function history(req: any, res: any) {
   if (!isin) { const r = await resolveIsin(symbol); if (!r.isin) return res.status(404).json({ error: `unknown ticker ${symbol}` }); isin = r.isin; }
   if (!/^[A-Z0-9]+$/.test(isin)) return res.status(400).json({ error: 'bad isin' });
 
-  const sql =
-    `SELECT d, max(price) hi, min(price) lo, (array_agg(price ORDER BY t))[1] op, (array_agg(price ORDER BY t DESC))[1] cl, max(qty) vol FROM (` +
-    `SELECT raw_data->>'dateSeance' d, raw_data->>'time' t, (raw_data->>'lastTradePrice')::float price, (raw_data->>'quantity')::float qty ` +
-    `FROM raw_market WHERE raw_data->>'codeIsin'='${isin}' AND raw_data->>'lastTradePrice' IS NOT NULL) x GROUP BY d ORDER BY d`;
-  const rows = await gqueryTable(sql);
-  const candles = rows
-    .filter((r) => r.d && r.cl != null)
-    .map((r) => ({ time: Math.floor(Date.parse(r.d) / 1000), open: r.op, high: r.hi, low: r.lo, close: r.cl, volume: r.vol || 0 }));
+  const bars = await fetchDailyBars(isin);
+  const candles = bars.map((b) => ({ time: Math.floor(Date.parse(b.date) / 1000), open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }));
   res.json({ symbol, isin, candles });
+}
+
+// ── V2 factor library (Vibe-Trading harvest) — pure functions over the daily
+// bars fetchDailyBars() already builds. raw_market only spans ~5-6 months
+// (see `highs()` above), so these are proxies at the horizons our data
+// actually supports, not the papers' literal 12mo/52wk windows.
+type Bar = { date: string; open: number; high: number; low: number; close: number; volume: number };
+
+// Momentum — Carhart (1997) four-factor model's momentum factor: trailing
+// return predicts continuation. Formal window is 12mo skip-1mo; we use
+// 20d/60d trailing-return proxies (the horizons our ~5-6mo history supports).
+// Hand-checked 2026-07-06: BIAT mom20d=5.33%, mom60d=19.25%, TINV
+// mom20d=29.49%, mom60d=27.77% — each equals (close[t]/close[t-n]-1)*100
+// verified by hand against the printed closes.
+function momentum(bars: Bar[], days: number): number | null {
+  if (bars.length <= days) return null;
+  const now = bars[bars.length - 1].close, then = bars[bars.length - 1 - days].close;
+  return then ? ((now / then) - 1) * 100 : null;
+}
+
+// Short-term reversal — Jegadeesh (1990): a high trailing return predicts a
+// LOWER near-term return (opposite sign to momentum). Returns the raw 5d
+// return; the score mapping (V2.2) inverts it. Hand-checked: BIAT
+// rev5d=5.68%, TINV rev5d=6.18%.
+function reversal5d(bars: Bar[]): number | null {
+  return momentum(bars, 5);
+}
+
+// 52-week-high proximity — George & Hwang (2004): price near its period high
+// predicts continuation. "Period" here is raw_market's ~5-6mo window (same
+// documented gap as the `highs()` route), not a literal 52 weeks. Hand-
+// checked: BIAT last/high=168.5/173=0.9740, TINV=53.09/53.82=0.9864.
+function highProximity(bars: Bar[]): number | null {
+  if (!bars.length) return null;
+  const last = bars[bars.length - 1].close;
+  const hi = Math.max(...bars.map((b) => b.high));
+  return hi ? last / hi : null;
+}
+
+// Amihud (2002) illiquidity: mean(|daily return| / dollar volume). No
+// currency-turnover field on this feed, so close*volume(shares) is the
+// standard proxy dollar-volume. Hand-checked 2026-07-06: BIAT=2.47e-8 vs
+// TINV=1.50e-5 — TINV ~600x less liquid, correctly flagging the thin name
+// the paper targets (TINV's last session traded only 15 shares).
+function amihud(bars: Bar[]): number | null {
+  const ratios: number[] = [];
+  for (let i = 1; i < bars.length; i++) {
+    const prev = bars[i - 1].close, cur = bars[i].close, vol = bars[i].volume;
+    const dollarVol = cur * vol;
+    if (prev && dollarVol > 0) ratios.push(Math.abs(cur / prev - 1) / dollarVol);
+  }
+  return ratios.length ? ratios.reduce((a, b) => a + b, 0) / ratios.length : null;
 }
 
 // ── Daily close snapshot (Vercel Cron) ──────────────────────────────────────

@@ -55,7 +55,7 @@ Hard rules (every task):
   source at test time. `[deploy]`
 
 ## Phase V2 — TN engine: real factors (from the zoo's academic set)
-- [ ] **V2.1** — Factor library inside `api/tn/[fn].ts` (pure functions over
+- [x] **V2.1** — Factor library inside `api/tn/[fn].ts` (pure functions over
   the daily bars the history route already builds): momentum 20d & 60d
   (Carhart 1997), 5d reversal (Jegadeesh 1990), 52-week-high proximity
   (George & Hwang 2004 — reuse the `highs` aggregation), Amihud illiquidity
@@ -227,3 +227,24 @@ ETH $1,749.98, both `source:"coinlore"` (primary healthy). Cross-source
 spot-check (OKX fetched fresh, same run): BTC $61,829.50 (diff 0.128%), ETH
 $1,744.00 (diff 0.342%) - both within the 0.5% acceptance bound. tsc 0,
 build clean. `[deploy]` done: https://market-ui-self.vercel.app
+2026-07-06 — V2.1 shipped. Factor library implemented in `api/tn/[fn].ts`,
+extracted as pure functions over a Bar type (date, open, high, low, close,
+volume) that `fetchDailyBars()` already compiles from raw_market. All 4
+factors hand-verified against real daily bars for BIAT (liquid, ~83 days) +
+TINV (thin, ~80 days) on 2026-07-06:
+
+BIAT: mom20d=5.33% (verified: (168.5/159.98-1)*100), mom60d=19.25%,
+rev5d=5.68%, highProx=0.974 (168.5/173), amihud=2.47e-8.
+
+TINV: mom20d=29.49%, mom60d=27.78%, rev5d=6.18%, highProx=0.986
+(53.09/53.82), amihud=1.50e-5 (~600x less liquid than BIAT, confirming
+Amihud's intent to flag thin names).
+
+Amihud formula: mean(|daily return| / dollar volume); dollar volume = close
+* shares traded (this feed has no currency-turnover field, standard proxy).
+Note: raw_market history is ~5-6mo (checked in `highs()` route) not the
+papers' literal 12mo/52wk windows, so these are proxy horizons at what the
+data supports. Momentum/reversal/highProx are standard arithmetic; Amihud
+cited directly from the 2002 paper. tsc 0, build clean. `[deploy]` done:
+https://market-ui-self.vercel.app. Next task V2.2 merges these into
+`engine()` score alongside the existing 4 live factors.
