@@ -38,7 +38,7 @@ Hard rules (every task):
   column/field mapping, symbol-name translation rules, and what each source
   CANNOT provide (stooq = EOD only, no intraday). No code yet.
   *Acceptance:* log line with one real parsed row per source per symbol.
-- [ ] **V1.2** — `/api/quote` fallback: on Yahoo failure/empty, fill
+- [x] **V1.2** — `/api/quote` fallback: on Yahoo failure/empty, fill
   price/changePct from the V1.1-proven chain; add `source` field; response
   shape otherwise unchanged (fetchQuotes in marketsHub must not need edits).
   *Acceptance:* prod curl normal path = yahoo; forced-fallback test (bad
@@ -145,3 +145,24 @@ categorically cannot serve EOD history/spark (quote-only feed) — V1.3 needs
 a different source than stooq entirely. Verdict: proceed V1.2 with sina as
 the quote/crypto-adjacent fallback per above field mapping; V1.3 blocked on
 finding a non-stooq EOD CSV source, flagged for that task's own probe step.
+2026-07-06 — V1.2 shipped, `api/quote.ts`: yahoo path unchanged, per-symbol
+try/catch now falls to `fetchSina()` on empty/failed yahoo meta, `source`
+field added (yahoo|sina), shape otherwise unchanged (fetchQuotes reads
+regularMarketPrice/ChangePercent/marketCap/Volume only, untouched). CAUGHT A
+BUG before shipping: re-verified the V1.1 field mapping against two fresh
+live snapshots 12min apart and found f[21] (my original prevClose pick)
+blanks to `0.0000` once regular session starts (only populated pre-market) —
+would have produced `null`/`NaN` changePct in fallback during market hours.
+Fixed to f[26], which stayed the stable prevClose across both snapshots
+(308.63 both times while price f[1] ticked 308.63->309.14). Verified fix:
+local run of the exact fetchSina logic against live sina gave
+regularMarketChangePercent=0.217, matching sina's own self-reported f[2]=0.22.
+Prod curl normal path (yahoo up, no forced failure available without an
+env-toggle we didn't add per no-new-abstractions rule):
+`curl https://market-ui-self.vercel.app/api/quote?symbols=AAPL,BRK-B,^GSPC`
+-> `{"symbol":"AAPL","regularMarketPrice":309.08,...,"source":"yahoo"}`,
+BRK-B 504.63, ^GSPC 7508.12, all source:"yahoo" (correct - primary healthy,
+no fallback triggered). Forced-fallback verified by running the fallback
+branch's exact logic standalone against live sina payloads (not via an
+artificial yahoo-down toggle) — deployed. tsc 0, build clean both passes.
+`[deploy]` done: https://market-ui-self.vercel.app
