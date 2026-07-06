@@ -1,0 +1,7 @@
+{
+ "date": "2026-07-06",
+ "accuracy": 100.0,
+ "passed": 30,
+ "total": 30,
+ "note": "DeepSeek stand-in LM \u2014 GOOGLE_API_KEY (Gemini, the real Dexter model) is dead"
+}

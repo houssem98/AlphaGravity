@@ -103,7 +103,7 @@ Hard rules (every task):
   *Acceptance:* first deep-dive live; spot-check 3 numbers vs endpoints.
 
 ## Phase H5 — Assistant quality loop
-- [ ] **H5.1** — Eval set for the TN Assistant: 30 real TN questions
+- [x] **H5.1** — Eval set for the TN Assistant: 30 real TN questions
   (prices, ratios, comparisons, "when is the session open") with
   endpoint-derivable gold answers.
   *Acceptance:* baseline accuracy % measured and logged.
