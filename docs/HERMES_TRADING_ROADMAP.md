@@ -61,7 +61,7 @@ Hard rules (every task):
   *Acceptance:* one drift report with both sources' real numbers side by side.
 
 ## Phase H2 — Close the C5 open question (live bid/ask semantics)
-- [ ] **H2.1** — `bvmt-live-book` skill + cron Mon 09:30 Tunis: capture raw
+- [x] **H2.1** — `bvmt-live-book` skill + cron Mon 09:30 Tunis: capture raw
   `groups` payload DURING the live session, record limit.bid/limit.ask vs
   trades for 5 liquid names (BIAT, SFBT, AB, TINV, DELICE), decide which raw
   field is the true bid (evidence: which side do executions cross?).
@@ -205,3 +205,15 @@ both sources side by side, same run: TUNINDEX ours=19755.5 vs TSE-Grafana
 Binance-spot=62780.13 drift 0.145%; ETH 1764.03 vs 1762.48 drift 0.088%
 (crypto limit 1.5% — aggregator lag documented). Exit 0. Gotcha fixed:
 Binance 400s on unknown params → cache-buster nonce only on our endpoints.
+2026-07-06 H2.1 — LIVE session capture (Mon 10:24+10:26 Tunis, 2 payloads
+52KB archived agents/hermes/captures/). VERDICT: BVMT raw fields are SWAPPED —
+`limit.bid` holds the best ASK (higher), `limit.ask` holds the best BID
+(lower). Evidence: 60/67 two-sided books show raw bid>ask in continuous
+trading (impossible for real books; 2 outliers, 5 locked); all 5 liquid names
+agree (BIAT 168.7>168.1, SFBT 14.4>14.38, AB 86.0>85.8, DH 19.92>19.81, TINV
+locked 52.29); between captures, executions confirm: BIAT +5sh printed at
+168.1 = raw limit.ask = real BID (seller hit), SFBT +116sh at 14.4 = raw
+limit.bid = real ASK (buyer lifted), AB book stepped down 85.8/85.61 after
+sells at 85.8. Our book() invariant mapping (lower=bid) is CORRECT. Cron
+bvmt-live-book Mon 09:30 Tunis armed (next 2026-07-13). C5 open question
+CLOSED → H2.2 PR next.
