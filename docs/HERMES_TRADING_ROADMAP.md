@@ -14,8 +14,9 @@ Architecture stance (from 2026-07-06 research, see Progress log):
 - Its learning loop (skill creation after tasks, 3-layer memory, FTS5
   recall) turns every incident/report into a reusable skill → the watchdog
   gets sharper the longer it runs.
-- `hermes-agent-self-evolution` (DSPy + GEPA, $2–10/run, PR-gated) evolves
-  our prompts/skills against eval sets from real traces.
+- `hermes-agent-self-evolution` (DSPy + GEPA, eval-gated, PR-routed) evolves
+  Hermes's own SKILL.md files (Phase 1 — the only implemented phase); for OUR
+  prompts we use the DSPy+GEPA libraries directly (see H3.2).
 
 Hard rules (every task):
 1. **Grounding**: Hermes skills may only report numbers obtained by curling
@@ -75,10 +76,13 @@ Hard rules (every task):
   cases (ticker, PDF url, expected NI/EPS or reject) in a blob/repo fixture.
   *Acceptance:* eval harness replays tn_fundamentals.py extraction on 5
   sampled cases and scores them.
-- [ ] **H3.2** — Self-evolution run (DSPy+GEPA) on the extraction prompt;
-  gate = no regression on the 42, STPIL either extracts plausibly or stays
-  rejected-for-cause. PR the evolved prompt.
-  *Acceptance:* run report (cost, candidates, winner delta) + PR.
+- [ ] **H3.2** — Evolve the extraction prompt with **raw DSPy + GEPA
+  libraries** (NOT hermes-agent-self-evolution — its implemented Phase 1
+  only evolves Hermes's own SKILL.md files and PRs against the hermes-agent
+  repo; arbitrary-prompt/system-prompt/code evolution is upstream Phase 2–4
+  PLANNED). We write the harness: eval = H3.1 set, gate = no regression on
+  the 42, STPIL extracts plausibly or stays rejected-for-cause.
+  *Acceptance:* run report (candidates, winner delta) + PR.
 - [ ] **H3.3** — `agm-dividends` skill: monitor BVMT/TSE publications for AGM
   dividend declarations (the data statements can't provide), extract DPS,
   propose blob update. Human confirms before upload.
@@ -103,8 +107,10 @@ Hard rules (every task):
   (prices, ratios, comparisons, "when is the session open") with
   endpoint-derivable gold answers.
   *Acceptance:* baseline accuracy % measured and logged.
-- [ ] **H5.2** — GEPA run on the Assistant system prompt; gate = eval
-  accuracy strictly up, no grounding violations. PR.
+- [ ] **H5.2** — GEPA run on the Assistant system prompt via the same raw
+  DSPy+GEPA harness as H3.2 (see H3.2 caveat — not an out-of-box
+  hermes-agent-self-evolution capability); gate = eval accuracy strictly up,
+  no grounding violations. PR.
   *Acceptance:* before/after accuracy with real percentages; PR merged.
 
 ## Phase H6 — Owner copilot (premium desk, optional)
@@ -130,8 +136,19 @@ whole thing measurably improves itself month over month via skills + GEPA PRs.
 
 ## Progress log
 <!-- YYYY-MM-DD Hx.y — what — verify numbers -->
-2026-07-06 — Research base: hermes-agent (MIT, Python 3.11+, model-agnostic
-custom base URL OK, skills in ~/.hermes/skills agentskills.io format, NL cron,
-Telegram/Discord/Slack gateways, Docker/VPS/Modal deploy); self-evolution =
-DSPy+GEPA, PR-gated, $2–10/run, no GPU. Live-probed our stack same day:
-11/12 Vercel fns used; fundamentals coverage 42; book crossed=0.
+2026-07-06 — Research base, VERIFIED via GitHub API + raw READMEs (not blog
+claims): NousResearch/hermes-agent — 209,797 stars, created 2025-07-22, MIT,
+Python; README confirms: any provider/own endpoint + `hermes model` switch,
+single gateway (Telegram/Discord/Slack/WhatsApp/Signal), NL cron scheduler,
+autonomous skill creation + skills self-improve + FTS5 recall + Honcho +
+agentskills.io, ~/.hermes/skills/, terminal backends local/Docker/SSH/
+Singularity/Modal/Daytona (idle hibernation), $5 VPS. self-evolution repo
+(4,528 stars, created 2026-03-09): DSPy+GEPA, eval-gated, PRs against
+hermes-agent; **Phase 1 implemented = SKILL.md only; tool-desc/system-prompt/
+code evolution = Phases 2–4 PLANNED** → H3.2/H5.2 use raw DSPy+GEPA directly.
+RETRACTED as unverified/SEO-slop: "released Feb 2026", "$2–10/run",
+"60% faster after 30 days", "118 skills", hermes-ai.net as official domain
+(real docs: hermes-agent.nousresearch.com). DeepSeek not explicitly listed —
+reachable via own-endpoint/OpenRouter, verify in H0.1.
+Live-probed our stack same day: 11/12 Vercel fns used; fundamentals
+coverage 42; book crossed=0.
