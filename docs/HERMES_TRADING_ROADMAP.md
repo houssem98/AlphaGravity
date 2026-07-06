@@ -76,7 +76,7 @@ Hard rules (every task):
   cases (ticker, PDF url, expected NI/EPS or reject) in a blob/repo fixture.
   *Acceptance:* eval harness replays tn_fundamentals.py extraction on 5
   sampled cases and scores them.
-- [ ] **H3.2** — Evolve the extraction prompt with **raw DSPy + GEPA
+- [x] **H3.2** — Evolve the extraction prompt with **raw DSPy + GEPA
   libraries** (NOT hermes-agent-self-evolution — its implemented Phase 1
   only evolves Hermes's own SKILL.md files and PRs against the hermes-agent
   repo; arbitrary-prompt/system-prompt/code evolution is upstream Phase 2–4
@@ -205,6 +205,14 @@ catch-up after Docker Desktop crash+revive; fired 14:29:41+01:00, job ok):
 highs 82/0, fundamentals 42/0, index ours=19828.2 vs TSE 19828.2 drift
 0.000%, snapshot séance 2026-07-06. Archived in box:
 cron/output/ecf271bda33a/2026-07-06_14-29-41.md. Run#2 = Tue 09:20 Tunis.
+2026-07-06 H3.2 — GEPA run DONE (dspy 3.2.1, task LM deepseek-chat,
+reflection deepseek-reasoner, budget 420): baseline 97.78 (44/45) → delta 0,
+gate PASS. Root-caused the 1 miss: BL latest PDF image-only (0-char excerpt,
+STPIL class) — no prompt fixes absent input; fixture corrected (BL→reject-
+for-cause), corrected set 45/45=100%. Verdict: prod extraction prompt already
+optimal on replayable signal; coverage lever = OCR/AGM (H3.3), not prompt.
+STPIL metric encodes anti-hallucination: empty excerpt → null only. PR #4:
+https://github.com/houssem98/antigravity/pull/4 (harness+fixture+report).
 2026-07-06 H1.3 — tn-drift skill LIVE (box + agents/hermes/). Drift report,
 both sources side by side, same run: TUNINDEX ours=19755.5 vs TSE-Grafana
 =19755.5 drift 0.000% (limit 0.5%); BTC ours(Coinlore)=62871.39 vs
