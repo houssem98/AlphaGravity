@@ -199,6 +199,12 @@ from committed image (sha256:52952dd4) with `hermes gateway` as PID-1,
 restart=unless-stopped; cron status: 2 active jobs, next run
 2026-07-06T14:20+01:00. Acceptance pends 2 unattended runs (today 14:20 +
 tomorrow 09:20 Tunis) — verify on later loop wake.
+2026-07-06 H1.2 RUN#1 — scheduled close-run fired UNATTENDED (scheduler
+catch-up after Docker Desktop crash+revive; fired 14:29:41+01:00, job ok):
+7/7 ALL GREEN — markets 75/0/7, intraday 24 candles 0 OOB, history 83,
+highs 82/0, fundamentals 42/0, index ours=19828.2 vs TSE 19828.2 drift
+0.000%, snapshot séance 2026-07-06. Archived in box:
+cron/output/ecf271bda33a/2026-07-06_14-29-41.md. Run#2 = Tue 09:20 Tunis.
 2026-07-06 H1.3 — tn-drift skill LIVE (box + agents/hermes/). Drift report,
 both sources side by side, same run: TUNINDEX ours=19755.5 vs TSE-Grafana
 =19755.5 drift 0.000% (limit 0.5%); BTC ours(Coinlore)=62871.39 vs
