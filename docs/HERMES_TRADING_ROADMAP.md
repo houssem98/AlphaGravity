@@ -221,6 +221,14 @@ Proposals in agents/hermes/scripts/agm_dividends_proposals.json, NOT uploaded
 (human confirms; *ECYCL pay-date needs review). Weekly cron Mon 15:00 Tunis
 armed in box (fires today 15:00). BL/STPIL post-AGO PDFs also image-only —
 consistent w/ H3.2 root cause.
+2026-07-06 H4.1 SETUP (brief#1/3) — tn_daily_brief.py LIVE: fetched
+markets(75)/index/highs/engine from prod, computed breadth 23 advancers/26
+decliners/10 unchanged of 69 traded, top gainer TGH +3.89%, top loser STPIL
+-5.98%, TUNINDEX 19828.2 (-0.04%), engine standout TGH score=56 neutral.
+DeepSeek wrote grounded paragraph (facts-only prompt), stored to
+market-data/tn_brief.json entries['2026-07-06'] (HTTP 200, 1 entry). Cron
+armed Mon-Fri 14:30 Tunis (next 2026-07-07). Acceptance needs 3 consecutive
+days — checkbox stays open until brief#3 lands.
 2026-07-06 H1.3 — tn-drift skill LIVE (box + agents/hermes/). Drift report,
 both sources side by side, same run: TUNINDEX ours=19755.5 vs TSE-Grafana
 =19755.5 drift 0.000% (limit 0.5%); BTC ours(Coinlore)=62871.39 vs
