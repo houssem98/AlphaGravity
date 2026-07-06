@@ -85,7 +85,7 @@ Hard rules (every task):
   NOT fixed by composition (that's gravity-api work).
 
 ## Phase V4 — Sidecar evaluation (timeboxed, decision not adoption)
-- [ ] **V4.1** — 1-day eval: `pip install vibe-trading-ai`, Docker serve with
+- [x] **V4.1** — 1-day eval: `pip install vibe-trading-ai`, Docker serve with
   DEEPSEEK key, run one swarm preset + one alpha bench on a US ticker;
   measure latency/cost/output quality; verdict ADOPT-AS-SIDECAR / HARVEST-
   MORE-PATTERNS / DROP with real numbers.
@@ -321,3 +321,43 @@ $130.50B) fed a proportionally richer debate. Facts completeness = gravity-
 api work; committee adds structure (rebuttal, risk sign-off, decision), not
 facts. Side-by-side artifact:
 https://claude.ai/code/artifact/1d9cc53f-ddab-476b-b514-1f8809e2f5fb
+2026-07-06 — V4.1 done. VERDICT: **HARVEST-MORE-PATTERNS** (not
+adopt-as-sidecar, not drop). Evidence, all real runs on this machine:
+INSTALL: `pip install vibe-trading-ai` (v0.1.10) FAILED in the deep
+scratchpad venv — Windows 260-char path limit on ccxt's dydx proto files
+("OSError: No such file or directory ...ccxt\\static_dependencies\\
+dydx_v4_client\\...pb2.py", pip hints enable-long-paths) — succeeded in a
+short-path venv at C:\tmp\vibe-venv. DEVIATION from task text: no Docker
+serve — the CLI runs the identical engine locally (`serve` exists; Docker
+adds nothing to a capability eval) with DeepSeek wired via OpenAI-compat
+env (OPENAI_BASE_URL=https://api.deepseek.com, LANGCHAIN_MODEL_NAME=
+deepseek-chat; langchain-deepseek not needed). Gotcha: `--swarm-run` vars
+must be ONE JSON arg ('{"market":"US","target":"NVDA"}'); `market=US`
+style fails with a cryptic "Invalid JSON" (cli/_legacy.py:2081 json.loads).
+ALPHA BENCH (no LLM): `alpha bench --zoo academic --universe sp500
+--period 2024-2025` → 6 alphas, 7m11s wall, real cross-sectional ICs.
+Only academic_carhart_mom is ALIVE: IC mean 0.0293, IR 0.126, IC+ 59.4%
+(N=249). cma IR 0.036; mkt_rf/rmw/smb/hml all NEGATIVE IR (-0.06..-0.11,
+"dead" per their own categorizer). Independently validates V2.2 giving
+trend (Carhart) the heaviest engine weight — and shows the other academic
+factors aren't worth harvesting on US large caps at this horizon. Their
+fundamentals factors are price/volume proxies (nicknames literally say
+"[PRICE PROXY]"), same compromise our TN engine makes.
+SWARM (`investment_committee`, NVDA, DeepSeek): completed 9m39s,
+1,237,827 tokens (in 1,180,812 / out 57,015) ≈ $0.38 upper bound at
+DeepSeek cache-miss pricing. Workers pulled live data themselves (NVDA
+$195.55, 2026-07-06; Apr-2026 quarter rev $81.6B cited in the ruling).
+Output quality HIGH: PM issued "ACTION: BUY — small tactical long 2.0% of
+NAV", hard stop $185, hedged into earnings, plus a per-claim adjudication
+table (e.g. bull's 15.3x fwd P/E "PARTIALLY ADOPTED — fair is 20-22x").
+Their DAG runs bull∥bear PARALLEL (inspect shows layer 1 both) — our V3.1
+port is a STRICTER debate (bear quotes+rebuts bull) than what Vibe ships.
+VERDICT RATIONALE: as a live sidecar it's 15-18x slower (9m39s vs our
+34-43s committee) and ~40x costlier per verdict ($0.38 vs ~$0.01), plus a
+LangGraph/FastAPI stack to babysit — not worth serving. But two patterns
+are worth harvesting into V3.1's prompts: (1) the PM's per-claim
+adjudication table (ADOPT/REJECT/PARTIAL per argument — richer than our
+single DECISION line), (2) NAV-percent sizing + hard stop in the verdict
+format. Alpha zoos beyond academic (gtja191/qlib158, 446 more) only
+become harvestable if we build a backtest engine — parked. Nothing
+deployed (acceptance ✓).
