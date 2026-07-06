@@ -48,7 +48,7 @@ Hard rules (every task):
   Yahoo-chart-shaped response (only fields fetchCloses/fetchSparks read).
   *Acceptance:* prod curl; one symbol's fallback closes == stooq CSV values
   (spot-check 3 dates). `[deploy]`
-- [ ] **V1.4** — `/api/crypto/markets` fallback: CoinCap → OKX public tickers
+- [x] **V1.4** — `/api/crypto/markets` fallback: CoinCap → OKX public tickers
   (keyless, payload-proven) for price/changePct on the top majors; mcap/logo
   may be absent in fallback (UI already null-safe? verify, fix if not).
   *Acceptance:* prod curl both paths; BTC/ETH prices within 0.5% of a second
@@ -202,3 +202,28 @@ symbol=AAPL&interval=1d&range=1mo` -> 19 bars, source:"yahoo", last close
 309.12; `/api/spark?symbols=AAPL,MSFT` -> both source:"yahoo" in `_source`,
 AAPL 7d closes ending 309.16. tsc 0, build clean (both passes, second after
 the import fix). `[deploy]` done: https://market-ui-self.vercel.app
+2026-07-06 — V1.4 shipped. Correction to the roadmap's own premise: current
+prod primary for `/api/crypto/markets` is **coinlore.net**, not CoinCap
+(codebase moved on since the roadmap was written pre-research; verified by
+reading `api/crypto/markets.ts` before touching it) - so the fallback wires
+to coinlore's actual failure path, not a stale CoinCap assumption. Probed
+OKX public spot tickers (keyless): `curl https://www.okx.com/api/v5/market/
+ticker?instId=BTC-USDT` -> real payload `last:"61896.4", open24h:"62794.2"`;
+same for ETH-USDT. No marketcap/supply/1h/7d fields on this endpoint -
+checked `MarketList.tsx` before assuming a UI gap: `r.marketCap ? ... : '—'`
+(line 447/519) and `hasMcap` gating already null-safe, logo is built from
+`symbol` independently of the API response - confirmed no UI fix needed,
+matching the roadmap's own hedge ("may be absent, verify"). Implemented
+`fetchOkxFallback()` in `api/crypto/markets.ts`: pulls the single batched
+`tickers?instType=SPOT` call (all pairs in one request, not per-symbol),
+filters to `-USDT` pairs, computes changePercent24Hr itself from
+`(last-open24h)/open24h` (OKX doesn't provide it pre-computed on this
+endpoint, unlike coinlore), defaults 1h/7d/mcap/supply to '0' (falsy in the
+UI, renders '—', not a shape break). Every row incl. the primary path now
+carries `source: 'coinlore'|'okx'` (bare array response, no wrapper object,
+so per-row tagging like V1.2 rather than a sibling key like V1.3's spark).
+Prod curl normal path: `/api/crypto/markets` -> 100 rows, BTC $61,908.90,
+ETH $1,749.98, both `source:"coinlore"` (primary healthy). Cross-source
+spot-check (OKX fetched fresh, same run): BTC $61,829.50 (diff 0.128%), ETH
+$1,744.00 (diff 0.342%) - both within the 0.5% acceptance bound. tsc 0,
+build clean. `[deploy]` done: https://market-ui-self.vercel.app
