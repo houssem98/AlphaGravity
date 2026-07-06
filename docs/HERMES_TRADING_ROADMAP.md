@@ -72,7 +72,7 @@ Hard rules (every task):
   *Acceptance:* PR with payload evidence linked; human merge.
 
 ## Phase H3 — Fundamentals accuracy flywheel
-- [ ] **H3.1** — Eval set: 42 accepted + 4 rejected extractions as labeled
+- [x] **H3.1** — Eval set: 42 accepted + 4 rejected extractions as labeled
   cases (ticker, PDF url, expected NI/EPS or reject) in a blob/repo fixture.
   *Acceptance:* eval harness replays tn_fundamentals.py extraction on 5
   sampled cases and scores them.
@@ -222,3 +222,11 @@ roadmap/world-class): [fn].ts book() comment rewritten OPEN QUESTION→RESOLVED
 with payload evidence linked (captures + numbers). tsc 0 errors,
 comment-only, no deploy needed. AWAITS HUMAN MERGE:
 https://github.com/houssem98/antigravity/pull/3
+2026-07-06 H3.1 — eval set BUILT: agents/hermes/eval/tn_fundamentals_cases
+.json = 42 accept (ticker+PDF url+expected NI/EPS/FY from live blob) + 4
+PROBED rejects (STPIL no-plausible-scale raw=123456; BTE loss -9,900; TAIR
+loss -282,710; UADH no PDF — each verdict from a real replay, not assumed).
+Harness eval_fundamentals.py imports tn_fundamentals.py functions, replays
+extraction without blob writes, scores NI±2%+FY match / reject-must-reject.
+Run --run 5 (seed 42): PASS UIB NI=100,835,000 FY2025; ATL 25,450,173; AL
+29,833,264; HL 8,519,764; BTE re-rejected → SCORE 5/5.
