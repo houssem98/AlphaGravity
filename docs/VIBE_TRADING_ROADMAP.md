@@ -44,7 +44,7 @@ Hard rules (every task):
   *Acceptance:* prod curl normal path = yahoo; forced-fallback test (bad
   Yahoo host env or mock) serves fallback values matching source payloads.
   `[deploy]`
-- [ ] **V1.3** — `/api/history` + `/api/spark` fallback: stooq daily CSV →
+- [x] **V1.3** — `/api/history` + `/api/spark` fallback: stooq daily CSV →
   Yahoo-chart-shaped response (only fields fetchCloses/fetchSparks read).
   *Acceptance:* prod curl; one symbol's fallback closes == stooq CSV values
   (spot-check 3 dates). `[deploy]`
@@ -166,3 +166,39 @@ no fallback triggered). Forced-fallback verified by running the fallback
 branch's exact logic standalone against live sina payloads (not via an
 artificial yahoo-down toggle) — deployed. tsc 0, build clean both passes.
 `[deploy]` done: https://market-ui-self.vercel.app
+2026-07-06 — V1.3 shipped. Probed a real EOD history source since stooq is
+dead (V1.1): `http://stock.finance.sina.com.cn/usstock/api/json_v2.php/
+US_MinKService.getDailyK?symbol=aapl` -> real JSON array of
+`{d,o,h,l,c,v,a}` daily bars, 9,981 rows back to 1984-09-07, fresh through
+2026-07-02 (close 308.63, matches V1.2's live quote prevClose exactly -
+cross-source consistency check passed). Symbol format for this endpoint is
+its OWN scheme, different from V1.2's gb_ feed: dash->dot, no prefix
+(`brk-b`->`brk.b`; `brkb`/`brk_b` both return empty `[]`, confirmed by
+probing all three). Indices (`^GSPC` etc.) return empty `[]` on this
+endpoint - no history/spark fallback for indices, documented and left as a
+gap (shadow-safe no-op, same as V1.1's ^RUT gap). Extracted shared
+`api/_sina.ts` (underscore prefix = not a Vercel route, doesn't count
+against the 12-fn cap - both history.ts and spark.ts need the identical
+daily-bars fetch). `history.ts`: yahoo path now checks for non-empty closes
+before returning (previously blind passthrough); on empty/failure + daily
+interval only (sina has no intraday, same gap stooq had), shapes sina bars
+into the exact yahoo-chart shape Chart.tsx/Assistant.tsx read
+(`chart.result[0].timestamp` + `indicators.quote[0].{open,high,low,close,
+volume}`), sliced to an approximate trading-day count per requested range.
+`spark.ts`: per-symbol gap-fill - any symbol missing from yahoo's batch
+result gets its last 7 sina closes; added `_source` sibling key (symbol->
+yahoo|sina, never collides with a real ticker) alongside the existing
+`{symbol: number[]}` shape. BUG CAUGHT during Vercel build (not local tsc,
+which only checks tsconfig.app.json and doesn't cover api/): relative import
+`from './_sina'` failed under Vercel's node16 module resolution
+(`TS2835: Relative import paths need explicit file extensions`) - fixed to
+`'./_sina.js'` in both files, redeployed clean. Verified fallback shaping
+by running the exact `fallbackHistory()` logic standalone against live sina
+for BRK-B (the roadmap's own edge case, and unlike V1.2 it's NOT dead on
+this endpoint): spot-checked 3 dates, all exact matches vs raw sina payload
+(2026-06-30 500.39, 2026-07-01 499.74, 2026-07-02 507.78); spark's 7-close
+slice for BRK-B also verified. Prod curl normal path: `/api/history?
+symbol=AAPL&interval=1d&range=1mo` -> 19 bars, source:"yahoo", last close
+309.12; `/api/spark?symbols=AAPL,MSFT` -> both source:"yahoo" in `_source`,
+AAPL 7d closes ending 309.16. tsc 0, build clean (both passes, second after
+the import fix). `[deploy]` done: https://market-ui-self.vercel.app
