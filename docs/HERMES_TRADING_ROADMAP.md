@@ -152,3 +152,15 @@ RETRACTED as unverified/SEO-slop: "released Feb 2026", "$2–10/run",
 reachable via own-endpoint/OpenRouter, verify in H0.1.
 Live-probed our stack same day: 11/12 Vercel fns used; fundamentals
 coverage 42; book crossed=0.
+2026-07-06 H0.1 PARTIAL — DeepSeek PROVEN as provider two ways: (1) raw
+chat/completions returned "HERMES-H01-OK", model=deepseek-v4-flash, 22 tokens,
+id 8eb93254; (2) end-to-end agent run `hermes -z` returned
+"HERMES-H01-DAEMON-OK" on existing local install (Hermes v0.14.0, home
+~/.hermes, user redirected: reuse local install, not fresh Docker box).
+`hermes config set model.provider deepseek` + model.default=deepseek-chat;
+`hermes status` shows Provider: DeepSeek, key sk-8...a078 ✓. Repo verified via
+GitHub API (pushed 2026-07-06T08:17Z, MIT, not archived). flyctl authed
+(candidate always-on host); Modal absent. REMAINING for [x]: TELEGRAM_BOT_TOKEN
+(user: create bot via @BotFather, put token in ~/.hermes/.env) → then
+`hermes gateway start` + reboot persistence; NOTE dev machine is NOT the
+sandboxed no-creds box the acceptance wants — final home should be Fly/VPS.
