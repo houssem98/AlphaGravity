@@ -1,0 +1,74 @@
+[
+ {
+  "ticker": "AL",
+  "dividend": 8.9,
+  "fiscalYear": 2025,
+  "paymentDate": null,
+  "source": "https://tunis-stockexchange.com/sites/default/files/2026-07/AIR%20LIQUIDE%20TUNISIE%20POST%20AGO%202026.pdf",
+  "publication": "https://tunis-stockexchange.com/node/90963",
+  "pubDate": "2026-07-06"
+ },
+ {
+  "ticker": "DH",
+  "dividend": 0.55,
+  "fiscalYear": 2025,
+  "paymentDate": null,
+  "source": "https://tunis-stockexchange.com/sites/default/files/2026-06/DH%20POST%20AGO%202026.pdf",
+  "publication": "https://tunis-stockexchange.com/node/90840",
+  "pubDate": "2026-06-23"
+ },
+ {
+  "ticker": "ECYCL",
+  "dividend": 0.7,
+  "fiscalYear": 2025,
+  "paymentDate": "2025-08-27",
+  "source": "https://tunis-stockexchange.com/sites/default/files/2026-06/EURO-CYCLES%20Informations%20Post%20AGO%202025%20du%2018-06-2026%20EURO-CYCLES%20S.pdf",
+  "publication": "https://tunis-stockexchange.com/node/90841",
+  "pubDate": "2026-06-23"
+ },
+ {
+  "ticker": "SOTET",
+  "dividend": 0.6,
+  "fiscalYear": 2025,
+  "paymentDate": "2026-09-11",
+  "source": "https://tunis-stockexchange.com/sites/default/files/2026-06/SOTETEL%20POST%20AGO%202026.pdf",
+  "publication": "https://tunis-stockexchange.com/node/90842",
+  "pubDate": "2026-06-23"
+ },
+ {
+  "ticker": "AST",
+  "dividend": 3,
+  "fiscalYear": 2025,
+  "paymentDate": "2026-07-01",
+  "source": "https://tunis-stockexchange.com/sites/default/files/2026-06/ASTREE%20POST%20AGO%202026.pdf",
+  "publication": "https://tunis-stockexchange.com/node/90760",
+  "pubDate": "2026-06-15"
+ },
+ {
+  "ticker": "BNA",
+  "dividend": 1.15,
+  "fiscalYear": 2025,
+  "paymentDate": "2026-06-17",
+  "source": "https://tunis-stockexchange.com/sites/default/files/2026-06/BNA%20AGO%202026.pdf",
+  "publication": "https://tunis-stockexchange.com/node/90616",
+  "pubDate": "2026-06-02"
+ },
+ {
+  "ticker": "UIB",
+  "dividend": 1,
+  "fiscalYear": 2025,
+  "paymentDate": null,
+  "source": "https://tunis-stockexchange.com/sites/default/files/2026-05/UIB-%20Publication%20POST%20AGO%20du%2030-04-2026.pdf",
+  "publication": "https://tunis-stockexchange.com/node/90404",
+  "pubDate": "2026-06-01"
+ },
+ {
+  "ticker": "SFBT",
+  "dividend": 0.88,
+  "fiscalYear": 2025,
+  "paymentDate": null,
+  "source": "https://tunis-stockexchange.com/sites/default/files/2026-06/SFBT%20POST%20AGO%202026.%20.pdf",
+  "publication": "https://tunis-stockexchange.com/node/90607",
+  "pubDate": "2026-06-01"
+ }
+]

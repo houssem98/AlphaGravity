@@ -83,7 +83,7 @@ Hard rules (every task):
   PLANNED). We write the harness: eval = H3.1 set, gate = no regression on
   the 42, STPIL extracts plausibly or stays rejected-for-cause.
   *Acceptance:* run report (candidates, winner delta) + PR.
-- [ ] **H3.3** — `agm-dividends` skill: monitor BVMT/TSE publications for AGM
+- [x] **H3.3** — `agm-dividends` skill: monitor BVMT/TSE publications for AGM
   dividend declarations (the data statements can't provide), extract DPS,
   propose blob update. Human confirms before upload.
   *Acceptance:* ≥3 real declared dividends captured with source links.
@@ -213,6 +213,14 @@ for-cause), corrected set 45/45=100%. Verdict: prod extraction prompt already
 optimal on replayable signal; coverage lever = OCR/AGM (H3.3), not prompt.
 STPIL metric encodes anti-hallucination: empty excerpt → null only. PR #4:
 https://github.com/houssem98/antigravity/pull/4 (harness+fixture+report).
+2026-07-06 H3.3 — agm-dividends skill LIVE: scanned 15 latest post-AGO pubs,
+captured 8 REAL declared dividends (need ≥3) w/ TSE source PDFs: AL 8.9,
+DH 0.55, ECYCL 0.7 (pay 2025-08-27*), SOTET 0.6 (pay 2026-09-11), AST 3.0
+(pay 2026-07-01), BNA 1.15 (pay 2026-06-17), UIB 1.0, SFBT 0.88 — all FY2025.
+Proposals in agents/hermes/scripts/agm_dividends_proposals.json, NOT uploaded
+(human confirms; *ECYCL pay-date needs review). Weekly cron Mon 15:00 Tunis
+armed in box (fires today 15:00). BL/STPIL post-AGO PDFs also image-only —
+consistent w/ H3.2 root cause.
 2026-07-06 H1.3 — tn-drift skill LIVE (box + agents/hermes/). Drift report,
 both sources side by side, same run: TUNINDEX ours=19755.5 vs TSE-Grafana
 =19755.5 drift 0.000% (limit 0.5%); BTC ours(Coinlore)=62871.39 vs
