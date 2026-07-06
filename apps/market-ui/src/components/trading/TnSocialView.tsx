@@ -7,7 +7,10 @@ interface EngineData {
   score: number; label: 'bullish' | 'bearish' | 'neutral';
   factors: Record<string, { score: number; detail: string }>;
 }
-const FACTOR_LABELS: Record<string, string> = { momentum: 'Momentum', volume: 'Volume', news: 'News tone', liquidity: 'Liquidity' };
+const FACTOR_LABELS: Record<string, string> = {
+  momentum: 'Momentum', volume: 'Volume', news: 'News tone', liquidity: 'Liquidity',
+  trend: 'Trend', reversal: 'Reversal', nearHigh: 'Near high', illiquidity: 'Illiquidity',
+};
 
 const EngineCard: React.FC<{ asset: string }> = ({ asset }) => {
   const [data, setData] = useState<EngineData | null>(null);
@@ -40,7 +43,7 @@ const EngineCard: React.FC<{ asset: string }> = ({ asset }) => {
             <Gauge className="w-3 h-3 text-[#5A6478]" />
             <span className="text-[11px] font-bold text-white">Engine Score</span>
           </div>
-          <span className="text-[10px] capitalize" style={{ color }}>{data.label} · 4 factors</span>
+          <span className="text-[10px] capitalize" style={{ color }}>{data.label} · {Object.keys(data.factors).length} factors</span>
         </div>
         <span className="text-[10px] text-[#5A6478] group-hover:text-white">{open ? '−' : '+'}</span>
       </button>

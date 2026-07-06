@@ -63,7 +63,7 @@ Hard rules (every task):
   Hand-check each on BIAT + one thin name (TINV) against manual calc.
   *Acceptance:* log the hand-checked values (factor, symbol, expected vs
   computed, equal).
-- [ ] **V2.2** — Blend into `engine()`: keep existing 4 live factors, add the
+- [x] **V2.2** — Blend into `engine()`: keep existing 4 live factors, add the
   4 historical factors; new weights documented in the response; factor
   breakdown extended so the UI card lists all 8 with per-factor detail
   strings. Deterministic, no LLM.
@@ -248,3 +248,28 @@ data supports. Momentum/reversal/highProx are standard arithmetic; Amihud
 cited directly from the 2002 paper. tsc 0, build clean. `[deploy]` done:
 https://market-ui-self.vercel.app. Next task V2.2 merges these into
 `engine()` score alongside the existing 4 live factors.
+2026-07-06 — V2.2 shipped. `engine()` now blends 8 factors: 4 live (day
+momentum, volume percentile, news tone, spread liquidity) + 4 historical from
+the V2.1 library, computed off `fetchDailyBars(isin)` (extra Grafana query,
+engine cached s-maxage=900; try/catch -> factors stay neutral 50 with
+"insufficient history" detail if raw_market unreachable). Score mappings
+(documented in code next to each): trend = avg of ±20%-scaled 20d and
+±30%-scaled 60d trailing returns (Carhart); reversal INVERTED per Jegadeesh
+(±8% -> 100..0); nearHigh linear 0.8..1.0 -> 0..100 (George & Hwang); Amihud
+log-scale 1e-8..1e-4 -> 100..0. New weights in response: momentum .15,
+volume .10, news .15, liquidity .10, trend .20, reversal .10, nearHigh .10,
+illiquidity .10 (sums 1.0; trend heaviest = best-documented factor). Renamed
+engine-local `const momentum` -> `momentumScore` (was about to shadow the
+V2.1 `momentum()` fn — TDZ crash if left). UI: EngineCard already iterates
+factors generically; added 4 FACTOR_LABELS + "4 factors" -> dynamic count.
+Prod curl acceptance (2026-07-06): BIAT score=66 bullish, 8 factors, trend
+"+5.3% 20d / +19.2% 60d" (=V2.1 hand-check 5.33/19.25), reversal 14
+"+5.7% 5d trailing (inverted)", nearHigh 87 "97.4% of period high",
+illiquidity 90 "Amihud 2.47e-8" (exact V2.1 value). TINV score=55 neutral,
+trend 98 "+29.5% 20d / +27.8% 60d", reversal 11, nearHigh 93 "98.6%",
+illiquidity 21 "Amihud 1.50e-5" (exact) — thin-name penalty visible in
+composite as intended. OBSERVED pre-existing bug (not V2.2, not fixed):
+TINV live-book spread detail prints "167084275.94% spread" — BVMT limit
+payload garbage on closed session; score clamps to 0 so composite is safe,
+but detail string is ugly; candidate hygiene fix for V2.3's UI pass. tsc 0,
+build clean. `[deploy]` done: https://market-ui-self.vercel.app

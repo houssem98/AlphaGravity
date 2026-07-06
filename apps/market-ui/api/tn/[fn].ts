@@ -257,7 +257,33 @@ async function engine(req: any, res: any) {
   const { bid, ask } = book(row.limit);
 
   // Momentum: ±3% day move maps to 0..100 around 50.
-  const momentum = clamp(50 + (changePct / 3) * 50);
+  const momentumScore = clamp(50 + (changePct / 3) * 50);
+
+  // V2.2 historical factors from the factor library above (daily bars out of
+  // raw_market). Any factor with too little history stays neutral 50 and its
+  // detail says so — deterministic, no renormalizing.
+  let bars: Bar[] = [];
+  try { bars = await fetchDailyBars(isin); } catch { /* neutral factors */ }
+  const m20 = momentum(bars, 20), m60 = momentum(bars, 60);
+  const rev = reversal5d(bars);
+  const hp = highProximity(bars);
+  const illiq = amihud(bars);
+  const pct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+
+  // Trend (Carhart 1997): ±20% 20d / ±30% 60d trailing returns → 0..100, averaged.
+  const t20 = m20 === null ? null : clamp(50 + (m20 / 20) * 50);
+  const t60 = m60 === null ? null : clamp(50 + (m60 / 30) * 50);
+  const tParts = [t20, t60].filter((v): v is number => v !== null);
+  const trend = tParts.length ? clamp(tParts.reduce((a, b) => a + b) / tParts.length) : 50;
+
+  // Reversal (Jegadeesh 1990): INVERTED — high trailing 5d return scores low. ±8% → 100..0.
+  const reversal = rev === null ? 50 : clamp(50 - (rev / 8) * 50);
+
+  // Near-high (George & Hwang 2004): 80% of period high → 0, at the high → 100.
+  const nearHigh = hp === null ? 50 : clamp(((hp - 0.8) / 0.2) * 100);
+
+  // Illiquidity (Amihud 2002): log-scale — 1e-8 (deep book) → 100, 1e-4 (thin) → 0.
+  const illiquidity = illiq === null || illiq <= 0 ? 50 : clamp(((-Math.log10(illiq) - 4) / 4) * 100);
 
   // Volume activity: this stock's turnover percentile across today's board.
   const turnovers = (g?.markets || []).map((m: any) => m.caps || 0).filter((t: number) => t > 0).sort((a: number, b: number) => a - b);
@@ -286,18 +312,27 @@ async function engine(req: any, res: any) {
     if (headlines) newsScore = clamp(50 + ((bulls - bears) / headlines) * 50);
   } catch { /* keep neutral 50 */ }
 
-  // Composite: momentum 35%, volume 25%, news 25%, liquidity 15%.
-  const score = clamp(momentum * 0.35 + volumeScore * 0.25 + newsScore * 0.25 + liquidity * 0.15);
+  // Composite (V2.2): 4 live + 4 historical factors. Trend carries the most
+  // weight (Carhart momentum is the best-documented of the set); live day
+  // factors shrink to make room but still sum to half the score.
+  const W = { momentum: 0.15, volume: 0.1, news: 0.15, liquidity: 0.1, trend: 0.2, reversal: 0.1, nearHigh: 0.1, illiquidity: 0.1 };
+  const score = clamp(
+    momentumScore * W.momentum + volumeScore * W.volume + newsScore * W.news + liquidity * W.liquidity +
+    trend * W.trend + reversal * W.reversal + nearHigh * W.nearHigh + illiquidity * W.illiquidity);
   res.json({
     symbol, name, isin, price, changePct, score,
     label: score >= 65 ? 'bullish' : score <= 35 ? 'bearish' : 'neutral',
     factors: {
-      momentum:  { score: momentum,    detail: `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}% today` },
-      volume:    { score: volumeScore, detail: `top ${Math.max(1, Math.round(100 - rank * 100))}% of board by turnover` },
-      news:      { score: newsScore,   detail: `${bulls} bull / ${bears} bear of ${headlines} headlines (7d)` },
-      liquidity: { score: liquidity,   detail: spreadPct === null ? 'no live book' : `${spreadPct.toFixed(2)}% spread` },
+      momentum:    { score: momentumScore, detail: `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}% today` },
+      volume:      { score: volumeScore,   detail: `top ${Math.max(1, Math.round(100 - rank * 100))}% of board by turnover` },
+      news:        { score: newsScore,     detail: `${bulls} bull / ${bears} bear of ${headlines} headlines (7d)` },
+      liquidity:   { score: liquidity,     detail: spreadPct === null ? 'no live book' : `${spreadPct.toFixed(2)}% spread` },
+      trend:       { score: trend,         detail: m20 === null && m60 === null ? 'insufficient history' : `${m20 === null ? '—' : pct(m20)} 20d / ${m60 === null ? '—' : pct(m60)} 60d` },
+      reversal:    { score: reversal,      detail: rev === null ? 'insufficient history' : `${pct(rev)} 5d trailing (inverted)` },
+      nearHigh:    { score: nearHigh,      detail: hp === null ? 'insufficient history' : `${(hp * 100).toFixed(1)}% of period high` },
+      illiquidity: { score: illiquidity,   detail: illiq === null ? 'insufficient history' : `Amihud ${illiq.toExponential(2)}` },
     },
-    weights: { momentum: 0.35, volume: 0.25, news: 0.25, liquidity: 0.15 },
+    weights: W,
   });
 }
 
