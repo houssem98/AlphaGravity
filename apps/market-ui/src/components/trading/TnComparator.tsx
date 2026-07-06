@@ -4,6 +4,7 @@ import { X, Plus, Search, TrendingUp, TrendingDown } from 'lucide-react';
 interface Row {
   symbol: string; name: string; price: number; changePct: number; volume: number;
   high: number; low: number; close: number; turnover: number; bid: number; ask: number; isin: string | null;
+  engineScore?: number;
 }
 interface TnComparatorProps { initial?: string[]; onClose: () => void; onOpenAsset?: (s: string) => void }
 
@@ -19,6 +20,7 @@ const METRICS: { key: string; label: string; get: (r: Row) => number; fmt: (r: R
   { key: 'vol', label: 'Volume', get: (r) => r.volume, fmt: (r) => fmtC(r.volume), best: 'hi' },
   { key: 'turn', label: 'Turnover (TND)', get: (r) => r.turnover, fmt: (r) => fmtC(r.turnover), best: 'hi' },
   { key: 'spread', label: 'Spread', get: (r) => (r.ask && r.bid ? r.ask - r.bid : NaN), fmt: (r) => r.ask && r.bid ? fmt(r.ask - r.bid) : '—', best: 'lo' },
+  { key: 'engine', label: 'Engine score', get: (r) => r.engineScore ?? NaN, fmt: (r) => r.engineScore != null ? String(r.engineScore) : '—', best: 'hi' },
   { key: 'isin', label: 'ISIN', get: () => 0, fmt: (r) => r.isin || '—' },
 ];
 
@@ -27,10 +29,24 @@ export const TnComparator: React.FC<TnComparatorProps> = ({ initial = [], onClos
   const [picks, setPicks] = useState<string[]>(initial.slice(0, 4));
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(initial.length === 0);
+  const [scores, setScores] = useState<Record<string, number>>({});
 
   useEffect(() => { fetch('/api/tn/markets').then((r) => r.json()).then((j) => setBoard(j.rows || [])).catch(() => {}); }, []);
 
-  const rows = useMemo(() => picks.map((s) => board.find((r) => r.symbol === s)).filter(Boolean) as Row[], [picks, board]);
+  // Engine score (V2.3): fetch the 8-factor score per pick, once per symbol.
+  useEffect(() => {
+    for (const s of picks) {
+      if (s in scores) continue;
+      fetch(`/api/tn/engine?symbol=${encodeURIComponent(s)}`).then((r) => r.json())
+        .then((j) => { if (typeof j.score === 'number') setScores((prev) => ({ ...prev, [s]: j.score })); })
+        .catch(() => {});
+    }
+  }, [picks]);
+
+  const rows = useMemo(
+    () => picks.map((s) => board.find((r) => r.symbol === s)).filter(Boolean).map((r) => ({ ...r, engineScore: scores[r!.symbol] })) as Row[],
+    [picks, board, scores],
+  );
   const options = useMemo(
     () => board.filter((r) => !picks.includes(r.symbol) && (r.symbol.toLowerCase().includes(q.toLowerCase()) || r.name.toLowerCase().includes(q.toLowerCase()))).slice(0, 8),
     [board, picks, q],

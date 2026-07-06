@@ -69,7 +69,7 @@ Hard rules (every task):
   strings. Deterministic, no LLM.
   *Acceptance:* prod curl engine for BIAT + TINV: 8 factors, score 0–100,
   each detail string carries its real number. `[deploy]`
-- [ ] **V2.3** — Comparator + AssetInfoPanel surface: engine score column in
+- [x] **V2.3** — Comparator + AssetInfoPanel surface: engine score column in
   TnComparator, factor breakdown visible on the company page (reuse existing
   card patterns; no new deps).
   *Acceptance:* prod page shows 8-factor breakdown; tsc 0 + build.
@@ -273,3 +273,20 @@ TINV live-book spread detail prints "167084275.94% spread" — BVMT limit
 payload garbage on closed session; score clamps to 0 so composite is safe,
 but detail string is ugly; candidate hygiene fix for V2.3's UI pass. tsc 0,
 build clean. `[deploy]` done: https://market-ui-self.vercel.app
+2026-07-06 — V2.3 shipped. Checked before writing code: the company page
+already surfaces the 8-factor EngineCard (CommunityPanel -> TnSocialView,
+V2.1 code) generically over `Object.entries(data.factors)` — V2.2 already
+made that card show all 8 without any V2.3 change needed there, so this
+task narrowed to (a) the 4 new FACTOR_LABELS (trend/reversal/nearHigh/
+illiquidity — were falling back to raw key names) and (b) the "4 factors"
+header hardcode -> `Object.keys(data.factors).length` (both in
+TnSocialView.tsx, done same edit as V2.2's commit but re-verified here).
+Comparator (`TnComparator.tsx`): added `engineScore` to Row, a new "Engine
+score" METRICS row (best='hi', reused existing highlight-best-value
+machinery, no new component), and a `scores` state + per-pick-symbol
+useEffect fetching `/api/tn/engine?symbol=` once each (cached by symbol,
+re-fires only when picks change) - no new deps, plain fetch matching every
+other V1/V2 pattern. Prod curl post-deploy: engine unchanged from V2.2
+(BIAT score=66, TINV score=55, both 8 factors - confirms this task touched
+only UI surfacing, not engine math) and https://market-ui-self.vercel.app/
+200s. tsc 0, build clean. `[deploy]` done: https://market-ui-self.vercel.app
