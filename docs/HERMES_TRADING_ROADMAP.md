@@ -107,7 +107,7 @@ Hard rules (every task):
   (prices, ratios, comparisons, "when is the session open") with
   endpoint-derivable gold answers.
   *Acceptance:* baseline accuracy % measured and logged.
-- [ ] **H5.2** — GEPA run on the Assistant system prompt via the same raw
+- [x] **H5.2** — GEPA run on the Assistant system prompt via the same raw
   DSPy+GEPA harness as H3.2 (see H3.2 caveat — not an out-of-box
   hermes-agent-self-evolution capability); gate = eval accuracy strictly up,
   no grounding violations. PR.
