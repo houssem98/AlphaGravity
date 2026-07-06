@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, HistogramSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, IPriceLine, Time } from 'lightweight-charts';
-import { Loader2, Bell, BellRing } from 'lucide-react';
+import { Bell, BellRing } from 'lucide-react';
 
 interface TnChartProps {
   asset: string;
@@ -15,11 +15,35 @@ interface Intraday {
   changePct: number;
   seance: string | null;
   candles: Candle[];
+  sessionStart?: number | null;
+  sessionEnd?: number | null;
 }
 
 const INTERVALS = [1, 5, 15] as const;
+const TFS = ['D', 'W', 'M'] as const;
+type Tf = (typeof TFS)[number];
 const UP = '#00E676';
 const DOWN = '#FF1744';
+
+// D→W (ISO week, grouped by Monday) / D→M (calendar month). Bar time = first daily bar's.
+const aggDaily = (cs: Candle[], tf: Tf): Candle[] => {
+  if (tf === 'D') return cs;
+  const out: Candle[] = [];
+  let curKey = '';
+  for (const c of cs) {
+    const d = new Date(c.time * 1000);
+    const k = tf === 'M'
+      ? `${d.getUTCFullYear()}-${d.getUTCMonth()}`
+      : String(Math.floor((c.time - ((d.getUTCDay() + 6) % 7) * 86400) / 86400));
+    if (k !== curKey) { curKey = k; out.push({ ...c }); }
+    else {
+      const b = out[out.length - 1];
+      b.high = Math.max(b.high, c.high); b.low = Math.min(b.low, c.low);
+      b.close = c.close; b.volume += c.volume;
+    }
+  }
+  return out;
+};
 
 export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,8 +53,15 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
   const priceLineRef = useRef<IPriceLine | null>(null);
   const [interval, setInterval_] = useState<number>(5);
   const [mode, setMode] = useState<'intraday' | 'daily'>('intraday');
+  const [tf, setTf] = useState<Tf>('D');
+  // C2: once the user picks a mode, auto-switching (illiquid names → daily) is disabled.
+  const userPickedMode = useRef(false);
+  useEffect(() => { if (!userPickedMode.current) setMode('intraday'); }, [asset]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
   const [meta, setMeta] = useState<Intraday | null>(null);
+  const [hover, setHover] = useState<{ o: number; h: number; l: number; c: number; v: number } | null>(null);
+  // TND prices: 2 decimals, 3 only for sub-dinar names.
+  const fmtP = (v: number) => v.toFixed(v < 1 ? 3 : 2);
 
   // Price alert (localStorage per asset). Fires a browser notification when the
   // live price crosses the threshold while the chart is open.
@@ -78,11 +109,28 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
     chartRef.current = chart;
     candleRef.current = chart.addSeries(CandlestickSeries, {
       upColor: UP, downColor: DOWN, borderVisible: false, wickUpColor: UP, wickDownColor: DOWN,
+      // Sparse intraday (1–2 trades) autoscales to a sliver — keep ≥0.5% of price visible.
+      autoscaleInfoProvider: (orig: () => any) => {
+        const r = orig();
+        if (!r?.priceRange) return r;
+        const { minValue, maxValue } = r.priceRange;
+        const mid = (minValue + maxValue) / 2, span = mid * 0.005;
+        if (maxValue - minValue >= span) return r;
+        return { ...r, priceRange: { minValue: mid - span / 2, maxValue: mid + span / 2 } };
+      },
     });
     volRef.current = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' }, priceScaleId: '',
+      lastValueVisible: false, priceLineVisible: false,
     });
     volRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    chart.subscribeCrosshairMove((param) => {
+      const cd: any = candleRef.current && param.seriesData.get(candleRef.current);
+      if (cd && cd.open !== undefined) {
+        const vd: any = volRef.current && param.seriesData.get(volRef.current);
+        setHover({ o: cd.open, h: cd.high, l: cd.low, c: cd.close, v: vd?.value ?? 0 });
+      } else setHover(null);
+    });
     return () => { chart.remove(); chartRef.current = null; candleRef.current = null; volRef.current = null; };
   }, []);
 
@@ -98,11 +146,27 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
           : `/api/tn/intraday?symbol=${encodeURIComponent(asset)}&interval=${interval}`;
         const d: Intraday = await (await fetch(u)).json();
         if (!live || !candleRef.current || !volRef.current) return;
+        if (mode === 'intraday' && !userPickedMode.current && (d.candles?.length || 0) < 3) { setMode('daily'); return; }
         if (!d.candles?.length) { candleRef.current.setData([]); volRef.current.setData([]); setStatus('empty'); setMeta(d); return; }
-        candleRef.current.setData(d.candles.map((c) => ({
+        const cs = mode === 'daily' ? aggDaily(d.candles, tf) : d.candles;
+        const p0 = d.last || cs[0].close;
+        candleRef.current.applyOptions({
+          priceFormat: { type: 'price', precision: p0 < 1 ? 3 : 2, minMove: p0 < 1 ? 0.001 : 0.01 },
+        });
+        type Bar = { time: Time; open: number; high: number; low: number; close: number } | { time: Time };
+        const bars: Bar[] = cs.map((c) => ({
           time: c.time as Time, open: c.open, high: c.high, low: c.low, close: c.close,
-        })));
-        volRef.current.setData(d.candles.map((c) => ({
+        }));
+        // Frame the whole session with whitespace so a lone candle doesn't fill the width.
+        if (mode === 'intraday' && d.sessionStart && d.sessionEnd) {
+          const step = interval * 60;
+          const seen = new Set(cs.map((c) => c.time));
+          for (let t = Math.floor(d.sessionStart / step) * step; t <= d.sessionEnd; t += step)
+            if (!seen.has(t)) bars.push({ time: t as Time });
+          bars.sort((a, b) => (a.time as number) - (b.time as number));
+        }
+        candleRef.current.setData(bars);
+        volRef.current.setData(cs.map((c) => ({
           time: c.time as Time, value: c.volume, color: c.close >= c.open ? `${UP}55` : `${DOWN}55`,
         })));
         if (priceLineRef.current) { candleRef.current.removePriceLine(priceLineRef.current); priceLineRef.current = null; }
@@ -125,45 +189,52 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
       return () => { live = false; window.clearInterval(iv); };
     }
     return () => { live = false; };
-  }, [asset, interval, mode]);
+  }, [asset, interval, mode, tf]);
 
   return (
     <div className="relative w-full h-full bg-[#0A0E17]">
-      <div className="absolute top-3 left-4 z-10 flex items-baseline gap-2 font-mono pointer-events-none">
+      <div className="absolute top-3 left-4 z-10 font-mono pointer-events-none">
         {meta && status === 'ready' && (
           <>
-            <span className="text-body font-semibold text-[color:var(--text)]">{name || asset}</span>
-            <span className="text-label text-[color:var(--text-3)]">
-              {mode === 'daily' ? 'Daily · BVMT' : `${interval}m · BVMT intraday${meta.seance ? ` · ${meta.seance}` : ''}`}
-            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-body font-semibold text-[color:var(--text)]">{name || asset}</span>
+              <span className="text-label text-[color:var(--text-3)]">
+                {mode === 'daily'
+                  ? `${tf === 'D' ? 'Daily' : tf === 'W' ? 'Weekly' : 'Monthly'} · BVMT`
+                  : `${interval}m · BVMT intraday${meta.seance ? ` · ${meta.seance}` : ''}`}
+              </span>
+            </div>
+            {hover && (
+              <div className={`mt-0.5 text-[11px] tracking-tight ${hover.c >= hover.o ? 'text-[#00E676]' : 'text-[#FF1744]'}`}>
+                O {fmtP(hover.o)}  H {fmtP(hover.h)}  L {fmtP(hover.l)}  C {fmtP(hover.c)}
+                <span className="text-[#8A92A6]">  V {hover.v.toLocaleString('en-US')}</span>
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* Mode + interval selectors */}
+      {/* Timeframe selector: 1m 5m 15m · D W M */}
       <div className="absolute top-3 right-4 z-20 flex items-center gap-2">
-        <div className="flex gap-1 p-0.5 rounded-md bg-[#0F1420] border border-[#1B2236]">
-          {(['intraday', 'daily'] as const).map((m) => (
-            <button key={m} onClick={() => setMode(m)}
-              className={`px-2 py-0.5 rounded text-[11px] font-medium capitalize transition-colors ${
-                mode === m ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
+        <div className="flex items-center gap-1 p-0.5 rounded-md bg-[#0F1420] border border-[#1B2236]">
+          {INTERVALS.map((n) => (
+            <button key={n} onClick={() => { userPickedMode.current = true; setMode('intraday'); setInterval_(n); }}
+              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                mode === 'intraday' && interval === n ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
               }`}>
-              {m}
+              {n}m
+            </button>
+          ))}
+          <div className="w-px h-3.5 bg-[#1B2236]" />
+          {TFS.map((t) => (
+            <button key={t} onClick={() => { userPickedMode.current = true; setMode('daily'); setTf(t); }}
+              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                mode === 'daily' && tf === t ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
+              }`}>
+              {t}
             </button>
           ))}
         </div>
-        {mode === 'intraday' && (
-          <div className="flex gap-1 p-0.5 rounded-md bg-[#0F1420] border border-[#1B2236]">
-            {INTERVALS.map((n) => (
-              <button key={n} onClick={() => setInterval_(n)}
-                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                  interval === n ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
-                }`}>
-                {n}m
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Price alert */}
         <div className="relative">
@@ -193,7 +264,13 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
 
       {status !== 'ready' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6 pointer-events-none">
-          {status === 'loading' && <Loader2 className="w-5 h-5 animate-spin text-[color:var(--text-3)]" />}
+          {status === 'loading' && (
+            <div className="w-full max-w-md space-y-3 animate-pulse motion-reduce:animate-none">
+              <div className="h-4 w-1/3 rounded bg-[#151B29]" />
+              <div className="h-40 rounded bg-[#101522]" />
+              <div className="h-3 w-2/3 rounded bg-[#151B29]" />
+            </div>
+          )}
           {status === 'empty' && mode === 'intraday' && (
             <>
               <span className="text-body font-semibold text-[color:var(--text-2)]">No trades this session</span>

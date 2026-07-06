@@ -72,23 +72,24 @@ def pdf_excerpt(pdf_bytes):
 
 
 def extract(name, excerpt):
-    import anthropic
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    from openai import OpenAI  # DeepSeek is OpenAI-compatible
+    client = OpenAI(api_key=os.environ["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
     prompt = (
         f"From these lines of {name}'s BVMT financial statements (French, amounts usually in "
         f"thousands of dinars 'mDT'), extract the most recent full-year figures. Reply ONLY JSON:\n"
         '{"fiscal_year":<int>,"net_income_mdt":<number|null>,"equity_mdt":<number|null>,'
         '"dividend_per_share_tnd":<number|null>}\n'
-        "net_income = résultat net / bénéfice net de l'exercice. equity = total capitaux propres. "
-        "dividend_per_share only if explicitly stated per share (else null). Numbers only, no spaces.\n\n"
-        + excerpt)
-    for model in ("claude-sonnet-5", "claude-haiku-4-5-20251001"):
-        try:
-            m = client.messages.create(model=model, max_tokens=300, messages=[{"role": "user", "content": prompt}])
-            t = m.content[0].text.strip().replace("```json", "").replace("```", "").strip()
-            return json.loads(t)
-        except Exception as e:
-            print(f"    [{model} failed: {e}]")
+        "net_income = résultat net / bénéfice net de l'exercice (the bottom-line profit, NOT revenue "
+        "or produit net bancaire). equity = total capitaux propres. dividend_per_share only if "
+        "explicitly stated per share (else null). Numbers only, no thousands-separators.\n\n" + excerpt)
+    try:
+        m = client.chat.completions.create(
+            model="deepseek-chat", max_tokens=300, temperature=0,
+            response_format={"type": "json_object"},
+            messages=[{"role": "user", "content": prompt}])
+        return json.loads(m.choices[0].message.content)
+    except Exception as e:
+        print(f"    [deepseek failed: {e}]")
     return None
 
 
@@ -119,9 +120,22 @@ def main():
             data = extract(r.get("emetteur") or tk, pdf_excerpt(fetch(pdf_url)))
             if not data or not data.get("net_income_mdt"):
                 print(f"{tk}: extraction empty"); continue
-            ni = data["net_income_mdt"] * 1000.0          # mDT → TND
-            eq = (data.get("equity_mdt") or 0) * 1000.0
-            eps = ni / shares if shares else None
+            # Statements aren't uniformly in mDT: some publish full TND, some
+            # millions. Try the three scales; the plausible-PER band (2..80,
+            # a 40x span) admits at most one of the 1000x-apart scales.
+            raw = data["net_income_mdt"]
+            scale = next((s for s in (1000.0, 1.0, 1e6)
+                          if shares and price and raw > 0
+                          and 2 <= price / (raw * s / shares) <= 80), None)
+            if scale is None:
+                print(f"{tk}: REJECTED (no scale gives plausible PER; raw={raw} shares={shares} price={price})")
+                continue
+            if scale != 1000.0:
+                print(f"{tk}: scale-normalized x{scale:g} (statement not in mDT)")
+            ni = raw * scale
+            eq = (data.get("equity_mdt") or 0) * scale
+            eps = ni / shares
+            per = price / eps
             dps = data.get("dividend_per_share_tnd")
             blob[tk] = {
                 "fiscalYear": data.get("fiscal_year"),

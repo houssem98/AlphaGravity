@@ -33,6 +33,29 @@ async function resolveIsin(symbol: string, g?: any) {
 const round = (v: number) => Math.round(v * 1000) / 1000;
 const hms = (t: string) => { const [h = '0', m = '0', s = '0'] = String(t).split(':'); return +h * 3600 + +m * 60 + +s; };
 
+// RESOLVED 2026-07-06 (live-session capture, Mon 10:24+10:26 Tunis — see
+// agents/hermes/captures/groups-live-2026-07-06T09-2*.json): BVMT's raw
+// fields are SWAPPED. `limit.bid` holds the best ASK (higher price) and
+// `limit.ask` holds the best BID (lower price). Evidence: 60/67 two-sided
+// books had raw bid>ask during continuous trading (real books can't stay
+// crossed), and executions printed on both raw fields consistently only
+// under the swapped reading (BIAT traded at raw limit.ask 168.1 = real bid;
+// SFBT at raw limit.bid 14.4 = real ask). The invariant mapping below
+// (bid = lower price, ask = higher, qty follows its price, zero side = null)
+// therefore yields the CORRECT sides — keep it; it is also robust to stale
+// closed-session leftovers. spread = ask − bid stays ≥ 0 by construction.
+function book(l: any) {
+  const s1 = { price: l?.bid || 0, qty: l?.bidQty || 0 };
+  const s2 = { price: l?.ask || 0, qty: l?.askQty || 0 };
+  const [lo, hi] = s1.price <= s2.price ? [s1, s2] : [s2, s1];
+  return {
+    bid: lo.price > 0 ? lo.price : null,
+    bidQty: lo.price > 0 ? lo.qty : null,
+    ask: hi.price > 0 ? hi.price : null,
+    askQty: hi.price > 0 ? hi.qty : null,
+  };
+}
+
 // ── Live quotes for the whole board ─────────────────────────────────────────
 async function markets(_req: any, res: any) {
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
@@ -52,11 +75,7 @@ async function markets(_req: any, res: any) {
       low: m.low || 0,
       close: m.close || 0,
       turnover: m.caps || 0,
-      // BVMT swaps the field names: their `limit.bid` is the ASK, `limit.ask` the BID.
-      bid: m.limit?.ask || 0,
-      ask: m.limit?.bid || 0,
-      bidQty: m.limit?.askQty || 0,
-      askQty: m.limit?.bidQty || 0,
+      ...book(m.limit),
     }))
     .filter((x: any) => x.price > 0);
   res.json({ rows, updated: rows[0]?.seance || null });
@@ -68,7 +87,17 @@ async function intraday(req: any, res: any) {
   const symbol = String(req.query.symbol || '').toUpperCase();
   let isin = String(req.query.isin || ''), name = symbol;
   if (!symbol && !isin) return res.status(400).json({ error: 'symbol or isin required' });
-  if (!isin) { const r = await resolveIsin(symbol); if (!r.isin) return res.status(404).json({ error: `unknown ticker ${symbol}` }); isin = r.isin; name = r.name; }
+  // Session bounds = min/max last-update time across the whole board (data-derived,
+  // never hardcoded exchange hours). Only available when we fetch groups anyway.
+  let session: [number, number] | null = null;
+  if (!isin) {
+    const g = await groups();
+    const r = await resolveIsin(symbol, g);
+    if (!r.isin) return res.status(404).json({ error: `unknown ticker ${symbol}` });
+    isin = r.isin; name = r.name;
+    const secs = (g?.markets || []).map((m: any) => hms(m?.time || '')).filter((s: number) => s > 0);
+    if (secs.length) session = [Math.min(...secs), Math.max(...secs)];
+  }
 
   const d = await (await fetch(`https://www.bvmt.com.tn/rest_api/rest/intraday/${isin}`, { headers: UA })).json();
   const raw = (d?.intradays || []).filter((p: any) => p?.last > 0 && p?.time);
@@ -99,6 +128,8 @@ async function intraday(req: any, res: any) {
     symbol, name, isin, prevClose, last, interval: iv,
     changePct: prevClose ? ((last - prevClose) / prevClose) * 100 : 0,
     seance: d?.intradays?.[0]?.seance || null, points, candles,
+    sessionStart: session ? dayStart + session[0] : null,
+    sessionEnd: session ? dayStart + session[1] : null,
   });
 }
 
@@ -170,8 +201,7 @@ async function engine(req: any, res: any) {
   const price = row.last || row.close || 0;
   const changePct = row.change || 0;
   const turnover = row.caps || 0;
-  // BVMT swapped fields (see markets()): their `ask` is the bid.
-  const bid = row.limit?.ask || 0, ask = row.limit?.bid || 0;
+  const { bid, ask } = book(row.limit);
 
   // Momentum: ±3% day move maps to 0..100 around 50.
   const momentum = clamp(50 + (changePct / 3) * 50);
@@ -360,6 +390,8 @@ async function fundamentals(req: any, res: any) {
       const row = (g?.markets || []).find((m: any) => m?.referentiel?.ticker?.toUpperCase() === symbol);
       const price = row?.last || row?.close || 0;
       if (price) { f.per = f.eps ? price / f.eps : null; if (f.dividend) f.yield = (f.dividend / price) * 100; }
+      // Equity extraction is noisier than net income — drop implausible P/B.
+      if (f.pb != null && (f.pb < 0.2 || f.pb > 12)) f.pb = null;
     }
     return res.json({ symbol, fundamentals: f });
   }

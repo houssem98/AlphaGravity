@@ -421,6 +421,30 @@ class SearchPipeline:
             except Exception as _er2:
                 logger.debug("company_fallback_skipped", trace_id=trace_id, error=str(_er2))
 
+            # Explicit API scope is a contract: a caller that pins
+            # filters["companies"] (grid cells, eval harness) means EXACTLY those
+            # companies. Query-text entity recovery must never widen it — a Moat
+            # prompt containing the literal token "IP" resolved to International
+            # Paper (exact ticker) and leaked its chunks into an AFL-scoped cell
+            # via the multi-entity comparison path. Clamp entities to the scope.
+            _explicit_scope = {
+                str(t).upper() for t in (filters or {}).get("companies") or [] if t
+            }
+            if _explicit_scope:
+                _ents = query_plan.get("entities", {}).get("companies", []) or []
+                _kept = [
+                    e for e in _ents
+                    if isinstance(e, dict) and str(e.get("ticker", "")).upper() in _explicit_scope
+                ]
+                if len(_kept) != len(_ents):
+                    logger.info(
+                        "entity_scope_clamped", trace_id=trace_id,
+                        dropped=[e.get("ticker") if isinstance(e, dict) else str(e)
+                                 for e in _ents if e not in _kept],
+                        scope=sorted(_explicit_scope),
+                    )
+                query_plan.setdefault("entities", {})["companies"] = _kept
+
             logger.info(
                 "query_understood",
                 trace_id=trace_id,

@@ -138,15 +138,15 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   Free-float row + index badge in `AssetInfoPanel`. PER / EPS / dividend / yield
   are NOT in this DB (only publication *links* in `raw_publications`) — those need
   financial-statement ingestion (PDF).
-- [~] **T21** — Earnings ratios (PER/EPS/P·B/dividend/yield). **Pipeline built &
-  proven; batch run gated on a live LLM key.** `scripts/tn_fundamentals.py`:
-  `raw_publications` → latest statement PDF → `pdftotext` → LLM (Claude) extracts
-  net income / equity / dividend → EPS/PER/P·B/yield → Supabase Storage blob.
-  `/api/tn/fundamentals` serves it (PER & yield recomputed vs live price);
-  `AssetInfoPanel` shows the ratios when present. **AB seeded from its real
-  filing** (NI 248.65 MDT, EPS 8.22, P/E 10.6, P/B 1.54 — verified live). Every
-  LLM key in `.env` is dead (401/403), so the `--all` run over the other 74
-  companies is blocked until a working key is supplied.
+- [x] **T21** — Earnings ratios (PER/EPS/P·B). **LIVE for 39 companies.**
+  `scripts/tn_fundamentals.py`: `raw_publications` → latest statement PDF →
+  `pdftotext` → **DeepSeek** extracts net income / equity / dividend → EPS/PER/P·B
+  → Supabase Storage blob. `/api/tn/fundamentals` serves it (PER recomputed vs
+  live price; implausible P/E and out-of-band P/B guarded out). `AssetInfoPanel`
+  shows the ratios when present. Real & verified (AB 10.6, UIB 10.1, TJARI 16.6,
+  AL 11.9…). Remaining ~38: no statement PDF published, or unit-confusion rejects
+  the guard dropped (recoverable with an auto-scale-normalization pass — follow-up).
+  Dividends/yield: not reliably in the statements (declared at AGM) — still open.
 
 ### Phase 11 — AI engine (our "Finansya Engine")
 - [x] **T22** — TN-aware Assistant. The existing Gemini function-calling
@@ -247,3 +247,8 @@ We already beat them on: live candlesticks in-app, integrated news, AI chat
   (NI 248.65M, EPS 8.22, P/E 10.6, P/B 1.54). BLOCKED: all .env LLM keys dead
   (401/403) → `python tn_fundamentals.py --all` needs a working key to cover 74
   more. tsc 0, build ok, deployed.
+- 2026-07-03 T21 POPULATED via DeepSeek (Anthropic key dead). 39/77 companies now
+  have real PER/EPS/P·B extracted from their statement PDFs; sanity guard rejects
+  unit-confusion garbage (BNASS/NAKL/BL/STPIL) + serve nulls out-of-band P/B.
+  Verified prod: AB 10.6, UIB 10.1, TJARI 16.6, STAR 22.2, AL 11.9. Follow-ups:
+  auto-scale-normalization to recover ~unit-confusion rejects; dividend/yield (AGM).

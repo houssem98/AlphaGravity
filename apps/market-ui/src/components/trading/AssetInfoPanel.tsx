@@ -829,11 +829,17 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
                   <ROW label="Turnover"    value={tnd(t.turnover)} tooltip="Traded value this session (TND)" />
                   <ROW label="Bid / Ask"   value={t.bid && t.ask ? `${t.bid.toFixed(2)} / ${t.ask.toFixed(2)}` : '—'} tooltip="Best bid / ask (BVMT L1)" />
                   <ROW label="Spread"      value={spread !== null ? spread.toFixed(2) : '—'} tooltip="Ask − bid" />
-                  {t.fund?.eps && <ROW label={`EPS (${t.fund.fiscalYear})`} value={`${t.fund.eps.toFixed(2)} TND`} tooltip="Net income ÷ shares (from financial statements)" />}
-                  {t.fund?.per && <ROW label="P/E" value={t.fund.per.toFixed(1)} tooltip="Price ÷ EPS" />}
-                  {t.fund?.pb && <ROW label="P/B" value={t.fund.pb.toFixed(2)} tooltip="Price ÷ book value per share" />}
-                  {t.fund?.dividend && <ROW label="Dividend" value={`${t.fund.dividend.toFixed(2)} TND`} tooltip="Dividend per share" />}
-                  {t.fund?.yield && <ROW label="Div yield" value={`${t.fund.yield.toFixed(2)}%`} tooltip="Dividend ÷ price" />}
+                  {t.fund?.eps ? (
+                    <>
+                      <ROW label={`EPS (${t.fund.fiscalYear})`} value={`${t.fund.eps.toFixed(2)} TND`} tooltip="Net income ÷ shares (from financial statements)" />
+                      {t.fund.per && <ROW label="P/E" value={t.fund.per.toFixed(1)} tooltip="Price ÷ EPS" />}
+                      {t.fund.pb && <ROW label="P/B" value={t.fund.pb.toFixed(2)} tooltip="Price ÷ book value per share" />}
+                      {t.fund.dividend && <ROW label="Dividend" value={`${t.fund.dividend.toFixed(2)} TND`} tooltip="Dividend per share" />}
+                      {t.fund.yield && <ROW label="Div yield" value={`${t.fund.yield.toFixed(2)}%`} tooltip="Dividend ÷ price" />}
+                    </>
+                  ) : (
+                    <ROW label="Fundamentals" value="n/a — no recent filing" tooltip="No parseable recent financial statement for this listing (EPS / P/E / P/B unavailable)" />
+                  )}
                   <ROW label="ISIN"        value={t.isin || '—'} tooltip="International Securities ID" />
                 </>
               ); })()}

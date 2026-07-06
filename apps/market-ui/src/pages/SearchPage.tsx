@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useCallback, Children, type ReactNode } fr
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useResearchStore } from '../stores/researchStore';
+import { safeUrl } from '../lib/safeUrl';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
     Search, Zap, FileText, Database, ChevronRight, CheckCircle, Clock, Cpu,
@@ -691,7 +692,7 @@ function CitationPanel({ citation, onClose }: { citation: GravityCitation; onClo
                     if (!docUrl) return null;
                     return (
                         <a
-                            href={docUrl}
+                            href={safeUrl(docUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 text-xs text-[var(--accent)] hover:text-[var(--accent)] transition-colors"

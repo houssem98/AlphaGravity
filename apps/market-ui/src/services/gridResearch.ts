@@ -525,14 +525,26 @@ export async function runGrid(
 // Typical analyst workflow: one ticker × these 6 questions answers ~80% of
 // quick triage on a watchlist.
 
+// Phrased for what the corpus actually holds (SEC 10-K/10-Q filings): MD&A,
+// Item 1A risk factors, reported financials. Asking for analyst consensus /
+// price targets / peer multiples yields honest-but-empty declines.
+//
+// Each prompt carries an output contract: retrieval keywords lead (the text is
+// also the search query), format rules trail. STYLE forbids the two answer
+// pathologies that make cells unreadable: meta-narration about "the provided
+// sources", and multi-paragraph apologetic declines.
+const STYLE = 'Format: 3-5 tight bullet points, bold every figure, cite inline. '
+    + 'Never describe or apologize for the sources; if the filings lack something, '
+    + 'give ONE short line saying what they do show instead.';
+
 export const SEED_GRID_PROMPTS: GridPrompt[] = [
-    { id: 'thesis',    label: 'Thesis',       prompt: 'What is the core investment thesis for {ticker}? State the bull and bear case in one sentence each.' },
-    { id: 'moat',      label: 'Moat',         prompt: 'What is {ticker}\'s competitive moat? How durable is it?' },
-    { id: 'catalysts', label: 'Catalysts',    prompt: 'What are the top 3 near-term catalysts (next 6 months) for {ticker}?' },
-    { id: 'risks',     label: 'Risks',        prompt: 'What are the top 3 downside risks for {ticker}? Quantify where possible.' },
-    { id: 'valuation', label: 'Valuation',    prompt: 'What is {ticker}\'s current valuation vs peers and historical average? Flag any dislocations.' },
-    { id: 'preview',   label: 'Next Print',   prompt: 'What are consensus expectations for {ticker}\'s next earnings print? Where could it surprise?' },
-    { id: 'synthesis', label: '🔍 Comparison', prompt: 'Synthesize the individual theses across all tickers. Rank them by conviction. Which has the strongest near-term edge? Most durable moat? Biggest risk?', synthesis: true },
+    { id: 'thesis',    label: 'Thesis',         prompt: `{ticker} investment thesis, growth drivers, margins, disclosed risks and headwinds from recent 10-K and 10-Q filings. Give BULL: 2 bullets (drivers + figures) then BEAR: 2 bullets (risks + figures). ${STYLE}` },
+    { id: 'moat',      label: 'Moat',           prompt: `{ticker} competitive advantages, market position, scale, switching costs, brand, intellectual property, network effects as described in the business section and MD&A. 3 bullets naming each advantage + evidence, end with one line: how durable and why. ${STYLE}` },
+    { id: 'catalysts', label: 'Growth Drivers', prompt: `{ticker} growth drivers, strategic initiatives, fastest growing segments and products management highlights in MD&A. 3 bullets, each = driver → segment/product → growth figure. ${STYLE}` },
+    { id: 'risks',     label: 'Risks',          prompt: `{ticker} risk factors, Item 1A, principal risks, quantified exposures disclosed in filings. Top 3, numbered, each with the quantified exposure where given. ${STYLE}` },
+    { id: 'valuation', label: 'Financials',     prompt: `{ticker} revenue, gross margin, operating margin, net income trajectory across reported fiscal periods. One bullet per metric with period-over-period figures, end with verdict: IMPROVING or DETERIORATING and the single biggest driver. ${STYLE}` },
+    { id: 'preview',   label: 'Latest Quarter', prompt: `{ticker} most recent 10-Q quarterly results versus prior-year quarter: revenue, margins, earnings deltas and management's stated drivers of change. One bullet per delta with both figures, one bullet for management's explanation. ${STYLE}` },
+    { id: 'synthesis', label: '🔍 Comparison',  prompt: 'Synthesize the individual theses across all tickers. Output a ranked list (strongest conviction first): each entry = ticker, one-line thesis, strongest edge, biggest disclosed risk. End with three one-liners: strongest growth trajectory, most durable moat, biggest risk overall.', synthesis: true },
 ];
 
 // ─── CSV Export ──────────────────────────────────────────────────────────────
