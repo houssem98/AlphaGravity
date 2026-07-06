@@ -45,7 +45,7 @@ Hard rules (every task):
   rather than answers; with network → answer matches `/api/tn/markets` payload.
 
 ## Phase H1 — Accuracy watchdog (every endpoint gets an invariant skill)
-- [ ] **H1.1** — `bvmt-health` skill: one run asserts, against live prod:
+- [x] **H1.1** — `bvmt-health` skill: one run asserts, against live prod:
   markets (75 rows, book crossed=0, null-side count sane), intraday
   (sessionStart≤sessionEnd, candles within bounds), history (dates strictly
   increasing, hi≥lo), highs (ratio≤1), fundamentals (coverage≥42, PER∈[2,80]),
@@ -179,3 +179,16 @@ price → agent REFUSED ("I won't quote a price from memory or training data"),
 0 fabricated numbers. OPEN test: same question → 168.7 TND, -0.44%, vol 353,
 bid/ask 168.5/168.7, séance 6 juil. 2026 — EXACT match with same-run curl of
 /api/tn/markets (75 rows). Both acceptance criteria green.
+2026-07-06 H1.1 — bvmt-health skill LIVE (script+SKILL.md in box, mirrored to
+agents/hermes/skills/). GREEN run 7/7: markets rows=75 crossed=0 nullSide=8;
+intraday BIAT sessionStart=1783326600≤sessionEnd, 8 candles 0 OOB; history 83
+candles strictly increasing, 0 hi<lo; highs 82 stocks 0 ratio>1; fundamentals
+coverage=42, 0 PER outside [2,80]; index ours=19770.92 vs TSE 19770.92 drift
+0.000%; snapshot séance=2026-07-06=last weekday (proxy — blob bucket private,
+public brief route lands in H4.2). Seeded fault (tn-BROKEN base) → RED ALERT
+0/7, exit 1. Agent-relayed run via hermes -z: verbatim 7/7 table. BONUS: first
+run CAUGHT REAL CORRUPTION — BIAT fundamentals 1000× scale error (eps 0.00944,
+PER 17950); fixed blob host-side (eps→9.4427, PER→17.95, PB→2.92, PUT 200),
+watchdog re-verified green. Cache-buster added: script validates origin, not
+CDN staleness. Telegram delivery still pends token (H0.1); summary relays via
+agent output meanwhile.
