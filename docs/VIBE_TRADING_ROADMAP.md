@@ -76,7 +76,7 @@ Hard rules (every task):
   `[deploy]`
 
 ## Phase V3 — Deep-research committee composition (prompt port)
-- [ ] **V3.1** — Port Vibe's `investment_committee` composition (bull case →
+- [x] **V3.1** — Port Vibe's `investment_committee` composition (bull case →
   bear case → risk review → PM verdict) into deepResearchService's prompt
   flow as a mode; run on 2 US tickers with real gravity-api retrieval and
   compare output vs current single-pass on completeness (sections filled vs
@@ -290,3 +290,34 @@ other V1/V2 pattern. Prod curl post-deploy: engine unchanged from V2.2
 (BIAT score=66, TINV score=55, both 8 factors - confirms this task touched
 only UI surfacing, not engine math) and https://market-ui-self.vercel.app/
 200s. tsc 0, build clean. `[deploy]` done: https://market-ui-self.vercel.app
+2026-07-06 — V3.1 shipped (code committed, NOT deployed — no [deploy] tag).
+Capability verified against github.com/HKUDS/Vibe-Trading README preset
+table before porting: `investment_committee` = "Bull/bear debate → risk
+review → PM final call" (also README 2026-06-11 entry describes an
+investment-committee NVDA run). Port into deepResearchService.ts: new
+`investment_committee` WorkflowId + WORKFLOW_PRESETS entry (template
+investment_memo, verdict-oriented angles/metrics/systemSuffix — rides the
+existing applyWorkflowToBlueprint machinery, zero new plumbing) + new
+`runInvestmentCommittee()`: SEQUENTIAL chain bull → bear-that-quotes-and-
+rebuts-the-bull → risk officer reviewing both → PM verdict ending in a
+structured `DECISION: <Buy|Hold|Avoid> — Conviction — Sizing — Invalidation`
+line, vs the existing generateAdversarialAnalysis where bull∥bear run
+parallel and never see each other. Stage 4 of performDeepResearch branches
+on the workflow; bullCase/bearCase flow into the report writers unchanged
+(shadow-safe); riskReview+pmVerdict append as two verbatim report sections.
+tsc 0, build clean. Eval run 2026-07-06 on AAPL+NVDA with REAL prod
+gravity-api retrieval (https://gravity-api-prod.fly.dev /v1/search, fast
+mode, 9 sources each) + DeepSeek V3, identical context both arms, prompts
+verbatim from the service code: single-pass 2 calls 16.0s/13.5s, committee
+4 calls 42.7s/33.7s (~2.6x latency, the cost of sequential debate). Both
+committee runs produced parseable DECISION lines (AAPL: Avoid/High/none;
+NVDA: Avoid/Medium/none, invalidation "Q1 FY2027 DC rev >$60B with GM
+>70%"); bear stages rebutted the bull by name in both. HONEST NOTE (the
+acceptance's own requirement): composition did NOT fix retrieval — AAPL's
+RAG answer was 349 chars with EPS/FCF/risks tagged "[not in sources]" and
+no committee stage recovered them (PM avoided AAPL largely BECAUSE data was
+missing); NVDA's 2,606-char answer (FY2026 rev $215.94B, +65.5% YoY vs
+$130.50B) fed a proportionally richer debate. Facts completeness = gravity-
+api work; committee adds structure (rebuttal, risk sign-off, decision), not
+facts. Side-by-side artifact:
+https://claude.ai/code/artifact/1d9cc53f-ddab-476b-b514-1f8809e2f5fb

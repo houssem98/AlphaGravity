@@ -189,7 +189,8 @@ export type WorkflowId =
     | 'swot_analysis'
     | 'company_profile'
     | 'ma_screen'
-    | 'channel_check';
+    | 'channel_check'
+    | 'investment_committee';
 
 export interface WorkflowPreset {
     id: WorkflowId;
@@ -273,6 +274,24 @@ export const WORKFLOW_PRESETS: Record<WorkflowId, WorkflowPreset> = {
         ],
         injectMetrics: ['net retention', 'gross retention', 'CAC payback', 'win rate', 'pricing'],
         systemSuffix: 'Frame this as a CHANNEL CHECK workflow: weight interview-style sources (earnings transcripts, expert networks, industry-conference commentary) above generic news. Aggregate the qualitative signal into quantitative directional calls (accelerating / decelerating / stable).',
+    },
+    // Composition ported from HKUDS/Vibe-Trading's `investment_committee` swarm
+    // preset ("Bull/bear debate → risk review → PM final call", README preset
+    // table). Sequential debate replaces our parallel bull∥bear when this
+    // workflow is active — see runInvestmentCommittee().
+    investment_committee: {
+        id: 'investment_committee',
+        label: 'Investment Committee',
+        description: 'Bull/bear debate → risk review → PM final verdict (sequential, each stage sees the prior).',
+        template: 'investment_memo',
+        injectAngles: [
+            'Strongest upside catalyst with verifiable data anchor',
+            'Strongest downside risk the bull thesis underweights',
+            'Position sizing, drawdown tolerance, and invalidation levels',
+            'Explicit final call: Buy / Hold / Avoid with conviction level',
+        ],
+        injectMetrics: ['revenue growth', 'EPS', 'FCF', 'valuation multiple', 'drawdown risk'],
+        systemSuffix: 'Frame this as an INVESTMENT COMMITTEE workflow: the report must culminate in a definitive PM verdict (Buy / Hold / Avoid, conviction, sizing) that explicitly weighs the bull case, the bear rebuttal, and the risk review.',
     },
 };
 
@@ -1964,6 +1983,99 @@ Anchor every claim to specific facts from the verified data above. Write as a to
         bullCase: bullResult.status === 'fulfilled' ? bullResult.value : 'Bull case analysis unavailable.',
         bearCase: bearResult.status === 'fulfilled' ? bearResult.value : 'Bear case analysis unavailable.',
     };
+}
+
+// ─── Investment Committee (V3.1, ported from HKUDS/Vibe-Trading) ─────────────
+// Vibe-Trading's `investment_committee` swarm preset runs "Bull/bear debate →
+// risk review → PM final call" (README preset table). This is that composition
+// as a sequential prompt chain over our own retrieval: unlike
+// generateAdversarialAnalysis (parallel, independent bull∥bear), each stage
+// reads the prior stages' output — the bear REBUTS the bull, risk reviews the
+// debate, the PM rules on all three.
+export interface CommitteeResult {
+    bullCase: string;
+    bearCase: string;
+    riskReview: string;
+    pmVerdict: string;
+}
+
+export async function runInvestmentCommittee(
+    blueprint: ResearchBlueprint,
+    sourceAnalysis: string,
+    model?: ResearchModelId,
+    ragResult?: GravityRAGResult,
+    onStage?: (stage: string) => void,
+): Promise<CommitteeResult> {
+    const verifiedFacts = ragResult ? buildVerifiedFactsBlock(ragResult) : '';
+    const context = `Research Focus: ${blueprint.intent} — ${blueprint.targetEntities.join(', ') || 'Market theme'}
+Key Metrics: ${blueprint.keyMetrics.join(', ')}
+Timeframe: ${blueprint.timeframe}
+
+${verifiedFacts ? `${verifiedFacts}\n\n` : ''}WEB + MARKET INTELLIGENCE SYNTHESIS:
+${sourceAnalysis.substring(0, 2800)}`.trim();
+
+    const committeeModel = await pickDriver('premium', model);
+
+    onStage?.('bull');
+    const bullCase = await callLLM(
+        `You are the BULL-CASE analyst opening an Investment Committee debate.
+
+${context}
+
+Present the BULL CASE (3–4 paragraphs): lead with the strongest upside catalyst anchored to a verified data point, build the financial case with figures, name what consensus is mispricing, and state a conviction level (High/Medium/Low) with a return target where data supports. Every claim anchored to the verified data above.`,
+        committeeModel,
+    );
+
+    onStage?.('bear');
+    const bearCase = await callLLM(
+        `You are the BEAR-CASE analyst in an Investment Committee debate. The bull analyst just presented this:
+
+--- BULL CASE ---
+${bullCase.substring(0, 2400)}
+--- END BULL CASE ---
+
+${context}
+
+REBUT the bull case directly (3–4 paragraphs): identify which of the bull's specific claims are weakest and attack them with evidence, surface the downside risks the bull ignored, and state a risk level (Critical/High/Medium) with a downside scenario. Quote the bull's claims when rebutting them. Every claim anchored to the verified data above.`,
+        committeeModel,
+    );
+
+    onStage?.('risk');
+    const riskReview = await callLLM(
+        `You are the RISK OFFICER reviewing an Investment Committee debate.
+
+--- BULL CASE ---
+${bullCase.substring(0, 1800)}
+--- BEAR REBUTTAL ---
+${bearCase.substring(0, 1800)}
+--- END DEBATE ---
+
+${context}
+
+Write a RISK REVIEW (2–3 paragraphs): identify which side's claims rest on the weakest evidence, name the top 3 risks with severity and likelihood, state what position sizing / drawdown limits / invalidation triggers would be prudent, and flag any claim in the debate that the verified data above does NOT support.`,
+        committeeModel,
+    );
+
+    onStage?.('pm');
+    const pmVerdict = await callLLM(
+        `You are the PORTFOLIO MANAGER delivering the final Investment Committee verdict.
+
+--- BULL CASE ---
+${bullCase.substring(0, 1500)}
+--- BEAR REBUTTAL ---
+${bearCase.substring(0, 1500)}
+--- RISK REVIEW ---
+${riskReview.substring(0, 1500)}
+--- END COMMITTEE ---
+
+${context}
+
+Deliver the FINAL VERDICT (2 paragraphs + a decision line): weigh the debate explicitly (say which specific arguments moved you), then close with exactly one line in this format:
+DECISION: <Buy|Hold|Avoid> — Conviction: <High|Medium|Low> — Sizing: <full|half|starter|none> — Invalidation: <the specific trigger that flips this call>`,
+        committeeModel,
+    );
+
+    return { bullCase, bearCase, riskReview, pmVerdict };
 }
 
 // ─── Stage 5: Goldman Sachs-Style Report Synthesis ────────────────────────────
@@ -4150,10 +4262,23 @@ export const performDeepResearch = async (
     throwIfAborted(signal);
 
     // ── Stage 4: Adversarial Analysis (65–75%) ────────────────────────────
-    const { bullCase, bearCase } = await generateAdversarialAnalysis(
-        blueprint, sourceAnalysis, driverModel, ragResult
-    );
-    st.done('adversarial', 'Bull/bear cases generated');
+    // Committee workflow swaps the parallel bull∥bear for the sequential
+    // Vibe-Trading debate chain (bull → bear rebuttal → risk → PM verdict);
+    // bullCase/bearCase flow into the report writers unchanged either way.
+    let committee: CommitteeResult | null = null;
+    let bullCase: string, bearCase: string;
+    if (workflow === 'investment_committee') {
+        committee = await runInvestmentCommittee(
+            blueprint, sourceAnalysis, driverModel, ragResult,
+            (stage) => st.emit('analyzing', `Committee: ${stage} presenting…`, 65),
+        );
+        ({ bullCase, bearCase } = committee);
+    } else {
+        ({ bullCase, bearCase } = await generateAdversarialAnalysis(
+            blueprint, sourceAnalysis, driverModel, ragResult
+        ));
+    }
+    st.done('adversarial', committee ? 'Committee debate complete (bull→bear→risk→PM)' : 'Bull/bear cases generated');
 
     st.start('write', 'Senior analyst writing institutional report', 'synthesizing', 75, driverModel);
 
@@ -4235,6 +4360,12 @@ export const performDeepResearch = async (
             blueprint, webSources, secFilings, companyData, sourceAnalysis,
             bullCase, bearCase, template, driverModel, ragResult, macroText,
         );
+    }
+
+    // Committee mode: the risk review + PM verdict are the committee's own
+    // voice — appended verbatim rather than rewritten by the section writers.
+    if (committee) {
+        markdown += `\n\n## Investment Committee — Risk Review\n\n${committee.riskReview}\n\n## Investment Committee — PM Verdict\n\n${committee.pmVerdict}\n`;
     }
 
     // ── Stage 6: Numeric-Consistency Verifier (96–100%) ───────────────────
