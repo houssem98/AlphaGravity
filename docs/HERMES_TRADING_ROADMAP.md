@@ -66,7 +66,7 @@ Hard rules (every task):
   trades for 5 liquid names (BIAT, SFBT, AB, TINV, DELICE), decide which raw
   field is the true bid (evidence: which side do executions cross?).
   *Acceptance:* archived live payload + a one-paragraph verdict with numbers.
-- [ ] **H2.2** — If semantics proven: agent opens a PR updating the
+- [x] **H2.2** — If semantics proven: agent opens a PR updating the
   `book()` comment in `api/tn/[fn].ts` (mapping stays invariant-based; only
   the documented open question closes).
   *Acceptance:* PR with payload evidence linked; human merge.
@@ -217,3 +217,8 @@ limit.bid = real ASK (buyer lifted), AB book stepped down 85.8/85.61 after
 sells at 85.8. Our book() invariant mapping (lower=bid) is CORRECT. Cron
 bvmt-live-book Mon 09:30 Tunis armed (next 2026-07-13). C5 open question
 CLOSED → H2.2 PR next.
+2026-07-06 H2.2 — PR #3 opened (branch hermes/close-c5-book-semantics →
+roadmap/world-class): [fn].ts book() comment rewritten OPEN QUESTION→RESOLVED
+with payload evidence linked (captures + numbers). tsc 0 errors,
+comment-only, no deploy needed. AWAITS HUMAN MERGE:
+https://github.com/houssem98/antigravity/pull/3
