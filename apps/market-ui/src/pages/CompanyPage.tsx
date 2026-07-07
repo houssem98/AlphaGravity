@@ -8,6 +8,7 @@ import {
     Zap, ExternalLink, BarChart3, Building2, RefreshCw, Activity, Grid3x3,
 } from 'lucide-react';
 import { peersFor } from '../lib/peers';
+import { lastSeen, markSeen, isNewFiling, newCount } from '../lib/newFilings';
 import {
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, Cell,
@@ -126,7 +127,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
     );
 }
 
-function FilingRow({ doc, ticker }: { doc: GravityDocument; ticker: string }) {
+function FilingRow({ doc, ticker, isNew }: { doc: GravityDocument; ticker: string; isNew?: boolean }) {
     const navigate = useNavigate();
     const typeColor: Record<string, string> = {
         '10-K': '#00F0FF', '10-Q': '#5B8DF6', '8-K': '#F59E0B',
@@ -141,7 +142,10 @@ function FilingRow({ doc, ticker }: { doc: GravityDocument; ticker: string }) {
                 {doc.filing_type}
             </span>
             <div className="flex-1 min-w-0">
-                <p className="text-sm text-white truncate">{doc.title}</p>
+                <p className="text-sm text-white truncate">
+                    {doc.title}
+                    {isNew && <span className="ml-2 text-[9px] font-bold uppercase tracking-wider text-[#10B981] bg-[#10B981]/15 px-1.5 py-0.5 rounded align-middle">New</span>}
+                </p>
                 {doc.filing_date && <p className="text-[10px] text-[#4A5568]">{doc.filing_date}</p>}
             </div>
             <button
@@ -176,10 +180,14 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
     const [longitudinal, setLongitudinal] = useState<LongitudinalPoint[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'overview' | 'filings' | 'data' | 'sentiment'>('overview');
+    // Watermark captured at page open (newest filing_date the user saw last
+    // time); filings newer than this get a NEW badge. Captured before markSeen.
+    const [watermark, setWatermark] = useState<string | null>(null);
 
     useEffect(() => {
         if (!symbol) return;
         setLoading(true);
+        setWatermark(lastSeen(symbol));
 
         const authed = (tok: string | null): HeadersInit =>
             tok ? { Authorization: `Bearer ${tok}` } : {};
@@ -225,7 +233,13 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                     marketCap: q.marketCap ?? 0,
                 } : null);
             }
-            if (docs.status === 'fulfilled') setDocuments(arr(docs.value?.documents ?? docs.value));
+            if (docs.status === 'fulfilled') {
+                const list = arr(docs.value?.documents ?? docs.value) as GravityDocument[];
+                setDocuments(list);
+                // Record the newest filing_date so next visit can flag anything newer.
+                const newest = list.map(d => d.filing_date).filter(Boolean).sort().reverse()[0] ?? null;
+                markSeen(symbol, newest);
+            }
             if (met.status === 'fulfilled') setMetrics(arr(met.value?.rows ?? met.value?.structured_data));
             if (sent.status === 'fulfilled' && sent.value?.overall_score !== undefined) setSentiment(sent.value);
             if (sentDelta.status === 'fulfilled' && sentDelta.value?.delta !== undefined) setSentimentDelta(sentDelta.value);
@@ -413,7 +427,7 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                     <div className="flex gap-1 border-b border-white/[0.06] mb-5">
                         {([
                             { key: 'overview', label: 'Overview', icon: BarChart3 },
-                            { key: 'filings', label: `Filings (${documents.length})`, icon: FileText },
+                            { key: 'filings', label: `Filings (${documents.length})${newCount(documents.map(d => d.filing_date), watermark) > 0 ? ` · ${newCount(documents.map(d => d.filing_date), watermark)} new` : ''}`, icon: FileText },
                             { key: 'data', label: `Metrics (${metrics.length})`, icon: RefreshCw },
                             // Sentiment only when the backend actually has a score
                             // for this ticker — no empty-promise tab.
@@ -476,7 +490,7 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                         <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
                             {documents.length === 0
                                 ? <p className="text-sm text-[#4A5568] text-center py-8">No indexed filings found. Seed the Gravity index first.</p>
-                                : documents.map(doc => <FilingRow key={doc.id} doc={doc} ticker={symbol} />)
+                                : documents.map(doc => <FilingRow key={doc.id} doc={doc} ticker={symbol} isNew={isNewFiling(doc.filing_date, watermark)} />)
                             }
                         </div>
                     )}
