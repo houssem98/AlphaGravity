@@ -119,7 +119,7 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 - [x] 1.4 ✅ 2026-07-07 — Sentiment tab now renders only when the backend returns a real score (auto-lights-up when a ticker aggregate ships). Engine is per-document LLM scoring with no corpus batch run → aggregate deferred to Phase 3 transcript work; no fake data shown
 
 ### Phase 2 — AI company brief
-- [ ] 2.1 One-ticker grid run (Thesis/Moat/Drivers/Risks/Latest Q) → cited Overview brief with citation badges
+- [x] 2.1 ✅ 2026-07-07 — `CompanyBrief.tsx`: one-ticker `runGrid` over `SEED_GRID_PROMPTS` (Thesis/Moat/Growth/Risks/Financials/Latest-Q), each section a cited RAG answer with clickable [N] badges → passage. Prod probe: NVDA thesis 200, real cited answer + unverified-figure guard, 26.8s/cell warm (< 45s client timeout). Renders atop Overview tab. LLM proxy is fallback-only (RAG answers direct)
 - [ ] 2.2 Cache per ticker+day via `lib_grid_runs`
 - [ ] 2.3 Regenerate button + model picker (DeepSeek default)
 
