@@ -28,7 +28,8 @@ function isChunkLoadError(err: unknown): boolean {
 
 // Wrap React.lazy so a failed chunk fetch (typically a stale deploy) triggers a
 // single hard reload to pull fresh chunk references, instead of throwing.
-export function lazyWithReload<T extends ComponentType<unknown>>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ComponentType<unknown> rejects components with typed props (contravariance)
+export function lazyWithReload<T extends ComponentType<any>>(
     factory: () => Promise<{ default: T }>,
 ) {
     return lazy(async () => {

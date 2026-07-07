@@ -10,9 +10,10 @@ import { Link, useSearchParams } from 'react-router-dom';
 import {
     Search, Zap, FileText, Database, ChevronRight, CheckCircle, Clock, Cpu,
     Sparkles, ChevronDown, Check, Feather, Plus, Trash2, ArrowUp, Edit3,
-    Settings as SettingsIcon, Bookmark, BookmarkCheck, X, ExternalLink, Grid3x3,
+    Settings as SettingsIcon, Bookmark, BookmarkCheck, X, ExternalLink, Grid3x3, Building2,
 } from 'lucide-react';
 import GridView from '../components/grid/GridView';
+import CompanyPage from './CompanyPage';
 import { useGravitySearch, cleanAnswer, type GravityCitation, type GravitySource, type GravityMetric, type ChartSpec, type SearchFilters } from '../hooks/useGravitySearch';
 import {
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -39,7 +40,7 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SearchMode = 'grid' | 'qa' | 'research';
+type SearchMode = 'grid' | 'company' | 'qa' | 'research';
 
 interface ChatTurn {
     role: 'user' | 'assistant';
@@ -548,12 +549,12 @@ function highlightSpan(chunkText: string, snippet: string): ReactNode {
     if (idx === -1) {
         // Snippet not found verbatim — highlight the whole chunk so the user
         // still sees the cited passage emphasised.
-        return <mark className="bg-[var(--accent)]/25 text-inherit rounded px-0.5">{chunkText}</mark>;
+        return <mark className="bg-[color-mix(in_oklab,var(--accent)_18%,transparent)] text-[var(--text)] rounded-[3px] px-0.5 box-decoration-clone">{chunkText}</mark>;
     }
     return (
         <>
             {chunkText.slice(0, idx)}
-            <mark className="bg-[var(--accent)]/30 text-inherit rounded px-0.5">{chunkText.slice(idx, idx + snip.length)}</mark>
+            <mark className="bg-[color-mix(in_oklab,var(--accent)_22%,transparent)] text-[var(--text)] rounded-[3px] px-0.5 box-decoration-clone">{chunkText.slice(idx, idx + snip.length)}</mark>
             {chunkText.slice(idx + snip.length)}
         </>
     );
@@ -633,6 +634,56 @@ function SourceContext({ citation }: { citation: GravityCitation }) {
     );
 }
 
+// Deep-link to the actual EDGAR filing document (resolved via the backend,
+// which matches ticker + form + filing date against the SEC submissions API).
+// While resolving — and whenever resolution fails — falls back to the EDGAR
+// company search page. Appends a #:~:text= fragment so supporting browsers
+// scroll to and highlight the cited passage inside the filing itself.
+function EdgarLink({ citation, filingType, filingDate }: { citation: GravityCitation; filingType: string; filingDate: string }) {
+    const [resolved, setResolved] = useState<string | null>(null);
+
+    useEffect(() => {
+        let alive = true;
+        setResolved(null);
+        if (!citation.ticker) return;
+        (async () => {
+            try {
+                const tok = await getAccessToken();
+                const qs = new URLSearchParams({ ticker: citation.ticker, filing_type: filingType, filing_date: filingDate });
+                const res = await fetch(`${GRAVITY_API}/v1/documents/filing-url?${qs}`, {
+                    headers: tok ? { Authorization: `Bearer ${tok}` } : {},
+                });
+                const data = res.ok ? await res.json() : null;
+                if (alive && data?.url) setResolved(data.url);
+            } catch { /* keep fallback */ }
+        })();
+        return () => { alive = false; };
+    }, [citation.ticker, filingType, filingDate]);
+
+    if (!citation.ticker) return null;
+
+    const fallback = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(citation.ticker)}&type=${encodeURIComponent(filingType || '10-K')}&dateb=&owner=include&count=40`;
+    let href = resolved ?? fallback;
+    // Scroll-to-text fragment: only for verbatim prose citations (synthesized
+    // XBRL snippets like "[EXACT FILING FIGURE] ..." don't exist in the filing).
+    const snip = (citation.text ?? '').trim();
+    if (resolved && snip && !snip.startsWith('[')) {
+        const frag = snip.split(/\s+/).slice(0, 10).join(' ');
+        href += `#:~:text=${encodeURIComponent(frag).replace(/-/g, '%2D')}`;
+    }
+    return (
+        <a
+            href={safeUrl(href)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-xs text-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+        >
+            <ExternalLink className="w-3.5 h-3.5" />
+            {resolved ? 'View filing on SEC EDGAR' : 'View on SEC EDGAR'}
+        </a>
+    );
+}
+
 function CitationPanel({ citation, onClose }: { citation: GravityCitation; onClose: () => void }) {
     return (
         <div className="fixed inset-y-0 right-0 w-[400px] max-w-full z-50 flex flex-col" style={{ background: 'var(--bg)', borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
@@ -680,27 +731,14 @@ function CitationPanel({ citation, onClose }: { citation: GravityCitation; onClo
                 {/* Source context — cited passage + neighbouring chunks */}
                 <SourceContext citation={citation} />
 
-                {/* Link to full doc — open the real SEC EDGAR filings for this
-                    ticker (the old internal /documents route had nothing to show
-                    for XBRL facts, whose "title" is a metric name, not a document). */}
+                {/* Link to the actual filing document on EDGAR, with in-page
+                    highlight of the cited passage where the browser supports
+                    text fragments. */}
                 {(() => {
-                    const anyCit = citation as { url?: string; ticker?: string };
-                    const docUrl = anyCit.url
-                        || (citation.ticker
-                            ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(citation.ticker)}&type=10-K&dateb=&owner=include&count=40`
-                            : null);
-                    if (!docUrl) return null;
-                    return (
-                        <a
-                            href={safeUrl(docUrl)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-xs text-[var(--accent)] hover:text-[var(--accent)] transition-colors"
-                        >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            View on SEC EDGAR
-                        </a>
-                    );
+                    const docTitle = citation.document_title ?? '';
+                    const fm = docTitle.match(/\b(10-K|10-Q|8-K|DEF 14A|S-1|20-F|6-K|40-F|13F-HR|SC 13[DG]|4)\b/);
+                    const dm = docTitle.match(/\d{4}-\d{2}-\d{2}/);
+                    return <EdgarLink citation={citation} filingType={fm?.[0] ?? ''} filingDate={dm?.[0] ?? ''} />;
                 })()}
             </div>
         </div>
@@ -721,6 +759,16 @@ function ModeToggle({ mode, onChange }: { mode: SearchMode; onChange: (m: Search
             >
                 <Grid3x3 className="w-3.5 h-3.5" />
                 Research Grid
+            </button>
+            <button
+                onClick={() => onChange('company')}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all ${mode === 'company'
+                    ? 'bg-[var(--accent)]/20 text-[var(--accent)] shadow-sm'
+                    : 'text-[var(--text-2)] hover:text-white'
+                    }`}
+            >
+                <Building2 className="w-3.5 h-3.5" />
+                Company
             </button>
             <button
                 onClick={() => onChange('qa')}
@@ -819,22 +867,29 @@ export default function SearchPage() {
     useEffect(() => {
         fetchHistory();
         loadQaConversations();
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Handle ?q= / ?mode= on mount AND on in-page navigations (e.g. the
+    // embedded Company view linking back to /search?q=…).
+    useEffect(() => {
         const q = searchParams.get('q');
         const m = searchParams.get('mode');
         if (m === 'research') setMode('research');
         if (m === 'grid') setMode('grid');  // GridView reads ?gridRun itself
+        if (m === 'company') setMode('company');
         if (q?.trim()) {
             setSearchParams({}, { replace: true });
             if (m === 'research') {
                 setMode('research');
                 setTimeout(() => runResearch(q.trim()), 300);
             } else {
+                setMode('qa');
                 handleQaSubmit(q.trim());
             }
-        } else {
+        } else if (!m) {
             qaInputRef.current?.focus();
         }
-    }, []);
+    }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── QA handlers ───────────────────────────────────────────────────────────
 
@@ -1175,6 +1230,22 @@ export default function SearchPage() {
                 </div>
                 <div className="flex-1 overflow-y-auto">
                     <GridView />
+                </div>
+            </div>
+        );
+    }
+
+    // ── COMPANY MODE ──────────────────────────────────────────────────────────
+    if (mode === 'company') {
+        return (
+            <div className="flex flex-col h-full min-h-[calc(100vh-48px)] bg-[color:var(--bg)]">
+                <div className="border-b border-[color:var(--line)] px-4 py-2 bg-[color:var(--surface)]">
+                    <div className="flex gap-3 max-w-4xl mx-auto items-center">
+                        <ModeToggle mode={mode} onChange={setMode} />
+                    </div>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                    <CompanyPage embedded />
                 </div>
             </div>
         );

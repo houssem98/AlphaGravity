@@ -12,6 +12,7 @@ import {
     ResponsiveContainer, Cell,
 } from 'recharts';
 import { apiGetOverview, apiGetQuote } from '../services/api';
+import { getAccessToken } from '../services/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,7 +94,7 @@ interface LongitudinalPoint {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const GRAVITY_BASE = import.meta.env.VITE_GRAVITY_URL ?? 'http://localhost:8000';
+const GRAVITY_BASE = import.meta.env.VITE_GRAVITY_API_URL ?? 'http://localhost:8000';
 
 function fmt(n: string | number, style: 'currency' | 'percent' | 'number' = 'number'): string {
     const num = typeof n === 'string' ? parseFloat(n) : n;
@@ -150,10 +151,16 @@ function FilingRow({ doc, ticker }: { doc: GravityDocument; ticker: string }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function CompanyPage() {
+export default function CompanyPage({ embedded = false }: { embedded?: boolean }) {
     const { ticker } = useParams<{ ticker: string }>();
     const navigate = useNavigate();
-    const symbol = (ticker ?? '').toUpperCase();
+    // Embedded in the /search mode toggle → ticker lives in local state instead
+    // of the route, so switching companies never leaves the search page.
+    const [localTicker, setLocalTicker] = useState('');
+    const symbol = (ticker ?? localTicker).toUpperCase();
+    const openTicker = (t: string) => embedded
+        ? setLocalTicker(t.toUpperCase())
+        : navigate(`/companies/${encodeURIComponent(t.toUpperCase())}`);
 
     const [overview, setOverview] = useState<MarketOverview | null>(null);
     const [quote, setQuote] = useState<Quote | null>(null);
@@ -169,19 +176,24 @@ export default function CompanyPage() {
         if (!symbol) return;
         setLoading(true);
 
-        Promise.allSettled([
+        const authed = (tok: string | null): HeadersInit =>
+            tok ? { Authorization: `Bearer ${tok}` } : {};
+
+        getAccessToken().catch(() => null).then(tok => Promise.allSettled([
             // Alpha Vantage overview
             apiGetOverview(symbol),
             // Alpha Vantage quote
             apiGetQuote(symbol),
             // Gravity indexed documents
-            fetch(`${GRAVITY_BASE}/v1/documents?ticker=${symbol}&limit=15`).then(r => r.json()),
+            fetch(`${GRAVITY_BASE}/v1/documents?ticker=${symbol}&limit=15`, {
+                headers: authed(tok),
+            }).then(r => r.ok ? r.json() : null),
             // Gravity structured financial metrics
             fetch(`${GRAVITY_BASE}/v1/search/structured`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authed(tok) },
                 body: JSON.stringify({ query: `key financial metrics for ${symbol}`, companies: [symbol], limit: 30 }),
-            }).then(r => r.json()),
+            }).then(r => r.ok ? r.json() : null),
             // Gravity sentiment score
             fetch(`${GRAVITY_BASE}/v1/analytics/sentiment/${symbol}`, {
                 headers: { 'X-API-Key': 'deep-research-internal' },
@@ -195,18 +207,18 @@ export default function CompanyPage() {
                 headers: { 'X-API-Key': 'deep-research-internal' },
             }).then(r => r.ok ? r.json() : null).catch(() => null),
         ]).then(([ov, qt, docs, met, sent, sentDelta, longit]) => {
+            const arr = (v: unknown): any[] => Array.isArray(v) ? v : [];
             if (ov.status === 'fulfilled' && ov.value?.Symbol) setOverview(ov.value);
             if (qt.status === 'fulfilled') setQuote(qt.value?.['Global Quote'] ?? null);
-            if (docs.status === 'fulfilled') setDocuments(docs.value?.documents ?? docs.value ?? []);
-            if (met.status === 'fulfilled') setMetrics(met.value?.rows ?? met.value?.structured_data ?? []);
-            if (sent.status === 'fulfilled' && sent.value) setSentiment(sent.value);
-            if (sentDelta.status === 'fulfilled' && sentDelta.value) setSentimentDelta(sentDelta.value);
+            if (docs.status === 'fulfilled') setDocuments(arr(docs.value?.documents ?? docs.value));
+            if (met.status === 'fulfilled') setMetrics(arr(met.value?.rows ?? met.value?.structured_data));
+            if (sent.status === 'fulfilled' && sent.value?.overall_score !== undefined) setSentiment(sent.value);
+            if (sentDelta.status === 'fulfilled' && sentDelta.value?.delta !== undefined) setSentimentDelta(sentDelta.value);
             if (longit.status === 'fulfilled' && longit.value) {
-                const pts = longit.value?.data_points ?? longit.value?.periods ?? [];
-                setLongitudinal(pts);
+                setLongitudinal(arr(longit.value?.data_points ?? longit.value?.periods));
             }
             setLoading(false);
-        });
+        }));
     }, [symbol]);
 
     // No ticker in the URL (the "Companies" nav link points to bare /companies).
@@ -227,7 +239,7 @@ export default function CompanyPage() {
                             e.preventDefault();
                             const v = new FormData(e.currentTarget)
                                 .get('ticker')?.toString().trim().toUpperCase();
-                            if (v) navigate(`/companies/${encodeURIComponent(v)}`);
+                            if (v) openTicker(v);
                         }}
                         className="flex gap-2"
                     >
@@ -248,7 +260,7 @@ export default function CompanyPage() {
                         {['AAPL', 'NVDA', 'TSLA', 'MSFT', 'AMZN'].map((t) => (
                             <button
                                 key={t}
-                                onClick={() => navigate(`/companies/${t}`)}
+                                onClick={() => openTicker(t)}
                                 className="px-3 py-1 rounded-md text-xs bg-[#1F2937] text-[#A7B0C8] hover:text-[#F4F6FF] transition-colors"
                             >
                                 {t}
@@ -275,7 +287,7 @@ export default function CompanyPage() {
         <div className="min-h-[calc(100vh-64px)] p-6 max-w-5xl mx-auto">
             {/* Back */}
             <button
-                onClick={() => navigate(-1)}
+                onClick={() => embedded ? setLocalTicker('') : navigate(-1)}
                 className="flex items-center gap-1.5 text-sm text-[#A7B0C8] hover:text-white mb-6 transition-colors"
             >
                 <ArrowLeft className="w-4 h-4" /> Back
@@ -346,9 +358,9 @@ export default function CompanyPage() {
                     {overview && (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                             <StatCard label="Market Cap" value={fmt(overview.MarketCapitalization, 'currency')} />
-                            <StatCard label="P/E Ratio" value={overview.PERatio ?? '—'} />
-                            <StatCard label="EPS (TTM)" value={overview.EPS ? `$${overview.EPS}` : '—'} />
-                            <StatCard label="Analyst Target" value={overview.AnalystTargetPrice ? `$${overview.AnalystTargetPrice}` : '—'} />
+                            <StatCard label="P/E Ratio" value={fmt(overview.PERatio)} />
+                            <StatCard label="EPS (TTM)" value={isNaN(parseFloat(overview.EPS)) ? '—' : `$${overview.EPS}`} />
+                            <StatCard label="Analyst Target" value={isNaN(parseFloat(overview.AnalystTargetPrice)) ? '—' : `$${overview.AnalystTargetPrice}`} />
                             <StatCard label="52W High" value={overview['52WeekHigh'] ? `$${overview['52WeekHigh']}` : '—'} />
                             <StatCard label="52W Low" value={overview['52WeekLow'] ? `$${overview['52WeekLow']}` : '—'} />
                             <StatCard label="Operating Margin" value={overview.OperatingMarginTTM ? `${(parseFloat(overview.OperatingMarginTTM) * 100).toFixed(1)}%` : '—'} />
