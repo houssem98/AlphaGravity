@@ -189,11 +189,10 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
             fetch(`${GRAVITY_BASE}/v1/company/${symbol}/filings?limit=15`, {
                 headers: authed(tok),
             }).then(r => r.ok ? r.json() : null),
-            // Gravity structured financial metrics
-            fetch(`${GRAVITY_BASE}/v1/search/structured`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...authed(tok) },
-                body: JSON.stringify({ query: `key financial metrics for ${symbol}`, companies: [symbol], limit: 30 }),
+            // Exact XBRL financial facts (NL→SQL structured search is broken in
+            // prod and inexact anyway — xbrl:* rows are the one exact population)
+            fetch(`${GRAVITY_BASE}/v1/company/${symbol}/financials?limit=40`, {
+                headers: authed(tok),
             }).then(r => r.ok ? r.json() : null),
             // Gravity sentiment score
             fetch(`${GRAVITY_BASE}/v1/analytics/sentiment/${symbol}`, {
@@ -550,8 +549,10 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                                                 <tr key={i} className="hover:bg-white/[0.02] transition-colors">
                                                     <td className="px-4 py-2.5 text-[#A7B0C8]">{m.metric}</td>
                                                     <td className="px-4 py-2.5 font-mono text-white">
-                                                        {typeof m.value === 'number' ? m.value.toLocaleString() : m.value}
-                                                        {m.unit && <span className="ml-1 text-xs text-[#4A5568]">{m.unit}</span>}
+                                                        {typeof m.value === 'number' && m.unit === 'USD'
+                                                            ? fmt(m.value, 'currency')
+                                                            : typeof m.value === 'number' ? m.value.toLocaleString() : m.value}
+                                                        {m.unit && m.unit !== 'USD' && <span className="ml-1 text-xs text-[#4A5568]">{m.unit}</span>}
                                                     </td>
                                                     <td className="px-4 py-2.5 text-[#4A5568]">{m.period ?? '—'}</td>
                                                 </tr>

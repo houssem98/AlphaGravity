@@ -114,7 +114,7 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 
 ### Phase 1 — data spine
 - [x] 1.1 ✅ 2026-07-07 — new `GET /v1/company/{ticker}/filings` (Supabase-REST over `chunks`, dupe-ingest collapse, no asyncpg); prod probe: AAPL returns 10-Q/8-K/transcripts newest-first; UI wired + deployed. Note: anon RLS blocks frontend-direct Supabase reads → server-side route is the pattern for 1.2
-- [ ] 1.2 Metrics tab: exact `xbrl:*` financials path (no NL→SQL) — revenue/NI/EPS per quarter with provenance
+- [x] 1.2 ✅ 2026-07-07 — `GET /v1/company/{ticker}/financials` (financials table, `document_id like xbrl:*`, metric+period dedupe newest-restatement-wins); prod probe: AAPL exact balance-sheet/P&L rows with filing provenance; Metrics tab wired, USD compacted ($82.70B)
 - [ ] 1.3 Quote/overview: replace Alpha Vantage with existing fallback stack (`api/quote.ts` / sina pattern) — price always renders
 - [ ] 1.4 Sentiment: ticker-aggregate wrapper in analytics.py OR tab hidden until real
 
