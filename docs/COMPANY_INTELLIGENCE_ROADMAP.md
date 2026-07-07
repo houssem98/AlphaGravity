@@ -113,7 +113,7 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 ## 6. Progress ledger (loop-driven — one item per iteration, mark ✅ date + evidence, ⛔ reason if blocked)
 
 ### Phase 1 — data spine
-- [ ] 1.1 Filings tab: Supabase-direct documents query (or endpoint ported off asyncpg) — AAPL shows its 10-K/10-Qs in prod
+- [x] 1.1 ✅ 2026-07-07 — new `GET /v1/company/{ticker}/filings` (Supabase-REST over `chunks`, dupe-ingest collapse, no asyncpg); prod probe: AAPL returns 10-Q/8-K/transcripts newest-first; UI wired + deployed. Note: anon RLS blocks frontend-direct Supabase reads → server-side route is the pattern for 1.2
 - [ ] 1.2 Metrics tab: exact `xbrl:*` financials path (no NL→SQL) — revenue/NI/EPS per quarter with provenance
 - [ ] 1.3 Quote/overview: replace Alpha Vantage with existing fallback stack (`api/quote.ts` / sina pattern) — price always renders
 - [ ] 1.4 Sentiment: ticker-aggregate wrapper in analytics.py OR tab hidden until real

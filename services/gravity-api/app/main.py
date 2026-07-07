@@ -353,6 +353,8 @@ app.include_router(hermes.router, prefix="/v1", tags=["Hermes Agent"])
 app.include_router(trading.router, prefix="/api", tags=["Trading (Phase 1T)"])
 from app.api.routes import forecast
 app.include_router(forecast.router, tags=["Forecast (Kronos)"])
+from app.api.routes import company
+app.include_router(company.router, prefix="/v1", tags=["Company Intelligence"])
 
 # ── Prometheus-compatible /metrics endpoint ──────────────────────────────
 @app.get("/metrics", include_in_schema=False)

@@ -184,8 +184,9 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
             apiGetOverview(symbol),
             // Alpha Vantage quote
             apiGetQuote(symbol),
-            // Gravity indexed documents
-            fetch(`${GRAVITY_BASE}/v1/documents?ticker=${symbol}&limit=15`, {
+            // Gravity indexed documents (Supabase-REST-backed; /v1/documents is
+            // dead on prod — asyncpg get_db stub)
+            fetch(`${GRAVITY_BASE}/v1/company/${symbol}/filings?limit=15`, {
                 headers: authed(tok),
             }).then(r => r.ok ? r.json() : null),
             // Gravity structured financial metrics
