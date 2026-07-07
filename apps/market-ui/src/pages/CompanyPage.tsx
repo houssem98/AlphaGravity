@@ -11,7 +11,7 @@ import {
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, Cell,
 } from 'recharts';
-import { apiGetOverview, apiGetQuote } from '../services/api';
+import { apiGetOverview } from '../services/api';
 import { getAccessToken } from '../services/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -39,10 +39,10 @@ interface MarketOverview {
 }
 
 interface Quote {
-    '05. price': string;
-    '09. change': string;
-    '10. change percent': string;
-    '06. volume': string;
+    price: number;
+    changePct: number;
+    volume: number;
+    marketCap: number;
 }
 
 interface GravityDocument {
@@ -180,10 +180,12 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
             tok ? { Authorization: `Bearer ${tok}` } : {};
 
         getAccessToken().catch(() => null).then(tok => Promise.allSettled([
-            // Alpha Vantage overview
+            // Alpha Vantage overview (opportunistic — 25 req/day free tier;
+            // page renders '—' when absent)
             apiGetOverview(symbol),
-            // Alpha Vantage quote
-            apiGetQuote(symbol),
+            // Quote via the Yahoo→sina fallback stack (always up, no key)
+            fetch(`/api/quote?symbols=${encodeURIComponent(symbol)}`)
+                .then(r => r.ok ? r.json() : null),
             // Gravity indexed documents (Supabase-REST-backed; /v1/documents is
             // dead on prod — asyncpg get_db stub)
             fetch(`${GRAVITY_BASE}/v1/company/${symbol}/filings?limit=15`, {
@@ -209,7 +211,15 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
         ]).then(([ov, qt, docs, met, sent, sentDelta, longit]) => {
             const arr = (v: unknown): any[] => Array.isArray(v) ? v : [];
             if (ov.status === 'fulfilled' && ov.value?.Symbol) setOverview(ov.value);
-            if (qt.status === 'fulfilled') setQuote(qt.value?.['Global Quote'] ?? null);
+            if (qt.status === 'fulfilled') {
+                const q = qt.value?.quoteResponse?.result?.[0];
+                setQuote(q?.regularMarketPrice ? {
+                    price: q.regularMarketPrice,
+                    changePct: q.regularMarketChangePercent ?? 0,
+                    volume: q.regularMarketVolume ?? 0,
+                    marketCap: q.marketCap ?? 0,
+                } : null);
+            }
             if (docs.status === 'fulfilled') setDocuments(arr(docs.value?.documents ?? docs.value));
             if (met.status === 'fulfilled') setMetrics(arr(met.value?.rows ?? met.value?.structured_data));
             if (sent.status === 'fulfilled' && sent.value?.overall_score !== undefined) setSentiment(sent.value);
@@ -272,9 +282,9 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
         );
     }
 
-    const price = quote?.['05. price'] ?? null;
-    const changePct = quote?.['10. change percent']?.replace('%', '') ?? null;
-    const isUp = changePct ? parseFloat(changePct) >= 0 : null;
+    const price = quote?.price ?? null;
+    const changePct = quote?.changePct ?? null;
+    const isUp = changePct !== null ? changePct >= 0 : null;
 
     const chartData = metrics
         .filter(m => typeof m.value === 'number' && m.period)
@@ -318,13 +328,13 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                         </div>
 
                         {/* Price */}
-                        {price && (
+                        {price !== null && (
                             <div className="text-right flex-shrink-0">
-                                <p className="text-3xl font-bold text-white">${parseFloat(price).toFixed(2)}</p>
-                                {changePct && (
+                                <p className="text-3xl font-bold text-white">${price.toFixed(2)}</p>
+                                {changePct !== null && (
                                     <div className={`flex items-center justify-end gap-1 text-sm ${isUp ? 'text-green-400' : 'text-red-400'}`}>
                                         {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                                        {isUp ? '+' : ''}{parseFloat(changePct).toFixed(2)}%
+                                        {isUp ? '+' : ''}{changePct.toFixed(2)}%
                                     </div>
                                 )}
                             </div>
