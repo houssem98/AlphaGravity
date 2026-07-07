@@ -112,6 +112,16 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 
 ## 6. Progress ledger (loop-driven — one item per iteration, mark ✅ date + evidence, ⛔ reason if blocked)
 
+**Completion: 31% (5/16) — `██████░░░░░░░░░░░░░░░░`**
+
+| Phase | Done | Total |
+|---|---|---|
+| 1 · Data spine | 4 | 4 ✅ |
+| 2 · AI brief | 1 | 3 |
+| 3 · Earnings intel | 0 | 4 |
+| 4 · Comparison & monitoring | 0 | 3 |
+| 5 · Work products | 0 | 2 |
+
 ### Phase 1 — data spine
 - [x] 1.1 ✅ 2026-07-07 — new `GET /v1/company/{ticker}/filings` (Supabase-REST over `chunks`, dupe-ingest collapse, no asyncpg); prod probe: AAPL returns 10-Q/8-K/transcripts newest-first; UI wired + deployed. Note: anon RLS blocks frontend-direct Supabase reads → server-side route is the pattern for 1.2
 - [x] 1.2 ✅ 2026-07-07 — `GET /v1/company/{ticker}/financials` (financials table, `document_id like xbrl:*`, metric+period dedupe newest-restatement-wins); prod probe: AAPL exact balance-sheet/P&L rows with filing provenance; Metrics tab wired, USD compacted ($82.70B)

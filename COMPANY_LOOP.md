@@ -20,6 +20,8 @@ One iteration = one ledger item shipped end-to-end. Loop until every item in
 5. **Commit** the item's files only: `feat(company): <ledger item>` (normal style).
 6. **Tick the ledger**: ✅ + date + one-line evidence (probe output or URL).
    Blocked (missing key, dead dep, needs paid provider) → ⛔ + reason, continue to next item.
+   Then update the §6 **Completion** header: recount ✅/⛔ vs 16 total, refresh the
+   percent, the 20-char `█`/`░` bar (each block = 5%), and the per-phase table.
 7. Every 3 items or on phase completion: update memory `project_company_intelligence.md`.
 
 ## Guardrails
