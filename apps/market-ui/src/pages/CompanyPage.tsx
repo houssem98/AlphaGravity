@@ -5,8 +5,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, TrendingUp, TrendingDown, FileText,
-    Zap, ExternalLink, BarChart3, Building2, RefreshCw, Activity,
+    Zap, ExternalLink, BarChart3, Building2, RefreshCw, Activity, Grid3x3,
 } from 'lucide-react';
+import { peersFor } from '../lib/peers';
 import {
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, Cell,
@@ -366,6 +367,32 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                             <ExternalLink className="w-3.5 h-3.5" /> SEC EDGAR
                         </a>
                     </div>
+
+                    {/* Peer strip — sector peers + 1-click compare in Research Grid */}
+                    {(() => {
+                        const peers = peersFor(symbol);
+                        if (peers.length === 0) return null;
+                        return (
+                            <div className="flex items-center gap-2 flex-wrap mb-6">
+                                <span className="text-[10px] text-[#4A5568] uppercase tracking-wider">Peers</span>
+                                {peers.map(p => (
+                                    <button
+                                        key={p}
+                                        onClick={() => openTicker(p)}
+                                        className="px-2 py-0.5 rounded text-xs font-mono bg-white/[0.04] text-[#A7B0C8] hover:text-white hover:bg-white/[0.08] transition-colors"
+                                    >
+                                        {p}
+                                    </button>
+                                ))}
+                                <button
+                                    onClick={() => navigate(`/search?mode=grid&tickers=${encodeURIComponent([symbol, ...peers].join(','))}`)}
+                                    className="ml-1 flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-[#00F0FF] text-xs hover:bg-[#00F0FF]/20 transition-colors"
+                                >
+                                    <Grid3x3 className="w-3 h-3" /> Compare in grid
+                                </button>
+                            </div>
+                        );
+                    })()}
 
                     {/* Key stats grid */}
                     {overview && (

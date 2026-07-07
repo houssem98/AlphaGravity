@@ -188,6 +188,17 @@ export default function GridView() {
             refreshHistory();
             return () => { cancelled = true; };
         }
+        // Prefill from a company page's "Compare" action: ?tickers=NVDA,AMD,INTC
+        // sets the ticker input ready to run (no auto-run — user picks prompts).
+        const prefill = new URLSearchParams(window.location.search).get('tickers');
+        if (prefill?.trim()) {
+            setTickersInput(prefill.split(',').map(s => s.trim().toUpperCase()).filter(Boolean).join(', '));
+            const url = new URL(window.location.href);
+            url.searchParams.delete('tickers');
+            window.history.replaceState(null, '', url.pathname + url.search);
+            refreshHistory();
+            return () => { cancelled = true; };
+        }
         loadLatestGridRun()
             .then(last => {
                 if (cancelled || !last) return;

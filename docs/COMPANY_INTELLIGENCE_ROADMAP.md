@@ -112,7 +112,7 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 
 ## 6. Progress ledger (loop-driven — one item per iteration, mark ✅ date + evidence, ⛔ reason if blocked)
 
-**Shipped: 56% (9/16 ✅) · Resolved: 69% (11/16, +2 ⛔) — `███████████░░░░░░░░░`**
+**Shipped: 63% (10/16 ✅) · Resolved: 75% (12/16, +2 ⛔) — `████████████░░░░░░░░`**
 
 Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retrieval falls back to structured channel) — both need server-side ingestion/filter work, documented inline.
 
@@ -121,7 +121,7 @@ Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retriev
 | 1 · Data spine | 4 | 0 | 4 ✅ |
 | 2 · AI brief | 3 | 0 | 3 ✅ |
 | 3 · Earnings intel | 2 | 2 | 4 (resolved) |
-| 4 · Comparison & monitoring | 0 | 0 | 3 |
+| 4 · Comparison & monitoring | 1 | 0 | 3 |
 | 5 · Work products | 0 | 0 | 2 |
 
 ### Phase 1 — data spine
@@ -142,7 +142,7 @@ Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retriev
 - [⛔] 3.4 BLOCKED 2026-07-07 — same root cause as 3.2: catalyst query over 8-K+transcript returns `available:null`, structured channel only, disclaimer ("sources contain only historical revenue… no upcoming catalysts"). Won't ship a second self-hiding card. Working substitute already live: the AI brief's **Growth Drivers** section surfaces forward-looking initiatives from MD&A (returns real cited answers). Upgrade: enforce document_types on the structured channel server-side
 
 ### Phase 4 — comparison & monitoring
-- [ ] 4.1 Peer strip + 1-click compare → Research Grid prefill (multi-ticker)
+- [x] 4.1 ✅ 2026-07-07 — peer strip on company header (curated `peersFor` static map, 15 sector groups; self-checked) + "Compare in grid" → `/search?mode=grid&tickers=SELF,peers`; GridView reads `?tickers=` prefill (no auto-run). Peer chips open that company. Prod probe: grid deep-link 200. Unknown tickers → strip hidden (no fake peers)
 - [ ] 4.2 Devil's Advocate button: investment-committee chain on the brief
 - [ ] 4.3 Filing alerts: "new 8-K for {ticker}" via EDGAR daily-fresh poller
 
