@@ -369,10 +369,14 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                             <Zap className="w-3.5 h-3.5" /> Quick Search
                         </button>
                         <button
-                            onClick={() => navigate(`/search?mode=research&q=${encodeURIComponent(`Full investment analysis of ${overview?.Name ?? symbol}`)}`)}
+                            onClick={() => {
+                                const name = overview?.Name ?? symbol;
+                                const primer = `Initiation report on ${name} (${symbol}): business model and segments, financial performance and trajectory, valuation, competitive positioning and moat, key risks, and near-term catalysts. Cite filings and cite figures.`;
+                                navigate(`/search?mode=research&q=${encodeURIComponent(primer)}`);
+                            }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#5B8DF6]/10 border border-[#5B8DF6]/30 text-[#5B8DF6] text-xs hover:bg-[#5B8DF6]/20 transition-colors"
                         >
-                            <FileText className="w-3.5 h-3.5" /> Deep Research
+                            <FileText className="w-3.5 h-3.5" /> Full Primer
                         </button>
                         <a
                             href={`https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${symbol}&type=10-K&dateb=&owner=include&count=10`}

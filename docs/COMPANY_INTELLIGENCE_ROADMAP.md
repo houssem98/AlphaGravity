@@ -112,7 +112,7 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 
 ## 6. Progress ledger (loop-driven — one item per iteration, mark ✅ date + evidence, ⛔ reason if blocked)
 
-**Shipped: 81% (13/16 ✅) · Resolved: 94% (15/16, +2 ⛔) — `████████████████░░░░`**
+**Shipped: 88% (14/16 ✅) · Resolved: 100% (16/16, +2 ⛔) — `████████████████████` — LOOP COMPLETE**
 
 Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retrieval falls back to structured channel) — both need server-side ingestion/filter work, documented inline.
 
@@ -120,9 +120,9 @@ Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retriev
 |---|---|---|---|
 | 1 · Data spine | 4 | 0 | 4 ✅ |
 | 2 · AI brief | 3 | 0 | 3 ✅ |
-| 3 · Earnings intel | 2 | 2 | 4 (resolved) |
+| 3 · Earnings intel | 2 | 2 | 4 ✅ (resolved) |
 | 4 · Comparison & monitoring | 3 | 0 | 3 ✅ |
-| 5 · Work products | 1 | 0 | 2 |
+| 5 · Work products | 2 | 0 | 2 ✅ |
 
 ### Phase 1 — data spine
 - [x] 1.1 ✅ 2026-07-07 — new `GET /v1/company/{ticker}/filings` (Supabase-REST over `chunks`, dupe-ingest collapse, no asyncpg); prod probe: AAPL returns 10-Q/8-K/transcripts newest-first; UI wired + deployed. Note: anon RLS blocks frontend-direct Supabase reads → server-side route is the pattern for 1.2
@@ -148,4 +148,4 @@ Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retriev
 
 ### Phase 5 — work products
 - [x] 5.1 ✅ 2026-07-07 — "Memo" button on the AI brief exports the brief `GridState` via the existing `buildMemo` → Markdown download (`{TICKER}_brief_{date}.md`), disabled until answers exist. Reuses grid exporter + `downloadBlob`, zero new export code. buildMemo self-checks pass. (Markdown, not PDF — MD is the grid's native memo format; PDF = later nicety)
-- [ ] 5.2 "Send to Deep Research" primer prefill
+- [x] 5.2 ✅ 2026-07-07 — "Full Primer" button prefills a structured initiation-report prompt (business/segments, financials, valuation, moat, risks, catalysts + cite figures) and hands off to Deep Research via the auto-run `?mode=research&q=` path. Prod probe: research handoff URL 200
