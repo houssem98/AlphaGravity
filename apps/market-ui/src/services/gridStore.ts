@@ -47,6 +47,29 @@ export async function loadLatestGridRun(): Promise<GridState | null> {
     return rowToState(data as SavedGridRow);
 }
 
+// Most recent run with this exact name created today (local day). Used to cache
+// the Company Brief per ticker+day so re-opening a company is instant.
+export async function loadTodaysRunByName(name: string): Promise<GridState | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const { data } = await supabase
+        .from('lib_grid_runs')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('name', name)
+        .gte('created_at', startOfDay.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (!data) return null;
+    return rowToState(data as SavedGridRow);
+}
+
 export async function loadGridRun(id: string): Promise<GridState | null> {
     const { data } = await supabase
         .from('lib_grid_runs')

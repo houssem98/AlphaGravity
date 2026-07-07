@@ -12,6 +12,7 @@ import {
 } from '../../services/gridResearch';
 import type { Citation, ResearchModelId } from '../../services/deepResearchService';
 import { queryGravityRAG } from '../../services/gravitySearchService';
+import { saveGridRun, loadTodaysRunByName } from '../../services/gridStore';
 
 const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/llm/chat`;
 
@@ -117,15 +118,19 @@ function BriefSection({ label, answer, citations, running }: {
 export default function CompanyBrief({ ticker }: { ticker: string }) {
     const [state, setState] = useState<GridState | null>(null);
     const [running, setRunning] = useState(false);
+    const [cached, setCached] = useState(false);
     const abortRef = useRef<AbortController | null>(null);
+
+    const briefName = `${ticker} Company Brief`;
 
     const run = useCallback(async () => {
         abortRef.current?.abort();
         const controller = new AbortController();
         abortRef.current = controller;
+        setCached(false);
         const def = {
             id: `brief-${ticker}`,
-            name: `${ticker} Company Brief`,
+            name: briefName,
             tickers: [ticker],
             prompts: SEED_GRID_PROMPTS,
         };
@@ -145,16 +150,31 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
                 signal: controller.signal,
                 onCellUpdate: s => setState({ ...s }),
             });
-            if (!controller.signal.aborted) setState(final);
+            if (!controller.signal.aborted) {
+                setState(final);
+                // Cache the completed brief for the rest of the day.
+                saveGridRun(final).catch(() => { /* non-blocking */ });
+            }
         } finally {
             if (abortRef.current === controller) setRunning(false);
         }
-    }, [ticker]);
+    }, [ticker, briefName]);
 
+    // On ticker change: serve today's cached brief if present, else run fresh.
     useEffect(() => {
-        run();
-        return () => abortRef.current?.abort();
-    }, [run]);
+        let alive = true;
+        (async () => {
+            const hit = await loadTodaysRunByName(briefName).catch(() => null);
+            if (!alive) return;
+            if (hit) {
+                setState(hit);
+                setCached(true);
+            } else {
+                run();
+            }
+        })();
+        return () => { alive = false; abortRef.current?.abort(); };
+    }, [briefName, run]);
 
     return (
         <div className="space-y-4">
@@ -162,6 +182,9 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
                 <Sparkles className="w-4 h-4 text-[#00F0FF]" />
                 <p className="text-sm font-semibold text-white">AI Company Brief</p>
                 <span className="text-[10px] text-[#4A5568]">filings-grounded · every claim cited</span>
+                {cached && !running && (
+                    <span className="text-[10px] text-[#00F0FF]/70 border border-[#00F0FF]/20 rounded px-1.5 py-0.5">cached today</span>
+                )}
                 <button
                     onClick={() => (running ? abortRef.current?.abort() : run())}
                     className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/[0.08] text-[11px] text-[#A7B0C8] hover:text-white hover:border-white/20 transition-colors"
