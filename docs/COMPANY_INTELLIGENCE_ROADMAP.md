@@ -112,7 +112,7 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 
 ## 6. Progress ledger (loop-driven — one item per iteration, mark ✅ date + evidence, ⛔ reason if blocked)
 
-**Shipped: 75% (12/16 ✅) · Resolved: 88% (14/16, +2 ⛔) — `██████████████░░░░░░`**
+**Shipped: 81% (13/16 ✅) · Resolved: 94% (15/16, +2 ⛔) — `████████████████░░░░`**
 
 Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retrieval falls back to structured channel) — both need server-side ingestion/filter work, documented inline.
 
@@ -122,7 +122,7 @@ Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retriev
 | 2 · AI brief | 3 | 0 | 3 ✅ |
 | 3 · Earnings intel | 2 | 2 | 4 (resolved) |
 | 4 · Comparison & monitoring | 3 | 0 | 3 ✅ |
-| 5 · Work products | 0 | 0 | 2 |
+| 5 · Work products | 1 | 0 | 2 |
 
 ### Phase 1 — data spine
 - [x] 1.1 ✅ 2026-07-07 — new `GET /v1/company/{ticker}/filings` (Supabase-REST over `chunks`, dupe-ingest collapse, no asyncpg); prod probe: AAPL returns 10-Q/8-K/transcripts newest-first; UI wired + deployed. Note: anon RLS blocks frontend-direct Supabase reads → server-side route is the pattern for 1.2
@@ -147,5 +147,5 @@ Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retriev
 - [x] 4.3 ✅ 2026-07-07 (detection half) — "new filings since last visit": `newFilings.ts` localStorage watermark (newest filing_date seen), NEW badge on filings + "· N new" in the tab label; first visit flags nothing. Pure helpers self-checked (6 asserts). ⚠️ No push/email delivery — needs a backend notification channel (no alert table/channel exists). This ships the detection value client-side; active alerting is the documented upgrade
 
 ### Phase 5 — work products
-- [ ] 5.1 Export Company Memo (PDF/Markdown) through grid memo exporter
+- [x] 5.1 ✅ 2026-07-07 — "Memo" button on the AI brief exports the brief `GridState` via the existing `buildMemo` → Markdown download (`{TICKER}_brief_{date}.md`), disabled until answers exist. Reuses grid exporter + `downloadBlob`, zero new export code. buildMemo self-checks pass. (Markdown, not PDF — MD is the grid's native memo format; PDF = later nicety)
 - [ ] 5.2 "Send to Deep Research" primer prefill

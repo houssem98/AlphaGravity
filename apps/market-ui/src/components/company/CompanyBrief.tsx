@@ -5,11 +5,12 @@
 import { useState, useEffect, useCallback, useRef, Children, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Sparkles, RefreshCw, Square } from 'lucide-react';
+import { Sparkles, RefreshCw, Square, Download } from 'lucide-react';
 import {
-    initializeGrid, runGrid, cellKey, SEED_GRID_PROMPTS,
+    initializeGrid, runGrid, cellKey, buildMemo, SEED_GRID_PROMPTS,
     type GridState, type CellRunnerDeps,
 } from '../../services/gridResearch';
+import { downloadBlob } from '../../services/gridExcel';
 import type { Citation, ResearchModelId } from '../../services/deepResearchService';
 import { queryGravityRAG } from '../../services/gravitySearchService';
 import { saveGridRun, loadTodaysRunByName } from '../../services/gridStore';
@@ -192,6 +193,14 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
         return () => { alive = false; abortRef.current?.abort(); };
     }, [briefName]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    const hasAnswers = !!state && Object.values(state.cells).some(c => c.status === 'done' && c.answer);
+
+    const exportMemo = () => {
+        if (!state) return;
+        const blob = new Blob([buildMemo(state)], { type: 'text/markdown;charset=utf-8' });
+        downloadBlob(blob, `${ticker}_brief_${new Date().toISOString().slice(0, 10)}.md`);
+    };
+
     return (
         <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -217,6 +226,14 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
                             </button>
                         ))}
                     </div>
+                    <button
+                        onClick={exportMemo}
+                        disabled={!hasAnswers}
+                        title="Download the brief as a Markdown memo"
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/[0.08] text-[11px] text-[#A7B0C8] hover:text-white hover:border-white/20 disabled:opacity-40 transition-colors"
+                    >
+                        <Download className="w-3 h-3" /> Memo
+                    </button>
                     <button
                         onClick={() => (running ? abortRef.current?.abort() : run())}
                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/[0.08] text-[11px] text-[#A7B0C8] hover:text-white hover:border-white/20 transition-colors"
