@@ -112,12 +112,12 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 
 ## 6. Progress ledger (loop-driven — one item per iteration, mark ✅ date + evidence, ⛔ reason if blocked)
 
-**Completion: 38% (6/16) — `████████░░░░░░░░░░░░░░`**
+**Completion: 44% (7/16) — `█████████░░░░░░░░░░░░`**
 
 | Phase | Done | Total |
 |---|---|---|
 | 1 · Data spine | 4 | 4 ✅ |
-| 2 · AI brief | 2 | 3 |
+| 2 · AI brief | 3 | 3 ✅ |
 | 3 · Earnings intel | 0 | 4 |
 | 4 · Comparison & monitoring | 0 | 3 |
 | 5 · Work products | 0 | 2 |
@@ -131,7 +131,7 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 ### Phase 2 — AI company brief
 - [x] 2.1 ✅ 2026-07-07 — `CompanyBrief.tsx`: one-ticker `runGrid` over `SEED_GRID_PROMPTS` (Thesis/Moat/Growth/Risks/Financials/Latest-Q), each section a cited RAG answer with clickable [N] badges → passage. Prod probe: NVDA thesis 200, real cited answer + unverified-figure guard, 26.8s/cell warm (< 45s client timeout). Renders atop Overview tab. LLM proxy is fallback-only (RAG answers direct)
 - [x] 2.2 ✅ 2026-07-07 — `loadTodaysRunByName` (lib_grid_runs, name+created_at≥today, per-user); brief loads cache on open (instant, "cached today" pill), saves completed run, Regenerate forces fresh. Prod probe: filter accepted (structural [] — columns valid)
-- [ ] 2.3 Regenerate button + model picker (DeepSeek default)
+- [x] 2.3 ✅ 2026-07-07 — DeepSeek/Claude/Gemini segmented picker (DeepSeek default), disabled mid-run, applies on Regenerate (not mid-display). Regenerate/Stop already shipped in 2.1. Prod probe: LLM proxy `/api/llm/chat` 200 (DeepSeek 1.4s). Model is fallback-only — RAG answers direct
 
 ### Phase 3 — earnings intelligence
 - [ ] 3.1 Latest-quarter card: actual vs prior from `xbrl:*` rows

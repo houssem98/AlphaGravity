@@ -16,20 +16,32 @@ import { saveGridRun, loadTodaysRunByName } from '../../services/gridStore';
 
 const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/llm/chat`;
 
+// Fallback LLM (used only when a cell has sources but RAG returns no grounded
+// answer). Model choice mirrors GridView's picker.
+type ModelKey = 'deepseek' | 'claude' | 'gemini';
+const MODEL_CONFIG: Record<ModelKey, { provider: string; model: string; label: string }> = {
+    deepseek: { provider: 'deepseek', model: 'deepseek-chat', label: 'DeepSeek' },
+    claude:   { provider: 'anthropic', model: 'claude-sonnet-4-6', label: 'Claude' },
+    gemini:   { provider: 'gemini', model: 'gemini-2.5-flash', label: 'Gemini' },
+};
+
 // Same proxy contract as GridView's callLLMProxy (kept local — it's 12 lines).
-async function callDeepSeek(prompt: string, signal?: AbortSignal): Promise<{ text: string; model: ResearchModelId }> {
-    const res = await fetch(LLM_PROXY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: 'deepseek', model: 'deepseek-chat', prompt, max_tokens: 2048 }),
-        signal,
-    });
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        throw new Error(err.error || `LLM proxy failed (${res.status})`);
-    }
-    const data = await res.json();
-    return { text: data.text ?? '', model: (data.model ?? 'deepseek-chat') as ResearchModelId };
+function makeCallLLM(modelKey: ModelKey) {
+    const cfg = MODEL_CONFIG[modelKey];
+    return async function callLLM(prompt: string, signal?: AbortSignal): Promise<{ text: string; model: ResearchModelId }> {
+        const res = await fetch(LLM_PROXY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider: cfg.provider, model: cfg.model, prompt, max_tokens: 2048 }),
+            signal,
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+            throw new Error(err.error || `LLM proxy failed (${res.status})`);
+        }
+        const data = await res.json();
+        return { text: data.text ?? '', model: (data.model ?? cfg.model) as ResearchModelId };
+    };
 }
 
 // Replace inline [N] markers with clickable superscript badges that toggle the
@@ -119,6 +131,7 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
     const [state, setState] = useState<GridState | null>(null);
     const [running, setRunning] = useState(false);
     const [cached, setCached] = useState(false);
+    const [model, setModel] = useState<ModelKey>('deepseek');
     const abortRef = useRef<AbortController | null>(null);
 
     const briefName = `${ticker} Company Brief`;
@@ -138,7 +151,7 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
         setState(initial);
         setRunning(true);
         const deps: CellRunnerDeps = {
-            callLLM: callDeepSeek,
+            callLLM: makeCallLLM(model),
             searchGravity: (q, t, signal) => {
                 void signal;
                 return queryGravityRAG(q, { companies: [t] });
@@ -158,9 +171,12 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
         } finally {
             if (abortRef.current === controller) setRunning(false);
         }
-    }, [ticker, briefName]);
+    }, [ticker, briefName, model]);
 
-    // On ticker change: serve today's cached brief if present, else run fresh.
+    // On ticker change only: serve today's cached brief if present, else run
+    // fresh. Model changes must NOT re-trigger this (they apply on Regenerate).
+    const runRef = useRef(run);
+    runRef.current = run;
     useEffect(() => {
         let alive = true;
         (async () => {
@@ -170,11 +186,11 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
                 setState(hit);
                 setCached(true);
             } else {
-                run();
+                runRef.current();
             }
         })();
         return () => { alive = false; abortRef.current?.abort(); };
-    }, [briefName, run]);
+    }, [briefName]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <div className="space-y-4">
@@ -185,12 +201,29 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
                 {cached && !running && (
                     <span className="text-[10px] text-[#00F0FF]/70 border border-[#00F0FF]/20 rounded px-1.5 py-0.5">cached today</span>
                 )}
-                <button
-                    onClick={() => (running ? abortRef.current?.abort() : run())}
-                    className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/[0.08] text-[11px] text-[#A7B0C8] hover:text-white hover:border-white/20 transition-colors"
-                >
-                    {running ? <><Square className="w-3 h-3" /> Stop</> : <><RefreshCw className="w-3 h-3" /> Regenerate</>}
-                </button>
+                <div className="ml-auto flex items-center gap-2">
+                    <div className="flex rounded-lg border border-white/[0.08] overflow-hidden">
+                        {(Object.keys(MODEL_CONFIG) as ModelKey[]).map(k => (
+                            <button
+                                key={k}
+                                onClick={() => setModel(k)}
+                                disabled={running}
+                                title={k === 'deepseek' ? 'DeepSeek — cheap, default' : k === 'claude' ? 'Claude — highest quality' : 'Gemini — free'}
+                                className={`px-2 py-1 text-[10px] font-medium transition-colors disabled:opacity-40 ${model === k
+                                    ? 'bg-[#00F0FF]/15 text-[#00F0FF]'
+                                    : 'text-[#4A5568] hover:text-[#A7B0C8]'}`}
+                            >
+                                {MODEL_CONFIG[k].label}
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        onClick={() => (running ? abortRef.current?.abort() : run())}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/[0.08] text-[11px] text-[#A7B0C8] hover:text-white hover:border-white/20 transition-colors"
+                    >
+                        {running ? <><Square className="w-3 h-3" /> Stop</> : <><RefreshCw className="w-3 h-3" /> Regenerate</>}
+                    </button>
+                </div>
             </div>
             {SEED_GRID_PROMPTS.filter(p => !p.synthesis).map(p => {
                 const cell = state?.cells[cellKey(ticker, p.id)];
