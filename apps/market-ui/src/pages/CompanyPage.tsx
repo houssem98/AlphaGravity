@@ -15,6 +15,7 @@ import { apiGetOverview } from '../services/api';
 import { getAccessToken } from '../services/supabase';
 import CompanyBrief from '../components/company/CompanyBrief';
 import LatestQuarterCard from '../components/company/LatestQuarterCard';
+import TranscriptSummary from '../components/company/TranscriptSummary';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -407,6 +408,10 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                     {activeTab === 'overview' && (
                         <div className="space-y-5">
                             <LatestQuarterCard metrics={metrics} />
+                            {(() => {
+                                const t = documents.find(d => d.filing_type === 'earnings_transcript');
+                                return t ? <TranscriptSummary ticker={symbol} date={t.filing_date} /> : null;
+                            })()}
                             <CompanyBrief ticker={symbol} />
                             {overview?.Description && (
                                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">

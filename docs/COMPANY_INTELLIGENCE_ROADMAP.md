@@ -112,13 +112,13 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 
 ## 6. Progress ledger (loop-driven — one item per iteration, mark ✅ date + evidence, ⛔ reason if blocked)
 
-**Completion: 50% (8/16) — `██████████░░░░░░░░░░`**
+**Completion: 56% (9/16) — `███████████░░░░░░░░░`**
 
 | Phase | Done | Total |
 |---|---|---|
 | 1 · Data spine | 4 | 4 ✅ |
 | 2 · AI brief | 3 | 3 ✅ |
-| 3 · Earnings intel | 1 | 4 |
+| 3 · Earnings intel | 2 | 4 |
 | 4 · Comparison & monitoring | 0 | 3 |
 | 5 · Work products | 0 | 2 |
 
@@ -135,7 +135,7 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 
 ### Phase 3 — earnings intelligence
 - [x] 3.1 ✅ 2026-07-07 — `LatestQuarterCard` on Overview: headline P&L (Revenue/Gross/Operating/Net/Diluted-EPS) newest period vs prior with Δ%, from exact XBRL rows (client-derived, no new fetch; fetch bumped to limit=80). `computeQuarterRows` pure + self-check (4 asserts pass: AAPL FY2025 $416.16B rev +4.0%). Prod probe confirmed 2 periods per ticker (FY2026 10-Q / FY2025 10-K)
-- [ ] 3.2 Transcript smart summary (highlights ±, outlook, Q&A) when transcript indexed
+- [x] 3.2 ✅ 2026-07-07 (ships dormant) — `TranscriptSummary`: mounts only when a transcript filing exists, one fixed-prompt RAG call (Highlights/Watch-outs/Outlook), `isTranscriptDisclaimer` guard (self-checked) HIDES the card when RAG returns a financials-fallback disclaimer instead of call content. ⚠️ Prod finding: `document_types:['earnings_transcript']` is NOT enforced on the structured channel → thin transcripts fall back to 10-K figures → card correctly hides today. Auto-activates when server enforces the filter or transcripts re-index thicker. No misleading UI shipped
 - [ ] 3.3 Guidance tracker: wire `/v1/analytics/longitudinal/{ticker}/guidance` (verify contract first)
 - [ ] 3.4 Catalyst list: prompt over recent 8-Ks + latest call
 
