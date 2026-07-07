@@ -384,7 +384,9 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                             { key: 'overview', label: 'Overview', icon: BarChart3 },
                             { key: 'filings', label: `Filings (${documents.length})`, icon: FileText },
                             { key: 'data', label: `Metrics (${metrics.length})`, icon: RefreshCw },
-                            { key: 'sentiment', label: 'Sentiment', icon: Activity },
+                            // Sentiment only when the backend actually has a score
+                            // for this ticker — no empty-promise tab.
+                            ...(sentiment ? [{ key: 'sentiment', label: 'Sentiment', icon: Activity } as const] : []),
                         ] as const).map(({ key, label, icon: Icon }) => (
                             <button
                                 key={key}
