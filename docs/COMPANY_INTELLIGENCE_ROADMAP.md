@@ -112,13 +112,13 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 
 ## 6. Progress ledger (loop-driven — one item per iteration, mark ✅ date + evidence, ⛔ reason if blocked)
 
-**Completion: 44% (7/16) — `█████████░░░░░░░░░░░░`**
+**Completion: 50% (8/16) — `██████████░░░░░░░░░░`**
 
 | Phase | Done | Total |
 |---|---|---|
 | 1 · Data spine | 4 | 4 ✅ |
 | 2 · AI brief | 3 | 3 ✅ |
-| 3 · Earnings intel | 0 | 4 |
+| 3 · Earnings intel | 1 | 4 |
 | 4 · Comparison & monitoring | 0 | 3 |
 | 5 · Work products | 0 | 2 |
 
@@ -134,7 +134,7 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 - [x] 2.3 ✅ 2026-07-07 — DeepSeek/Claude/Gemini segmented picker (DeepSeek default), disabled mid-run, applies on Regenerate (not mid-display). Regenerate/Stop already shipped in 2.1. Prod probe: LLM proxy `/api/llm/chat` 200 (DeepSeek 1.4s). Model is fallback-only — RAG answers direct
 
 ### Phase 3 — earnings intelligence
-- [ ] 3.1 Latest-quarter card: actual vs prior from `xbrl:*` rows
+- [x] 3.1 ✅ 2026-07-07 — `LatestQuarterCard` on Overview: headline P&L (Revenue/Gross/Operating/Net/Diluted-EPS) newest period vs prior with Δ%, from exact XBRL rows (client-derived, no new fetch; fetch bumped to limit=80). `computeQuarterRows` pure + self-check (4 asserts pass: AAPL FY2025 $416.16B rev +4.0%). Prod probe confirmed 2 periods per ticker (FY2026 10-Q / FY2025 10-K)
 - [ ] 3.2 Transcript smart summary (highlights ±, outlook, Q&A) when transcript indexed
 - [ ] 3.3 Guidance tracker: wire `/v1/analytics/longitudinal/{ticker}/guidance` (verify contract first)
 - [ ] 3.4 Catalyst list: prompt over recent 8-Ks + latest call

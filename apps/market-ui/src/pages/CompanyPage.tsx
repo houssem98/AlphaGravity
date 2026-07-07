@@ -14,6 +14,7 @@ import {
 import { apiGetOverview } from '../services/api';
 import { getAccessToken } from '../services/supabase';
 import CompanyBrief from '../components/company/CompanyBrief';
+import LatestQuarterCard from '../components/company/LatestQuarterCard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -194,7 +195,7 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
             }).then(r => r.ok ? r.json() : null),
             // Exact XBRL financial facts (NL→SQL structured search is broken in
             // prod and inexact anyway — xbrl:* rows are the one exact population)
-            fetch(`${GRAVITY_BASE}/v1/company/${symbol}/financials?limit=40`, {
+            fetch(`${GRAVITY_BASE}/v1/company/${symbol}/financials?limit=80`, {
                 headers: authed(tok),
             }).then(r => r.ok ? r.json() : null),
             // Gravity sentiment score
@@ -405,6 +406,7 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                     {/* Overview tab */}
                     {activeTab === 'overview' && (
                         <div className="space-y-5">
+                            <LatestQuarterCard metrics={metrics} />
                             <CompanyBrief ticker={symbol} />
                             {overview?.Description && (
                                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
