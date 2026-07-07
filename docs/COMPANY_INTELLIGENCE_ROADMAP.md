@@ -112,15 +112,17 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 
 ## 6. Progress ledger (loop-driven — one item per iteration, mark ✅ date + evidence, ⛔ reason if blocked)
 
-**Completion: 56% (9/16) — `███████████░░░░░░░░░`**
+**Shipped: 56% (9/16 ✅) · Resolved: 69% (11/16, +2 ⛔) — `███████████░░░░░░░░░`**
 
-| Phase | Done | Total |
-|---|---|---|
-| 1 · Data spine | 4 | 4 ✅ |
-| 2 · AI brief | 3 | 3 ✅ |
-| 3 · Earnings intel | 2 | 4 |
-| 4 · Comparison & monitoring | 0 | 3 |
-| 5 · Work products | 0 | 2 |
+Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retrieval falls back to structured channel) — both need server-side ingestion/filter work, documented inline.
+
+| Phase | ✅ | ⛔ | Total |
+|---|---|---|---|
+| 1 · Data spine | 4 | 0 | 4 ✅ |
+| 2 · AI brief | 3 | 0 | 3 ✅ |
+| 3 · Earnings intel | 2 | 2 | 4 (resolved) |
+| 4 · Comparison & monitoring | 0 | 0 | 3 |
+| 5 · Work products | 0 | 0 | 2 |
 
 ### Phase 1 — data spine
 - [x] 1.1 ✅ 2026-07-07 — new `GET /v1/company/{ticker}/filings` (Supabase-REST over `chunks`, dupe-ingest collapse, no asyncpg); prod probe: AAPL returns 10-Q/8-K/transcripts newest-first; UI wired + deployed. Note: anon RLS blocks frontend-direct Supabase reads → server-side route is the pattern for 1.2
@@ -136,8 +138,8 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 ### Phase 3 — earnings intelligence
 - [x] 3.1 ✅ 2026-07-07 — `LatestQuarterCard` on Overview: headline P&L (Revenue/Gross/Operating/Net/Diluted-EPS) newest period vs prior with Δ%, from exact XBRL rows (client-derived, no new fetch; fetch bumped to limit=80). `computeQuarterRows` pure + self-check (4 asserts pass: AAPL FY2025 $416.16B rev +4.0%). Prod probe confirmed 2 periods per ticker (FY2026 10-Q / FY2025 10-K)
 - [x] 3.2 ✅ 2026-07-07 (ships dormant) — `TranscriptSummary`: mounts only when a transcript filing exists, one fixed-prompt RAG call (Highlights/Watch-outs/Outlook), `isTranscriptDisclaimer` guard (self-checked) HIDES the card when RAG returns a financials-fallback disclaimer instead of call content. ⚠️ Prod finding: `document_types:['earnings_transcript']` is NOT enforced on the structured channel → thin transcripts fall back to 10-K figures → card correctly hides today. Auto-activates when server enforces the filter or transcripts re-index thicker. No misleading UI shipped
-- [ ] 3.3 Guidance tracker: wire `/v1/analytics/longitudinal/{ticker}/guidance` (verify contract first)
-- [ ] 3.4 Catalyst list: prompt over recent 8-Ks + latest call
+- [⛔] 3.3 BLOCKED 2026-07-07 — endpoint live (`?metric=&periods=`, 200) but returns `guidance_value:null, actual_value:null, beat_miss:""` for all tickers: corpus has no extracted management guidance. Won't ship an always-empty card. Upgrade: add a guidance-extraction ingestion step (parse forward-looking numeric targets from transcripts/8-Ks into the tracker store), then wire the card
+- [⛔] 3.4 BLOCKED 2026-07-07 — same root cause as 3.2: catalyst query over 8-K+transcript returns `available:null`, structured channel only, disclaimer ("sources contain only historical revenue… no upcoming catalysts"). Won't ship a second self-hiding card. Working substitute already live: the AI brief's **Growth Drivers** section surfaces forward-looking initiatives from MD&A (returns real cited answers). Upgrade: enforce document_types on the structured channel server-side
 
 ### Phase 4 — comparison & monitoring
 - [ ] 4.1 Peer strip + 1-click compare → Research Grid prefill (multi-ticker)
