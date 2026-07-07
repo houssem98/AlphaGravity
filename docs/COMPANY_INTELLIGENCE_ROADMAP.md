@@ -112,7 +112,7 @@ AlphaSense-style tearsheet, built from the Research Grid engine:
 
 ## 6. Progress ledger (loop-driven — one item per iteration, mark ✅ date + evidence, ⛔ reason if blocked)
 
-**Shipped: 63% (10/16 ✅) · Resolved: 75% (12/16, +2 ⛔) — `████████████░░░░░░░░`**
+**Shipped: 69% (11/16 ✅) · Resolved: 81% (13/16, +2 ⛔) — `█████████████░░░░░░░`**
 
 Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retrieval falls back to structured channel) — both need server-side ingestion/filter work, documented inline.
 
@@ -121,7 +121,7 @@ Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retriev
 | 1 · Data spine | 4 | 0 | 4 ✅ |
 | 2 · AI brief | 3 | 0 | 3 ✅ |
 | 3 · Earnings intel | 2 | 2 | 4 (resolved) |
-| 4 · Comparison & monitoring | 1 | 0 | 3 |
+| 4 · Comparison & monitoring | 2 | 0 | 3 |
 | 5 · Work products | 0 | 0 | 2 |
 
 ### Phase 1 — data spine
@@ -143,7 +143,7 @@ Blocked (⛔): 3.3 guidance (no guidance data in corpus), 3.4 catalysts (retriev
 
 ### Phase 4 — comparison & monitoring
 - [x] 4.1 ✅ 2026-07-07 — peer strip on company header (curated `peersFor` static map, 15 sector groups; self-checked) + "Compare in grid" → `/search?mode=grid&tickers=SELF,peers`; GridView reads `?tickers=` prefill (no auto-run). Peer chips open that company. Prod probe: grid deep-link 200. Unknown tickers → strip hidden (no fake peers)
-- [ ] 4.2 Devil's Advocate button: investment-committee chain on the brief
+- [x] 4.2 ✅ 2026-07-07 — `DevilsAdvocate` on-demand button below the brief: one RAG call (grounded facts) → one adversarial LLM pass (Bear Rebuttal / Risk Review / PM Verdict Buy-Hold-Avoid), cited [N]. Committee-lite (full IC pipeline needs blueprint+Tavily — too heavy for a button). E2E prod probe: NVDA → real cited bear rebuttal + verdict structure
 - [ ] 4.3 Filing alerts: "new 8-K for {ticker}" via EDGAR daily-fresh poller
 
 ### Phase 5 — work products

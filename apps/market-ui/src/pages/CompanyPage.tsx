@@ -17,6 +17,7 @@ import { getAccessToken } from '../services/supabase';
 import CompanyBrief from '../components/company/CompanyBrief';
 import LatestQuarterCard from '../components/company/LatestQuarterCard';
 import TranscriptSummary from '../components/company/TranscriptSummary';
+import DevilsAdvocate from '../components/company/DevilsAdvocate';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -440,6 +441,7 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                                 return t ? <TranscriptSummary ticker={symbol} date={t.filing_date} /> : null;
                             })()}
                             <CompanyBrief ticker={symbol} />
+                            <DevilsAdvocate ticker={symbol} />
                             {overview?.Description && (
                                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
                                     <p className="text-xs text-[#4A5568] uppercase tracking-wider mb-2">About</p>
