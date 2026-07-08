@@ -399,3 +399,20 @@ H3.2 + H5.2 GEPA runs (eval-gated, no-regression). Incidents distilled:
 Docker-outage restart-catchup + Supabase-cred-gap + progress-log-write bug,
 all root-caused in this log. Monthly cron '0 16 1 * *' --deliver telegram
 armed (next 2026-08-01). ROADMAP COMPLETE — 17/17.
+2026-07-08 INFRA — daemon MIGRATED to Fly.io (fixes the reliability gotcha:
+local Docker Desktop died twice mid-roadmap, missing cron fires). Committed
+the working container (docker commit → hermes-daemon:flybase, captures
+hermes + our scripts/skills/jobs.json), thin Dockerfile strips the baked
+.env + stale gateway locks, entrypoint rebuilds .env from Fly secrets on
+boot. No volume: crons baked in the image, brief/deep-dive data lives in
+Supabase, only ephemeral state.db/kanban reset on redeploy. Deploy files
+agents/hermes/deploy/fly/ (Dockerfile+entrypoint.sh+fly.toml). App
+hermes-tn-daemon, region cdg (Paris, closest to Tunis), shared-cpu-1x/1GB,
+no [http_service] (Telegram = outbound long-poll), always-on. 5 secrets
+imported via `flyctl secrets import` (never printed). VERIFIED: machine
+2867543ad47148 started; entrypoint wrote .env; gateway polling Telegram —
+proven by inverse test (my own getUpdates → 409 Conflict = Fly holds the
+poll); all 8 crons loaded with correct Africa/Tunis next-runs; tn_alerts.py
+run in-machine → curled prod, both 🔔 fired. Local container stopped +
+restart=no so it can't fight Fly for the bot (Telegram 409 if two pollers).
+Migration committed d810900.
