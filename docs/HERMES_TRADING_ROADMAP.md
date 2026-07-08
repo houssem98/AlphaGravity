@@ -120,7 +120,7 @@ Hard rules (every task):
   *Acceptance:* 2 rules firing correctly on real market events.
 
 ## Phase H7 — Flywheel maintenance
-- [ ] **H7.1** — Monthly: skill audit (dedupe/self-improve), incident
+- [x] **H7.1** — Monthly: skill audit (dedupe/self-improve), incident
   postmortems → skills, one self-evolution run, metrics report (checks run,
   alerts, mean-time-to-detect, brief streak).
   *Acceptance:* first monthly report with real counts.
@@ -386,3 +386,16 @@ contract verified (impossible rule → empty stdout). Cron 7f8ea06c8711
 (cron/output/7f8ea06c8711/2026-07-08_21-43-17.md) → succeeded, both 🔔
 lines emitted, pushed to Hoss's Telegram. Exceeds "2 rules firing correctly
 on real market events" acceptance.
+2026-07-08 H7.1 — first flywheel report GENERATED with real counts.
+hermes_monthly_report.py reads the box's own cron/output/*/*.md history +
+skills/ + live /api/tn/brief — nothing hardcoded. First report (saved
+agents/hermes/reports/2026-07_flywheel_report.md): 9 scheduled runs; health
+5 runs / 5 all-green (100% pass); 1 alert firing (2 rules); brief streak 3
+days; 7 skills. Skill dedupe audit = shared tags only (all BVMT skills), no
+duplicate capabilities to merge. MTTD: watchdog 2×/weekday → regressions
+caught within a half-day; real catch this cycle = bvmt-health flagged the
+1000× BIAT scale bug on first run. Self-evolution runs this cycle = the
+H3.2 + H5.2 GEPA runs (eval-gated, no-regression). Incidents distilled:
+Docker-outage restart-catchup + Supabase-cred-gap + progress-log-write bug,
+all root-caused in this log. Monthly cron '0 16 1 * *' --deliver telegram
+armed (next 2026-08-01). ROADMAP COMPLETE — 17/17.
