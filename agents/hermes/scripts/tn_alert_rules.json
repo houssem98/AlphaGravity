@@ -1,0 +1,16 @@
+[
+ {
+  "name": "BH gain >3%",
+  "ticker": "BH",
+  "metric": "changePct",
+  "op": ">",
+  "threshold": 3
+ },
+ {
+  "name": "SIPHA spread alert",
+  "ticker": "SIPHA",
+  "metric": "spreadPct",
+  "op": ">",
+  "threshold": 10
+ }
+]

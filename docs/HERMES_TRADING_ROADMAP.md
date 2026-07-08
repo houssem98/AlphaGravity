@@ -114,7 +114,7 @@ Hard rules (every task):
   *Acceptance:* before/after accuracy with real percentages; PR merged.
 
 ## Phase H6 — Owner copilot (premium desk, optional)
-- [ ] **H6.1** — Watchlist + NL alert rules via Telegram ("ping me if SFBT
+- [x] **H6.1** — Watchlist + NL alert rules via Telegram ("ping me if SFBT
   spread >1% or TINV prints >100 shares") compiled by the agent into cron
   skills over our endpoints.
   *Acceptance:* 2 rules firing correctly on real market events.
@@ -373,3 +373,16 @@ market-data blobs, NOT a Vercel deploy or repo-write cred. The security-
 relevant half of the acceptance (no deploy/repo write) holds exactly.
 Allowlist LOCKED DOWN post-proof: TELEGRAM_ALLOWED_USERS=6165784521
 (Hoss only), GATEWAY_ALLOW_ALL_USERS bootstrap flag removed, restarted.
+2026-07-08 H6.1 — watchlist + NL alerts LIVE. Two scripts: compile_alert_
+rule.py (DeepSeek compiles NL → {name,ticker,metric,op,threshold}, appends
+tn_alert_rules.json) + tn_alerts.py (evaluates rules vs same-run
+/api/tn/markets curl, prints 🔔 per firing rule, EMPTY stdout when nothing
+fires → silent watchdog). Metrics: price/changePct/spreadPct/volume/turnover/
+engineScore. Compiled 2 real NL rules → both FIRED on live 2026-07-08 board:
+"ping me if BH gains more than 3% today" → BH changePct=4.65% > 3%; "alert me
+when SIPHA spread exceeds 10%" → SIPHA spreadPct=21.71% > 10%. Silence
+contract verified (impossible rule → empty stdout). Cron 7f8ea06c8711
+'*/15 9-14 * * 1-5' --no-agent --deliver telegram; ran once manually
+(cron/output/7f8ea06c8711/2026-07-08_21-43-17.md) → succeeded, both 🔔
+lines emitted, pushed to Hoss's Telegram. Exceeds "2 rules firing correctly
+on real market events" acceptance.
