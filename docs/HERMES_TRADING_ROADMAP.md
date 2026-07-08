@@ -89,7 +89,7 @@ Hard rules (every task):
   *Acceptance:* ≥3 real declared dividends captured with source links.
 
 ## Phase H4 — Premium content (agent writes, product serves)
-- [ ] **H4.1** — Nightly **Daily Brief**: TN close report (TUNINDEX, breadth,
+- [x] **H4.1** — Nightly **Daily Brief**: TN close report (TUNINDEX, breadth,
   top movers, near-highs, engine standouts, one-line news tone) written to
   Supabase blob `tn_brief.json` at 14:30 Tunis. Grounded rule 1 applies.
   *Acceptance:* 3 consecutive briefs; every number in them re-verifiable
@@ -349,3 +349,9 @@ ecf271bda33a=close, 904ea8e8ec9f=open): 2026-07-06 14:29:41 close
 drift 0.000%), 2026-07-08 09:20:39 open (clean on-time fire, index
 19907.75, drift 0.000%, nullSide=10). Exceeds "two consecutive
 scheduled runs" acceptance.
+2026-07-08 H4.1 — CLOSED: brief#3/3 landed, clean unattended fire
+(cron/output/f565564e48b5/2026-07-08_14-30-33.md): TUNINDEX 19921.82
+(+0.35%), breadth 30▲/18▼/14= of 62 traded, top gainer SOTET +6.0%
+(24.91 TND). curl-confirmed prod /api/tn/brief serves
+available=['2026-07-06','2026-07-07','2026-07-08'] — 3 consecutive
+days met.
