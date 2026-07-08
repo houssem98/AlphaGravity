@@ -1,0 +1,18 @@
+# Hermes TN daemon on Fly. No [http_service] — Telegram is an outbound
+# long-poll, so the machine needs no inbound ports; it just runs continuously
+# and the baked cron scheduler fires on Africa/Tunis time.
+app = "hermes-tn-daemon"
+primary_region = "cdg"  # Paris — closest region to Tunis
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  TZ = "Africa/Tunis"
+  TN_BASE = "https://market-ui-self.vercel.app/api/tn"
+
+# Single always-on machine. No auto-stop (a suspended machine misses cron).
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1024mb"
+  cpus = 1
