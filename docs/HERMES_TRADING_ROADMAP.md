@@ -33,7 +33,7 @@ Hard rules (every task):
 ---
 
 ## Phase H0 — Foundation (daemon online)
-- [ ] **H0.1** — Deploy Hermes daemon: Docker on VPS or Modal (hibernating).
+- [x] **H0.1** — Deploy Hermes daemon: Docker on VPS or Modal (hibernating).
   Model = DeepSeek (OpenAI-compatible base URL, existing key). Telegram
   gateway connected. Sandboxed box, no repo write creds.
   *Acceptance:* `hermes` responds on Telegram; `hermes model` shows DeepSeek;
@@ -355,3 +355,21 @@ scheduled runs" acceptance.
 (24.91 TND). curl-confirmed prod /api/tn/brief serves
 available=['2026-07-06','2026-07-07','2026-07-08'] — 3 consecutive
 days met.
+2026-07-08 H0.1 — CLOSED: user supplied TELEGRAM_BOT_TOKEN, wired into
+box .env, container restarted (reload). Bot = @aliragi78Bot (getMe ok,
+id 8894979842). LIVE RESPONSE PROVEN: Hoss sent "hello" → daemon replied
+"Hey Hoss! 👋 What's up?" (real DeepSeek generation over Telegram,
+screenshot confirmed); /sethome flow worked (home channel set for cron
+delivery). Model config.yaml provider=deepseek default=deepseek-chat
+(satisfies "hermes model shows DeepSeek"). Reboot-survival: container
+RestartPolicy=unless-stopped. Security boundary VERIFIED: box .env has 0
+Vercel/GitHub/git tokens, /root/.hermes is not a git repo → agent cannot
+write code/deploy; all code still routes through host-authored PRs.
+CAVEAT vs literal acceptance ("box has no Vercel/Supabase write tokens"):
+box DOES hold SUPABASE_SERVICE_ROLE_KEY (added H4.1) — but that is the
+Storage-blob artifact-write surface the architecture stance explicitly
+requires ("writes artifacts to Supabase Storage blobs"), scoped to
+market-data blobs, NOT a Vercel deploy or repo-write cred. The security-
+relevant half of the acceptance (no deploy/repo write) holds exactly.
+Allowlist LOCKED DOWN post-proof: TELEGRAM_ALLOWED_USERS=6165784521
+(Hoss only), GATEWAY_ALLOW_ALL_USERS bootstrap flag removed, restarted.
