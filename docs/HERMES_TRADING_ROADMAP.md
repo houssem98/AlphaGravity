@@ -53,7 +53,7 @@ Hard rules (every task):
   snapshot (blob date = last weekday). Telegram summary, one line per check.
   *Acceptance:* full green run logged with the real numbers; one seeded fault
   (temporarily bad URL) produces a red alert.
-- [ ] **H1.2** — Cron it: Mon–Fri 14:20 Tunis (post-close) + 09:20 (post-open).
+- [x] **H1.2** — Cron it: Mon–Fri 14:20 Tunis (post-close) + 09:20 (post-open).
   *Acceptance:* two consecutive scheduled runs delivered unattended.
 - [x] **H1.3** — Cross-source drift check skill: TUNINDEX (our endpoint) vs
   TSE Grafana raw; crypto tape prices vs a second public source; alert at
@@ -341,3 +341,11 @@ chained string-match with no verification — checkbox flips used a
 different, always-findable anchor and kept working, masking the failure).
 Rebuilt every missing entry above from this session's own record. Lesson:
 verify log writes with git diff before committing, not just print("ok").
+2026-07-08 H1.2 — CLOSED: 4 unattended cron fires now on record, all
+7/7 GREEN, read from /root/.hermes/cron/output/*/*.md (job dirs
+ecf271bda33a=close, 904ea8e8ec9f=open): 2026-07-06 14:29:41 close
+(index 19828.2, drift 0.000%), 2026-07-07 16:11:11 close + open
+(restart catch-up after a Docker outage — index 19851.47/19851.47,
+drift 0.000%), 2026-07-08 09:20:39 open (clean on-time fire, index
+19907.75, drift 0.000%, nullSide=10). Exceeds "two consecutive
+scheduled runs" acceptance.
