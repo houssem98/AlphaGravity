@@ -676,7 +676,8 @@ async function board(req: any, res: any) {
     return {
       symbol: m.referentiel.ticker, name: m.referentiel.stockName || m.referentiel.ticker,
       price: m.last || 0, changePct: m.change || 0, change7d,
-      marketCap: shares ? (m.last || 0) * shares : 0, volume: m.volume || 0, isin: m.isin,
+      marketCap: shares ? (m.last || 0) * shares : 0, volume: m.volume || 0,
+      turnover: m.caps || 0, shares, isin: m.isin,
       closes,
     };
   });

@@ -202,8 +202,11 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
 
   const hasMcap = baseRows.some((r) => r.marketCap);
   const hasVol = baseRows.some((r) => r.volume);
+  const hasCirc = baseRows.some((r) => r.circulating);
   const showSpark = market.source === 'yahoo' || market.source === 'tunisia';
-  const nCols = 6 + (hasVol ? 1 : 0) + (hasMcap ? 1 : 0) + (showSpark ? 1 : 0);
+  const nCols = 6 + (hasVol ? 1 : 0) + (hasMcap ? 1 : 0) + (hasCirc ? 1 : 0) + (showSpark ? 1 : 0);
+  // CMC shows "$1.26T"; TND has no symbol so it goes after the number.
+  const fmtCap = (v: number, cur: string) => (cur === 'TND' ? `${fmtCompact(v)} TND` : '$' + fmtCompact(v));
 
   // 7d % — from the batch sparkline series (first vs last close).
   const pct7d = (r: AssetRow): number | null => {
@@ -402,6 +405,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                     { key: null, label: '7d %', cls: 'text-right hidden md:table-cell' },
                     ...(hasVol ? [{ key: 'volume', label: 'Volume', cls: 'text-right hidden lg:table-cell' }] : []),
                     ...(hasMcap ? [{ key: 'marketCap', label: 'Market Cap', cls: 'text-right hidden sm:table-cell' }] : []),
+                    ...(hasCirc ? [{ key: null, label: 'Circulating', cls: 'text-right hidden lg:table-cell' }] : []),
                   ] as { key: SortKey | null; label: string; cls: string }[]).map((h) => (
                     <th
                       key={h.label}
@@ -429,6 +433,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                       <td className="py-3 px-4 hidden md:table-cell"><div className="h-3 w-14 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>
                       {hasVol && <td className="py-3 px-4 hidden lg:table-cell"><div className="h-3 w-14 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>}
                       {hasMcap && <td className="py-3 px-4 hidden sm:table-cell"><div className="h-3 w-16 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>}
+                      {hasCirc && <td className="py-3 px-4 hidden lg:table-cell"><div className="h-3 w-16 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>}
                       {showSpark && <td className="py-3 px-4 hidden md:table-cell"><div className="h-6 w-24 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>}
                     </tr>
                   ))
@@ -477,12 +482,22 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                         </td>
                         {hasVol && (
                           <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
-                            {r.volume ? fmtCompact(r.volume) : '—'}
+                            {r.turnover ? (
+                              <div className="flex flex-col items-end leading-tight">
+                                <span>{fmtCompact(r.turnover)} {r.currency}</span>
+                                <span className="text-label text-[color:var(--text-3)]">{fmtCompact(r.volume || 0)} {r.symbol.replace('^', '')}</span>
+                              </div>
+                            ) : r.volume ? fmtCompact(r.volume) : '—'}
                           </td>
                         )}
                         {hasMcap && (
                           <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden sm:table-cell">
-                            {r.marketCap ? '$' + fmtCompact(r.marketCap) : '—'}
+                            {r.marketCap ? fmtCap(r.marketCap, r.currency) : '—'}
+                          </td>
+                        )}
+                        {hasCirc && (
+                          <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
+                            {r.circulating ? `${fmtCompact(r.circulating)} ${r.symbol.replace('^', '')}` : '—'}
                           </td>
                         )}
                         {showSpark && (
@@ -554,7 +569,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                                 <div className="space-y-2">
                                   <div>
                                     <div className="label mb-0.5">MARKET CAP</div>
-                                    <div className="font-mono text-data text-[color:var(--text)]">{r.marketCap ? '$' + fmtCompact(r.marketCap) : '—'}</div>
+                                    <div className="font-mono text-data text-[color:var(--text)]">{r.marketCap ? fmtCap(r.marketCap, r.currency) : '—'}</div>
                                   </div>
                                   <div>
                                     <div className="label mb-0.5">VOLUME</div>

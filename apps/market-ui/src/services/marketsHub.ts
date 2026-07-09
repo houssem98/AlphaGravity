@@ -16,6 +16,8 @@ export interface AssetRow {
   logo?: string;
   isin?: string; // BVMT listings — used for official fiche-valeur links
   sevenDayCloses?: number[]; // TN: bundled with the row fetch (no per-symbol spark call)
+  turnover?: number; // TN: session trading value in TND (volume column headline)
+  circulating?: number; // TN: shares outstanding (CMC-style circulating column)
 }
 
 // ── Formatting ────────────────────────────────────────────────
@@ -106,6 +108,8 @@ async function fetchTunisia(defs: SymbolDef[]): Promise<AssetRow[]> {
       changePct7d: r.change7d ?? undefined,
       marketCap: r.marketCap || undefined,
       volume: r.volume || undefined,
+      turnover: r.turnover || undefined,
+      circulating: r.shares || undefined,
       isin: r.isin || undefined,
       currency: 'TND' as const,
       sevenDayCloses: r.closes || undefined,
