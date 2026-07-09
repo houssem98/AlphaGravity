@@ -631,6 +631,58 @@ async function fundamentals(req: any, res: any) {
   res.json({ fundamentals: blob });
 }
 
+// One bulk query for every stock's last ~10 sessions (grouped by isin+date), instead
+// of one round-trip per stock — same full-scan pattern as highs() above, proven to
+// come back fast. Returns isin -> closes (oldest→newest, capped to the last 7).
+async function fetchRecentCloses(): Promise<Record<string, number[]>> {
+  const sql =
+    `SELECT codeisin, d, (array_agg(price ORDER BY t DESC))[1] cl FROM (` +
+    `SELECT raw_data->>'codeIsin' codeisin, raw_data->>'dateSeance' d, raw_data->>'time' t, (raw_data->>'lastTradePrice')::float price ` +
+    `FROM raw_market WHERE raw_data->>'lastTradePrice' IS NOT NULL) x GROUP BY codeisin, d ORDER BY codeisin, d`;
+  const rows = await gqueryTable(sql);
+  const byIsin = new Map<string, { d: string; cl: number }[]>();
+  for (const r of rows) {
+    if (!r.codeisin || r.cl == null) continue;
+    (byIsin.get(r.codeisin) || byIsin.set(r.codeisin, []).get(r.codeisin)!).push({ d: r.d, cl: r.cl });
+  }
+  const out: Record<string, number[]> = {};
+  for (const [isin, days] of byIsin) out[isin] = days.sort((a, b) => a.d.localeCompare(b.d)).slice(-7).map((x) => x.cl);
+  return out;
+}
+
+// Ticker -> shares outstanding, for real market cap (price × shares). `m.caps` on
+// the live board is today's turnover (trading value), NOT shares — using it for
+// market cap would be nonsense.
+async function fetchShares(): Promise<Record<string, number>> {
+  const rows = await gquery("SELECT raw_data FROM raw_referentiels WHERE raw_data->>'grp_description' LIKE 'Ligne M%re'");
+  const out: Record<string, number> = {};
+  for (const o of rows) { const n = parseInt(o?.nb_titres_emis, 10); if (o?.mnemo && n) out[o.mnemo] = n; }
+  return out;
+}
+
+// ── Board table: all 77 stocks + 7D closes (crypto-style rich table) ─────────
+async function board(req: any, res: any) {
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=1800');
+  const [d, closesByIsin, sharesByTicker] = await Promise.all([
+    groups(),
+    fetchRecentCloses().catch(() => ({} as Record<string, number[]>)),
+    fetchShares().catch(() => ({} as Record<string, number>)),
+  ]);
+  const rows = (d?.markets || []).filter((m: any) => m?.referentiel?.ticker && m.last);
+  const out = rows.map((m: any) => {
+    const closes = closesByIsin[m.isin] || [];
+    const change7d = closes.length > 1 ? ((closes[closes.length - 1] - closes[0]) / closes[0]) * 100 : 0;
+    const shares = sharesByTicker[m.referentiel.ticker] || 0;
+    return {
+      symbol: m.referentiel.ticker, name: m.referentiel.stockName || m.referentiel.ticker,
+      price: m.last || 0, changePct: m.change || 0, change7d,
+      marketCap: shares ? (m.last || 0) * shares : 0, volume: m.volume || 0, isin: m.isin,
+      closes,
+    };
+  });
+  res.json({ board: out.sort((a: any, b: any) => (b.marketCap || 0) - (a.marketCap || 0)) });
+}
+
 // ── Firecrawl web search (deep-research web sourcing) ───────────────────────
 // Key-safe server proxy; lives in this dispatcher because it's the only Vercel
 // function excluded from the Fly rewrite. Inert ({results:[]}) without a key.
@@ -642,7 +694,7 @@ async function websearch(req: any, res: any) {
   res.json({ results });
 }
 
-const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref, highs, fundamentals, brief, websearch };
+const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref, highs, fundamentals, brief, websearch, board };
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');

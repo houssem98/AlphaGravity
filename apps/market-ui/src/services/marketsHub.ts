@@ -15,6 +15,7 @@ export interface AssetRow {
   currency: Unit;
   logo?: string;
   isin?: string; // BVMT listings — used for official fiche-valeur links
+  sevenDayCloses?: number[]; // TN: bundled with the row fetch (no per-symbol spark call)
 }
 
 // ── Formatting ────────────────────────────────────────────────
@@ -87,23 +88,27 @@ export async function fetchQuotes(defs: SymbolDef[]): Promise<AssetRow[]> {
     }));
 }
 
-// Live BVMT stocks via our /api/tn/markets proxy (15-min CDN cache).
-// Falls back to the static mock below if the proxy or BVMT is down.
+// Live BVMT stocks via our /api/tn/board proxy (marketCap + 7d closes bundled
+// in one server-side call — no per-symbol sparkline round-trip). Falls back to
+// the static mock below if the proxy or BVMT is down.
 async function fetchTunisia(defs: SymbolDef[]): Promise<AssetRow[]> {
   try {
-    const res = await fetch('/api/tn/markets');
+    const res = await fetch('/api/tn/board');
     if (!res.ok) throw new Error('tn fetch failed');
     const j = await res.json();
-    const rows = (j?.rows || []) as any[];
+    const rows = (j?.board || []) as any[];
     if (!rows.length) throw new Error('tn empty');
     return rows.map((r) => ({
       symbol: r.symbol,
       name: r.name,
       price: r.price,
       changePct: r.changePct,
+      changePct7d: r.change7d ?? undefined,
+      marketCap: r.marketCap || undefined,
       volume: r.volume || undefined,
       isin: r.isin || undefined,
       currency: 'TND' as const,
+      sevenDayCloses: r.closes || undefined,
     }));
   } catch {
     return fetchTunisiaMock(defs);

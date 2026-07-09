@@ -60,7 +60,7 @@ const Delta = ({ pct }: { pct: number }) => {
 // Real logos for BVMT names (no logo API for TN) — company site favicon via
 // DuckDuckGo's icon service (no key, permissive CORS). Unmapped tickers and
 // failed loads fall back to the initials placeholder.
-const TN_DOMAINS: Record<string, string> = {
+export const TN_DOMAINS: Record<string, string> = {
   // Banks
   BIAT: 'biat.com.tn', BT: 'bt.com.tn', ATB: 'atb.com.tn', STB: 'stb.com.tn', BH: 'bh.com.tn',
   BNA: 'bna.com.tn', UIB: 'uib.com.tn', UBCI: 'ubci.tn', AB: 'amenbank.com.tn', TJARI: 'attijaribank.com.tn',
@@ -202,7 +202,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
 
   const hasMcap = baseRows.some((r) => r.marketCap);
   const hasVol = baseRows.some((r) => r.volume);
-  const showSpark = market.source === 'yahoo';
+  const showSpark = market.source === 'yahoo' || market.source === 'tunisia';
   const nCols = 6 + (hasVol ? 1 : 0) + (hasMcap ? 1 : 0) + (showSpark ? 1 : 0);
 
   // 7d % — from the batch sparkline series (first vs last close).
@@ -243,9 +243,17 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paged, page, query, sort.key, sort.dir, perPage]);
 
-  // Sparklines for the visible page (Yahoo sources; one batch request).
+  // Sparklines for the visible page. TN closes arrive bundled with the row fetch
+  // (fetchTunisia → /api/tn/board); Yahoo sources need a separate batch request.
   useEffect(() => {
-    if (!showSpark || pageView.length === 0) return;
+    if (market.source !== 'tunisia' || pageView.length === 0) return;
+    const next: Record<string, number[]> = {};
+    for (const r of pageView) if (r.sevenDayCloses?.length) next[r.symbol] = r.sevenDayCloses;
+    if (Object.keys(next).length) setSparks((p) => ({ ...p, ...next }));
+  }, [market.source, pageView]);
+
+  useEffect(() => {
+    if (market.source !== 'yahoo' || !showSpark || pageView.length === 0) return;
     let alive = true;
     const need = pageView.map((r) => r.symbol).filter((s) => !(s in sparks));
     if (!need.length) return;
