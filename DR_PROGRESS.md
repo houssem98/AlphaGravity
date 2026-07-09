@@ -1,9 +1,9 @@
 # DR loop progress — deep research world-class run
 
-NEXT: P0a
+NEXT: P0b
 
 ## Tasks
-- [ ] P0a proxy limiter + 429 backoff (market-server llm.ts)
+- [x] P0a proxy limiter + 429 backoff (market-server llm.ts)
 - [ ] P0b adaptive rounds 4→2 + gap-gated extension
 - [ ] P0c tier-down section writers + revisor to standard
 - [ ] P0d client fallback-chain cap in callLLM
@@ -16,3 +16,4 @@ NEXT: P0a
 
 ## Ledger
 (append one line per completed task: task · what changed · before→after effect)
+- P0a · 9be8009 · Semaphore(5 anthropic/8 others) around provider dispatch + Retry-After honored in backoff + 503 unmasked · before: unbounded parallel burst → 429 → client walks full fallback chain per call; after: bounded in-flight FIFO, provider-suggested waits honored (expected — removes hidden latency multiplier on reader/section waves)
