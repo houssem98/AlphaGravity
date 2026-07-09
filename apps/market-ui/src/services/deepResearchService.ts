@@ -1479,6 +1479,7 @@ export async function distillKnowledgeBase(
 // back to the monolithic prompt for safety.
 
 export const READER_FALLBACK_THRESHOLD = 3;   // need ≥3 Reader summaries to trust the Extractor
+export const READER_WAVE_SIZE = 12;           // max parallel Readers per round
 const READER_NO_FACTS_SENTINEL = 'NO_RELEVANT_FACTS';
 
 export interface ReaderResult {
@@ -1697,7 +1698,7 @@ export async function extractRoundIntelligence(
         monolithicCallLLM?: (prompt: string) => Promise<string>;
     } = {},
 ): Promise<{ intelligence: string; fellBack: boolean; readerResults: ReaderResult[] }> {
-    const sliced = sources.slice(0, 12);
+    const sliced = sources.slice(0, READER_WAVE_SIZE);
     const readerResults = await runReaders(sliced, query, blueprint, stats, {
         model: options.model,
         callLLM: options.readerCallLLM,
@@ -1809,7 +1810,7 @@ async function iterativeSearch(
         const readerStats = _activeReaderStats ?? newReaderStats();
         onProgress({
             stage: 'searching',
-            message: `Round ${round + 1}: ${fresh.length} parallel Readers extracting per-source facts…`,
+            message: `Round ${round + 1}: ${Math.min(fresh.length, READER_WAVE_SIZE)} parallel Readers extracting per-source facts…`,
             progress: 17 + round * 8,
             sourcesFound: allSources.length,
         });
