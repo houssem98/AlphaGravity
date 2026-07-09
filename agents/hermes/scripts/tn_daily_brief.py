@@ -10,6 +10,8 @@ Usage: python tn_daily_brief.py
 import json
 import os
 import pathlib
+import re
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
@@ -24,6 +26,56 @@ BASE = os.environ.get("TN_BASE", "https://market-ui-self.vercel.app/api/tn")
 SUPA = os.environ.get("SUPABASE_URL")
 SKEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 BLOB = f"{SUPA}/storage/v1/object/market-data/tn_brief.json" if SUPA else None
+
+# ── Firecrawl news enrichment (optional; inert without FIRECRAWL_API_KEY) ──────
+FIRECRAWL = os.environ.get("FIRECRAWL_API_KEY")
+POS = ["hausse", "progress", "bénéfice", "benefice", "croissance", "record", "gain", "dividende",
+       "surperform", "rachat", "accord", "partenariat", "expansion", "profit", "beat", "growth", "strong"]
+NEG = ["baisse", "perte", "chute", "recul", "déficit", "deficit", "sanction", "litige", "dette",
+       "défaut", "defaut", "fraude", "enquête", "enquete", "suspension", "avertissement", "loss", "weak", "warning"]
+
+
+def firecrawl_scrape(url):
+    """Article body → main-content markdown. None without a key or on any failure."""
+    if not FIRECRAWL or not url:
+        return None
+    try:
+        body = json.dumps({"url": url, "formats": ["markdown"], "onlyMainContent": True, "timeout": 8000}).encode()
+        req = urllib.request.Request("https://api.firecrawl.dev/v1/scrape", data=body, method="POST",
+                                     headers={"Content-Type": "application/json", "Authorization": f"Bearer {FIRECRAWL}"})
+        with urllib.request.urlopen(req, timeout=12) as r:
+            return json.loads(r.read()).get("data", {}).get("markdown")
+    except Exception:
+        return None
+
+
+def tone_sign(text):
+    lo = text.lower()
+    s = sum(w in lo for w in POS) - sum(w in lo for w in NEG)
+    return 1 if s > 0 else -1 if s < 0 else 0
+
+
+def news_source(symbol, name):
+    """Top recent press item for a stock: title + URL + tone (full-text when
+    Firecrawl is on, else the headline)."""
+    try:
+        q = urllib.parse.quote(f"{name} Bourse Tunis")
+        req = urllib.request.Request(f"https://news.google.com/rss/search?q={q}&hl=fr&gl=TN&ceid=TN:fr",
+                                     headers={"User-Agent": "tn-brief/1.0"})
+        xml = urllib.request.urlopen(req, timeout=20).read().decode("utf-8", "ignore")
+        item = re.search(r"<item>([\s\S]*?)</item>", xml)
+        if not item:
+            return None
+        blk = item.group(1)
+        tm = re.search(r"<title[^>]*>([\s\S]*?)</title>", blk)
+        lm = re.search(r"<link[^>]*>([\s\S]*?)</link>", blk)
+        title = re.sub(r"<!\[CDATA\[([\s\S]*?)\]\]>", r"\1", tm.group(1)).strip() if tm else ""
+        url = lm.group(1).strip() if lm else ""
+        text = firecrawl_scrape(url)
+        return {"symbol": symbol, "title": title, "url": url,
+                "tone": tone_sign(text or title), "fullText": bool(text)}
+    except Exception:
+        return None
 
 
 def get(url, timeout=45):
@@ -59,6 +111,14 @@ def build_facts():
         except Exception:
             standout = None
 
+    # News sources for the day's biggest mover on each side (full-text tone when
+    # Firecrawl is configured; headline tone otherwise).
+    sources = []
+    for r in ([movers[0]] if movers else []) + ([movers[-1]] if len(movers) > 1 else []):
+        s = news_source(r["symbol"], r.get("name") or r["symbol"])
+        if s and s["url"]:
+            sources.append(s)
+
     return {
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "seance": traded[0]["seance"] if traded else None,
@@ -69,6 +129,7 @@ def build_facts():
         "nearHighs": near_highs,
         "engineStandout": None if not standout else {
             "symbol": standout["symbol"], "score": standout["score"], "label": standout["label"]},
+        "sources": sources,
     }
 
 
@@ -80,7 +141,9 @@ def write_paragraph(facts):
         "for investors, using ONLY the numbers in this JSON — do not invent, round loosely, or "
         "add any number, name, or fact not present below. Mention TUNINDEX level and change, "
         "breadth (advancers vs decliners), the top gainer and top loser by name and %, and the "
-        "engine standout if present. Plain prose, no markdown, no bullet points.\n\n"
+        "engine standout if present. If a sources array is present, you may add one clause "
+        "citing the single strongest (most bullish or bearish) source by its title. "
+        "Plain prose, no markdown, no bullet points.\n\n"
         + json.dumps(facts, ensure_ascii=False))
     m = client.chat.completions.create(model="deepseek-chat", max_tokens=220, temperature=0.3,
                                        messages=[{"role": "user", "content": prompt}])

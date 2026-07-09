@@ -40,12 +40,15 @@ Docker stack (Redis + workers + Playwright) is too heavy for the Hermes box. Add
 - **Acceptance:** with key, `/api/tn/engine?symbol=BIAT` `factors.news.detail` shows
   `… full-text`; without key, byte-identical to before.
 
-### Phase 2 — Hermes daily brief  ⬜ TODO
+### Phase 2 — Hermes daily brief  ✅ SHIPPED (code; user deploys)
 - Mirror the enrichment in `agents/hermes/scripts/tn_daily_brief.py` (Python): scrape
   the day's top movers' articles, score bodies, cite the strongest source in the brief.
 - Same `FIRECRAWL_API_KEY` gate; inert without it.
-- **User deploys** (no repo/box creds here). Ship code in-repo, hand off.
-- **Acceptance:** brief JSON carries a `sources` array with real article URLs.
+- **User deploys** (no repo/box creds here). Code shipped in-repo; pull on the Hermes
+  box + add `FIRECRAWL_API_KEY` to `/root/.hermes/.env` to activate.
+- **Acceptance:** brief JSON carries a `sources` array with real article URLs. ✅
+  (`build_facts()` returns `sources`; `news_source()` always fills title+url, tone is
+  full-text when the key is set, headline otherwise.)
 
 ### Phase 3 — LLM sentiment over scraped text  ⬜ TODO
 - Replace the lexicon with a DeepSeek call (key already live) that reads the scraped
@@ -64,7 +67,7 @@ Docker stack (Redis + workers + Playwright) is too heavy for the Hermes box. Add
 |-------|-------|-------------|
 | 0 Client+flag | ✅ | yes (inert) |
 | 1 Engine news | ✅ | yes (inert) |
-| 2 Hermes brief | ⬜ | code only, user deploys |
+| 2 Hermes brief | ✅ | code only, user deploys |
 | 3 LLM sentiment | ⬜ | yes (DeepSeek key live) |
 | 4 Deep research | ⬜ | yes |
 
