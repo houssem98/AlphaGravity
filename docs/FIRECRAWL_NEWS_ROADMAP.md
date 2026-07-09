@@ -50,10 +50,13 @@ Docker stack (Redis + workers + Playwright) is too heavy for the Hermes box. Add
   (`build_facts()` returns `sources`; `news_source()` always fills title+url, tone is
   full-text when the key is set, headline otherwise.)
 
-### Phase 3 — LLM sentiment over scraped text  ⬜ TODO
-- Replace the lexicon with a DeepSeek call (key already live) that reads the scraped
-  body → `{tone: -1..1, reason}`. Keep lexicon as the no-key / no-LLM fallback.
-- **Acceptance:** `factors.news.detail` cites a one-line LLM rationale.
+### Phase 3 — LLM sentiment over scraped text  ✅ SHIPPED
+- `deepseekTone(name, text)` in the engine: one-shot DeepSeek call over the scraped
+  bodies → `{tone:-1..1, reason}`, overriding the lexicon `newsScore`. Gated on
+  `DEEPSEEK_API_KEY`; only fires when Firecrawl produced text (`enriched > 0`), so the
+  lexicon stays the no-key / no-LLM fallback.
+- **Acceptance:** `factors.news.detail` appends the one-line LLM rationale (`… — <reason>`)
+  when active; inert path byte-identical (verified). ✅
 
 ### Phase 4 — Deep-research web sourcing  ⬜ TODO
 - `apps/market-ui/src/services/deepResearchService.ts`: add a Firecrawl `/search` +
@@ -68,7 +71,7 @@ Docker stack (Redis + workers + Playwright) is too heavy for the Hermes box. Add
 | 0 Client+flag | ✅ | yes (inert) |
 | 1 Engine news | ✅ | yes (inert) |
 | 2 Hermes brief | ✅ | code only, user deploys |
-| 3 LLM sentiment | ⬜ | yes (DeepSeek key live) |
+| 3 LLM sentiment | ✅ | yes (DeepSeek key live) |
 | 4 Deep research | ⬜ | yes |
 
 **Flip switch:** add `FIRECRAWL_API_KEY` to Vercel `market-ui` → Phases 1/3/4 activate.

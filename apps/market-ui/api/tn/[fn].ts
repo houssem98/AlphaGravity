@@ -282,6 +282,32 @@ function toneSign(text: string): number {
   return s > 0 ? 1 : s < 0 ? -1 : 0;
 }
 
+// One-shot LLM sentiment over scraped article text → {tone:-1..1, reason}. Null
+// without DEEPSEEK_API_KEY or on failure — caller keeps the lexicon score.
+const DEEPSEEK = process.env.DEEPSEEK_API_KEY;
+async function deepseekTone(name: string, text: string): Promise<{ tone: number; reason: string } | null> {
+  if (!DEEPSEEK || !text) return null;
+  try {
+    const r = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${DEEPSEEK}` },
+      body: JSON.stringify({
+        model: 'deepseek-chat', temperature: 0.2, max_tokens: 60,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'user', content:
+          `Overall investor sentiment for ${name} (Tunis Stock Exchange) from these press excerpts. ` +
+          `Reply JSON {"tone": number in -1..1, "reason": "<=8 words"}.\n\n` + text.slice(0, 6000) }],
+      }),
+      signal: AbortSignal.timeout(9000),
+    });
+    if (!r.ok) return null;
+    const c = JSON.parse((await r.json())?.choices?.[0]?.message?.content || '{}');
+    const tone = Math.max(-1, Math.min(1, Number(c.tone)));
+    if (Number.isNaN(tone)) return null;
+    return { tone, reason: String(c.reason || '').slice(0, 60) };
+  } catch { return null; }
+}
+
 async function engine(req: any, res: any) {
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
   const symbol = String(req.query.symbol || '').toUpperCase();
@@ -336,7 +362,7 @@ async function engine(req: any, res: any) {
   // News tone: last-7d Tunisian press. Headlines always; when Firecrawl is
   // configured, scrape the top few article bodies and score the full text (a much
   // stronger signal than title keywords). Falls back to titles on any failure.
-  let newsScore = 50, bulls = 0, bears = 0, headlines = 0, enriched = 0;
+  let newsScore = 50, bulls = 0, bears = 0, headlines = 0, enriched = 0, newsReason = '';
   try {
     const q = encodeURIComponent(`${name} Bourse Tunis`);
     const xml = await (await fetch(`https://news.google.com/rss/search?q=${q}&hl=fr&gl=TN&ceid=TN:fr`, { headers: UA })).text();
@@ -354,6 +380,9 @@ async function engine(req: any, res: any) {
       if (sign > 0) bulls++; else if (sign < 0) bears++;
     });
     if (headlines) newsScore = clamp(50 + ((bulls - bears) / headlines) * 50);
+    // When we scraped real text, let DeepSeek judge overall tone over the lexicon.
+    const llm = enriched ? await deepseekTone(name, bodies.filter(Boolean).join('\n\n')) : null;
+    if (llm) { newsScore = clamp(50 + llm.tone * 50); newsReason = llm.reason; }
   } catch { /* keep neutral 50 */ }
 
   // Composite (V2.2): 4 live + 4 historical factors. Trend carries the most
@@ -369,7 +398,7 @@ async function engine(req: any, res: any) {
     factors: {
       momentum:    { score: momentumScore, detail: `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}% today` },
       volume:      { score: volumeScore,   detail: `top ${Math.max(1, Math.round(100 - rank * 100))}% of board by turnover` },
-      news:        { score: newsScore,     detail: `${bulls} bull / ${bears} bear of ${headlines} headlines (7d)${enriched ? `, ${enriched} full-text` : ''}` },
+      news:        { score: newsScore,     detail: `${bulls} bull / ${bears} bear of ${headlines} headlines (7d)${enriched ? `, ${enriched} full-text` : ''}${newsReason ? ` — ${newsReason}` : ''}` },
       liquidity:   { score: liquidity,     detail: spreadPct === null ? 'no live book' : `${spreadPct.toFixed(2)}% spread` },
       trend:       { score: trend,         detail: m20 === null && m60 === null ? 'insufficient history' : `${m20 === null ? '—' : pct(m20)} 20d / ${m60 === null ? '—' : pct(m60)} 60d` },
       reversal:    { score: reversal,      detail: rev === null ? 'insufficient history' : `${pct(rev)} 5d trailing (inverted)` },
