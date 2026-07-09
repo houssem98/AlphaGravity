@@ -256,6 +256,32 @@ const POS = ['hausse', 'progress', 'bénéfice', 'benefice', 'croissance', 'reco
 const NEG = ['baisse', 'perte', 'chute', 'recul', 'déficit', 'deficit', 'sanction', 'litige', 'dette', 'défaut', 'defaut', 'fraude', 'enquête', 'enquete', 'suspension', 'avertissement', 'downgrade', 'drop', 'fall', 'loss', 'weak', 'plunge', 'probe', 'warning'];
 const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
+// ── Firecrawl (optional): article body → clean markdown for full-text news tone ─
+// Inert (null) without FIRECRAWL_API_KEY; bounded timeout so it never stalls the
+// engine route; best-effort — any failure returns null and we fall back to titles.
+const FIRECRAWL = process.env.FIRECRAWL_API_KEY;
+async function firecrawlScrape(url: string): Promise<string | null> {
+  if (!FIRECRAWL || !url) return null;
+  try {
+    const r = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${FIRECRAWL}` },
+      body: JSON.stringify({ url, formats: ['markdown'], onlyMainContent: true, timeout: 8000 }),
+      signal: AbortSignal.timeout(9000),
+    });
+    if (!r.ok) return null;
+    return (await r.json())?.data?.markdown || null;
+  } catch { return null; }
+}
+// Net lexicon tone of a text blob → +1 bull / -1 bear / 0 neutral.
+function toneSign(text: string): number {
+  const lo = text.toLowerCase();
+  let s = 0;
+  for (const w of POS) if (lo.includes(w)) s++;
+  for (const w of NEG) if (lo.includes(w)) s--;
+  return s > 0 ? 1 : s < 0 ? -1 : 0;
+}
+
 async function engine(req: any, res: any) {
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
   const symbol = String(req.query.symbol || '').toUpperCase();
@@ -307,21 +333,26 @@ async function engine(req: any, res: any) {
   const spreadPct = bid && ask && price ? ((ask - bid) / price) * 100 : null;
   const liquidity = spreadPct === null ? 25 : clamp(100 - (spreadPct / 4) * 100);
 
-  // News tone: last-7d Tunisian press headlines, lexicon-scored.
-  let newsScore = 50, bulls = 0, bears = 0, headlines = 0;
+  // News tone: last-7d Tunisian press. Headlines always; when Firecrawl is
+  // configured, scrape the top few article bodies and score the full text (a much
+  // stronger signal than title keywords). Falls back to titles on any failure.
+  let newsScore = 50, bulls = 0, bears = 0, headlines = 0, enriched = 0;
   try {
     const q = encodeURIComponent(`${name} Bourse Tunis`);
     const xml = await (await fetch(`https://news.google.com/rss/search?q=${q}&hl=fr&gl=TN&ceid=TN:fr`, { headers: UA })).text();
-    const titles = (xml.match(/<item>[\s\S]*?<\/item>/g) || []).slice(0, 24)
-      .map((b) => (b.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1'));
-    headlines = titles.length;
-    for (const t of titles) {
-      const lo = t.toLowerCase();
-      let s = 0;
-      for (const w of POS) if (lo.includes(w)) s++;
-      for (const w of NEG) if (lo.includes(w)) s--;
-      if (s > 0) bulls++; else if (s < 0) bears++;
-    }
+    const items = (xml.match(/<item>[\s\S]*?<\/item>/g) || []).slice(0, 24).map((b) => ({
+      title: (b.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1'),
+      link: (b.match(/<link[^>]*>([\s\S]*?)<\/link>/i)?.[1] || '').trim(),
+    }));
+    headlines = items.length;
+    // Scrape the top few bodies in parallel (bounded); null when no key / failure.
+    const bodies = await Promise.all(items.slice(0, 4).map((it) => firecrawlScrape(it.link)));
+    items.forEach((it, i) => {
+      const body = bodies[i] || null;
+      if (body) enriched++;
+      const sign = toneSign(body || it.title);
+      if (sign > 0) bulls++; else if (sign < 0) bears++;
+    });
     if (headlines) newsScore = clamp(50 + ((bulls - bears) / headlines) * 50);
   } catch { /* keep neutral 50 */ }
 
@@ -338,7 +369,7 @@ async function engine(req: any, res: any) {
     factors: {
       momentum:    { score: momentumScore, detail: `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}% today` },
       volume:      { score: volumeScore,   detail: `top ${Math.max(1, Math.round(100 - rank * 100))}% of board by turnover` },
-      news:        { score: newsScore,     detail: `${bulls} bull / ${bears} bear of ${headlines} headlines (7d)` },
+      news:        { score: newsScore,     detail: `${bulls} bull / ${bears} bear of ${headlines} headlines (7d)${enriched ? `, ${enriched} full-text` : ''}` },
       liquidity:   { score: liquidity,     detail: spreadPct === null ? 'no live book' : `${spreadPct.toFixed(2)}% spread` },
       trend:       { score: trend,         detail: m20 === null && m60 === null ? 'insufficient history' : `${m20 === null ? '—' : pct(m20)} 20d / ${m60 === null ? '—' : pct(m60)} 60d` },
       reversal:    { score: reversal,      detail: rev === null ? 'insufficient history' : `${pct(rev)} 5d trailing (inverted)` },
