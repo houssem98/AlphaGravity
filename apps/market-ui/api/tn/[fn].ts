@@ -29,8 +29,11 @@ function store(file: string = FILE) {
 // datasource so every downstream route (markets/intraday/engine/fundamentals/
 // snapshot, all of which call groups()) keeps working. Defined below near gquery.
 async function groups() {
-  const d = await (await fetch(GROUPS, { headers: UA })).json().catch(() => ({}));
-  if (d?.markets?.length) return d;
+  try {
+    const r = await fetch(GROUPS, { headers: UA, signal: AbortSignal.timeout(2500) });
+    const d = await r.json();
+    if (d?.markets?.length) return d;
+  } catch { /* BVMT hung or unparseable → Grafana */ }
   return grafanaGroups();
 }
 async function resolveIsin(symbol: string, g?: any) {
@@ -62,7 +65,6 @@ function book(l: any) {
 
 // ── Live quotes for the whole board ─────────────────────────────────────────
 async function markets(_req: any, res: any) {
-  res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
   const d = await groups();
   const rows = (d?.markets || [])
     .filter((m: any) => m?.referentiel?.ticker)
@@ -82,6 +84,9 @@ async function markets(_req: any, res: any) {
       ...book(m.limit),
     }))
     .filter((x: any) => x.price > 0);
+  // Never edge-cache an empty board — a single bad moment must not freeze the
+  // market for the full TTL. Short TTL when populated so live quotes stay fresh.
+  res.setHeader('Cache-Control', rows.length ? 's-maxage=120, stale-while-revalidate=600' : 'no-store');
   res.json({ rows, updated: rows[0]?.seance || null });
 }
 
@@ -372,7 +377,7 @@ async function tnIndices() {
 // stock for the latest session; not-yet-traded names fall back to reference
 // price (last close) with zero change — same as BVMT's off-session board.
 async function grafanaGroups() {
-  const [board, refs] = await Promise.all([
+  const [boardR, refsR] = await Promise.allSettled([
     // Prefer a row that actually has a trade price, then the latest trade time —
     // the exchange re-publishes a null-price pre-open snapshot late in the feed,
     // so ingested_at DESC would wrongly pick that over the real last trade.
@@ -382,10 +387,14 @@ async function grafanaGroups() {
       `ORDER BY raw_data->>'codeIsin', (raw_data->>'lastTradePrice' IS NOT NULL) DESC, raw_data->>'time' DESC`),
     gquery(`SELECT raw_data FROM raw_referentiels WHERE raw_data->>'grp_description' LIKE 'Ligne M%re'`),
   ]);
+  const board = boardR.status === 'fulfilled' ? boardR.value : [];
+  const refs = refsR.status === 'fulfilled' ? refsR.value : [];
+  // If the equity-universe query blipped, don't freeze the board — keep every
+  // priced ticker rather than filtering to an empty set.
   const equity = new Set(refs.map((o: any) => o?.mnemo).filter(Boolean));
   const num = (v: any) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
   const markets = board
-    .filter((r: any) => r?.mnemo && equity.has(r.mnemo))
+    .filter((r: any) => r?.mnemo && (equity.size === 0 || equity.has(r.mnemo)))
     .map((r: any) => ({
       isin: r.codeIsin,
       last: num(r.lastTradePrice) || num(r.referencePrice),
