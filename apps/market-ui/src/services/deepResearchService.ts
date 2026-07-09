@@ -1479,7 +1479,10 @@ export async function distillKnowledgeBase(
 // back to the monolithic prompt for safety.
 
 export const READER_FALLBACK_THRESHOLD = 3;   // need ≥3 Reader summaries to trust the Extractor
-export const READER_WAVE_SIZE = 12;           // max parallel Readers per round
+// P2a: 20 parallel Readers per round (was 12) — safe now that the server
+// proxy bounds per-provider concurrency (P0a); large source sets were
+// retrieved then silently dropped past index 12.
+export const READER_WAVE_SIZE = 20;           // max parallel Readers per round
 const READER_NO_FACTS_SENTINEL = 'NO_RELEVANT_FACTS';
 
 export interface ReaderResult {
