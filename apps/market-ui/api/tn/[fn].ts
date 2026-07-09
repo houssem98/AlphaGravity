@@ -24,7 +24,15 @@ function store(file: string = FILE) {
   };
 }
 
-async function groups() { return (await fetch(GROUPS, { headers: UA })).json(); }
+// BVMT's public REST board intermittently returns an empty markets[] even
+// mid-session. When it does, rebuild the same shape from the exchange's Grafana
+// datasource so every downstream route (markets/intraday/engine/fundamentals/
+// snapshot, all of which call groups()) keeps working. Defined below near gquery.
+async function groups() {
+  const d = await (await fetch(GROUPS, { headers: UA })).json().catch(() => ({}));
+  if (d?.markets?.length) return d;
+  return grafanaGroups();
+}
 async function resolveIsin(symbol: string, g?: any) {
   g = g || await groups();
   const row = (g?.markets || []).find((m: any) => m?.referentiel?.ticker?.toUpperCase() === symbol);
@@ -357,6 +365,38 @@ async function gquery(rawSql: string): Promise<any[]> {
 
 async function tnIndices() {
   return gquery('SELECT raw_data FROM indice_live WHERE ingested_at=(SELECT max(ingested_at) FROM indice_live)');
+}
+
+// Grafana-backed rebuild of BVMT's groups() board (equity mother-lines only),
+// used when the BVMT REST endpoint returns an empty markets[]. Latest row per
+// stock for the latest session; not-yet-traded names fall back to reference
+// price (last close) with zero change — same as BVMT's off-session board.
+async function grafanaGroups() {
+  const [board, refs] = await Promise.all([
+    // Prefer a row that actually has a trade price, then the latest trade time —
+    // the exchange re-publishes a null-price pre-open snapshot late in the feed,
+    // so ingested_at DESC would wrongly pick that over the real last trade.
+    gquery(
+      `SELECT DISTINCT ON (raw_data->>'codeIsin') raw_data FROM raw_market ` +
+      `WHERE raw_data->>'dateSeance'=(SELECT max(raw_data->>'dateSeance') FROM raw_market) ` +
+      `ORDER BY raw_data->>'codeIsin', (raw_data->>'lastTradePrice' IS NOT NULL) DESC, raw_data->>'time' DESC`),
+    gquery(`SELECT raw_data FROM raw_referentiels WHERE raw_data->>'grp_description' LIKE 'Ligne M%re'`),
+  ]);
+  const equity = new Set(refs.map((o: any) => o?.mnemo).filter(Boolean));
+  const num = (v: any) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+  const markets = board
+    .filter((r: any) => r?.mnemo && equity.has(r.mnemo))
+    .map((r: any) => ({
+      isin: r.codeIsin,
+      last: num(r.lastTradePrice) || num(r.referencePrice),
+      close: num(r.referencePrice), open: num(r.openPrice),
+      high: num(r.pHaut), low: num(r.pbas),
+      change: num(r.varLastPrice), volume: num(r.quantity), caps: num(r.capit),
+      seance: r.dateSeance, time: String(r.time || '').slice(11, 19),
+      limit: { bid: num(r.bidPrice), bidQty: num(r.bidVol), ask: num(r.askPrice), askQty: num(r.askVol) },
+      referentiel: { ticker: r.mnemo, stockName: r.fullInstrumentName || r.mnemo, isin: r.codeIsin },
+    }));
+  return { markets };
 }
 
 // Column-oriented query → array of row objects (for aggregations, not JSON blobs).

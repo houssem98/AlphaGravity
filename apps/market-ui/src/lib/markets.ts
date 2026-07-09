@@ -41,11 +41,11 @@ const TN_STOCKS: SymbolDef[] = [
   { symbol: 'BNA', name: 'Banque Nationale Agricole' },
   { symbol: 'ATB', name: 'Arab Tunisian Bank' },
   { symbol: 'PGH', name: 'Poulina Group Holding' },
-  { symbol: 'DELICE', name: 'Délice Holding' },
+  { symbol: 'DH', name: 'Délice Holding' },
   { symbol: 'TLNET', name: 'Telnet Holding' },
   { symbol: 'SAH', name: 'SAH Lilas' },
-  { symbol: 'ATTIJARI', name: 'Attijari Bank' },
-  { symbol: 'CELLCOM', name: 'Cellcom' },
+  { symbol: 'TJARI', name: 'Attijari Bank' },
+  { symbol: 'CELL', name: 'Cellcom' },
 ];
 
 const COMMODITIES: SymbolDef[] = [
