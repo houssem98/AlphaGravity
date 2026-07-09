@@ -2548,9 +2548,16 @@ export async function contextualizeSources(
     }
 
     // Pass 2: batch the rest through the LLM (or deterministic fallback
-    // when the budget is tight)
+    // when the budget is tight).
+    // P1c: batches are independent — run them concurrently instead of
+    // serially (3-5 sequential lite hops → 1 wall-clock hop). The server-side
+    // per-provider limiter (P0a) bounds provider pressure. Budget is checked
+    // at launch, so worst-case overshoot is (batches-1) lite calls.
+    const batchList: number[][] = [];
     for (let start = 0; start < pending.length; start += CONTEXT_BATCH_SIZE) {
-        const batchIdxs = pending.slice(start, start + CONTEXT_BATCH_SIZE);
+        batchList.push(pending.slice(start, start + CONTEXT_BATCH_SIZE));
+    }
+    await Promise.all(batchList.map(async (batchIdxs) => {
         const batch = batchIdxs.map(i => result[i]);
         const urls = batch.map(s => s.url);
 
@@ -2593,7 +2600,7 @@ export async function contextualizeSources(
         if (usedDeterministic && contextMap.size === 0) {
             stats.deterministicBatches += 1;
         }
-    }
+    }));
 
     return { enriched: result, stats };
 }
