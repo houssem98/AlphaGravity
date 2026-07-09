@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldExtendSearch, BASE_SEARCH_ROUNDS, MIN_EXTENSION_SOURCES } from './deepResearchService';
+import { shouldExtendSearch, BASE_SEARCH_ROUNDS, MIN_EXTENSION_SOURCES, tierPeer } from './deepResearchService';
 
 describe('shouldExtendSearch (P0b adaptive rounds)', () => {
     it('never extends when coverage is sufficient', () => {
@@ -23,5 +23,19 @@ describe('shouldExtendSearch (P0b adaptive rounds)', () => {
 
     it('does not extend when the last round dried up', () => {
         expect(shouldExtendSearch(2, false, ['gap'], MIN_EXTENSION_SOURCES - 1)).toBe(false);
+    });
+});
+
+describe('tierPeer (P0c tier-down)', () => {
+    it('maps a premium model to its own provider peer at the requested tier', () => {
+        expect(tierPeer('claude-opus-4-6', 'standard')).toBe('claude-sonnet-4-6');
+        expect(tierPeer('claude-opus-4-6', 'lite')).toBe('claude-haiku-4-5-20251001');
+        expect(tierPeer('gemini-2.5-pro', 'lite')).toBe('gemini-2.0-flash-lite');
+        expect(tierPeer('deepseek-reasoner', 'standard')).toBe('deepseek-chat');
+    });
+
+    it('passes through undefined and unknown ids', () => {
+        expect(tierPeer(undefined, 'standard')).toBeUndefined();
+        expect(tierPeer('not-a-model' as never, 'standard')).toBeUndefined();
     });
 });

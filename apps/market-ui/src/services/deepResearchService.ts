@@ -1070,14 +1070,28 @@ export function defaultModelFor(provider: Provider, tier: Tier): ResearchModelId
     return 'llama-3.1-8b-instant';
 }
 
+// P0c tier-down: pickDriver used to honor `preferred` unconditionally, so
+// threading the premium driverModel through as `preferred` silently defeated
+// every lower tier argument — readers ('lite'), extractor, adaptive queries,
+// coverage eval, section writers all ran at premium. tierPeer maps a model to
+// its own provider's default at the requested tier: provider choice (user's
+// or auto) survives, tier doesn't. Premium tier still honors the exact
+// preferred model (the user's picked driver).
+export function tierPeer(modelId: ResearchModelId | undefined, tier: Tier): ResearchModelId | undefined {
+    if (!modelId) return undefined;
+    const m = RESEARCH_MODELS.find(x => x.id === modelId);
+    return m ? defaultModelFor(m.provider as Provider, tier) : undefined;
+}
+
 async function pickDriver(tier: Tier, preferred?: ResearchModelId): Promise<ResearchModelId> {
     const available = await getServerProviders();
     if (available.length === 0) {
         throw new Error('No LLM providers configured on server — check market-server .env');
     }
-    if (preferred) {
-        const model = RESEARCH_MODELS.find(m => m.id === preferred);
-        if (model && available.includes(model.provider as Provider)) return preferred;
+    const effective = tier === 'premium' ? preferred : (tierPeer(preferred, tier) ?? preferred);
+    if (effective) {
+        const model = RESEARCH_MODELS.find(m => m.id === effective);
+        if (model && available.includes(model.provider as Provider)) return effective;
     }
     return defaultModelFor(available[0], tier);
 }
@@ -2149,9 +2163,9 @@ async function synthesizeInstitutionalReport(
         ).join('\n')}\n`
         : '';
 
-    // Claude Opus is the best long-form synthesis model. If not available, use user's model,
-    // fall back to whichever premium-tier driver is configured.
-    const synthesisModel = await pickDriver('premium', model);
+    // P0c: monolith writer runs at standard tier (Sonnet/Flash class) — premium
+    // is reserved for blueprint + adversarial. Provider preference survives.
+    const synthesisModel = await pickDriver('standard', model);
 
     const prompt = `You are a Managing Director of Equity Research at Goldman Sachs / Morgan Stanley. You are producing a flagship institutional research note for the world's most sophisticated investors — sovereign wealth funds, top-tier hedge funds, and CIOs of major family offices. This report will be cited in Bloomberg terminal conversations and investment committee memos.
 
@@ -2684,7 +2698,9 @@ async function synthesizeReportBySections(
     macroText: string | undefined,
     onSectionDone?: (done: number, total: number, title: string) => void,
 ): Promise<SectionFanoutResult> {
-    const synthesisModel = await pickDriver('premium', model);
+    // P0c: section writers run at standard tier — 6-9 parallel premium calls
+    // were the single largest latency+cost block in the tail.
+    const synthesisModel = await pickDriver('standard', model);
     const top = webSources.slice(0, 35);
     const citationMap = new Map<string, number>();
     top.forEach((s, i) => citationMap.set(s.url, i + 1));
