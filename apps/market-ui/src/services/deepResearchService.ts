@@ -4316,17 +4316,16 @@ export const performDeepResearch = async (
         { sourcesFound: totalSources },
     );
 
-    // ── Stage 2b: Contextual Retrieval (45–48%) ───────────────────────────
+    // ── Stage 2b ∥ 3: Contextual Retrieval + Source Intelligence (45–65%) ──
+    // P2b: contextualize's .context tags are consumed by the stage-5 section
+    // writers, not by analyzeSources (KB path) or the adversarial pass — so
+    // the two stages run concurrently and contextualize is awaited just
+    // before report synthesis. contextualizeSources never rejects (internal
+    // deterministic fallback), so the floating promise is safe.
     st.start('contextual', 'Contextualizing sources for retrieval', 'analyzing', 46, driverModel);
-    throwIfAborted(signal);
-    const { enriched: enrichedWebSources, stats: contextualRetrieval } =
-        await contextualizeSources(webSources, query, blueprint, { model: driverModel });
-    webSources = enrichedWebSources;
-    st.done('contextual', `${contextualRetrieval.enriched}/${contextualRetrieval.total} sources tagged`);
-
-    // ── Stage 3: Source Intelligence (48–65%) ─────────────────────────────
     st.start('analyze', 'Extracting intelligence from sources', 'analyzing', 48, driverModel);
     throwIfAborted(signal);
+    const contextualizeP = contextualizeSources(webSources, query, blueprint, { model: driverModel });
     const sourceAnalysis = await analyzeSources(webSources, blueprint, driverModel, ragResult, knowledgeBase);
     st.done('analyze', `${webSources.length} sources processed`);
 
@@ -4351,6 +4350,12 @@ export const performDeepResearch = async (
         ));
     }
     st.done('adversarial', committee ? 'Committee debate complete (bull→bear→risk→PM)' : 'Bull/bear cases generated');
+
+    // P2b: section writers need the .context tags — join the concurrent
+    // contextualize pass here (usually long finished by now).
+    const { enriched: enrichedWebSources, stats: contextualRetrieval } = await contextualizeP;
+    webSources = enrichedWebSources;
+    st.done('contextual', `${contextualRetrieval.enriched}/${contextualRetrieval.total} sources tagged`);
 
     st.start('write', 'Senior analyst writing institutional report', 'synthesizing', 75, driverModel);
 
