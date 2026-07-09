@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowRight, TrendingUp, TrendingDown, PanelLeft, PanelLeftClose } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { motion, useReducedMotion } from 'motion/react';
 import { MARKETS, type MarketDef, type MarketId } from '../../lib/markets';
@@ -8,6 +8,8 @@ import { fetchHeadline, fetchCloses, fmtPrice, fmtPct, type AssetRow } from '../
 interface MarketHubProps {
   onSelectMarket: (id: MarketId) => void;
   onSelectAsset: (symbol: string) => void;
+  railOpen?: boolean;
+  onToggleRail?: () => void;
 }
 
 // Static indicative TUNINDEX series (mock — Phase 6 replaces with real BVMT).
@@ -136,7 +138,7 @@ function MarketCard({
   );
 }
 
-export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAsset }) => {
+export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAsset, railOpen, onToggleRail }) => {
   const reduce = useReducedMotion();
   const [rowsByMarket, setRowsByMarket] = useState<Record<string, AssetRow[]>>({});
   const [seriesByMarket, setSeriesByMarket] = useState<Record<string, { v: number }[]>>({
@@ -190,9 +192,20 @@ export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAs
       <div className="max-w-[1280px] mx-auto px-4 py-6">
         {/* Hero header */}
         <div className="section-mark mb-6" data-mark="000 / MARKETS">
-          <h1 className="text-h2 font-display font-semibold text-[color:var(--text)] tracking-tight leading-[0.95]">
-            Markets at a Glance
-          </h1>
+          <div className="flex items-center gap-3">
+            {onToggleRail && (
+              <button
+                onClick={onToggleRail}
+                title={railOpen ? 'Hide sidebar' : 'Show sidebar'}
+                className="w-7 h-7 rounded-sm flex items-center justify-center transition-colors text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)]"
+              >
+                {railOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+              </button>
+            )}
+            <h1 className="text-h2 font-display font-semibold text-[color:var(--text)] tracking-tight leading-[0.95]">
+              Markets at a Glance
+            </h1>
+          </div>
           <p className="text-body text-[color:var(--text-3)] mt-2 max-w-xl">
             Crypto, US equities and the Tunisian market — one desk. Pick a market to explore, or jump straight to any asset.
           </p>

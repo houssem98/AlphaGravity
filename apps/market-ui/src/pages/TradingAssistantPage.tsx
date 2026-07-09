@@ -399,7 +399,8 @@ export default function TradingAssistantPage() {
 
       {/* Main Trading Area */}
       <div className="flex flex-col flex-1 overflow-hidden">
-      {/* Global Header */}
+      {/* Global Header — crypto views only */}
+      {currentView !== 'hub' && activeMarket === 'crypto' && (
       <header className="h-12 shrink-0 flex items-center px-3 justify-between z-50 bg-[color:var(--surface)] border-b border-[color:var(--line)]">
         <div className="flex items-center gap-4">
           <button
@@ -409,15 +410,13 @@ export default function TradingAssistantPage() {
           >
             {railOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
           </button>
-          {currentView !== 'hub' && (
-            <button
-              onClick={() => setCurrentView(currentView === 'chart' ? 'markets' : 'hub')}
-              className="w-7 h-7 rounded-sm flex items-center justify-center transition-colors text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)]"
-              title="Back"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            onClick={() => setCurrentView(currentView === 'chart' ? 'markets' : 'hub')}
+            className="w-7 h-7 rounded-sm flex items-center justify-center transition-colors text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)]"
+            title="Back"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
           <div
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => setCurrentView('hub')}
@@ -480,6 +479,7 @@ export default function TradingAssistantPage() {
           </button>
         </div>
       </header>
+      )}
 
       {/* Toast Notification */}
       <AnimatePresence>
@@ -498,6 +498,8 @@ export default function TradingAssistantPage() {
 
       {currentView === 'hub' ? (
         <MarketHub
+          railOpen={railOpen}
+          onToggleRail={() => setRailOpen((o) => !o)}
           onSelectMarket={(id) => { setActiveMarket(id); setCurrentView('markets'); }}
           onSelectAsset={(asset) => { setCurrentAsset(asset); setCurrentView('chart'); }}
         />
