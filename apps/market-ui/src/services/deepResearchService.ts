@@ -1702,6 +1702,26 @@ export function _setActiveReaderStats_FOR_TESTS(s: ReaderStats | null): void {
 
 // ─── Iterative Search: Main loop ──────────────────────────────────────────────
 
+// P0b adaptive rounds: the first BASE_SEARCH_ROUNDS always run (unless
+// coverage says sufficient); rounds beyond that must earn their ~4 extra
+// sequential LLM hops — the coverage eval must name concrete gaps AND the
+// last round must have produced fresh sources. A parse-failed eval returns
+// {sufficient:false, gaps:[]} which reads as insufficient — without the
+// gaps check that failure mode would silently buy 2 extra rounds.
+export const BASE_SEARCH_ROUNDS = 2;
+export const MIN_EXTENSION_SOURCES = 3;
+
+export function shouldExtendSearch(
+    roundsCompleted: number,      // rounds finished so far (1-based count)
+    sufficient: boolean,
+    gaps: string[],
+    freshCount: number,           // new sources found in the last round
+): boolean {
+    if (sufficient) return false;
+    if (roundsCompleted < BASE_SEARCH_ROUNDS) return true;
+    return gaps.length > 0 && freshCount >= MIN_EXTENSION_SOURCES;
+}
+
 async function iterativeSearch(
     blueprint: ResearchBlueprint,
     query: string,
@@ -1784,11 +1804,13 @@ async function iterativeSearch(
                 sourcesFound: allSources.length,
             });
 
-            const { sufficient } = await evaluateCoverage(knowledgeBase, blueprint, model);
-            if (sufficient) {
+            const { sufficient, gaps } = await evaluateCoverage(knowledgeBase, blueprint, model);
+            if (!shouldExtendSearch(round + 1, sufficient, gaps, fresh.length)) {
                 onProgress({
                     stage: 'searching',
-                    message: `Coverage sufficient after ${round + 1} round${round > 0 ? 's' : ''} — proceeding to analysis`,
+                    message: sufficient
+                        ? `Coverage sufficient after ${round + 1} round${round > 0 ? 's' : ''} — proceeding to analysis`
+                        : `Coverage gaps modest after ${round + 1} rounds — proceeding to analysis`,
                     progress: 40,
                     sourcesFound: allSources.length,
                 });
