@@ -57,13 +57,31 @@ const Delta = ({ pct }: { pct: number }) => {
   );
 };
 
+// Real logos for BVMT names (no logo API for TN) — company logo via Clearbit
+// (unknown domain → 404 → clean initials fallback, no bogus globe icon). Only
+// high-confidence domains; unmapped tickers keep the initials placeholder.
+const TN_DOMAINS: Record<string, string> = {
+  BIAT: 'biat.com.tn', BT: 'bt.com.tn', ATB: 'atb.com.tn', STB: 'stb.com.tn', BH: 'bh.com.tn',
+  BNA: 'bna.com.tn', UIB: 'uib.com.tn', UBCI: 'ubci.tn', AB: 'amenbank.com.tn', TJARI: 'attijaribank.com.tn',
+  WIFAK: 'wifakbank.com', ATL: 'atl.com.tn', CIL: 'cil.com.tn', TLS: 'tunisieleasing.tn',
+  STAR: 'star.com.tn', AST: 'astree.com.tn',
+  SFBT: 'sfbt.tn', PGH: 'poulinagroupholding.com', DH: 'delice.tn', SAH: 'sah.com.tn', TLNET: 'telnet.tn',
+  ARTES: 'artesautomobile.com', MNP: 'monoprix.tn', TAIR: 'tunisair.com', SOTUV: 'sotuver.tn',
+  ALKIM: 'alkimia.com.tn', NAKL: 'ennakl.com.tn', CC: 'carthagecement.com.tn', CITY: 'citycars.com.tn',
+  SOTET: 'sotetel.com.tn', MGR: 'sotumag.com.tn',
+};
+
 const AssetIcon = ({ r, size = 6 }: { r: AssetRow; size?: 5 | 6 }) => {
   const cls = size === 5 ? 'w-5 h-5' : 'w-6 h-6';
-  return r.logo ? (
-    <img src={r.logo} alt={r.symbol} className={`${cls} rounded-full border border-[color:var(--line)]`} onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} />
+  const sym = r.symbol.replace('^', '');
+  const domain = TN_DOMAINS[sym];
+  const src = r.logo || (domain ? `https://logo.clearbit.com/${domain}` : null);
+  const [failed, setFailed] = useState(false);
+  return src && !failed ? (
+    <img src={src} alt={r.symbol} className={`${cls} rounded-full border border-[color:var(--line)] shrink-0 bg-white object-contain`} onError={() => setFailed(true)} />
   ) : (
     <span className={`${cls} rounded-full flex items-center justify-center text-[10px] font-bold bg-[color:var(--bg)] text-[color:var(--text-2)] border border-[color:var(--line)] shrink-0`}>
-      {r.symbol.replace('^', '').slice(0, 2)}
+      {sym.slice(0, 2)}
     </span>
   );
 };
