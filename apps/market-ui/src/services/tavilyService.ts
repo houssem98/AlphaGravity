@@ -189,17 +189,32 @@ export const searchMultipleQueries = async (
 };
 
 // Parallel version — fires all queries simultaneously for maximum speed
+// Firecrawl web search via the Vercel tn dispatcher (key stays server-side).
+// Returns [] when FIRECRAWL_API_KEY is unset or on any failure — purely additive.
+export const searchWebFirecrawl = async (query: string, maxResults = 6): Promise<TavilySearchResult[]> => {
+    try {
+        const res = await fetch(`/api/tn/websearch?q=${encodeURIComponent(query)}&limit=${maxResults}`);
+        if (!res.ok) return [];
+        const data = await res.json();
+        return (data.results || []).map((r: any) => ({
+            title: r.title || r.url, url: r.url, content: r.content || '', score: r.score ?? 0.5, publishedDate: r.publishedDate,
+        }));
+    } catch { return []; }
+};
+
 export const searchMultipleQueriesParallel = async (
     queries: string[],
     maxResultsPerQuery: number = 6,
 ): Promise<TavilySearchResult[]> => {
-    const settled = await Promise.allSettled(
-        queries.slice(0, 12).map(q => searchWeb(q, maxResultsPerQuery))
-    );
+    const qs = queries.slice(0, 12);
+    // Tavily + Firecrawl concurrently; Firecrawl yields nothing without a key.
+    const [tav, fc] = await Promise.all([
+        Promise.allSettled(qs.map(q => searchWeb(q, maxResultsPerQuery))),
+        Promise.allSettled(qs.map(q => searchWebFirecrawl(q, maxResultsPerQuery))),
+    ]);
     const allResults: TavilySearchResult[] = [];
-    for (const r of settled) {
-        if (r.status === 'fulfilled') allResults.push(...r.value.results);
-    }
+    for (const r of tav) if (r.status === 'fulfilled') allResults.push(...r.value.results);
+    for (const r of fc) if (r.status === 'fulfilled') allResults.push(...r.value);
     const uniqueResults = Array.from(new Map(allResults.map(r => [r.url, r])).values());
     return uniqueResults.sort((a, b) => weightedAuthorityScore(b) - weightedAuthorityScore(a));
 };

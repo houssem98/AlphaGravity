@@ -58,10 +58,14 @@ Docker stack (Redis + workers + Playwright) is too heavy for the Hermes box. Add
 - **Acceptance:** `factors.news.detail` appends the one-line LLM rationale (`… — <reason>`)
   when active; inert path byte-identical (verified). ✅
 
-### Phase 4 — Deep-research web sourcing  ⬜ TODO
-- `apps/market-ui/src/services/deepResearchService.ts`: add a Firecrawl `/search` +
-  `/scrape` step so research pulls live web context alongside the SEC corpus.
-- **Acceptance:** a research run lists ≥1 Firecrawl-sourced web citation.
+### Phase 4 — Deep-research web sourcing  ✅ SHIPPED
+- `websearch` route added to `api/tn/[fn].ts` (the only Vercel function excluded from
+  the Fly rewrite — keeps the key server-side; inert `{results:[]}` without it).
+- `searchWebFirecrawl()` in `tavilyService.ts`; `searchMultipleQueriesParallel()` now
+  fans out Tavily **and** Firecrawl concurrently and merges (dedupe by URL), so
+  `deepResearchService` picks up web results with zero changes.
+- **Acceptance:** with the key, a research run's source set includes Firecrawl URLs
+  alongside Tavily's; inert path returns `{results:[]}` (verified). ✅
 
 ---
 
@@ -72,6 +76,6 @@ Docker stack (Redis + workers + Playwright) is too heavy for the Hermes box. Add
 | 1 Engine news | ✅ | yes (inert) |
 | 2 Hermes brief | ✅ | code only, user deploys |
 | 3 LLM sentiment | ✅ | yes (DeepSeek key live) |
-| 4 Deep research | ⬜ | yes |
+| 4 Deep research | ✅ | yes |
 
 **Flip switch:** add `FIRECRAWL_API_KEY` to Vercel `market-ui` → Phases 1/3/4 activate.

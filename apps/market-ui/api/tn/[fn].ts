@@ -609,7 +609,30 @@ async function fundamentals(req: any, res: any) {
   res.json({ fundamentals: blob });
 }
 
-const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref, highs, fundamentals, brief };
+// ── Firecrawl web search (deep-research web sourcing) ───────────────────────
+// Key-safe server proxy; lives in this dispatcher because it's the only Vercel
+// function excluded from the Fly rewrite. Inert ({results:[]}) without a key.
+async function websearch(req: any, res: any) {
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=1800');
+  const q = String(req.query.q || '');
+  const limit = Math.min(10, Math.max(1, +req.query.limit || 6));
+  if (!q || !FIRECRAWL) return res.json({ results: [] });
+  try {
+    const r = await fetch('https://api.firecrawl.dev/v1/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${FIRECRAWL}` },
+      body: JSON.stringify({ query: q, limit }),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!r.ok) return res.json({ results: [] });
+    const results = ((await r.json())?.data || []).map((d: any) => ({
+      title: d.title || d.url, url: d.url, content: d.description || d.markdown || '', score: 0.6,
+    }));
+    res.json({ results });
+  } catch { res.json({ results: [] }); }
+}
+
+const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref, highs, fundamentals, brief, websearch };
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
