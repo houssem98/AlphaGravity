@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldExtendSearch, BASE_SEARCH_ROUNDS, MIN_EXTENSION_SOURCES, tierPeer } from './deepResearchService';
+import { shouldExtendSearch, BASE_SEARCH_ROUNDS, MIN_EXTENSION_SOURCES, tierPeer, isTerminalLLMError, ResearchCancelledError } from './deepResearchService';
 
 describe('shouldExtendSearch (P0b adaptive rounds)', () => {
     it('never extends when coverage is sufficient', () => {
@@ -37,5 +37,19 @@ describe('tierPeer (P0c tier-down)', () => {
     it('passes through undefined and unknown ids', () => {
         expect(tierPeer(undefined, 'standard')).toBeUndefined();
         expect(tierPeer('not-a-model' as never, 'standard')).toBeUndefined();
+    });
+});
+
+describe('isTerminalLLMError (P0d fallback cap)', () => {
+    it('treats cancellation, abort, and budget exhaustion as terminal', () => {
+        expect(isTerminalLLMError(new ResearchCancelledError())).toBe(true);
+        expect(isTerminalLLMError(Object.assign(new Error('x'), { name: 'AbortError' }))).toBe(true);
+        expect(isTerminalLLMError(new Error('Budget exhausted: 100/100 LLM calls'))).toBe(true);
+    });
+
+    it('lets transient provider errors fall through to the next model', () => {
+        expect(isTerminalLLMError(new Error('anthropic/claude 529: overloaded'))).toBe(false);
+        expect(isTerminalLLMError(new Error('HTTP 502'))).toBe(false);
+        expect(isTerminalLLMError(undefined)).toBe(false);
     });
 });

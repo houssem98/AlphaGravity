@@ -1140,17 +1140,32 @@ async function callLLM(
         }
     }
 
+    // P0d: cap the walk — the full provider×model chain is 10+ entries, and a
+    // provider outage turned every call into N sequential timeouts. 3 attempts
+    // is enough to survive one bad model + one bad provider.
+    const MAX_FALLBACK_ATTEMPTS = 3;
     const failures: string[] = [];
-    for (const { provider, model } of modelChain) {
+    for (const { provider, model } of modelChain.slice(0, MAX_FALLBACK_ATTEMPTS)) {
         try {
             return await callLLMProxy(provider, model, prompt);
         } catch (e: any) {
+            // Cancellation and budget exhaustion are terminal — trying the
+            // next model would fire MORE requests after the user cancelled
+            // or the budget tripped.
+            if (isTerminalLLMError(e)) throw e;
             const msg = e?.message ?? String(e);
             failures.push(`${provider}/${model}: ${msg.substring(0, 100)}`);
             console.warn(`LLM ${provider}/${model} failed, trying next…`, e);
         }
     }
     throw new Error(`All LLM providers failed — ${failures.join(' | ')}`);
+}
+
+export function isTerminalLLMError(e: any): boolean {
+    return e instanceof ResearchCancelledError
+        || e?.name === 'ResearchCancelledError'
+        || e?.name === 'AbortError'
+        || /^Budget exhausted/.test(e?.message ?? '');
 }
 
 // ─── Stage 1: Research Blueprint ─────────────────────────────────────────────
