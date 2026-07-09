@@ -2,6 +2,8 @@
 // Terminal-style live log · Animated stage pipeline · Source counter
 
 import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
     Brain, Globe, FileSearch, Pen,
     CheckCircle2, Loader2, Sparkles, Zap,
@@ -253,6 +255,31 @@ export default function ResearchProgress({ progress }: Props) {
                     </div>
                 </div>
             </div>
+
+            {/* ── P1a: live section drafts — read the report while it's written ── */}
+            {progress.partialSections && progress.partialSections.length > 0 && (
+                <div className="mt-6 rounded-xl border overflow-hidden"
+                    style={{ borderColor: 'rgba(255,255,255,0.07)', background: 'rgba(10,14,26,0.6)' }}>
+                    <div className="px-4 py-2.5 flex items-center justify-between border-b"
+                        style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+                        <span className="text-[11px] font-mono uppercase tracking-wider" style={{ color: '#3D7FF6' }}>
+                            Draft — {progress.partialSections.length} section{progress.partialSections.length === 1 ? '' : 's'} ready
+                        </span>
+                        <Loader2 size={12} className="animate-spin" style={{ color: '#3D4861' }} />
+                    </div>
+                    <div className="max-h-[420px] overflow-y-auto px-5 py-4 space-y-6">
+                        {progress.partialSections.map((s) => (
+                            <div key={s.title}>
+                                <h3 className="text-[13px] font-semibold mb-2" style={{ color: '#E2E8F0' }}>{s.title}</h3>
+                                <div className="prose prose-invert prose-sm max-w-none text-[12.5px] leading-relaxed"
+                                    style={{ color: '#94A3B8' }}>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{s.body}</ReactMarkdown>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* ── Hint text ── */}
             <p className="text-center text-[12px] mt-6" style={{ color: '#1E2740' }}>

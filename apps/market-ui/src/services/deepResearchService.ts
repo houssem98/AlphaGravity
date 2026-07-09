@@ -359,6 +359,9 @@ export interface ResearchProgress {
     steps?: ThinkingStep[];
     currentStep?: string;          // id of the currently running step
     budgetUsed?: { calls: number; tokens: number; estimatedUsd: number };
+    // P1a: completed section drafts (template order) streamed during fanout so
+    // the UI can render the report as it's written instead of at 100%.
+    partialSections?: Array<{ title: string; body: string }>;
 }
 
 // ─── Thinking Panel ───────────────────────────────────────────────────────────
@@ -2711,7 +2714,7 @@ async function synthesizeReportBySections(
     model: ResearchModelId | undefined,
     ragResult: GravityRAGResult | undefined,
     macroText: string | undefined,
-    onSectionDone?: (done: number, total: number, title: string) => void,
+    onSectionDone?: (done: number, total: number, title: string, sections?: Array<{ title: string; body: string }>) => void,
 ): Promise<SectionFanoutResult> {
     // P0c: section writers run at standard tier — 6-9 parallel premium calls
     // were the single largest latency+cost block in the tail.
@@ -2776,7 +2779,12 @@ async function synthesizeReportBySections(
                 };
             }
             doneCount += 1;
-            onSectionDone?.(doneCount, template.sections.length, item.s);
+            // Snapshot of completed drafts in template order — workers finish
+            // out of order, `results` is index-aligned to the template.
+            onSectionDone?.(
+                doneCount, template.sections.length, item.s,
+                results.filter(r => r.ok && r.body).map(r => ({ title: r.title, body: r.body })),
+            );
         }
     }
 
@@ -4380,9 +4388,10 @@ export const performDeepResearch = async (
                 driverModel,
                 ragResult,
                 macroText,
-                (done, total, title) => {
+                (done, total, title, sections) => {
                     st.emit('synthesizing', `Section ${done}/${total} drafted — ${title}`,
-                        77 + Math.round((done / total) * 15), { sourcesFound: totalSources });
+                        77 + Math.round((done / total) * 15),
+                        { sourcesFound: totalSources, partialSections: sections });
                 },
             );
             // Accept the fanout if ≥60% of sections came back. Below that,
