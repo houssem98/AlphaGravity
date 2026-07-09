@@ -1701,7 +1701,7 @@ export async function extractRoundIntelligence(
         monolithicCallLLM?: (prompt: string) => Promise<string>;
     } = {},
 ): Promise<{ intelligence: string; fellBack: boolean; readerResults: ReaderResult[] }> {
-    const sliced = sources.slice(0, READER_WAVE_SIZE);
+    const sliced = rerankSourcesForReaders(sources, blueprint, READER_WAVE_SIZE);
     const readerResults = await runReaders(sliced, query, blueprint, stats, {
         model: options.model,
         callLLM: options.readerCallLLM,
@@ -2324,6 +2324,31 @@ export function scoreSourceForSection(
     const auth = authorityWeight(classifyAuthority(s.url));
     const semantic = typeof s.score === 'number' ? s.score : 0.5;
     return 0.5 * kw + 0.3 * auth + 0.2 * semantic;
+}
+
+// P2c: readers previously got the top-N sources by scoreSource alone — a
+// generic authority+freshness score that knows nothing about what this
+// research is actually about. A high-authority off-topic result (e.g. a
+// general market overview) could out-rank a lower-authority source that
+// directly covers the target entity. Rerank by blueprint-relevance before
+// slicing to the reader wave so the 20 LLM calls spend budget on the most
+// on-topic sources, not merely the most reputable ones.
+export function rerankSourcesForReaders(
+    sources: TavilySearchResult[],
+    blueprint: ResearchBlueprint,
+    limit: number,
+): TavilySearchResult[] {
+    const keywords = keywordsFromSection('', [
+        ...blueprint.targetEntities,
+        ...blueprint.researchAngles,
+        ...blueprint.keyMetrics,
+    ]);
+    if (keywords.length === 0) return sources.slice(0, limit);
+    return sources
+        .map(s => ({ s, score: scoreSourceForSection(s, keywords) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+        .map(x => x.s);
 }
 
 export function sliceEvidenceForSection(

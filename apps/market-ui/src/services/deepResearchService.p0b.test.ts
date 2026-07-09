@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { shouldExtendSearch, BASE_SEARCH_ROUNDS, MIN_EXTENSION_SOURCES, tierPeer, isTerminalLLMError, ResearchCancelledError } from './deepResearchService';
+import { shouldExtendSearch, BASE_SEARCH_ROUNDS, MIN_EXTENSION_SOURCES, tierPeer, isTerminalLLMError, ResearchCancelledError, rerankSourcesForReaders } from './deepResearchService';
+import type { ResearchBlueprint } from './deepResearchService';
+import type { TavilySearchResult } from './tavilyService';
 
 describe('shouldExtendSearch (P0b adaptive rounds)', () => {
     it('never extends when coverage is sufficient', () => {
@@ -37,6 +39,41 @@ describe('tierPeer (P0c tier-down)', () => {
     it('passes through undefined and unknown ids', () => {
         expect(tierPeer(undefined, 'standard')).toBeUndefined();
         expect(tierPeer('not-a-model' as never, 'standard')).toBeUndefined();
+    });
+});
+
+describe('rerankSourcesForReaders (P2c relevance rerank)', () => {
+    const blueprint: ResearchBlueprint = {
+        intent: 'company_analysis',
+        targetEntities: ['Nvidia'],
+        tickers: ['NVDA'],
+        keyMetrics: ['Revenue Growth'],
+        subtopics: [],
+        searchQueries: [],
+        secTargets: [],
+        timeframe: 'FY2025',
+        investmentHorizon: '12 months',
+        researchAngles: ['data center demand'],
+    };
+    const mk = (title: string, content: string, score: number): TavilySearchResult =>
+        ({ title, url: `https://x.test/${title}`, content, score });
+
+    it('ranks on-topic sources above off-topic high-score ones', () => {
+        const onTopic = mk('Nvidia data center demand surges', 'Nvidia revenue growth accelerates', 0.3);
+        const offTopic = mk('General market overview', 'Stocks were mixed today amid macro concerns', 0.95);
+        const ranked = rerankSourcesForReaders([offTopic, onTopic], blueprint, 2);
+        expect(ranked[0].title).toBe(onTopic.title);
+    });
+
+    it('respects the limit', () => {
+        const many = Array.from({ length: 30 }, (_, i) => mk(`Nvidia source ${i}`, 'Nvidia revenue growth', 0.5));
+        expect(rerankSourcesForReaders(many, blueprint, 20)).toHaveLength(20);
+    });
+
+    it('falls back to a plain slice when the blueprint has no keywords', () => {
+        const empty: ResearchBlueprint = { ...blueprint, targetEntities: [], researchAngles: [], keyMetrics: [] };
+        const sources = [mk('a', 'x', 0.1), mk('b', 'y', 0.2)];
+        expect(rerankSourcesForReaders(sources, empty, 1)).toEqual([sources[0]]);
     });
 });
 
