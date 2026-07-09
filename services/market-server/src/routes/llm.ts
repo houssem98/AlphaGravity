@@ -36,9 +36,44 @@ function getProviders(): Record<string, ProviderInfo> {
     };
 }
 
+// ─── Per-provider concurrency limiter ────────────────────────────────────────
+// Deep-research fires parallel Reader/section waves; without a limiter they
+// all hit the provider at once → 429 storm → the client walks its full
+// fallback chain per call. Bound in-flight calls per provider instead.
+// Waiters run FIFO; a finishing call hands its slot to the next waiter.
+
+export class Semaphore {
+    private queue: Array<() => void> = [];
+    private active = 0;
+    constructor(private limit: number) {}
+    async run<T>(fn: () => Promise<T>): Promise<T> {
+        if (this.active >= this.limit) {
+            await new Promise<void>(r => this.queue.push(r));
+            // slot transferred from the finisher — active already counts us
+        } else {
+            this.active++;
+        }
+        try {
+            return await fn();
+        } finally {
+            const next = this.queue.shift();
+            if (next) next();       // transfer slot, active unchanged
+            else this.active--;
+        }
+    }
+}
+
+const PROVIDER_LIMITS: Record<string, Semaphore> = {
+    anthropic: new Semaphore(5),
+    gemini:    new Semaphore(8),
+    deepseek:  new Semaphore(8),
+    groq:      new Semaphore(8),
+};
+
 // ─── Retry helper ─────────────────────────────────────────────────────────────
 // Retries transient HTTP errors (429 rate-limited, 500/502/503/529 overload).
-// Backoff: 1 s × 2^attempt + ±200ms jitter (capped at 30s).
+// Backoff: 1 s × 2^attempt + ±200ms jitter (capped at 30s); a Retry-After
+// header, when present, overrides the computed backoff.
 // authN/authZ errors (401/403), bad-request (400), and client errors (<400)
 // are never retried — they will fail on every attempt.
 
@@ -55,7 +90,11 @@ async function retryableFetch(
         try {
             const resp = await fetch(url, init);
             if (resp.ok || !RETRYABLE.has(resp.status)) return resp;
-            const backoff = Math.min(1000 * Math.pow(2, attempt) + Math.random() * 400, MAX_BACKOFF_MS);
+            const retryAfterMs = parseInt(resp.headers.get('retry-after') ?? '', 10) * 1000 || 0;
+            const backoff = Math.min(
+                Math.max(retryAfterMs, 1000 * Math.pow(2, attempt) + Math.random() * 400),
+                MAX_BACKOFF_MS,
+            );
             console.warn(`[llm] ${resp.status} from ${url} — retry ${attempt + 1}/${maxAttempts - 1} in ${Math.round(backoff)}ms`);
             await sleep(backoff);
             lastErr = new Error(`HTTP ${resp.status}`);
@@ -145,37 +184,37 @@ llmRouter.post('/chat', async (req, res) => {
     const t0 = Date.now();
 
     try {
-        let result: { text: string; cacheStats?: { created: number; read: number } };
-
-        switch (provider) {
-            case 'anthropic': {
-                const key = process.env.ANTHROPIC_API_KEY;
-                if (!key) { res.status(503).json({ error: 'Anthropic API key not configured on server' }); return; }
-                result = await callAnthropic(key, model, prompt, max_tokens);
-                break;
-            }
-            case 'gemini': {
-                const key = process.env.GEMINI_API_KEY;
-                if (!key) { res.status(503).json({ error: 'Gemini API key not configured on server' }); return; }
-                result = { text: await callGeminiAPI(key, model, prompt) };
-                break;
-            }
-            case 'deepseek': {
-                const key = process.env.DEEPSEEK_API_KEY;
-                if (!key) { res.status(503).json({ error: 'DeepSeek API key not configured on server' }); return; }
-                result = { text: await callOpenAICompatible('https://api.deepseek.com/chat/completions', key, model, prompt, max_tokens) };
-                break;
-            }
-            case 'groq': {
-                const key = process.env.GROQ_API_KEY;
-                if (!key) { res.status(503).json({ error: 'Groq API key not configured on server' }); return; }
-                result = { text: await callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', key, model, prompt, max_tokens) };
-                break;
-            }
-            default:
-                res.status(400).json({ error: `Unknown provider: ${provider}` });
-                return;
+        const limiter = PROVIDER_LIMITS[provider];
+        if (!limiter) {
+            res.status(400).json({ error: `Unknown provider: ${provider}` });
+            return;
         }
+
+        const result: { text: string; cacheStats?: { created: number; read: number } } =
+            await limiter.run(async () => {
+                switch (provider) {
+                    case 'anthropic': {
+                        const key = process.env.ANTHROPIC_API_KEY;
+                        if (!key) throw Object.assign(new Error('Anthropic API key not configured on server'), { status: 503 });
+                        return callAnthropic(key, model, prompt, max_tokens);
+                    }
+                    case 'gemini': {
+                        const key = process.env.GEMINI_API_KEY;
+                        if (!key) throw Object.assign(new Error('Gemini API key not configured on server'), { status: 503 });
+                        return { text: await callGeminiAPI(key, model, prompt) };
+                    }
+                    case 'deepseek': {
+                        const key = process.env.DEEPSEEK_API_KEY;
+                        if (!key) throw Object.assign(new Error('DeepSeek API key not configured on server'), { status: 503 });
+                        return { text: await callOpenAICompatible('https://api.deepseek.com/chat/completions', key, model, prompt, max_tokens) };
+                    }
+                    default: {
+                        const key = process.env.GROQ_API_KEY;
+                        if (!key) throw Object.assign(new Error('Groq API key not configured on server'), { status: 503 });
+                        return { text: await callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', key, model, prompt, max_tokens) };
+                    }
+                }
+            });
 
         const latencyMs = Date.now() - t0;
         emitTrace({
@@ -203,7 +242,7 @@ llmRouter.post('/chat', async (req, res) => {
             errorMessage: error.message,
         });
         console.error(`LLM proxy error (${provider}/${model}):`, error.message);
-        res.status(502).json({ error: error.message || 'LLM call failed', provider, model });
+        res.status(error.status === 503 ? 503 : 502).json({ error: error.message || 'LLM call failed', provider, model });
     }
 });
 
