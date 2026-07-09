@@ -273,6 +273,22 @@ async function firecrawlScrape(url: string): Promise<string | null> {
     return (await r.json())?.data?.markdown || null;
   } catch { return null; }
 }
+// Firecrawl web search → real article URLs + snippets. [] without a key / on failure.
+async function firecrawlSearch(query: string, limit = 6): Promise<Array<{ title: string; url: string; content: string }>> {
+  if (!FIRECRAWL || !query) return [];
+  try {
+    const r = await fetch('https://api.firecrawl.dev/v1/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${FIRECRAWL}` },
+      body: JSON.stringify({ query, limit }),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!r.ok) return [];
+    return ((await r.json())?.data || [])
+      .map((d: any) => ({ title: d.title || d.url, url: d.url, content: d.description || d.markdown || '' }))
+      .filter((x: any) => x.url);
+  } catch { return []; }
+}
 // Net lexicon tone of a text blob → +1 bull / -1 bear / 0 neutral.
 function toneSign(text: string): number {
   const lo = text.toLowerCase();
@@ -364,25 +380,31 @@ async function engine(req: any, res: any) {
   // stronger signal than title keywords). Falls back to titles on any failure.
   let newsScore = 50, bulls = 0, bears = 0, headlines = 0, enriched = 0, newsReason = '';
   try {
-    const q = encodeURIComponent(`${name} Bourse Tunis`);
-    const xml = await (await fetch(`https://news.google.com/rss/search?q=${q}&hl=fr&gl=TN&ceid=TN:fr`, { headers: UA })).text();
-    const items = (xml.match(/<item>[\s\S]*?<\/item>/g) || []).slice(0, 24).map((b) => ({
-      title: (b.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1'),
-      link: (b.match(/<link[^>]*>([\s\S]*?)<\/link>/i)?.[1] || '').trim(),
-    }));
-    headlines = items.length;
-    // Scrape the top few bodies in parallel (bounded); null when no key / failure.
-    const bodies = await Promise.all(items.slice(0, 4).map((it) => firecrawlScrape(it.link)));
-    items.forEach((it, i) => {
-      const body = bodies[i] || null;
-      if (body) enriched++;
-      const sign = toneSign(body || it.title);
-      if (sign > 0) bulls++; else if (sign < 0) bears++;
-    });
-    if (headlines) newsScore = clamp(50 + ((bulls - bears) / headlines) * 50);
-    // When we scraped real text, let DeepSeek judge overall tone over the lexicon.
-    const llm = enriched ? await deepseekTone(name, bodies.filter(Boolean).join('\n\n')) : null;
-    if (llm) { newsScore = clamp(50 + llm.tone * 50); newsReason = llm.reason; }
+    if (FIRECRAWL) {
+      // Firecrawl search → real article URLs (Google News RSS links are google.com
+      // redirect stubs that don't scrape), then scrape the top few bodies for
+      // full-text tone; DeepSeek judges overall tone when configured.
+      const top = (await firecrawlSearch(`${name} Bourse Tunis actualité`, 6)).slice(0, 4);
+      const bodies = await Promise.all(top.map((f) => firecrawlScrape(f.url)));
+      top.forEach((f, i) => {
+        if (bodies[i]) enriched++;
+        const sign = toneSign(bodies[i] || f.content || f.title);
+        if (sign > 0) bulls++; else if (sign < 0) bears++;
+      });
+      headlines = top.length;
+      if (headlines) newsScore = clamp(50 + ((bulls - bears) / headlines) * 50);
+      const llm = enriched ? await deepseekTone(name, bodies.filter(Boolean).join('\n\n')) : null;
+      if (llm) { newsScore = clamp(50 + llm.tone * 50); newsReason = llm.reason; }
+    } else {
+      // No Firecrawl → Google News RSS headline tone (lexicon).
+      const q = encodeURIComponent(`${name} Bourse Tunis`);
+      const xml = await (await fetch(`https://news.google.com/rss/search?q=${q}&hl=fr&gl=TN&ceid=TN:fr`, { headers: UA })).text();
+      const titles = (xml.match(/<item>[\s\S]*?<\/item>/g) || []).slice(0, 24)
+        .map((b) => (b.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1'));
+      headlines = titles.length;
+      for (const t of titles) { const s = toneSign(t); if (s > 0) bulls++; else if (s < 0) bears++; }
+      if (headlines) newsScore = clamp(50 + ((bulls - bears) / headlines) * 50);
+    }
   } catch { /* keep neutral 50 */ }
 
   // Composite (V2.2): 4 live + 4 historical factors. Trend carries the most
@@ -398,7 +420,7 @@ async function engine(req: any, res: any) {
     factors: {
       momentum:    { score: momentumScore, detail: `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}% today` },
       volume:      { score: volumeScore,   detail: `top ${Math.max(1, Math.round(100 - rank * 100))}% of board by turnover` },
-      news:        { score: newsScore,     detail: `${bulls} bull / ${bears} bear of ${headlines} headlines (7d)${enriched ? `, ${enriched} full-text` : ''}${newsReason ? ` — ${newsReason}` : ''}` },
+      news:        { score: newsScore,     detail: `${bulls} bull / ${bears} bear of ${headlines} ${FIRECRAWL ? 'sources' : 'headlines'} (7d)${enriched ? `, ${enriched} full-text` : ''}${newsReason ? ` — ${newsReason}` : ''}` },
       liquidity:   { score: liquidity,     detail: spreadPct === null ? 'no live book' : `${spreadPct.toFixed(2)}% spread` },
       trend:       { score: trend,         detail: m20 === null && m60 === null ? 'insufficient history' : `${m20 === null ? '—' : pct(m20)} 20d / ${m60 === null ? '—' : pct(m60)} 60d` },
       reversal:    { score: reversal,      detail: rev === null ? 'insufficient history' : `${pct(rev)} 5d trailing (inverted)` },
@@ -616,20 +638,8 @@ async function websearch(req: any, res: any) {
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=1800');
   const q = String(req.query.q || '');
   const limit = Math.min(10, Math.max(1, +req.query.limit || 6));
-  if (!q || !FIRECRAWL) return res.json({ results: [] });
-  try {
-    const r = await fetch('https://api.firecrawl.dev/v1/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${FIRECRAWL}` },
-      body: JSON.stringify({ query: q, limit }),
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!r.ok) return res.json({ results: [] });
-    const results = ((await r.json())?.data || []).map((d: any) => ({
-      title: d.title || d.url, url: d.url, content: d.description || d.markdown || '', score: 0.6,
-    }));
-    res.json({ results });
-  } catch { res.json({ results: [] }); }
+  const results = (await firecrawlSearch(q, limit)).map((d) => ({ ...d, score: 0.6 }));
+  res.json({ results });
 }
 
 const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref, highs, fundamentals, brief, websearch };
