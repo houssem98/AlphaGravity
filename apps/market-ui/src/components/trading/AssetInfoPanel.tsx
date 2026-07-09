@@ -6,7 +6,7 @@ import { fetchMarket, fmtPrice } from '../../services/marketsHub';
 import { safeUrl } from '../../lib/safeUrl';
 import {
   Info, Star, Globe, FileText, Copy, Check, ChevronDown, ChevronRight,
-  Edit2, Unlock, CheckCircle2, ExternalLink, Play, ArrowLeftRight, Shield,
+  Edit2, Unlock, CheckCircle2, ExternalLink, Play, ArrowLeftRight, Shield, ArrowLeft,
 } from 'lucide-react';
 
 // ── Polymarket + Kalshi price predictions per asset ──
@@ -566,10 +566,11 @@ const ROW = ({ label, value, change, hasArrow, tooltip }: { label: string; value
 interface AssetInfoPanelProps {
   asset: string;
   onAskAI?: () => void;
+  onBack?: () => void;
   market?: MarketId;
 }
 
-export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, market }) => {
+export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, onBack, market }) => {
   const [price,     setPrice]     = useState<number | null>(null);
   const [change,    setChange]    = useState<number | null>(null);
   const [marketCap, setMarketCap] = useState<number | null>(null);
@@ -773,6 +774,17 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
         {/* ── HEADER ── */}
         <div className="px-4 pt-5 pb-4" style={{ borderBottom: '1px solid #1B2236' }}>
           <div className="flex items-center gap-2.5 mb-3">
+            {onBack && (
+              <button
+                onClick={onBack}
+                title="Back"
+                aria-label="Back"
+                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors"
+                style={{ color: '#5A6478', background: '#0E1320', border: '1px solid #1B2236' }}
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
             <div className="w-9 h-9 rounded-full flex items-center justify-center font-black text-white text-sm shrink-0"
               style={{ background: gradient }}>
               {asset.charAt(0)}

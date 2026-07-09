@@ -523,7 +523,7 @@ export default function TradingAssistantPage() {
 
             {/* Left: Coin info (resizable) */}
             <div className="shrink-0 h-full" style={{ width: leftW }}>
-              <AssetInfoPanel asset={currentAsset} market={activeMarket} onAskAI={() => setIsAssistantOpen(true)} />
+              <AssetInfoPanel asset={currentAsset} market={activeMarket} onAskAI={() => setIsAssistantOpen(true)} onBack={() => setCurrentView('markets')} />
             </div>
             <ResizeHandle value={leftW} min={240} max={520} dir={1} onChange={setLeftW} ariaLabel="Resize info panel" />
 
