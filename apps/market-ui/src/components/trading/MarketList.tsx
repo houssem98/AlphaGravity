@@ -57,9 +57,9 @@ const Delta = ({ pct }: { pct: number }) => {
   );
 };
 
-// Real logos for BVMT names (no logo API for TN) — company logo via Clearbit
-// (unknown domain → 404 → clean initials fallback, no bogus globe icon). Only
-// high-confidence domains; unmapped tickers keep the initials placeholder.
+// Real logos for BVMT names (no logo API for TN) — company site favicon via
+// DuckDuckGo's icon service (no key, permissive CORS). Unmapped tickers and
+// failed loads fall back to the initials placeholder.
 const TN_DOMAINS: Record<string, string> = {
   // Banks
   BIAT: 'biat.com.tn', BT: 'bt.com.tn', ATB: 'atb.com.tn', STB: 'stb.com.tn', BH: 'bh.com.tn',
@@ -87,7 +87,7 @@ const AssetIcon = ({ r, size = 6 }: { r: AssetRow; size?: 5 | 6 }) => {
   const cls = size === 5 ? 'w-5 h-5' : 'w-6 h-6';
   const sym = r.symbol.replace('^', '');
   const domain = TN_DOMAINS[sym];
-  const src = r.logo || (domain ? `https://logo.clearbit.com/${domain}` : null);
+  const src = r.logo || (domain ? `https://icons.duckduckgo.com/ip3/${domain}.ico` : null);
   const [failed, setFailed] = useState(false);
   return src && !failed ? (
     <img src={src} alt={r.symbol} className={`${cls} rounded-full border border-[color:var(--line)] shrink-0 bg-white object-contain`} onError={() => setFailed(true)} />
