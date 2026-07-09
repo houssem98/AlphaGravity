@@ -1,6 +1,6 @@
 # DR loop progress — deep research world-class run
 
-NEXT: P1c
+NEXT: P2a
 
 ## Tasks
 - [x] P0a proxy limiter + 429 backoff (market-server llm.ts)
@@ -9,7 +9,7 @@ NEXT: P1c
 - [x] P0d client fallback-chain cap in callLLM
 - [x] P1a stream sections to UI as they finish
 - [x] P1b fix reader-count display (min(fresh,12))
-- [ ] P1c parallelize contextualize batches
+- [x] P1c parallelize contextualize batches
 - [ ] P2a reader cap 12→20
 - [ ] P2b overlap contextualize/analyze/adversarial tail
 - [ ] P2c rerank sources before reader wave
@@ -22,3 +22,4 @@ NEXT: P1c
 - P0d · 9eb14c3 · callLLM chain capped at 3 attempts + isTerminalLLMError (cancel/abort/budget rethrow immediately — mid-call cancel used to keep firing requests at remaining models) · worst-case per-call: 10+ sequential timeouts → 3; 9-test suite green
 - P1a · 6090d9f · onSectionDone carries template-ordered draft snapshot → ResearchProgress.partialSections → live markdown panel in progress UI · first visible content at ~77% wall-time instead of 100% (drafts appear as each section writer returns); build+typecheck+9 tests green
 - P1b · 887e3db · READER_WAVE_SIZE=12 const extracted, progress message clamps · display honest ("45 Readers" lie gone); P2a now a one-const change
+- P1c · 4e4dd28 · contextualize batch loop serial→Promise.all · 3-5 sequential lite hops → 1 wall-clock hop on stage 2b (expected); budget overshoot bounded at batches-1 lite calls. P1 phase complete
