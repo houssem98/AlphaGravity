@@ -16,13 +16,15 @@
 
 import { Router } from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Agent } from 'undici';
+import { Agent, fetch as undiciFetch } from 'undici';
 
 // W0d: node fetch (undici) defaults to 300s headers/body timeouts. A long
 // non-streaming completion (e.g. a budget-starved monolith Writer call on
 // DeepSeek) sends NOTHING for >300s, so undici killed it mid-flight
 // ("terminated"/"fetch failed") — reproduced twice on the same eval queries.
 // Dedicated dispatcher raises both to 10 minutes for provider calls only.
+// Must pair npm-undici's Agent with npm-undici's fetch — node's bundled
+// fetch rejects a foreign dispatcher ("fetch failed" instantly).
 const llmDispatcher = new Agent({ headersTimeout: 600_000, bodyTimeout: 600_000 });
 
 export const llmRouter = Router();
@@ -96,7 +98,7 @@ async function retryableFetch(
     let lastErr: unknown;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
-            const resp = await fetch(url, { ...init, dispatcher: llmDispatcher } as RequestInit);
+            const resp = await undiciFetch(url, { ...init, dispatcher: llmDispatcher } as any) as unknown as Response;
             if (resp.ok || !RETRYABLE.has(resp.status)) return resp;
             const retryAfterMs = parseInt(resp.headers.get('retry-after') ?? '', 10) * 1000 || 0;
             const backoff = Math.min(
