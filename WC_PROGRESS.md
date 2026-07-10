@@ -1,6 +1,6 @@
 # WC loop progress — deep research measured-quality run
 
-NEXT: W1c
+NEXT: W2a
 
 ## Tasks
 - [x] W0a smoke + provider probe (live timed run, MEASURED numbers)
@@ -16,8 +16,9 @@ NEXT: W1c
 5. W2a TARGET (data-chosen): query-centering in section writers — inject the original query + "answer THE question" directive into buildSectionWriterPrompt, and let the blueprint drop/adapt template sections irrelevant to the query. Re-eval must show IF gain without comprehensiveness loss.
 - [x] W1a tavily raw_content plumb (server flag + client field)
 - [x] W1b readers eat full content (6k smart cap + test)
-- [ ] W1c re-run eval vs baseline (delta or honest null)
-- [ ] W2a fix dominant citation-failure mode (data-chosen), re-run eval
+- [x] W1c re-run eval vs baseline — NEGATIVE delta, reverted (see ledger)
+- [ ] W1d (follow-up, optional) boilerplate-clean raw_content, retry readers, must beat snippet baseline to land
+- [ ] W2a fix dominant defect: scope drift (query-centering in section writers), re-run eval
 
 ## Ledger
 (one line per task: task · commit · what changed · MEASURED vs expected effect)
@@ -27,3 +28,4 @@ NEXT: W1c
 - W0c · (docs) · judge-rationale synthesis across 5 v2 reports · W2 target = scope drift (4/5 reports, worst IF 5/10, fanout amplifies it); insight 6.6 noted but deferred; attribution non-systemic
 - W1a · 2ea2a91 · include_raw_content flag server→client→deep-research opt-in · MEASURED live: 26-48K chars full text vs 1.5-2K snippets (20-30×); default false for other callers
 - W1b · 7333552 · readers: rawContent preferred, smartTruncate 6K paragraph-aware (was content.substring(0,1200)); monolith fallback 700→2K · reader input 1.2K→6K chars/source (5×, expected quality lever); 16/16 tests
+- W1c · b0ad215 · MEASURED NEGATIVE: post-W1 eval density 0.67→0.27, entail 0.97→0.65, comp 8.2→7.6; aapl drifted to GOOG/META (IF 2/10); macro+thematic ZERO inline cites; cause = uncurated raw page dumps polluting readers · REVERTED to snippet-first (raw kept as empty-snippet fallback); harness did its job — a "quality lever" that vibes would have shipped was caught and rolled back. Also: first post-W1 query ran 37min (deepseek throttle warm-up suspected), rest ~5min
