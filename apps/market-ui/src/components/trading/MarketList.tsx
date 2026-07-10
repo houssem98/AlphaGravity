@@ -383,7 +383,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
           {market.id === 'tunisia' && (
             <button
               onClick={() => setShowCompare(true)}
-              className="ml-auto mb-1 flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-body font-medium text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
+              className="press ml-auto mb-1 flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-body font-medium text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
             >
               <ArrowUpDown className="w-3.5 h-3.5" /> Compare
             </button>

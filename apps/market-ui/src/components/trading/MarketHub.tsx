@@ -3,7 +3,7 @@ import { ArrowRight, TrendingUp, TrendingDown, PanelLeft, PanelLeftClose } from 
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { motion, useReducedMotion } from 'motion/react';
 import { MARKETS, type MarketDef, type MarketId } from '../../lib/markets';
-import { fetchHeadline, fetchCloses, fmtPrice, fmtPct, type AssetRow } from '../../services/marketsHub';
+import { fetchHeadline, fetchCloses, fetchTnIndexSeries, fmtPrice, fmtPct, type AssetRow } from '../../services/marketsHub';
 
 interface MarketHubProps {
   onSelectMarket: (id: MarketId) => void;
@@ -11,9 +11,6 @@ interface MarketHubProps {
   railOpen?: boolean;
   onToggleRail?: () => void;
 }
-
-// Static indicative TUNINDEX series (mock — Phase 6 replaces with real BVMT).
-const TN_SERIES = [9640, 9710, 9680, 9820, 9790, 9880, 9847].map((v) => ({ v }));
 
 const leadSymbol: Record<MarketId, string> = {
   us: '^GSPC', crypto: 'BTC-USD', tunisia: 'TUNINDEX',
@@ -141,9 +138,7 @@ function MarketCard({
 export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAsset, railOpen, onToggleRail }) => {
   const reduce = useReducedMotion();
   const [rowsByMarket, setRowsByMarket] = useState<Record<string, AssetRow[]>>({});
-  const [seriesByMarket, setSeriesByMarket] = useState<Record<string, { v: number }[]>>({
-    tunisia: TN_SERIES,
-  });
+  const [seriesByMarket, setSeriesByMarket] = useState<Record<string, { v: number }[]>>({});
 
   useEffect(() => {
     let alive = true;
@@ -154,11 +149,14 @@ export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAs
           .catch(() => {});
       });
     };
-    // Sparklines: fetch once (Yahoo intraday); TN is static.
+    // Sparklines: fetch once each.
     (['us', 'crypto', 'commodities', 'bonds', 'forex'] as MarketId[]).forEach((id) => {
       fetchCloses(leadSymbol[id]).then((closes) => {
         if (alive && closes.length) setSeriesByMarket((p) => ({ ...p, [id]: closes.map((v) => ({ v })) }));
       });
+    });
+    fetchTnIndexSeries().then((closes) => {
+      if (alive && closes.length) setSeriesByMarket((p) => ({ ...p, tunisia: closes.map((v) => ({ v })) }));
     });
     loadQuotes();
     const t = setInterval(loadQuotes, 15000);

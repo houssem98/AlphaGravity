@@ -19,7 +19,7 @@ const shortName = (n: string) => {
   const s = n.replace(/^INDICE\s+(DE\s+|DES\s+|DE\s+LA\s+|D['’])?/i, '').trim();
   return s.charAt(0) + s.slice(1).toLowerCase();
 };
-const pctColor = (p: number) => (p > 0 ? '#00C853' : p < 0 ? '#FF3D3D' : '#8A92A6');
+const pctColor = (p: number) => (p > 0 ? 'var(--up)' : p < 0 ? 'var(--down)' : 'var(--flat)');
 const pct = (p: number) => `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
 
 export const TnMarketOverview: React.FC = () => {
@@ -46,18 +46,23 @@ export const TnMarketOverview: React.FC = () => {
   if (!tunindex) return null;
 
   return (
-    <div className="mb-4 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[4px] overflow-hidden">
+    <div className="mb-4 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[6px] overflow-hidden lux-border sheen-once">
       {/* Headline row: TUNINDEX + TUNINDEX20 + breadth */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 border-b border-[color:var(--line)]">
-        {[tunindex, tunindex20].filter(Boolean).map((idx) => (
-          <div key={idx!.name} className="flex items-baseline gap-2">
-            <span className="label text-[color:var(--text-3)]">{idx!.name}</span>
-            <span className="text-h4 font-display font-semibold text-[color:var(--text)] font-mono">{fmtLevel(idx!.level)}</span>
-            <span className="text-body font-mono font-semibold" style={{ color: pctColor(idx!.changePct) }}>
-              {idx!.changePct >= 0 ? <TrendingUp className="inline w-3 h-3 mr-0.5" /> : <TrendingDown className="inline w-3 h-3 mr-0.5" />}
-              {pct(idx!.changePct)}
+      <div className="flex flex-wrap items-center gap-x-7 gap-y-2 px-4 py-3.5 border-b border-[color:var(--line)] chrome">
+        {[tunindex, tunindex20].map((idx, i) => idx && (
+          <div key={idx.name} className="flex items-baseline gap-2.5">
+            <span className="flex items-center gap-1.5 label text-[color:var(--text-3)]">
+              {i === 0 && <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[color:var(--up)] text-[color:var(--up)]" />}
+              {idx.name}
             </span>
-            {idx!.yearPct != null && <span className="text-label text-[color:var(--text-3)]">1Y {pct(idx!.yearPct)}</span>}
+            <span className={`font-display font-semibold text-[color:var(--text)] font-mono tracking-tight ${i === 0 ? 'text-h1' : 'text-h4'}`}>
+              {fmtLevel(idx.level)}
+            </span>
+            <span className="text-body font-mono font-semibold" style={{ color: pctColor(idx.changePct) }}>
+              {idx.changePct >= 0 ? <TrendingUp className="inline w-3 h-3 mr-0.5" /> : <TrendingDown className="inline w-3 h-3 mr-0.5" />}
+              {pct(idx.changePct)}
+            </span>
+            {idx.yearPct != null && <span className="text-label text-[color:var(--text-3)]">1Y {pct(idx.yearPct)}</span>}
           </div>
         ))}
         {stats && (
@@ -78,7 +83,7 @@ export const TnMarketOverview: React.FC = () => {
           {[0, 1].map((copy) => (
             <div key={copy} aria-hidden={copy === 1} className="flex gap-2 pr-2">
               {sectors.map((s) => (
-                <div key={s.name} className="shrink-0 flex flex-col px-3 py-1.5 rounded-sm bg-[color:var(--bg)] border border-[color:var(--line)] min-w-[120px]">
+                <div key={s.name} className="shrink-0 flex flex-col px-3 py-1.5 rounded-sm bg-[color:var(--bg)] border border-[color:var(--line)] hover:border-[color:var(--line-strong)] transition-colors min-w-[120px]">
                   <span className="text-label text-[color:var(--text-3)] truncate">{shortName(s.name)}</span>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-data font-mono font-semibold text-[color:var(--text)]">{fmtLevel(s.level)}</span>

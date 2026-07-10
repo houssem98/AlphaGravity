@@ -207,6 +207,34 @@ export async function fetchSparks(symbols: string[]): Promise<Record<string, num
   }
 }
 
+// Hub sparkline for Tunisia — BVMT has no historical index-level feed (only
+// today's TUNINDEX snapshot), so we build a real composite from constituent
+// data instead of faking one: cap-weighted average of each stock's own 7-day
+// close series (from /api/tn/board), normalized to day-0 = 1. Same method a
+// cap-weighted index uses, just computed client-side from real closes. [] on failure.
+export async function fetchTnIndexSeries(): Promise<number[]> {
+  try {
+    const res = await fetch('/api/tn/board');
+    if (!res.ok) return [];
+    const j = await res.json();
+    const rows = ((j?.board || []) as { marketCap?: number; closes?: number[] }[])
+      .filter((r) => r.marketCap && r.closes && r.closes.length >= 2 && r.closes[0] > 0);
+    if (!rows.length) return [];
+    const days = Math.min(...rows.map((r) => r.closes!.length));
+    const totalCap = rows.reduce((s, r) => s + (r.marketCap || 0), 0);
+    const out: number[] = [];
+    for (let d = 0; d < days; d++) {
+      out.push(rows.reduce((acc, r) => {
+        const c = r.closes!.slice(-days);
+        return acc + (c[d] / c[0]) * ((r.marketCap || 0) / totalCap);
+      }, 0));
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 // Intraday close series for a Yahoo symbol (hub area charts). [] on failure.
 export async function fetchCloses(symbol: string, range = '1d', interval = '15m'): Promise<number[]> {
   try {
