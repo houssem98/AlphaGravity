@@ -91,63 +91,28 @@ export async function fetchQuotes(defs: SymbolDef[]): Promise<AssetRow[]> {
 }
 
 // Live BVMT stocks via our /api/tn/board proxy (marketCap + 7d closes bundled
-// in one server-side call — no per-symbol sparkline round-trip). Falls back to
-// the static mock below if the proxy or BVMT is down.
-async function fetchTunisia(defs: SymbolDef[]): Promise<AssetRow[]> {
-  try {
-    const res = await fetch('/api/tn/board');
-    if (!res.ok) throw new Error('tn fetch failed');
-    const j = await res.json();
-    const rows = (j?.board || []) as any[];
-    if (!rows.length) throw new Error('tn empty');
-    return rows.map((r) => ({
-      symbol: r.symbol,
-      name: r.name,
-      price: r.price,
-      changePct: r.changePct,
-      changePct7d: r.change7d ?? undefined,
-      marketCap: r.marketCap || undefined,
-      volume: r.volume || undefined,
-      turnover: r.turnover || undefined,
-      circulating: r.shares || undefined,
-      isin: r.isin || undefined,
-      currency: 'TND' as const,
-      sevenDayCloses: r.closes || undefined,
-    }));
-  } catch {
-    return fetchTunisiaMock(defs);
-  }
-}
-
-// ponytail: TUNINDEX still indicative (no public BVMT index endpoint found);
-// stocks are live. Mock doubles as offline fallback.
-const TN_MOCK: Record<string, { name: string; price: number; changePct: number }> = {
-  TUNINDEX: { name: 'TUNINDEX', price: 9847.32, changePct: -0.18 },
-  BIAT: { name: 'Banque Internationale Arabe de Tunisie', price: 118.45, changePct: 0.92 },
-  SFBT: { name: 'Société Frigorifique et Brasserie de Tunis', price: 17.8, changePct: 0.34 },
-  BNA: { name: 'Banque Nationale Agricole', price: 9.12, changePct: -0.33 },
-  ATB: { name: 'Arab Tunisian Bank', price: 4.78, changePct: 1.15 },
-  PGH: { name: 'Poulina Group Holding', price: 11.4, changePct: 0.62 },
-  DELICE: { name: 'Délice Holding', price: 13.9, changePct: -0.21 },
-  TLNET: { name: 'Telnet Holding', price: 6.32, changePct: -0.55 },
-  SAH: { name: 'SAH Lilas', price: 9.85, changePct: 0.4 },
-  ATTIJARI: { name: 'Attijari Bank', price: 44.2, changePct: 1.08 },
-  CELLCOM: { name: 'Cellcom', price: 3.15, changePct: -0.7 },
-};
-
-function fetchTunisiaMock(defs: SymbolDef[]): AssetRow[] {
-  return defs
-    .filter((d) => TN_MOCK[d.symbol])
-    .map((d) => {
-      const m = TN_MOCK[d.symbol];
-      return {
-        symbol: d.symbol,
-        name: d.name || m.name,
-        price: m.price,
-        changePct: m.changePct,
-        currency: 'TND' as const,
-      };
-    });
+// in one server-side call — no per-symbol sparkline round-trip). No mock
+// fallback: real data or a visible error state, never fabricated prices.
+async function fetchTunisia(_defs: SymbolDef[]): Promise<AssetRow[]> {
+  const res = await fetch('/api/tn/board');
+  if (!res.ok) throw new Error('tn fetch failed');
+  const j = await res.json();
+  const rows = (j?.board || []) as any[];
+  if (!rows.length) throw new Error('tn empty');
+  return rows.map((r) => ({
+    symbol: r.symbol,
+    name: r.name,
+    price: r.price,
+    changePct: r.changePct,
+    changePct7d: r.change7d ?? undefined,
+    marketCap: r.marketCap || undefined,
+    volume: r.volume || undefined,
+    turnover: r.turnover || undefined,
+    circulating: r.shares || undefined,
+    isin: r.isin || undefined,
+    currency: 'TND' as const,
+    sevenDayCloses: r.closes || undefined,
+  }));
 }
 
 // ── Dispatch ──────────────────────────────────────────────────
@@ -173,13 +138,14 @@ export function fetchHeadline(def: MarketDef): Promise<AssetRow[]> {
     case 'yahoo':
       return fetchQuotes(def.indices);
     case 'tunisia':
-      // Lead = live TUNINDEX (official), then most-traded live stocks.
-      return Promise.all([fetchTunisia(def.symbols), fetchTnIndex()]).then(([rows, idx]) => [
-        idx
-          ? { symbol: 'TUNINDEX', name: 'TUNINDEX', price: idx.level, changePct: idx.changePct, currency: 'TND' as const }
-          : fetchTunisiaMock(def.indices)[0],
-        ...rows.sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 4),
-      ]);
+      // Lead = live TUNINDEX (official), then most-traded live stocks. If the
+      // index feed is down, lead with the stocks — never a fabricated level.
+      return Promise.all([fetchTunisia(def.symbols), fetchTnIndex()]).then(([rows, idx]) => {
+        const top = rows.sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 4);
+        return idx
+          ? [{ symbol: 'TUNINDEX', name: 'TUNINDEX', price: idx.level, changePct: idx.changePct, currency: 'TND' as const }, ...top]
+          : top;
+      });
   }
 }
 

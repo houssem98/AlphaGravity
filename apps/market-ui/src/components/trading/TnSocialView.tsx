@@ -60,7 +60,7 @@ const EngineCard: React.FC<{ asset: string }> = ({ asset }) => {
               </div>
             </div>
           ))}
-          <div className="text-[9px] text-[#3A4358] pt-1">Deterministic — momentum 35% · volume 25% · news 25% · liquidity 15%. Not investment advice.</div>
+          <div className="text-[9px] text-[#3A4358] pt-1">Deterministic 8-factor — trend 20% · momentum 15% · news 15% · volume, liquidity, reversal, near-high, illiquidity 10% each. Not investment advice.</div>
         </div>
       )}
     </div>
