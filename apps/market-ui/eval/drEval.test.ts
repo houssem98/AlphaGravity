@@ -7,7 +7,7 @@
 // Real money: ~5 × $0.08 pipeline + ~$0.02 judge ≈ $0.45 (deepseek).
 
 import { describe, it, beforeAll } from 'vitest';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -56,8 +56,13 @@ describe.skipIf(process.env.RUN_DR_EVAL !== '1')('W0b eval baseline', () => {
         const { performDeepResearch } = await import('../src/services/deepResearchService');
         const { extractCitedSentences } = await import('../src/services/deepResearchService');
 
+        // EVAL_ONLY=id1,id2 re-runs a subset (e.g. after an infra flake) and
+        // merges into the existing baseline.json instead of overwriting it.
+        const only = (process.env.EVAL_ONLY ?? '').split(',').map(s => s.trim()).filter(Boolean);
+        const queries = only.length ? EVAL_QUERIES.filter(x => only.includes(x.id)) : [...EVAL_QUERIES];
+
         const results: any[] = [];
-        for (const { id, q } of EVAL_QUERIES) {
+        for (const { id, q } of queries) {
             const t0 = Date.now();
             let report: any = null, error: string | null = null;
             try {
@@ -108,7 +113,16 @@ describe.skipIf(process.env.RUN_DR_EVAL !== '1')('W0b eval baseline', () => {
             console.log(`EVAL ${id}: ok=${!!report} wall=${Math.round(wallMs / 1000)}s judge=${judge ? JSON.stringify({ c: judge.comprehensiveness, i: judge.insight, f: judge.instruction_following, r: judge.readability }) : 'n/a'}`);
         }
 
-        const okRuns = results.filter(r => r.ok);
+        // Merge subset re-runs into the prior baseline before averaging.
+        let merged = results;
+        const baselinePath = join(OUT_DIR, 'baseline.json');
+        if (only.length && existsSync(baselinePath)) {
+            const prior = JSON.parse(readFileSync(baselinePath, 'utf8'));
+            const fresh = new Map(results.map((r: any) => [r.id, r]));
+            merged = (prior.runs as any[]).map(r => fresh.get(r.id) ?? r);
+        }
+
+        const okRuns = merged.filter(r => r.ok);
         const avg = (f: (r: any) => number | null) => {
             const v = okRuns.map(f).filter((x): x is number => typeof x === 'number');
             return v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(2) : null;
@@ -117,7 +131,7 @@ describe.skipIf(process.env.RUN_DR_EVAL !== '1')('W0b eval baseline', () => {
             ranAt: new Date().toISOString(), rubric: RUBRIC_VERSION, model: MODEL,
             judgeBiasNote: 'judge = same model family as writer; scores comparable across our runs only',
             citationSpotNote: 'v1 title-plausibility only; entailmentRate is the token-level source-text check',
-            ok: okRuns.length, failed: results.length - okRuns.length,
+            ok: okRuns.length, failed: merged.length - okRuns.length,
             avgWallS: avg(r => Math.round(r.wallMs / 1000)),
             avgJudge: {
                 comprehensiveness: avg(r => r.judge?.comprehensiveness ?? null),
@@ -128,7 +142,7 @@ describe.skipIf(process.env.RUN_DR_EVAL !== '1')('W0b eval baseline', () => {
             avgCitationDensity: avg(r => r.deterministic?.citationDensity ?? null),
             avgEntailment: avg(r => r.deterministic?.entailmentRate ?? null),
             totalEstUsd: +okRuns.reduce((a, r) => a + (r.deterministic?.estUsd ?? 0), 0).toFixed(3),
-            runs: results,
+            runs: merged,
         };
         writeFileSync(join(OUT_DIR, 'baseline.json'), JSON.stringify(summary, null, 2));
         console.log('BASELINE:', JSON.stringify({ ok: summary.ok, avgWallS: summary.avgWallS, judge: summary.avgJudge, entail: summary.avgEntailment, usd: summary.totalEstUsd }));
