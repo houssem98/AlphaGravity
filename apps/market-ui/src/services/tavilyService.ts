@@ -18,6 +18,9 @@ export interface TavilySearchResult {
     // populated by `contextualizeSources()` when budget allows; absent
     // sources fall back to their raw title + URL.
     context?: string;
+    // W1a: full page text (Tavily raw_content), present only when the search
+    // requested it. Readers prefer this over the 1,200-char `content` snippet.
+    rawContent?: string;
 }
 
 export interface TavilySearchResponse {
@@ -138,7 +141,7 @@ export function weightedAuthorityScore(r: TavilySearchResult, nowMs: number = Da
     return 0.35 * tavily + 0.45 * auth + 0.20 * rec;
 }
 
-async function postTavily(query: string, maxResults: number): Promise<TavilySearchResponse> {
+async function postTavily(query: string, maxResults: number, includeRaw = false): Promise<TavilySearchResponse> {
     const token = await getAccessToken();
     if (!token) throw new Error('Not authenticated — sign in to run web search');
 
@@ -152,6 +155,7 @@ async function postTavily(query: string, maxResults: number): Promise<TavilySear
             query,
             max_results: maxResults,
             search_depth: 'advanced',
+            include_raw_content: includeRaw,
         }),
     });
     if (!res.ok) {
@@ -161,7 +165,8 @@ async function postTavily(query: string, maxResults: number): Promise<TavilySear
     const data = await res.json();
     return {
         query,
-        results: data.results || [],
+        results: (data.results || []).map((r: any) =>
+            r.raw_content ? { ...r, rawContent: r.raw_content } : r),
         images: data.images || [],
     };
 }
@@ -169,7 +174,8 @@ async function postTavily(query: string, maxResults: number): Promise<TavilySear
 export const searchWeb = async (
     query: string,
     maxResults: number = 10,
-): Promise<TavilySearchResponse> => postTavily(query, maxResults);
+    includeRaw = false,
+): Promise<TavilySearchResponse> => postTavily(query, maxResults, includeRaw);
 
 export const searchMultipleQueries = async (
     queries: string[],
@@ -209,7 +215,8 @@ export const searchMultipleQueriesParallel = async (
     const qs = queries.slice(0, 12);
     // Tavily + Firecrawl concurrently; Firecrawl yields nothing without a key.
     const [tav, fc] = await Promise.all([
-        Promise.allSettled(qs.map(q => searchWeb(q, maxResultsPerQuery))),
+        // W1a: deep research asks for full page text — readers eat it in W1b.
+        Promise.allSettled(qs.map(q => searchWeb(q, maxResultsPerQuery, true))),
         Promise.allSettled(qs.map(q => searchWebFirecrawl(q, maxResultsPerQuery))),
     ]);
     const allResults: TavilySearchResult[] = [];

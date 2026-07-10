@@ -20,7 +20,7 @@ tavilyRouter.post('/search', async (req, res) => {
         return;
     }
 
-    const { query, max_results = 10, search_depth = 'advanced' } = req.body ?? {};
+    const { query, max_results = 10, search_depth = 'advanced', include_raw_content = false } = req.body ?? {};
     if (!query || typeof query !== 'string') {
         res.status(400).json({ error: 'Required: query (string)' });
         return;
@@ -36,7 +36,9 @@ tavilyRouter.post('/search', async (req, res) => {
                 max_results,
                 search_depth,
                 include_answer: false,
-                include_raw_content: false,
+                // W1a: full page text on request — readers were working off
+                // 1,200-char snippets of `content`.
+                include_raw_content: include_raw_content === true,
                 include_images: false,
             }),
         });
