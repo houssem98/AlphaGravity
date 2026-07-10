@@ -15,6 +15,15 @@ export interface AuthRequest extends Request {
 }
 
 export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    // Local-dev/test bypass: ONLY when the server is launched with
+    // DEV_AUTH_BYPASS=1 (never set in any deploy config). Lets the offline
+    // eval harness exercise authed routes without a live Supabase session.
+    if (process.env.DEV_AUTH_BYPASS === '1') {
+        req.user = { id: 'dev-bypass', email: 'dev@localhost' };
+        next();
+        return;
+    }
+
     const authHeader = req.headers.authorization;
 
     if (!authHeader?.startsWith('Bearer ')) {
