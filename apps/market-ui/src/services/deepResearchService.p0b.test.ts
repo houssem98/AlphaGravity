@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldExtendSearch, BASE_SEARCH_ROUNDS, MIN_EXTENSION_SOURCES, tierPeer, isTerminalLLMError, ResearchCancelledError, rerankSourcesForReaders, smartTruncate, buildReaderPrompt, buildSectionWriterPrompt, REPORT_TEMPLATES } from './deepResearchService';
+import { shouldExtendSearch, BASE_SEARCH_ROUNDS, MIN_EXTENSION_SOURCES, tierPeer, isTerminalLLMError, ResearchCancelledError, rerankSourcesForReaders, smartTruncate, buildReaderPrompt, buildSectionWriterPrompt, REPORT_TEMPLATES, buildNoWebBanner } from './deepResearchService';
 import type { ResearchBlueprint } from './deepResearchService';
 import type { TavilySearchResult } from './tavilyService';
 
@@ -105,6 +105,17 @@ describe('smartTruncate + reader full-content (W1b)', () => {
         // raw text still used when the snippet is missing entirely
         const p2 = buildReaderPrompt({ title: 't', url: 'u', content: '', rawContent: 'FULL-PAGE-TEXT' }, 'q', bp);
         expect(p2).toContain('FULL-PAGE-TEXT');
+    });
+});
+
+describe('zero-source guard (W2b)', () => {
+    it('banner names the surviving evidence and the Low cap', () => {
+        const b = buildNoWebBanner(3, 7);
+        expect(b).toContain('WEB SEARCH WAS UNAVAILABLE');
+        expect(b).toContain('3 SEC filing(s)');
+        expect(b).toContain('7 internal database passage(s)');
+        expect(b).toContain('Low');
+        expect(b.startsWith('> ⚠️')).toBe(true);
     });
 });
 

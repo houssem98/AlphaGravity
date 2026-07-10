@@ -3568,6 +3568,11 @@ export async function reviseReport(
 
 export type Confidence = 'High' | 'Medium' | 'Low';
 
+// W2b: prepended to reports generated while live web search was down.
+export function buildNoWebBanner(secCount: number, ragCount: number): string {
+    return `> ⚠️ **LIVE WEB SEARCH WAS UNAVAILABLE FOR THIS RUN.** Findings rest on ${secCount} SEC filing(s) and ${ragCount} internal database passage(s) only — recent events and market-moving news are NOT reflected. Confidence is capped at Low. Re-run when web search is restored.\n\n`;
+}
+
 export interface ConfidenceInputs {
     numericGroundingRate: number;     // grounded / total, 0..1
     multiSourceRate: number;          // multiSource / grounded, 0..1
@@ -4351,6 +4356,19 @@ export const performDeepResearch = async (
     const ragSourceCount = ragResult.available ? ragResult.sources.length : 0;
     const totalSources = webSources.length + secFilings.length + ragSourceCount;
 
+    // W2b zero-source guard (found by eval during a Tavily quota outage):
+    // with search silently dead the pipeline wrote confident 7K-word reports
+    // with ZERO citations. No evidence at all → refuse. Web dead but SEC/RAG
+    // alive → banner + confidence forced Low (applied below).
+    if (totalSources === 0) {
+        st.error('search', 'No sources from web, SEC, or RAG — refusing to generate an uncited report');
+        throw new Error(
+            'No sources retrieved: web search, SEC, and RAG all returned nothing '
+            + '(search provider outage or quota exhaustion?). Refusing to generate an uncited report.',
+        );
+    }
+    const webDead = webSources.length === 0;
+
     // Innovation summary (when fired) folds into macroText so all
     // downstream consumers (analyzeSources, synthesizers, section
     // writers) see it without signature changes. The block is
@@ -4600,7 +4618,9 @@ export const performDeepResearch = async (
     const multiSourceRate = verification.groundedClaims > 0
         ? verification.multiSourceClaims / verification.groundedClaims
         : 1;
-    const confidence = deriveConfidence({
+    // W2b: a run without live web sources can never claim better than Low —
+    // whatever the internal grounding ratios say, recency is unverifiable.
+    const confidence = webDead ? 'Low' : deriveConfidence({
         numericGroundingRate: numericRate,
         multiSourceRate,
         citationDensity: citationDensity.density,
@@ -4646,7 +4666,8 @@ export const performDeepResearch = async (
         confidence,
     });
 
-    const finalMarkdown = markdown + limitations.section + methodologyMd;
+    const finalMarkdown = (webDead ? buildNoWebBanner(secFilings.length, ragSourceCount) : '')
+        + markdown + limitations.section + methodologyMd;
 
     const auditTail = claimAudit
         ? ` · ${claimAudit.supported}/${claimAudit.audited} claims supported`
