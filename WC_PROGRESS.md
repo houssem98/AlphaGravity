@@ -1,6 +1,6 @@
 # WC loop progress — deep research measured-quality run
 
-NEXT: W1b
+NEXT: W1c
 
 ## Tasks
 - [x] W0a smoke + provider probe (live timed run, MEASURED numbers)
@@ -15,7 +15,7 @@ NEXT: W1b
 4. Fanout tradeoff measured: v2 fanout reports scored LOWER on IF than v1 monoliths (7.0 vs 9.3 avg) — sectioning amplifies drift. Confirms defect #1.
 5. W2a TARGET (data-chosen): query-centering in section writers — inject the original query + "answer THE question" directive into buildSectionWriterPrompt, and let the blueprint drop/adapt template sections irrelevant to the query. Re-eval must show IF gain without comprehensiveness loss.
 - [x] W1a tavily raw_content plumb (server flag + client field)
-- [ ] W1b readers eat full content (6k smart cap + test)
+- [x] W1b readers eat full content (6k smart cap + test)
 - [ ] W1c re-run eval vs baseline (delta or honest null)
 - [ ] W2a fix dominant citation-failure mode (data-chosen), re-run eval
 
@@ -26,3 +26,4 @@ NEXT: W1b
 - W0d · ce4aa2a+5512e51 · undici Agent 600s timeouts (npm-fetch pairing bug found live: node fetch rejects foreign dispatcher) + DEFAULT_BUDGET 100→160 · MEASURED baseline v2 (5/5 ok, $0.365): fanout 5/5 (was 1/3), macro+thematic now complete; avgWall 435s (up from 350s — fanout adds ~8 calls + richer 46-57K reports); judge 8.2/6.6/7.0/8.0 — instruction-following DROPPED vs monolith reports (macro 5/10): sectioned reports drift from the asked question; insight weakest dim 6.6; nvda attribution 6/10 dubious persists
 - W0c · (docs) · judge-rationale synthesis across 5 v2 reports · W2 target = scope drift (4/5 reports, worst IF 5/10, fanout amplifies it); insight 6.6 noted but deferred; attribution non-systemic
 - W1a · 2ea2a91 · include_raw_content flag server→client→deep-research opt-in · MEASURED live: 26-48K chars full text vs 1.5-2K snippets (20-30×); default false for other callers
+- W1b · 7333552 · readers: rawContent preferred, smartTruncate 6K paragraph-aware (was content.substring(0,1200)); monolith fallback 700→2K · reader input 1.2K→6K chars/source (5×, expected quality lever); 16/16 tests
