@@ -1,6 +1,6 @@
 # WC loop progress — deep research measured-quality run
 
-NEXT: PAUSED — W2a re-eval + optional W1d blocked on Tavily quota (432 plan limit). User action: upgrade Tavily plan / wait for reset / new key. Restart loop after.
+LOOP CLOSED 2026-07-10 (user call: skip quota wait). W2a = shipped + prompt-level verified (unit test proves the question reaches writers); judge-eval verification DEFERRED — run `/loop` with this file when Tavily quota restored (compare vs eval/out/v2-prew1/baseline.json). W1d optional, parked. Firecrawl key checked: 10-char placeholder, dead — no alternate search backend available.
 
 ## Tasks
 - [x] W0a smoke + provider probe (live timed run, MEASURED numbers)
@@ -18,7 +18,7 @@ NEXT: PAUSED — W2a re-eval + optional W1d blocked on Tavily quota (432 plan li
 - [x] W1b readers eat full content (6k smart cap + test)
 - [x] W1c re-run eval vs baseline — NEGATIVE delta, reverted (see ledger)
 - [ ] W1d (follow-up, optional) boilerplate-clean raw_content, retry readers, must beat snippet baseline to land
-- [ ] W2a fix dominant defect: scope drift — CODE SHIPPED (f5d4630), verification BLOCKED-BY-QUOTA (Tavily 432, plan limit; re-run eval when quota restored)
+- [x] W2a fix dominant defect: scope drift — shipped f5d4630, prompt-level verified; judge-eval deferred to quota restore
 - [x] W2b zero-source guard: throw on all-channels-empty; banner + Low cap on web-dead (74a3ad3)
 
 ## Ledger
