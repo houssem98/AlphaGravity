@@ -56,13 +56,18 @@ async function cached<T>(file: string, ttlSec: number, compute: () => Promise<T>
 // mid-session. When it does, rebuild the same shape from the exchange's Grafana
 // datasource so every downstream route (markets/intraday/engine/fundamentals/
 // snapshot, all of which call groups()) keeps working. Defined below near gquery.
+// Blob-cached: groups() sits on the hot path of every per-symbol route
+// (intraday, engine, fundamentals, history via resolveIsin), so a BVMT hang
+// used to add 2.5s + a Grafana full-scan to every company click.
 async function groups() {
-  try {
-    const r = await fetch(GROUPS, { headers: UA, signal: AbortSignal.timeout(2500) });
-    const d = await r.json();
-    if (d?.markets?.length) return d;
-  } catch { /* BVMT hung or unparseable → Grafana */ }
-  return grafanaGroups();
+  return cached('tn_groups.json', 120, async () => {
+    try {
+      const r = await fetch(GROUPS, { headers: UA, signal: AbortSignal.timeout(2500) });
+      const d = await r.json();
+      if (d?.markets?.length) return d;
+    } catch { /* BVMT hung or unparseable → Grafana */ }
+    return grafanaGroups();
+  }, (d: any) => (d?.markets?.length || 0) > 0);
 }
 async function resolveIsin(symbol: string, g?: any) {
   g = g || await groups();
@@ -139,38 +144,43 @@ async function intraday(req: any, res: any) {
     if (secs.length) session = [Math.min(...secs), Math.max(...secs)];
   }
 
-  const d = await (await fetch(`https://www.bvmt.com.tn/rest_api/rest/intraday/${isin}`, { headers: UA, signal: AbortSignal.timeout(6000) })).json();
-  const raw = (d?.intradays || []).filter((p: any) => p?.last > 0 && p?.time);
-  const base = raw.find((p: any) => p.time === '00:00:00');
-  const prevClose = base?.last ?? raw[0]?.last ?? 0;
+  const iv = Math.max(1, Math.min(60, +req.query.interval || 5));
+  // Per-isin blob: a BVMT hang on the tick feed used to block the chart 6s+.
+  const data = await cached(`tn_intra_${isin}_${iv}.json`, 60, async () => {
+    const d = await (await fetch(`https://www.bvmt.com.tn/rest_api/rest/intraday/${isin}`, { headers: UA, signal: AbortSignal.timeout(6000) })).json();
+    const raw = (d?.intradays || []).filter((p: any) => p?.last > 0 && p?.time);
+    const base = raw.find((p: any) => p.time === '00:00:00');
+    const prevClose = base?.last ?? raw[0]?.last ?? 0;
 
-  const dayStart = Math.floor(Date.now() / 86400_000) * 86400;
-  const bySec = new Map<number, { time: number; value: number; volume: number }>();
-  for (const p of raw) {
-    if (p.time === '00:00:00') continue;
-    const time = dayStart + hms(p.time);
-    const prev = bySec.get(time);
-    bySec.set(time, { time, value: p.last, volume: (prev?.volume || 0) + (p.volume || 0) });
-  }
-  const points = [...bySec.values()].sort((a, b) => a.time - b.time);
-  const last = points.length ? points[points.length - 1].value : prevClose;
+    const dayStart = Math.floor(Date.now() / 86400_000) * 86400;
+    const bySec = new Map<number, { time: number; value: number; volume: number }>();
+    for (const p of raw) {
+      if (p.time === '00:00:00') continue;
+      const time = dayStart + hms(p.time);
+      const prev = bySec.get(time);
+      bySec.set(time, { time, value: p.last, volume: (prev?.volume || 0) + (p.volume || 0) });
+    }
+    const points = [...bySec.values()].sort((a, b) => a.time - b.time);
+    const last = points.length ? points[points.length - 1].value : prevClose;
 
-  const iv = Math.max(1, Math.min(60, +req.query.interval || 5)), step = iv * 60;
-  const buckets = new Map<number, any>();
-  for (const p of points) {
-    const t = Math.floor(p.time / step) * step;
-    const b = buckets.get(t);
-    if (!b) buckets.set(t, { time: t, open: p.value, high: p.value, low: p.value, close: p.value, volume: p.volume });
-    else { b.high = Math.max(b.high, p.value); b.low = Math.min(b.low, p.value); b.close = p.value; b.volume += p.volume; }
-  }
-  const candles = [...buckets.values()].sort((a, b) => a.time - b.time);
-  res.json({
-    symbol, name, isin, prevClose, last, interval: iv,
-    changePct: prevClose ? ((last - prevClose) / prevClose) * 100 : 0,
-    seance: d?.intradays?.[0]?.seance || null, points, candles,
-    sessionStart: session ? dayStart + session[0] : null,
-    sessionEnd: session ? dayStart + session[1] : null,
-  });
+    const step = iv * 60;
+    const buckets = new Map<number, any>();
+    for (const p of points) {
+      const t = Math.floor(p.time / step) * step;
+      const b = buckets.get(t);
+      if (!b) buckets.set(t, { time: t, open: p.value, high: p.value, low: p.value, close: p.value, volume: p.volume });
+      else { b.high = Math.max(b.high, p.value); b.low = Math.min(b.low, p.value); b.close = p.value; b.volume += p.volume; }
+    }
+    const candles = [...buckets.values()].sort((a, b) => a.time - b.time);
+    return {
+      symbol, name, isin, prevClose, last, interval: iv,
+      changePct: prevClose ? ((last - prevClose) / prevClose) * 100 : 0,
+      seance: d?.intradays?.[0]?.seance || null, points, candles,
+      sessionStart: session ? dayStart + session[0] : null,
+      sessionEnd: session ? dayStart + session[1] : null,
+    };
+  }, (x: any) => typeof x?.prevClose === 'number' && x.prevClose > 0);
+  res.json(data);
 }
 
 // ── Daily candles — real OHLC aggregated from the exchange's raw_market ──────
@@ -360,10 +370,18 @@ async function deepseekTone(name: string, text: string): Promise<{ tone: number;
 async function engine(req: any, res: any) {
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
   const symbol = String(req.query.symbol || '').toUpperCase();
-  if (!symbol) return res.status(400).json({ error: 'symbol required' });
+  if (!/^[A-Z0-9]{1,12}$/.test(symbol)) return res.status(400).json({ error: 'symbol required' });
+  // Per-symbol blob: the news chain (Firecrawl search + scrapes + DeepSeek) runs
+  // 10-30s cold — that's a background refresh now, never a click-blocking wait.
+  const data = await cached(`tn_engine_${symbol}.json`, 900, () => engineCompute(symbol), (x: any) => typeof x?.score === 'number');
+  if (typeof data?.score !== 'number') return res.status(404).json({ error: `unknown ticker ${symbol}` });
+  res.json(data);
+}
+
+async function engineCompute(symbol: string): Promise<any> {
   const g = await groups();
   const { isin, name, row } = await resolveIsin(symbol, g);
-  if (!row) return res.status(404).json({ error: `unknown ticker ${symbol}` });
+  if (!row) return null;
 
   const price = row.last || row.close || 0;
   const changePct = row.change || 0;
@@ -447,7 +465,7 @@ async function engine(req: any, res: any) {
   const score = clamp(
     momentumScore * W.momentum + volumeScore * W.volume + newsScore * W.news + liquidity * W.liquidity +
     trend * W.trend + reversal * W.reversal + nearHigh * W.nearHigh + illiquidity * W.illiquidity);
-  res.json({
+  return {
     symbol, name, isin, price, changePct, score,
     label: score >= 65 ? 'bullish' : score <= 35 ? 'bearish' : 'neutral',
     factors: {
@@ -461,7 +479,7 @@ async function engine(req: any, res: any) {
       illiquidity: { score: illiquidity,   detail: illiq === null ? 'insufficient history' : `Amihud ${illiq.toExponential(2)}` },
     },
     weights: W,
-  });
+  };
 }
 
 // ── Official BVMT indices (TUNINDEX + sectors) ──────────────────────────────
