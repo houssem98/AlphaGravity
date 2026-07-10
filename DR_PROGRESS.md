@@ -1,6 +1,6 @@
 # DR loop progress — deep research world-class run
 
-NEXT: P2c
+NEXT: DONE — P0-P2 complete, loop exited. P3 optional, not started.
 
 ## Tasks
 - [x] P0a proxy limiter + 429 backoff (market-server llm.ts)
@@ -12,7 +12,7 @@ NEXT: P2c
 - [x] P1c parallelize contextualize batches
 - [x] P2a reader cap 12→20
 - [x] P2b overlap contextualize/analyze/adversarial tail
-- [ ] P2c rerank sources before reader wave
+- [x] P2c rerank sources before reader wave
 
 ## Ledger
 (append one line per completed task: task · what changed · before→after effect)
@@ -25,3 +25,7 @@ NEXT: P2c
 - P1c · 4e4dd28 · contextualize batch loop serial→Promise.all · 3-5 sequential lite hops → 1 wall-clock hop on stage 2b (expected); budget overshoot bounded at batches-1 lite calls. P1 phase complete
 - P2a · db475af · READER_WAVE_SIZE 12→20 · +8 sources/round get per-source extraction instead of silent drop; wave is parallel lite-tier so wall-time flat (expected)
 - P2b · e8c43a9 · contextualize floated concurrent with analyze+adversarial, joined pre-synthesis (its tags only feed stage-5 writers; verified .context consumers) · contextualize off critical path: −1 wall-clock hop (expected)
+- P2c · 93c725f · rerankSourcesForReaders: blueprint-keyword relevance (50%) + authority (30%) + semantic (20%) reused from scoreSourceForSection, applied before the READER_WAVE_SIZE slice · reader budget spent on on-topic sources not just high-authority ones; 3 new tests, 12/12 total green, build clean
+
+## Summary — P0-P2 complete (10/10)
+Critical-path hop count: ~25-30 sequential LLM hops → ~7-9 (P0a concurrency limiter kills the 429-storm multiplier; P0b halves base rounds 4→2; P0c collapses ~12 premium calls/run to ~4; P0d caps worst-case fallback retries 10+→3; P1c+P2b remove contextualize from the serial critical path entirely). Perceived latency: first content visible at ~77% instead of 100% (P1a section streaming). Quality: reader wave widened 12→20 sources and reranked by topic relevance instead of raw authority (P2a+P2c). All changes typecheck clean, 12/12 unit tests green, production build clean. P3 (prompt-cache reuse, stage-timing telemetry) intentionally left undone — optional polish, not requested.
