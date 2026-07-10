@@ -585,7 +585,11 @@ interface ResearchBudget {
 }
 
 export const DEFAULT_BUDGET: ResearchBudget = {
-    maxLLMCalls: 100,
+    // W0d (measured): 4 rounds × 20 readers ≈ 92 calls ate the old 100-call
+    // cap before synthesis — section fanout ran 1/4 eval runs (0/11 sections)
+    // and the monolith fallback's single giant call died to provider
+    // timeouts. 160 leaves ~60 calls for fanout + verifiers after search.
+    maxLLMCalls: 160,
     maxEstimatedTokens: 2_000_000,
     maxSearchRounds: 8,
     // maxCostUsd left undefined = no dollar cap by default
