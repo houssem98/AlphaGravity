@@ -18,7 +18,8 @@ NEXT: W2a
 - [x] W1b readers eat full content (6k smart cap + test)
 - [x] W1c re-run eval vs baseline — NEGATIVE delta, reverted (see ledger)
 - [ ] W1d (follow-up, optional) boilerplate-clean raw_content, retry readers, must beat snippet baseline to land
-- [ ] W2a fix dominant defect: scope drift (query-centering in section writers), re-run eval
+- [ ] W2a fix dominant defect: scope drift — CODE SHIPPED (f5d4630), verification BLOCKED-BY-QUOTA (Tavily 432, plan limit; re-run eval when quota restored)
+- [ ] W2b zero-source guard: when web search returns 0 sources, fail loudly or hard-banner the report (discovered: pipeline wrote confident 7K-word uncited reports on dead search) — unit-testable, no quota needed
 
 ## Ledger
 (one line per task: task · commit · what changed · MEASURED vs expected effect)
@@ -29,3 +30,4 @@ NEXT: W2a
 - W1a · 2ea2a91 · include_raw_content flag server→client→deep-research opt-in · MEASURED live: 26-48K chars full text vs 1.5-2K snippets (20-30×); default false for other callers
 - W1b · 7333552 · readers: rawContent preferred, smartTruncate 6K paragraph-aware (was content.substring(0,1200)); monolith fallback 700→2K · reader input 1.2K→6K chars/source (5×, expected quality lever); 16/16 tests
 - W1c · b0ad215 · MEASURED NEGATIVE: post-W1 eval density 0.67→0.27, entail 0.97→0.65, comp 8.2→7.6; aapl drifted to GOOG/META (IF 2/10); macro+thematic ZERO inline cites; cause = uncurated raw page dumps polluting readers · REVERTED to snippet-first (raw kept as empty-snippet fallback); harness did its job — a "quality lever" that vibes would have shipped was caught and rolled back. Also: first post-W1 query ran 37min (deepseek throttle warm-up suspected), rest ~5min
+- W2a · f5d4630 · verbatim client question + centering rule into section writers AND monolith (query never reached writers before — confirmed by reading prompts) · verification eval INVALID: Tavily quota died mid-day (432 plan limit) → sources=0 on 4/5 runs → density/entail ~0 measure the outage, not W2a. MUST re-eval vs v2-prew1 baseline when quota restored. Bonus finding → W2b: silent-dead search still yields confident uncited 7K-word reports
