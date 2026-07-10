@@ -2160,6 +2160,7 @@ DECISION: <Buy|Hold|Avoid> — Conviction: <High|Medium|Low> — Sizing: <full|h
 // ─── Stage 5: Goldman Sachs-Style Report Synthesis ────────────────────────────
 
 async function synthesizeInstitutionalReport(
+    query: string,
     blueprint: ResearchBlueprint,
     webSources: TavilySearchResult[],
     secFilings: SECFiling[],
@@ -2213,6 +2214,12 @@ async function synthesizeInstitutionalReport(
     const prompt = `You are a Managing Director of Equity Research at Goldman Sachs / Morgan Stanley. You are producing a flagship institutional research note for the world's most sophisticated investors — sovereign wealth funds, top-tier hedge funds, and CIOs of major family offices. This report will be cited in Bloomberg terminal conversations and investment committee memos.
 
 Your job is synthesis + insight, not summary. Every paragraph must contain non-obvious analysis grounded in the data provided.
+
+════════════════════════════════════════════
+CLIENT QUESTION (verbatim — the report exists to answer THIS)
+════════════════════════════════════════════
+"${query}"
+Center every section on it. Entities not named in the question appear only as brief comparative context, never as co-equal subjects.
 
 ════════════════════════════════════════════
 RESEARCH MANDATE
@@ -2655,6 +2662,10 @@ export async function contextualizeSources(
 }
 
 export interface SectionWriterContext {
+    // W2a: the verbatim client question. Judge rationales showed 4/5 reports
+    // answering the template/blueprint universe instead of what was asked —
+    // the query never reached the writers.
+    query: string;
     blueprint: ResearchBlueprint;
     template: ReportTemplate;
     section: string;
@@ -2709,6 +2720,9 @@ export function buildSectionWriterPrompt(ctx: SectionWriterContext): string {
 
     return `You are a Managing Director of Equity Research writing ONE SECTION of a Goldman Sachs flagship research note.
 
+CLIENT QUESTION (verbatim — this report exists to answer THIS, not a generic sector review):
+"${ctx.query}"
+
 RESEARCH MANDATE
 Type: ${ctx.blueprint.intent.replace(/_/g, ' ').toUpperCase()}
 Universe: ${ctx.blueprint.targetEntities.join(', ') || 'Broad Market'}
@@ -2750,6 +2764,7 @@ OUTPUT CONTRACT — SECTION BODY ONLY
 ✓ Specific beats vague: "$2.47B in free cash flow [3]" not "strong cash generation".
 ✓ **Fact vs inference — hedge forecasts.** Forward-looking claims (will, forecasts, projections, targets, guidance) need a hedging qualifier (~, est., likely, could, we estimate) or attribution (management guided, consensus expects, analysts forecast). Past/reported facts are stated plainly. Unhedged forecasts are flagged as speculation by the downstream verifier.
 ✓ Institutional tone, zero marketing language.
+✓ CENTER ON THE CLIENT QUESTION: every paragraph must serve answering it. Entities not named in the question appear only as brief comparative context (≤1 sentence each), never as co-equal subjects.
 ${table ? '✓ Populate the required table with real figures — no placeholder rows.\n' : ''}`;
 }
 
@@ -2760,6 +2775,7 @@ export interface SectionFanoutResult {
 }
 
 async function synthesizeReportBySections(
+    query: string,
     blueprint: ResearchBlueprint,
     webSources: TavilySearchResult[],
     secFilings: SECFiling[],
@@ -2808,6 +2824,7 @@ async function synthesizeReportBySections(
             if (!item) return;
             const relevant = sliceEvidenceForSection(item.s, top, extraKeywords, 15);
             const prompt = buildSectionWriterPrompt({
+                query,
                 blueprint,
                 template,
                 section: item.s,
@@ -4439,6 +4456,7 @@ export const performDeepResearch = async (
         st.emit('synthesizing', `Fanning out to ${sectionCount} parallel section writers…`, 77, { sourcesFound: totalSources });
         try {
             const fan = await synthesizeReportBySections(
+                query,
                 blueprint,
                 webSources,
                 secFilings,
@@ -4475,13 +4493,13 @@ export const performDeepResearch = async (
         } catch (e) {
             console.warn('Section fanout failed, falling back to monolith:', e);
             markdown = await synthesizeInstitutionalReport(
-                blueprint, webSources, secFilings, companyData, sourceAnalysis,
+                query, blueprint, webSources, secFilings, companyData, sourceAnalysis,
                 bullCase, bearCase, template, driverModel, ragResult, macroText,
             );
         }
     } else {
         markdown = await synthesizeInstitutionalReport(
-            blueprint, webSources, secFilings, companyData, sourceAnalysis,
+            query, blueprint, webSources, secFilings, companyData, sourceAnalysis,
             bullCase, bearCase, template, driverModel, ragResult, macroText,
         );
     }

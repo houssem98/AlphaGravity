@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldExtendSearch, BASE_SEARCH_ROUNDS, MIN_EXTENSION_SOURCES, tierPeer, isTerminalLLMError, ResearchCancelledError, rerankSourcesForReaders, smartTruncate, buildReaderPrompt } from './deepResearchService';
+import { shouldExtendSearch, BASE_SEARCH_ROUNDS, MIN_EXTENSION_SOURCES, tierPeer, isTerminalLLMError, ResearchCancelledError, rerankSourcesForReaders, smartTruncate, buildReaderPrompt, buildSectionWriterPrompt, REPORT_TEMPLATES } from './deepResearchService';
 import type { ResearchBlueprint } from './deepResearchService';
 import type { TavilySearchResult } from './tavilyService';
 
@@ -105,6 +105,25 @@ describe('smartTruncate + reader full-content (W1b)', () => {
         // raw text still used when the snippet is missing entirely
         const p2 = buildReaderPrompt({ title: 't', url: 'u', content: '', rawContent: 'FULL-PAGE-TEXT' }, 'q', bp);
         expect(p2).toContain('FULL-PAGE-TEXT');
+    });
+});
+
+describe('section writer query-centering (W2a)', () => {
+    it('injects the verbatim client question + centering rule', () => {
+        const bp: ResearchBlueprint = {
+            intent: 'macro_analysis', targetEntities: ['JPMorgan', 'Bank of America'], tickers: [], keyMetrics: [],
+            subtopics: [], searchQueries: [], secTargets: [], timeframe: '2026', investmentHorizon: '12 months', researchAngles: [],
+        };
+        const q = 'Federal Reserve rate path 2026 and implications for bank net interest margins';
+        const p = buildSectionWriterPrompt({
+            query: q, blueprint: bp, template: REPORT_TEMPLATES.thematic,
+            section: 'Executive Summary', sectionIndex: 0, totalSections: 5,
+            relevantSources: [], citationMap: new Map(), verifiedFactsBlock: '',
+            sourceAnalysisExcerpt: '', companyData: [], secFilings: [],
+            bullCase: '', bearCase: '', ragCitationIndex: '',
+        });
+        expect(p).toContain(`"${q}"`);
+        expect(p).toContain('CENTER ON THE CLIENT QUESTION');
     });
 });
 

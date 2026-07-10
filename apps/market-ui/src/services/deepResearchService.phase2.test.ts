@@ -913,6 +913,7 @@ console.log('\n[19] buildSectionWriterPrompt');
 
 {
     const ctx = {
+        query: 'NVDA investment thesis FY25',
         blueprint: {
             intent: 'company_analysis' as const,
             targetEntities: ['NVDA'],
@@ -1499,6 +1500,7 @@ console.log('\n[31] Section writer prompt uses source.context');
     citationMap.set(s2.url, 2);
 
     const prompt = buildSectionWriterPrompt({
+        query: 'test query',
         blueprint,
         template,
         section: template.sections[0],
