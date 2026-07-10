@@ -1528,8 +1528,19 @@ export function _clearReaderCache_FOR_TESTS(): void {
     _readerCache.clear();
 }
 
+// W1b: cut at a paragraph boundary near the cap instead of mid-sentence.
+// Boundary must fall in the back 40% of the cap window so we don't throw
+// away most of the budget to an early break; hard-cut when none exists.
+export const READER_CONTENT_CAP = 6000;
+
+export function smartTruncate(text: string, cap: number): string {
+    if (text.length <= cap) return text;
+    const cut = text.lastIndexOf('\n\n', cap);
+    return (cut >= cap * 0.6 ? text.slice(0, cut) : text.slice(0, cap)) + '…';
+}
+
 export function buildReaderPrompt(
-    source: { title: string; content: string; url: string },
+    source: { title: string; content: string; url: string; rawContent?: string },
     query: string,
     blueprint: ResearchBlueprint,
 ): string {
@@ -1539,7 +1550,10 @@ export function buildReaderPrompt(
     ].filter(Boolean).join(' — ');
     const metrics = blueprint.keyMetrics.slice(0, 6).join(', ') || '(none specified)';
     const safeTitle = sanitizeAndTrack(source.title);
-    const safeContent = sanitizeAndTrack(source.content).substring(0, 1200);
+    // W1b: prefer full page text (W1a raw_content, 26-48K chars) over the
+    // 1,200-char snippet the readers used to work from.
+    const safeContent = smartTruncate(
+        sanitizeAndTrack(source.rawContent || source.content), READER_CONTENT_CAP);
     return `You are one of several parallel research readers. Extract ALL specific facts from THIS ONE source that are relevant to the research focus. No interpretation, no narrative — just verifiable facts.
 
 RESEARCH FOCUS: ${focus || query}
@@ -1718,7 +1732,7 @@ export async function extractRoundIntelligence(
         const monolithPrompt = `You are a senior analyst. Extract ALL specific facts, figures, quotes, and data points from these sources relevant to: ${blueprint.targetEntities.join(', ')} — ${blueprint.researchAngles.slice(0, 3).join(' | ')}
 
 Sources:
-${sliced.map((s, i) => `[${i + 1}] ${sanitizeAndTrack(s.title)}\n${sanitizeAndTrack(s.content).substring(0, 700)}`).join('\n\n---\n\n')}
+${sliced.map((s, i) => `[${i + 1}] ${sanitizeAndTrack(s.title)}\n${smartTruncate(sanitizeAndTrack(s.rawContent || s.content), 2000)}`).join('\n\n---\n\n')}
 
 Extract as bullet points. Be specific with numbers, dates, and source attribution. Skip marketing language.`;
         const call = options.monolithicCallLLM ?? ((p: string) => callDriver(p, 'standard', options.model));

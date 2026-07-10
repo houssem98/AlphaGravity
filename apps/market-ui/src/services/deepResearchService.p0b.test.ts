@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldExtendSearch, BASE_SEARCH_ROUNDS, MIN_EXTENSION_SOURCES, tierPeer, isTerminalLLMError, ResearchCancelledError, rerankSourcesForReaders } from './deepResearchService';
+import { shouldExtendSearch, BASE_SEARCH_ROUNDS, MIN_EXTENSION_SOURCES, tierPeer, isTerminalLLMError, ResearchCancelledError, rerankSourcesForReaders, smartTruncate, buildReaderPrompt } from './deepResearchService';
 import type { ResearchBlueprint } from './deepResearchService';
 import type { TavilySearchResult } from './tavilyService';
 
@@ -74,6 +74,34 @@ describe('rerankSourcesForReaders (P2c relevance rerank)', () => {
         const empty: ResearchBlueprint = { ...blueprint, targetEntities: [], researchAngles: [], keyMetrics: [] };
         const sources = [mk('a', 'x', 0.1), mk('b', 'y', 0.2)];
         expect(rerankSourcesForReaders(sources, empty, 1)).toEqual([sources[0]]);
+    });
+});
+
+describe('smartTruncate + reader full-content (W1b)', () => {
+    it('passes short text through untouched', () => {
+        expect(smartTruncate('short', 100)).toBe('short');
+    });
+
+    it('cuts at a paragraph boundary in the back 40% of the window', () => {
+        const text = 'a'.repeat(80) + '\n\n' + 'b'.repeat(100);
+        const out = smartTruncate(text, 100);
+        expect(out).toBe('a'.repeat(80) + '…');
+    });
+
+    it('hard-cuts when the only boundary is too early', () => {
+        const text = 'a'.repeat(10) + '\n\n' + 'b'.repeat(500);
+        expect(smartTruncate(text, 100)).toHaveLength(101); // 100 + ellipsis
+    });
+
+    it('reader prompt prefers rawContent over the snippet', () => {
+        const bp: ResearchBlueprint = {
+            intent: 'company_analysis', targetEntities: ['X'], tickers: [], keyMetrics: [],
+            subtopics: [], searchQueries: [], secTargets: [], timeframe: '', investmentHorizon: '', researchAngles: [],
+        };
+        const p = buildReaderPrompt(
+            { title: 't', url: 'u', content: 'SNIPPET-ONLY', rawContent: 'FULL-PAGE-TEXT' }, 'q', bp);
+        expect(p).toContain('FULL-PAGE-TEXT');
+        expect(p).not.toContain('SNIPPET-ONLY');
     });
 });
 
