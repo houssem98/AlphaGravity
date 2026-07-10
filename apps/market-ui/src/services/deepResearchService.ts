@@ -1550,10 +1550,13 @@ export function buildReaderPrompt(
     ].filter(Boolean).join(' — ');
     const metrics = blueprint.keyMetrics.slice(0, 6).join(', ') || '(none specified)';
     const safeTitle = sanitizeAndTrack(source.title);
-    // W1b: prefer full page text (W1a raw_content, 26-48K chars) over the
-    // 1,200-char snippet the readers used to work from.
+    // W1b→W1c MEASURED REGRESSION: feeding raw_content (uncurated page dumps
+    // — nav, related-article links, other companies' stories) polluted reader
+    // facts: citation density 0.67→0.27, entailment 0.97→0.65, one report
+    // drifted to the wrong companies entirely. Snippet-first until W1d ships
+    // boilerplate-cleaned raw text and re-eval proves a gain.
     const safeContent = smartTruncate(
-        sanitizeAndTrack(source.rawContent || source.content), READER_CONTENT_CAP);
+        sanitizeAndTrack(source.content || source.rawContent || ''), READER_CONTENT_CAP);
     return `You are one of several parallel research readers. Extract ALL specific facts from THIS ONE source that are relevant to the research focus. No interpretation, no narrative — just verifiable facts.
 
 RESEARCH FOCUS: ${focus || query}
@@ -1732,7 +1735,7 @@ export async function extractRoundIntelligence(
         const monolithPrompt = `You are a senior analyst. Extract ALL specific facts, figures, quotes, and data points from these sources relevant to: ${blueprint.targetEntities.join(', ')} — ${blueprint.researchAngles.slice(0, 3).join(' | ')}
 
 Sources:
-${sliced.map((s, i) => `[${i + 1}] ${sanitizeAndTrack(s.title)}\n${smartTruncate(sanitizeAndTrack(s.rawContent || s.content), 2000)}`).join('\n\n---\n\n')}
+${sliced.map((s, i) => `[${i + 1}] ${sanitizeAndTrack(s.title)}\n${smartTruncate(sanitizeAndTrack(s.content || s.rawContent || ''), 2000)}`).join('\n\n---\n\n')}
 
 Extract as bullet points. Be specific with numbers, dates, and source attribution. Skip marketing language.`;
         const call = options.monolithicCallLLM ?? ((p: string) => callDriver(p, 'standard', options.model));

@@ -93,15 +93,18 @@ describe('smartTruncate + reader full-content (W1b)', () => {
         expect(smartTruncate(text, 100)).toHaveLength(101); // 100 + ellipsis
     });
 
-    it('reader prompt prefers rawContent over the snippet', () => {
+    it('reader prompt prefers the curated snippet (W1c regression revert)', () => {
         const bp: ResearchBlueprint = {
             intent: 'company_analysis', targetEntities: ['X'], tickers: [], keyMetrics: [],
             subtopics: [], searchQueries: [], secTargets: [], timeframe: '', investmentHorizon: '', researchAngles: [],
         };
         const p = buildReaderPrompt(
             { title: 't', url: 'u', content: 'SNIPPET-ONLY', rawContent: 'FULL-PAGE-TEXT' }, 'q', bp);
-        expect(p).toContain('FULL-PAGE-TEXT');
-        expect(p).not.toContain('SNIPPET-ONLY');
+        expect(p).toContain('SNIPPET-ONLY');
+        expect(p).not.toContain('FULL-PAGE-TEXT');
+        // raw text still used when the snippet is missing entirely
+        const p2 = buildReaderPrompt({ title: 't', url: 'u', content: '', rawContent: 'FULL-PAGE-TEXT' }, 'q', bp);
+        expect(p2).toContain('FULL-PAGE-TEXT');
     });
 });
 
