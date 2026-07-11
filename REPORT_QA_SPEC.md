@@ -356,20 +356,14 @@ VITE_API_URL=http://localhost:3002 # market-server endpoint
 - `apps/market-ui/src/services/selfImprovementHarness.ts` — loop logic
 - `LOOP_PROMPT.md` — feedback injection doc
 
-**Integration with pipeline:**
+**Integration with pipeline (IMPLEMENTED 2026-07-11, QA-17):**
 
-After P0–P1 gates pass, before final render:
+`maybeRunQualityLoop(report, query, model)` wraps every SearchPage research run (both direct-pipeline and research-graph paths) — AFTER performDeepResearch, BEFORE the report reaches state/render/PDF. The already-produced report is judged as iteration 1 (no wasted regeneration); below the bar → feedback re-runs up to maxIter; winner ships. Never passed → `metadata.confidence = 'Low'`. Outcome recorded in `metadata.qualityLoop`.
 
-```ts
-// In performDeepResearch or report-generation caller:
-if (report.metadata.verification.groundedClaims < 0.80) {
-  const loopResult = await runSelfImprovementHarness(query, model, {
-    maxIter: 3,
-    minScore: 7.0,
-  });
-  report = loopResult.winner?.report || report;
-  report.metadata.confidence = loopResult.summary.passedOnIter ? 'High' : 'Low';
-}
+```bash
+VITE_DR_QUALITY_LOOP=true            # off by default — each extra iteration ≈ $0.10 + ~35s
+VITE_DR_QUALITY_LOOP_MAX_ITER=2      # produced report counts as iteration 1
+VITE_DR_QUALITY_LOOP_MIN_SCORE=7
 ```
 
 ---
@@ -459,6 +453,8 @@ Order follows Section 6. One task per loop iteration. A task flips to `[x]` only
 - [x] **QA-15 (P2 cheap)** De-dup + config polish: Key Finding callout must not repeat an exec-summary sentence; kill any duplicate mid-report source dump; whitelabel flag for "Powered by" line. **Verify:** unit tests green; tsc 0.
 - [x] **QA-16 (P2-1 stretch)** Auto-exhibits from the NumericClaim store (QA-1): 1–3 SVG exhibits (trend bar, comp table) embedded in PdfDocument, each citing its claims. **Verify:** exhibit-generation unit test green; tsc 0; skip if NumericClaim coverage in real fixtures is too thin — ledger-note honestly.
 
+- [x] **QA-17 (Section 3 integration, follow-up)** Pre-render quality loop: `maybeRunQualityLoop` in selfImprovementHarness (env-gated VITE_DR_QUALITY_LOOP, initialReport = iteration 1), wired into SearchPage before setReport — covers PDF export path. **Verify:** 3 integration tests green (flag-off passthrough, pass-on-initial no regeneration, fail→feedback→Low); tsc 0.
+
 # 8. PROGRESS LOG
 
 (One line per completed task: `YYYY-MM-DD QA-n: what shipped — real test/verify numbers.`)
@@ -466,6 +462,7 @@ Order follows Section 6. One task per loop iteration. A task flips to `[x]` only
 - 2026-07-11 QA-1: reportQaGates.ts (222 lines: NumericClaim extraction, entity check, duplicate-attribution detector, source-entity index) + wired `entityGate` into ResearchReport metadata — regression tests 3/4/5 pass, 13/13 new tests green, 18/18 existing pipeline tests green, tsc 0 errors.
 - 2026-07-11 QA-2: evaluatePublicationGates (5 gate rules from P0-4 table) + capConfidence + buildConfidenceBanner prepended to final markdown (cover + exec-summary top); Limitations "+N more" full-count disclosure; `publicationGates` in metadata — regression tests 10/15/17-cap pass, 23/23 tests green, 18/18 existing green, tsc 0.
 - 2026-07-11 QA-3: remapRagCitations ([RAG-n] → merged [offset+n], offset = min(web,50)+SEC), stripInternalTags ([TIER…]/[DEBUG…] + orphan-heal), scanCitationIntegrity (orphan punctuation + unresolved bracket ids, tables/quotes exempt) — wired into finalMarkdown assembly; regression tests 6/13 pass, 32/32 green, tsc 0.
+- 2026-07-11 QA-17: maybeRunQualityLoop wired pre-render in SearchPage (judge produced report as iter 1 → feedback re-runs → winner ships, Low confidence when never passed; metadata.qualityLoop records outcome; env-gated, default off) — 6/6 mocked tests green, tsc 0. Live runs still blocked on Tavily 432.
 - 2026-07-11 QA-16: buildExhibits (metric+unit groups w/ ≥2 entities → comparison-bar specs, sorted desc, per-bar [n] citations, cap 3) + `numericClaims` (≤40) persisted in metadata + View-based Exhibit component on the exec-summary page (wrap={false}) — 68/68 green, tsc 0. Honest ceiling: exhibits render only when the entity gate extracts ≥2-entity comparable claims; thin single-entity reports get none.
 - 2026-07-11 QA-15: Key Finding now prefers grounded claims from NON-summary sections (exec-summary re-quote killed, fallback to section 1 only when nothing later qualifies); mid-report "### Web Sources" dump removed (duplicated References); "Powered by" line behind poweredBy prop (default hidden) — phase2 suite repaired to 1490 ok / 0 FAIL (crash at capturedPrompts[0] + 4 stale checks were PRE-EXISTING since 1ff42cc 2026-06-16 no-sources guard: fixtures lacked searchWeb; seed-prompt count 6→7; workflow count 5→6), 98/98 vitest green, tsc 0.
 - 2026-07-11 QA-14: `eval:loop` npm script added; regression tests 16/17/18 green in eval/loopHarness.mock.test.ts (mocked judge fetch-queue + mocked performDeepResearch — feedback injection, best-avg winner selection, dubious-citation warning all verified); harness compiles (tsc 0). BLOCKED-LIVE: real loop runs need Tavily quota restore + market-server :3002 DEV_AUTH_BYPASS.

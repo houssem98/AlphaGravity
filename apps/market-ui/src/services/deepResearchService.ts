@@ -545,6 +545,13 @@ export interface ResearchReport {
             ageMs: number;
             ttlMs: number;
         };
+        // Section 3: pre-render judge-scored self-improvement loop outcome.
+        qualityLoop?: {
+            ran: boolean;
+            iterations: number;
+            passedOnIter?: number;
+            bestAvgScore?: number;
+        };
         hitl?: {
             used: boolean;     // onBlueprintReady was supplied and invoked
             modified: boolean; // user returned an edited blueprint (not just accepted)

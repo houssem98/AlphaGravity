@@ -31,6 +31,53 @@ export interface LoopResult {
     };
 }
 
+// ─── Pre-render quality gate (REPORT_QA_SPEC Section 3 integration) ─────────
+// Runs AFTER performDeepResearch, BEFORE the report reaches the user/PDF.
+// Judge-scores the produced report as iteration 1; below the bar → re-run
+// with feedback up to maxIter, ship the winner. Never passed → confidence
+// drops to Low (spec loop-termination rule). Off unless VITE_DR_QUALITY_LOOP
+// is true — each extra iteration costs a full pipeline run (~$0.10).
+
+export interface QualityLoopOptions {
+    enabled?: boolean;    // default: import.meta.env.VITE_DR_QUALITY_LOOP === 'true'
+    maxIter?: number;     // default: VITE_DR_QUALITY_LOOP_MAX_ITER or 2
+    minScore?: number;    // default: VITE_DR_QUALITY_LOOP_MIN_SCORE or 7
+}
+
+export async function maybeRunQualityLoop<T extends { markdown: string; citations: any[]; metadata: any }>(
+    report: T,
+    query: string,
+    model: ResearchModelId,
+    options: QualityLoopOptions = {},
+): Promise<T> {
+    const env = (import.meta as any)?.env ?? {};
+    const enabled = options.enabled ?? env.VITE_DR_QUALITY_LOOP === 'true';
+    if (!enabled) return report;
+
+    const maxIter = options.maxIter ?? (parseInt(env.VITE_DR_QUALITY_LOOP_MAX_ITER, 10) || 2);
+    const minScoreThreshold = options.minScore ?? (parseFloat(env.VITE_DR_QUALITY_LOOP_MIN_SCORE) || 7);
+
+    const loop = await runSelfImprovementHarness(query, model, {
+        maxIter,
+        minScore: minScoreThreshold,
+        initialReport: report,
+    });
+
+    const winner = (loop.winner?.report as T | undefined) ?? report;
+    winner.metadata = {
+        ...winner.metadata,
+        qualityLoop: {
+            ran: true,
+            iterations: loop.iterations.length,
+            passedOnIter: loop.summary.passedOnIter,
+            bestAvgScore: loop.summary.bestAvgScore,
+        },
+        // Spec Section 3: exhausted without a pass → ship at Low confidence.
+        confidence: loop.summary.passedOnIter ? winner.metadata.confidence : 'Low',
+    };
+    return winner;
+}
+
 async function judgeCall(prompt: string): Promise<string> {
     const res = await fetch(`${API}/api/llm/chat`, {
         method: 'POST',
@@ -81,9 +128,9 @@ function buildFeedbackMessage(prev: IterationResult[]): string {
 export async function runSelfImprovementHarness(
     query: string,
     model: ResearchModelId,
-    options: { maxIter?: number; minScore?: number } = {},
+    options: { maxIter?: number; minScore?: number; initialReport?: { markdown: string; citations: any[] } } = {},
 ): Promise<LoopResult> {
-    const { maxIter = 3, minScore: minScoreThreshold = 7.0 } = options;
+    const { maxIter = 3, minScore: minScoreThreshold = 7.0, initialReport } = options;
     const iterations: IterationResult[] = [];
     let passedOnIter: number | undefined;
 
@@ -92,12 +139,18 @@ export async function runSelfImprovementHarness(
         const iterQuery = iter === 1 ? query : `${query}\n\n--- FEEDBACK FROM PRIOR ITERATIONS ---\n${buildFeedbackMessage(iterations)}`;
 
         let report: any = null, error: string | null = null;
-        try {
-            // Import late to avoid circular deps.
-            const { performDeepResearch, extractCitedSentences } = await import('./deepResearchService');
-            report = await performDeepResearch(iterQuery, () => {}, model);
-        } catch (e: any) {
-            error = e?.message ?? String(e);
+        if (iter === 1 && initialReport) {
+            // Pre-render integration: the pipeline already produced this
+            // report — judge it as iteration 1 instead of regenerating.
+            report = initialReport;
+        } else {
+            try {
+                // Import late to avoid circular deps.
+                const { performDeepResearch } = await import('./deepResearchService');
+                report = await performDeepResearch(iterQuery, () => {}, model);
+            } catch (e: any) {
+                error = e?.message ?? String(e);
+            }
         }
 
         const wallMs = Date.now() - t0;

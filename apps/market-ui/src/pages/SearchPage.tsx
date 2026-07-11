@@ -26,6 +26,7 @@ import {
     ResearchCancelledError,
 } from '../services/deepResearchService';
 import type { ResearchBlueprint } from '../services/deepResearchService';
+import { maybeRunQualityLoop } from '../services/selfImprovementHarness';
 import { runResearchGraph } from '../services/researchGraph';
 import ResearchProgress from '../components/research/ResearchProgress';
 import ResearchReportComponent from '../components/research/ResearchReport';
@@ -1096,7 +1097,7 @@ export default function SearchPage() {
             // checkpointing, reflection loop, gap-fill fanout). Falls back to the
             // direct pipeline if the graph encounters an unrecoverable error.
             const useGraph = import.meta.env.VITE_USE_RESEARCH_GRAPH === 'true';
-            const result = useGraph
+            const rawResult = useGraph
                 ? await runResearchGraph({
                     query: searchQuery,
                     onProgress: setProgress,
@@ -1112,6 +1113,10 @@ export default function SearchPage() {
                     controller.signal,
                     onBlueprintReady,
                 );
+            // Section 3 quality loop (VITE_DR_QUALITY_LOOP=true): judge-score the
+            // report and re-run with feedback until ≥7 or budget exhausted —
+            // BEFORE anything renders or exports.
+            const result = await maybeRunQualityLoop(rawResult, searchQuery, selectedModel);
             setReport(result);
             try {
                 const { data: { session } } = await supabase.auth.getSession();

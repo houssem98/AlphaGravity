@@ -3,7 +3,7 @@
 // quota; this proves the loop mechanics without network or spend.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { runSelfImprovementHarness } from '../src/services/selfImprovementHarness';
+import { runSelfImprovementHarness, maybeRunQualityLoop } from '../src/services/selfImprovementHarness';
 
 vi.mock('../src/services/deepResearchService', () => ({
     performDeepResearch: vi.fn(),
@@ -85,6 +85,37 @@ describe('regression test 17 — max iterations, all <7 → best avg wins, no pa
         expect(result.summary.bestAvgScore).toBe(6);
         expect(result.winner?.iteration).toBe(2);
         expect(result.summary.reason).toContain('Exhausted');
+    });
+});
+
+describe('pre-render integration — maybeRunQualityLoop (Section 3)', () => {
+    const initial = { markdown: 'Initial report [1].', citations: [], metadata: { confidence: 'High' } };
+
+    it('flag off → report returned untouched, zero LLM calls', async () => {
+        const out = await maybeRunQualityLoop({ ...initial, metadata: { ...initial.metadata } }, 'q', 'deepseek-chat', { enabled: false });
+        expect(out.metadata.qualityLoop).toBeUndefined();
+        expect(mockedPDR).not.toHaveBeenCalled();
+    });
+
+    it('produced report judged as iteration 1 — pass means NO regeneration', async () => {
+        queueFetch([judgeResponse({ c: 8, i: 8, f: 8, r: 8 })]);
+        const out = await maybeRunQualityLoop({ ...initial, metadata: { ...initial.metadata } }, 'q', 'deepseek-chat', { enabled: true, maxIter: 3 });
+        expect(mockedPDR).not.toHaveBeenCalled();          // initial report WAS iteration 1
+        expect(out.metadata.qualityLoop.passedOnIter).toBe(1);
+        expect(out.metadata.confidence).toBe('High');
+        expect(out.markdown).toBe('Initial report [1].');
+    });
+
+    it('below bar → regenerates with feedback; never passes → Low confidence', async () => {
+        queueFetch([
+            judgeResponse({ c: 5, i: 5, f: 5, r: 5 }),   // initial report: fail
+            judgeResponse({ c: 6, i: 6, f: 6, r: 6 }),   // regenerated: still fail
+        ]);
+        const out = await maybeRunQualityLoop({ ...initial, metadata: { ...initial.metadata } }, 'q', 'deepseek-chat', { enabled: true, maxIter: 2 });
+        expect(mockedPDR).toHaveBeenCalledTimes(1);        // one regeneration
+        expect((mockedPDR.mock.calls[0][0] as string)).toContain('FEEDBACK FROM PRIOR ITERATIONS');
+        expect(out.metadata.qualityLoop.passedOnIter).toBeUndefined();
+        expect(out.metadata.confidence).toBe('Low');
     });
 });
 
