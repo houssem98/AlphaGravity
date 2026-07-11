@@ -800,9 +800,23 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
     const bodyStyle = compact ? { fontSize: 8.5, lineHeight: 1.6 } : {};
     const kicker = design?.coverKicker || 'Deep Research Report';
     const abstractText = design?.abstract || stripMd(report.summary);
+    // A pull quote anchors to the section that actually CONTAINS its verbatim
+    // text (the designer's section label may not match the report's heading);
+    // the label is only a fallback when the text isn't found.
+    const resolveQuoteSection = (q: { section: string; text: string }): string => {
+        const idx = report.markdown.indexOf(q.text);
+        if (idx < 0) return q.section;
+        const headings = [...report.markdown.slice(0, idx).matchAll(/^## (.+)$/gm)];
+        return headings.length
+            ? headings[headings.length - 1][1].replace(/\*\*/g, '').trim()
+            : q.section;
+    };
     const quoteForSection = (title: string) =>
-        design?.pullQuotes.find(q => title.toLowerCase().includes(q.section.toLowerCase())
-            || q.section.toLowerCase().includes(title.toLowerCase()));
+        design?.pullQuotes.find(q => {
+            const home = resolveQuoteSection(q).toLowerCase();
+            const t = title.toLowerCase();
+            return t.includes(home) || home.includes(t);
+        });
 
     const tocItems: string[] = [];
     const headingRegex = /^## (.+)$/gm;

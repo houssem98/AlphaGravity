@@ -803,6 +803,8 @@ export function normalizeDisplaySubtitle(rawQuery: string): string {
         const lower = w.toLowerCase();
         const fixed = TYPO_FIXES[lower] ?? lower;
         if (ACRONYMS.has(fixed)) return fixed.toUpperCase();
+        // Attached fiscal tokens: fy2026 → FY2026, q4fy25 → Q4FY25
+        if (/^(?:fy\d{2,4}|q[1-4](?:fy)?\d{0,4})$/.test(fixed)) return fixed.toUpperCase();
         if (i > 0 && i < words.length - 1 && SMALL_WORDS.has(fixed)) return fixed;
         return fixed.charAt(0).toUpperCase() + fixed.slice(1);
     }).join(' ');

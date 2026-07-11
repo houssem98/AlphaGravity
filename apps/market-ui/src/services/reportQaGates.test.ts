@@ -601,6 +601,11 @@ describe('regression test 1 — raw query never renders on the cover', () => {
     it('collapses whitespace', () => {
         expect(normalizeDisplaySubtitle('  nvidia   q4  eps ')).toBe('Nvidia Q4 EPS');
     });
+
+    it('attached fiscal tokens uppercase (found in live e2e: "Fy2026")', () => {
+        expect(normalizeDisplaySubtitle('nvidia data center risks fy2026')).toBe('Nvidia Data Center Risks FY2026');
+        expect(normalizeDisplaySubtitle('q4fy25 recap')).toBe('Q4FY25 Recap');
+    });
 });
 
 describe('helpers', () => {
