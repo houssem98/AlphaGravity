@@ -428,6 +428,50 @@ describe('regression test 11 — RAG corpus has zero docs for a coverage entity'
     });
 });
 
+// ─── QA-10 (P1-3) revisor debug harness ─────────────────────────────────────
+
+import { reviseReport, applyRevisionEdits } from './deepResearchService';
+
+describe('P1-3 revisor — known-bad draft harness', () => {
+    // Draft with an unhedged forecast (flagged by fact-inference verifier) and
+    // an uncited factual sentence — the revisor MUST produce accepted edits.
+    const badDraft = [
+        '# Report',
+        '',
+        'BlackRock revenue will definitely reach $25 billion next year.',
+        'The firm manages significant institutional assets across regions [1].',
+    ].join('\n');
+
+    it('edits apply and revision is accepted on a known-bad draft', async () => {
+        const { stats } = await reviseReport({
+            markdown: badDraft,
+            verification: { totalClaims: 2, groundedClaims: 1, multiSourceClaims: 0, singleSourceClaims: [], unsupportedClaims: [] },
+            citationDensity: { totalFactSentences: 2, citedSentences: 1, density: 0.5, uncitedSamples: ['BlackRock revenue will definitely reach $25 billion next year.'] },
+            factInference: { totalForwardLooking: 1, hedgedCount: 0, hedgingRate: 0, unhedgedSamples: ['BlackRock revenue will definitely reach $25 billion next year.'] },
+        }, {
+            callLLM: async () => JSON.stringify([{
+                find: 'BlackRock revenue will definitely reach $25 billion next year.',
+                replace: 'Consensus suggests BlackRock revenue could reach $25 billion next year [1].',
+                reason: 'hedge_forecast',
+            }]),
+            tracker: null,
+        });
+        expect(stats.used).toBe(true);
+        expect(stats.editsApplied).toBeGreaterThanOrEqual(1);
+        expect(stats.accepted).toBe(true);
+    });
+
+    it('every rejected edit carries a reason', () => {
+        const { applied, rejections } = applyRevisionEdits(badDraft, [
+            { find: 'text that is definitely not present in the draft', replace: 'replacement of similar length here', reason: 'other' },
+            { find: 'BlackRock revenue will definitely reach $25 billion next year.', replace: 'x', reason: 'other' },
+            { find: 'The firm manages significant institutional assets', replace: 'The firm manages significant institutional assets [99]', reason: 'add_citation' },
+        ]);
+        expect(applied).toBe(0);
+        expect(rejections.map(r => r.reason)).toEqual(['not_found', 'length_ratio', 'invented_citation']);
+    });
+});
+
 // ─── QA-5 (P0-1) title hygiene ──────────────────────────────────────────────
 
 import { normalizeDisplaySubtitle } from './reportQaGates';

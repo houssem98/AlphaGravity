@@ -3340,7 +3340,13 @@ export interface RevisionResult {
     editsApplied: number;       // edits that matched unique substrings and passed safety
     accepted: boolean;          // true if we actually kept the revised draft
     fallback: boolean;          // LLM threw / returned garbage → original kept
+    // P1-3: why proposed edits were rejected — "flags 15, applies 0" was
+    // undiagnosable without this. Keys: not_found | ambiguous | length_ratio |
+    // invented_citation.
+    rejectionReasons?: Record<string, number>;
 }
+
+export type EditRejection = 'not_found' | 'ambiguous' | 'length_ratio' | 'invented_citation';
 
 // Collect the ≤5 worst issues from each verifier. Revisor gets a focused
 // worklist rather than the whole report.
@@ -3438,9 +3444,12 @@ export function parseRevisionEdits(raw: string): RevisionEdit[] {
 export function applyRevisionEdits(
     markdown: string,
     edits: RevisionEdit[],
-): { markdown: string; applied: number } {
+): { markdown: string; applied: number; rejections: Array<{ find: string; reason: EditRejection }> } {
     let out = markdown;
     let applied = 0;
+    const rejections: Array<{ find: string; reason: EditRejection }> = [];
+    const reject = (e: RevisionEdit, reason: EditRejection) =>
+        rejections.push({ find: e.find.slice(0, 60), reason });
 
     // Existing citation ids — collected once from the pre-revision draft so
     // added-via-edit ids don't silently become "valid" for later edits.
@@ -3458,23 +3467,23 @@ export function applyRevisionEdits(
         // Occurrence count within the editable region only.
         const editable = out.slice(0, editableEnd);
         const first = editable.indexOf(e.find);
-        if (first === -1) continue;
+        if (first === -1) { reject(e, 'not_found'); continue; }
         const second = editable.indexOf(e.find, first + 1);
-        if (second !== -1) continue;   // ambiguous — multiple matches, skip
+        if (second !== -1) { reject(e, 'ambiguous'); continue; }
 
         // Length guard: surgical edits should be within 0.4× – 2.5× of the source span.
         const ratio = e.replace.length / Math.max(1, e.find.length);
-        if (ratio < 0.4 || ratio > 2.5) continue;
+        if (ratio < 0.4 || ratio > 2.5) { reject(e, 'length_ratio'); continue; }
 
         // Veto invented citation ids — only ids already present in the draft are allowed.
         const newIds = Array.from(e.replace.matchAll(/\[((?:RAG-)?\d+)\]/g)).map(m => m[1]);
-        if (newIds.some(id => !existingIds.has(id))) continue;
+        if (newIds.some(id => !existingIds.has(id))) { reject(e, 'invented_citation'); continue; }
 
         out = out.slice(0, first) + e.replace + out.slice(first + e.find.length);
         applied += 1;
     }
 
-    return { markdown: out, applied };
+    return { markdown: out, applied, rejections };
 }
 
 export interface RevisionInputs {
@@ -3549,7 +3558,13 @@ export async function reviseReport(
         };
     }
 
-    const { markdown: revised, applied } = applyRevisionEdits(inputs.markdown, edits.slice(0, maxEdits));
+    const { markdown: revised, applied, rejections } = applyRevisionEdits(inputs.markdown, edits.slice(0, maxEdits));
+    // P1-3: log every rejection — "flags N, applies 0" must be diagnosable.
+    const rejectionReasons: Record<string, number> = {};
+    for (const r of rejections) {
+        rejectionReasons[r.reason] = (rejectionReasons[r.reason] ?? 0) + 1;
+        console.warn(`[Revisor] edit rejected (${r.reason}): "${r.find}"`);
+    }
 
     // Re-run the three deterministic verifiers on the revised draft.
     const revCitation = verifyCitationDensity(revised);
@@ -3581,6 +3596,7 @@ export async function reviseReport(
             editsApplied: applied,
             accepted,
             fallback: false,
+            rejectionReasons: rejections.length > 0 ? rejectionReasons : undefined,
         },
     };
 }
