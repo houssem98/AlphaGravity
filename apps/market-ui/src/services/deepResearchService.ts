@@ -18,6 +18,7 @@ import {
     type RecencyBucket,
 } from './tavilyService';
 import { queryGravityRAG, formatRAGSourcesForPrompt, formatRAGStructuredData, type GravityRAGResult } from './gravitySearchService';
+import { runEntityGate, buildSourceEntityIndex, type EntityAliases } from './reportQaGates';
 import { searchFilings, type SECFiling } from './secEdgarService';
 import { getCompanyOverview, type CompanyOverview } from './marketData';
 import { getUnifiedMacroSummaryText as getMacroSummaryText } from './fredService';
@@ -515,6 +516,12 @@ export interface ResearchReport {
             mismatch: number;
             orphan: number;
             entailmentRate: number;
+        };
+        entityGate?: {
+            claims: number;         // NumericClaim tuples extracted
+            misattributed: number;  // claim entity ≠ cited source entity
+            duplicates: number;     // same (metric,period,value) on 2+ entities
+            samples: string[];      // up to 5 short descriptions
         };
         cacheHit?: {
             ageMs: number;
@@ -1129,18 +1136,18 @@ async function callLLM(
         throw new Error('No LLM providers configured on server — check market-server .env');
     }
 
-    // Build a full model-level fallback chain.
-    // For each provider: try the requested/default model first, then all other models for that provider.
-    const modelChain: Array<{ provider: Provider; model: string }> = [];
+    // Build a full model-level fallback chain: every provider's primary model
+    // first (so MAX_FALLBACK_ATTEMPTS reaches other providers before drilling
+    // into one provider's alt models — a provider with 3+ models used to eat
+    // the whole cap and DeepSeek/Anthropic/Groq never got tried).
+    const primaryOf = (provider: Provider) => (requestedProvider === provider && modelId)
+        ? modelId as string
+        : defaultModelFor(provider, 'standard') as string;
+    const modelChain: Array<{ provider: Provider; model: string }> = providerChain
+        .map(provider => ({ provider, model: primaryOf(provider) }));
     for (const provider of providerChain) {
-        const primaryModel = (requestedProvider === provider && modelId)
-            ? modelId
-            : defaultModelFor(provider, 'standard');
-        modelChain.push({ provider, model: primaryModel as string });
-
-        // Add remaining models for this provider as fallbacks
         const otherModels = RESEARCH_MODELS
-            .filter(m => m.provider === provider && m.id !== primaryModel)
+            .filter(m => m.provider === provider && m.id !== primaryOf(provider))
             .map(m => m.id);
         for (const alt of otherModels) {
             modelChain.push({ provider, model: alt as string });
@@ -4549,6 +4556,18 @@ export const performDeepResearch = async (
     // it references. Deterministic; zero LLM cost.
     const entailment = verifyEntailment(markdown, webSources, ragResult);
 
+    // P0-3 entity-attribution gate: claim entity must match the entity tag of
+    // the cited source; same (metric,period,value) can't bind to two entities.
+    const entityAliases: EntityAliases = {};
+    blueprint.tickers.forEach((t, i) => {
+        entityAliases[t] = [t, blueprint.targetEntities[i] ?? ''].filter(Boolean);
+    });
+    const entityGate = runEntityGate(
+        markdown,
+        entityAliases,
+        buildSourceEntityIndex(webSources, ragResult.available ? ragResult.sources : [], entityAliases),
+    );
+
     // Deterministic citation-density sweep — flags factual sentences missing
     // an inline [n]/[RAG-n] tag. Cheap (no LLM), so always run.
     let citationDensity = verifyCitationDensity(markdown);
@@ -4798,6 +4817,17 @@ export const performDeepResearch = async (
                 mismatch: entailment.mismatch,
                 orphan: entailment.orphan,
                 entailmentRate: entailment.entailmentRate,
+            } : undefined,
+            entityGate: entityGate.claims.length > 0 || entityGate.misAttributedCount > 0 ? {
+                claims: entityGate.claims.length,
+                misattributed: entityGate.misattributed.length,
+                duplicates: entityGate.duplicates.length,
+                samples: [
+                    ...entityGate.misattributed.map(m =>
+                        `"${m.sentence.slice(0, 80)}" → [${m.citationId}] is ${m.sourceEntity}, not ${m.claimEntity}`),
+                    ...entityGate.duplicates.map(d =>
+                        `${d.key} attributed to ${d.entities.join(' & ')}`),
+                ].slice(0, 5),
             } : undefined,
             limitations: limitations.count > 0
                 ? { count: limitations.count, topics: [...limitations.topics] }
