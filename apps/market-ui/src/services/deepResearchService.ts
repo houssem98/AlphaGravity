@@ -21,7 +21,8 @@ import { queryGravityRAG, formatRAGSourcesForPrompt, formatRAGStructuredData, ty
 import {
     runEntityGate, buildSourceEntityIndex, evaluatePublicationGates,
     capConfidence, buildConfidenceBanner, remapRagCitations, stripInternalTags,
-    clampToSentence, type EntityAliases,
+    clampToSentence, lintTemporal, recencyWeightQueries, extractDateFromUrl,
+    type EntityAliases,
 } from './reportQaGates';
 import { searchFilings, type SECFiling } from './secEdgarService';
 import { getCompanyOverview, type CompanyOverview } from './marketData';
@@ -1199,7 +1200,13 @@ async function buildResearchBlueprint(
     workflowId?: WorkflowId,
 ): Promise<ResearchBlueprint> {
     const workflowSuffix = workflowId ? `\n\nWORKFLOW DIRECTIVE: ${WORKFLOW_PRESETS[workflowId].systemSuffix}` : '';
+    // P0-2: anchor the blueprint in the present — outlooks must target periods
+    // that haven't elapsed, and searches must skew to fresh sources.
+    const now = new Date();
+    const currentYear = now.getFullYear();
     const prompt = `You are the Chief Research Strategist at a top-tier institutional asset manager (Goldman Sachs Asset Management, Bridgewater, Two Sigma).
+
+TODAY'S DATE: ${now.toISOString().slice(0, 10)}. Any "outlook"/"estimate" must target FY${currentYear} or later — periods that already ended are REPORTED RESULTS, not estimates. Prefer sources from ${currentYear}.
 
 A client has submitted this research request: "${query}"${workflowSuffix}
 
@@ -1232,7 +1239,7 @@ Return ONLY valid JSON (no markdown, no explanation):
     "query 12"
   ],
   "secTargets": ["Company Name for SEC 10-K/10-Q"],
-  "timeframe": "Q4 2024 / FY2025 outlook",
+  "timeframe": "latest reported quarter / FY${currentYear + 1} outlook",
   "investmentHorizon": "12 months",
   "researchAngles": ["angle 1", "angle 2", "angle 3", "angle 4", "angle 5"]
 }`;
@@ -1248,7 +1255,7 @@ Return ONLY valid JSON (no markdown, no explanation):
         tickers: p.tickers || [],
         keyMetrics: p.keyMetrics || [],
         subtopics: p.subtopics || [],
-        searchQueries: p.searchQueries || [],
+        searchQueries: recencyWeightQueries(p.searchQueries || []),
         secTargets: p.secTargets || [],
         timeframe: p.timeframe || 'Current',
         investmentHorizon: p.investmentHorizon || '12 months',
@@ -4562,9 +4569,22 @@ export const performDeepResearch = async (
         sourceAnalysis,
     });
 
+    // P0-2: date-extractor fallback — recover publication dates from URL
+    // patterns before bucketing (the audited run dated 0/166 sources).
+    for (const src of webSources) {
+        if (!src.publishedDate) {
+            const urlDate = extractDateFromUrl(src.url);
+            if (urlDate) src.publishedDate = urlDate;
+        }
+    }
+
     // Web-source recency distribution — counted once over the final
     // webSources set so staleness is visible in the methodology footer.
     const recency = summarizeRecency(webSources);
+
+    // P0-2 temporal linter: elapsed-period "estimates" and fabricated price
+    // provenance are publication-gate inputs.
+    const temporalViolations = lintTemporal(markdown, new Date());
 
     // Citation-attribution verifier (NLI-lite): per cited sentence, check
     // whether a key token from the sentence appears in the specific source
@@ -4667,6 +4687,8 @@ export const performDeepResearch = async (
         revisorRan: revisions.used && !revisions.fallback,
         revisorFlags: revisions.issuesBefore,
         revisorAccepted: revisions.editsApplied,
+        elapsedPeriodEstimates: temporalViolations.filter(v => v.kind === 'elapsed_period_estimate').length,
+        unprovenancedPriceDates: temporalViolations.filter(v => v.kind === 'unprovenanced_price_date').length,
     });
 
     // W2b: a run without live web sources can never claim better than Low —

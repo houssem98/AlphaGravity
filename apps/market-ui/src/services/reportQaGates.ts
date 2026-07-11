@@ -227,6 +227,9 @@ export interface PublicationGateInput {
     revisorRan: boolean;
     revisorFlags: number;         // issues flagged before revision
     revisorAccepted: number;      // edits actually applied
+    // P0-2 temporal linter (optional — 0 when linter not run)
+    elapsedPeriodEstimates?: number;   // "our FY2025 estimate" in a 2026 report
+    unprovenancedPriceDates?: number;  // "Prices as of <date>" without tool provenance
 }
 
 export interface GateViolation {
@@ -283,6 +286,22 @@ export function evaluatePublicationGates(i: PublicationGateInput): PublicationGa
             severity: 'warn',
         });
         lower('Low');
+    }
+    if ((i.unprovenancedPriceDates ?? 0) > 0) {
+        violations.push({
+            gate: 'fabricated_price_provenance',
+            detail: `${i.unprovenancedPriceDates} price/date string(s) without tool provenance`,
+            severity: 'block',
+        });
+        lower('Low');
+    }
+    if ((i.elapsedPeriodEstimates ?? 0) > 0) {
+        violations.push({
+            gate: 'elapsed_period_estimates',
+            detail: `${i.elapsedPeriodEstimates} estimate/outlook reference(s) to already-elapsed fiscal periods`,
+            severity: 'warn',
+        });
+        lower('Medium');
     }
     if (i.revisorRan && i.revisorFlags > 0 && i.revisorAccepted === 0) {
         violations.push({
@@ -358,6 +377,82 @@ export function scanCitationIntegrity(markdown: string, citationCount: number): 
         }
     }
     return { orphanPunctuation, unresolvedIds, ok: orphanPunctuation.length === 0 && unresolvedIds.length === 0 };
+}
+
+// ─── Temporal sanity (spec P0-2) ────────────────────────────────────────────
+// A July-2026 report cannot "estimate" FY2025 (the year ended), and cannot
+// print "Prices as of <date>" when no live quote tool sourced that date.
+
+export interface TemporalViolation {
+    kind: 'elapsed_period_estimate' | 'unprovenanced_price_date';
+    excerpt: string;
+    period?: string;
+}
+
+const ESTIMATE_LANGUAGE = /\b(estimate[sd]?|outlook|forecast(?:s|ed)?|project(?:s|ed|ion|ions)?)\b/i;
+// "Prices as of…", "as of market close…" — a tool-sourced date carries the
+// [live] provenance marker; anything else is fabricated provenance.
+const PRICE_DATE_RE = /\b(?:prices?|entry|close)\s+as\s+of\s+[^.\n]{3,60}/gi;
+
+function periodEnd(period: string): Date | null {
+    const q = period.match(/^Q([1-4])-(\d{4})$/);
+    if (q) return new Date(Date.UTC(parseInt(q[2], 10), parseInt(q[1], 10) * 3, 0));
+    const fy = period.match(/^FY(\d{4})$/);
+    if (fy) return new Date(Date.UTC(parseInt(fy[1], 10), 11, 31));
+    if (/^\d{4}$/.test(period)) return new Date(Date.UTC(parseInt(period, 10), 11, 31));
+    return null;
+}
+
+export function lintTemporal(markdown: string, reportDate: Date): TemporalViolation[] {
+    const out: TemporalViolation[] = [];
+    const sentences = markdown
+        .replace(/^#+\s.*$/gm, '')
+        .split(/(?<=[.!?])\s+(?=[A-Z(])|\n{2,}/)
+        .map(s => s.replace(/\s+/g, ' ').trim())
+        .filter(s => s.length >= 15);
+
+    for (const s of sentences) {
+        if (ESTIMATE_LANGUAGE.test(s)) {
+            const period = detectPeriod(s);
+            const end = period ? periodEnd(period) : null;
+            if (end && end < reportDate) {
+                out.push({
+                    kind: 'elapsed_period_estimate',
+                    excerpt: s.length > 140 ? s.slice(0, 137) + '…' : s,
+                    period,
+                });
+            }
+        }
+        for (const m of s.matchAll(PRICE_DATE_RE)) {
+            if (!/\[live\]/i.test(m[0])) {
+                out.push({
+                    kind: 'unprovenanced_price_date',
+                    excerpt: m[0].slice(0, 140),
+                });
+            }
+        }
+    }
+    return out;
+}
+
+// Recency-weight retrieval: queries without an explicit year get the current
+// year appended so search engines skew fresh (the audited run pulled 166/166
+// stale-or-undated sources).
+export function recencyWeightQueries(queries: string[], year: number = new Date().getFullYear()): string[] {
+    return queries.map(q => (/\b20\d{2}\b/.test(q) ? q : `${q} ${year}`));
+}
+
+// Date-extractor fallback: many pages carry their date in the URL path
+// (/2026/07/03/, /2026-07-03-, ?date=2026-07). Meta-date extraction happens
+// upstream (Tavily publishedDate); this recovers a slice of the "undated".
+export function extractDateFromUrl(url: string): string | null {
+    const m = url.match(/\/(20\d{2})[\/-](\d{1,2})(?:[\/-](\d{1,2}))?(?:[\/\-?#]|$)/);
+    if (!m) return null;
+    const [, y, mo, d] = m;
+    const month = parseInt(mo, 10);
+    if (month < 1 || month > 12) return null;
+    const day = d ? Math.min(Math.max(parseInt(d, 10), 1), 28) : 1;
+    return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 // ─── Display subtitle normalization (spec P0-1) ─────────────────────────────

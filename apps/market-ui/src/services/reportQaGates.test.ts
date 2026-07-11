@@ -257,6 +257,65 @@ describe('P0-6 remap + internal-tag strip', () => {
     });
 });
 
+// ─── QA-6 (P0-2) temporal sanity ────────────────────────────────────────────
+
+import { lintTemporal, recencyWeightQueries, extractDateFromUrl } from './reportQaGates';
+
+describe('regression test 2 — "our FY2025 EPS estimate" in a 2026-07-10 report', () => {
+    const reportDate = new Date('2026-07-10');
+
+    it('temporal linter fails the draft', () => {
+        const v = lintTemporal('Our price target is built on our FY2025 EPS estimate of $12.40.', reportDate);
+        expect(v.some(x => x.kind === 'elapsed_period_estimate' && x.period === 'FY2025')).toBe(true);
+    });
+
+    it('future-period outlook passes', () => {
+        const v = lintTemporal('Our FY2027 EPS estimate of $14 implies upside.', reportDate);
+        expect(v).toHaveLength(0);
+    });
+
+    it('elapsed quarter estimate flagged, reported result not', () => {
+        expect(lintTemporal('We forecast Q4 2024 revenue of $2B.', reportDate)
+            .some(x => x.kind === 'elapsed_period_estimate')).toBe(true);
+        expect(lintTemporal('Q4 2024 revenue came in at $2B, as reported.', reportDate)).toHaveLength(0);
+    });
+
+    it('gate blocks on unprovenanced price dates, warns on elapsed estimates', () => {
+        const blocked = evaluatePublicationGates({ ...CLEAN_GATES, unprovenancedPriceDates: 1 });
+        expect(blocked.passed).toBe(false);
+        expect(blocked.maxConfidence).toBe('Low');
+        const warned = evaluatePublicationGates({ ...CLEAN_GATES, elapsedPeriodEstimates: 2 });
+        expect(warned.passed).toBe(true);
+        expect(warned.maxConfidence).toBe('Medium');
+    });
+});
+
+describe('regression test 14 — price row without live-quote provenance', () => {
+    it('"Prices as of market close June 1, 2026" is flagged as fabricated provenance', () => {
+        const v = lintTemporal('Prices as of market close June 1, 2026. Entry at $980.', new Date('2026-07-10'));
+        expect(v.some(x => x.kind === 'unprovenanced_price_date')).toBe(true);
+    });
+
+    it('tool-sourced [live] price date passes', () => {
+        const v = lintTemporal('Prices as of 2026-07-10 [live] from quote API.', new Date('2026-07-10'));
+        expect(v.filter(x => x.kind === 'unprovenanced_price_date')).toHaveLength(0);
+    });
+});
+
+describe('P0-2 retrieval recency helpers', () => {
+    it('recencyWeightQueries appends current year only when absent', () => {
+        expect(recencyWeightQueries(['nvidia data center revenue', 'amd roadmap 2025'], 2026))
+            .toEqual(['nvidia data center revenue 2026', 'amd roadmap 2025']);
+    });
+
+    it('extractDateFromUrl recovers /YYYY/MM/DD/, rejects junk', () => {
+        expect(extractDateFromUrl('https://x.com/2026/07/03/story')).toBe('2026-07-03');
+        expect(extractDateFromUrl('https://x.com/2026-05-01-report')).toBe('2026-05-01');
+        expect(extractDateFromUrl('https://x.com/2026/13/99/')).toBeNull();
+        expect(extractDateFromUrl('https://x.com/plain-page')).toBeNull();
+    });
+});
+
 // ─── QA-5 (P0-1) title hygiene ──────────────────────────────────────────────
 
 import { normalizeDisplaySubtitle } from './reportQaGates';
