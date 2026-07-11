@@ -313,6 +313,53 @@ export function buildConfidenceBanner(
     return `> **Confidence: ${confidence}** — ${reason}\n\n`;
 }
 
+// ─── Citation ID space (spec P0-6) ──────────────────────────────────────────
+// One canonical 1–N numbering. RAG passages are numbered AFTER web + SEC in
+// the report's citations array, so [RAG-n] in prose remaps to [offset + n].
+
+export function remapRagCitations(markdown: string, ragOffset: number): string {
+    return markdown.replace(/\[RAG-(\d+)\]/g, (_, n) => `[${ragOffset + parseInt(n, 10)}]`);
+}
+
+// Internal pipeline tags must never reach the renderer ([TIER 2b] leaked into
+// a body paragraph in the audited report). Strip, then heal any space left
+// hanging before punctuation so the strip itself can't create orphans.
+const INTERNAL_TAG_RE = / *\[(?:TIER|DEBUG|INTERNAL|DRAFT|TODO)\b[^\]]*\]/gi;
+
+export function stripInternalTags(markdown: string): string {
+    return markdown
+        .replace(INTERNAL_TAG_RE, '')
+        .replace(/([^\s|])[ \t]+([.,;])(?=\s|$)/gm, '$1$2');
+}
+
+export interface CitationIntegrityResult {
+    orphanPunctuation: string[];   // "44.5% ." — a stripped citation left a gap
+    unresolvedIds: string[];       // bracket ids with no References entry
+    ok: boolean;
+}
+
+// Post-assembly QA (spec P0-6 fix 4): fail when prose has space-before-
+// punctuation orphans or bracket ids that don't resolve to a citation.
+// Table rows (|) are skipped — pipes legitimately pad cells.
+export function scanCitationIntegrity(markdown: string, citationCount: number): CitationIntegrityResult {
+    const orphanPunctuation: string[] = [];
+    const unresolvedIds: string[] = [];
+    for (const line of markdown.split('\n')) {
+        if (line.includes('|') || line.trimStart().startsWith('>')) continue;
+        for (const m of line.matchAll(/\S+ +[.,;](?=\s|$)/g)) orphanPunctuation.push(m[0]);
+        for (const m of line.matchAll(/\[([A-Za-z]+-\d+|\d+)\](?!\()/g)) {
+            const id = m[1];
+            if (/^\d+$/.test(id)) {
+                const n = parseInt(id, 10);
+                if (n < 1 || n > citationCount) unresolvedIds.push(`[${id}]`);
+            } else {
+                unresolvedIds.push(`[${id}]`);   // [RAG-5] etc. must not survive remap
+            }
+        }
+    }
+    return { orphanPunctuation, unresolvedIds, ok: orphanPunctuation.length === 0 && unresolvedIds.length === 0 };
+}
+
 // ─── Gate runner ─────────────────────────────────────────────────────────────
 
 export function runEntityGate(

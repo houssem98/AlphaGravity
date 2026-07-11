@@ -20,7 +20,8 @@ import {
 import { queryGravityRAG, formatRAGSourcesForPrompt, formatRAGStructuredData, type GravityRAGResult } from './gravitySearchService';
 import {
     runEntityGate, buildSourceEntityIndex, evaluatePublicationGates,
-    capConfidence, buildConfidenceBanner, type EntityAliases,
+    capConfidence, buildConfidenceBanner, remapRagCitations, stripInternalTags,
+    type EntityAliases,
 } from './reportQaGates';
 import { searchFilings, type SECFiling } from './secEdgarService';
 import { getCompanyOverview, type CompanyOverview } from './marketData';
@@ -4716,10 +4717,16 @@ export const performDeepResearch = async (
         confidence,
     });
 
+    // P0-6: single canonical citation ID space — [RAG-n] remaps to its merged
+    // 1–N position (RAG entries follow web + SEC in the citations array), and
+    // internal pipeline tags are stripped before anything reaches a renderer.
+    const ragCitationOffset = Math.min(webSources.length, 50) + secFilings.length;
+    const renderMarkdown = stripInternalTags(remapRagCitations(markdown, ragCitationOffset));
+
     // P0-4: confidence banner at the very top — cover + above exec summary.
     const finalMarkdown = buildConfidenceBanner(confidence, publicationGates.violations)
         + (webDead ? buildNoWebBanner(secFilings.length, ragSourceCount) : '')
-        + markdown + limitations.section + methodologyMd;
+        + renderMarkdown + limitations.section + methodologyMd;
 
     const auditTail = claimAudit
         ? ` · ${claimAudit.supported}/${claimAudit.audited} claims supported`

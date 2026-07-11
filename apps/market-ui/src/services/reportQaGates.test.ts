@@ -198,6 +198,65 @@ describe('remaining P0-4 gate rules', () => {
     });
 });
 
+// ─── QA-3 (P0-6) citation ID space ──────────────────────────────────────────
+
+import { remapRagCitations, stripInternalTags, scanCitationIntegrity } from './reportQaGates';
+
+describe('regression test 6 — orphaned punctuation fails the scan', () => {
+    it('detects "44.5% ." and "0.06% ," gaps left by stripped citations', () => {
+        const r = scanCitationIntegrity('Margins reached 44.5% . Expense ratio of 0.06% , the lowest.', 10);
+        expect(r.ok).toBe(false);
+        expect(r.orphanPunctuation.length).toBe(2);
+    });
+
+    it('clean prose passes', () => {
+        const r = scanCitationIntegrity('Margins reached 44.5% [3]. Expense ratio of 0.06% [4], the lowest.', 10);
+        expect(r.ok).toBe(true);
+    });
+
+    it('table rows and blockquotes are exempt', () => {
+        const r = scanCitationIntegrity('| cell | 44.5% . |\n> quoted 1.2% ,', 10);
+        expect(r.orphanPunctuation).toHaveLength(0);
+    });
+});
+
+describe('regression test 13 — bracket ids must resolve to a References entry', () => {
+    it('surviving [RAG-5] fails', () => {
+        const r = scanCitationIntegrity('Thesis rests on governance concerns [RAG-5].', 60);
+        expect(r.ok).toBe(false);
+        expect(r.unresolvedIds).toContain('[RAG-5]');
+    });
+
+    it('[n] beyond citation count fails', () => {
+        const r = scanCitationIntegrity('A claim [55].', 40);
+        expect(r.unresolvedIds).toContain('[55]');
+    });
+
+    it('in-range [n] resolves; markdown links exempt', () => {
+        const r = scanCitationIntegrity('A claim [12]. See [the filing](https://sec.gov/x).', 40);
+        expect(r.unresolvedIds).toHaveLength(0);
+    });
+});
+
+describe('P0-6 remap + internal-tag strip', () => {
+    it('remapRagCitations merges RAG ids into the 1–N space', () => {
+        // 50 web + 3 SEC → RAG-1 becomes [54]
+        expect(remapRagCitations('Aladdin revenue grew [RAG-1] and [RAG-6].', 53))
+            .toBe('Aladdin revenue grew [54] and [59].');
+    });
+
+    it('stripInternalTags removes [TIER 2b] without leaving an orphan', () => {
+        const out = stripInternalTags('Flows improved materially [TIER 2b] .');
+        expect(out).toBe('Flows improved materially.');
+        expect(scanCitationIntegrity(out, 10).ok).toBe(true);
+    });
+
+    it('leaves numeric citations and normal prose untouched', () => {
+        const md = 'Revenue grew 14% [7]. Standard [brackets] stay.';
+        expect(stripInternalTags(md)).toBe(md);
+    });
+});
+
 describe('helpers', () => {
     it('detectMetric hits the ontology', () => {
         expect(detectMetric('EPS of $2.22')).toBe('eps');
