@@ -472,6 +472,36 @@ describe('P1-3 revisor — known-bad draft harness', () => {
     });
 });
 
+// ─── QA-11 (P1-4) scope adherence ───────────────────────────────────────────
+
+import { checkScopeAdherence, buildScopeDisclosure } from './reportQaGates';
+
+describe('P1-4 scope adherence', () => {
+    it('thin coverage entity flagged (the STT two-paragraphs bug)', () => {
+        const md = 'BlackRock '.repeat(10) + 'Vanguard '.repeat(9) + 'State Street coverage.';
+        const r = checkScopeAdherence(md, ['BLK', 'V', 'STT'],
+            { BLK: ['BlackRock'], V: ['Vanguard'], STT: ['State Street'] });
+        expect(r.underCovered).toEqual(['STT']);
+    });
+
+    it('out-of-universe trade row flagged; Adjacent-expressions section exempt', () => {
+        const table = '| Expression | Entry | Target |\n|---|---|---|\n| Long MSFT | $400 | $500 |';
+        const flagged = checkScopeAdherence(`## Trade Expressions\n${table}`, ['BLK'], { BLK: ['BlackRock'] });
+        expect(flagged.outOfUniverseTradeRows).toHaveLength(1);
+        const exempt = checkScopeAdherence(`## Adjacent expressions\n${table}`, ['BLK'], { BLK: ['BlackRock'] });
+        expect(exempt.outOfUniverseTradeRows).toHaveLength(0);
+    });
+
+    it('in-universe trade rows pass; disclosure renders both signals', () => {
+        const table = '| Expression | Entry |\n|---|---|\n| Long BLK | $980 |';
+        const ok = checkScopeAdherence(`## Trade Expressions\n${table}`, ['BLK'], { BLK: ['BlackRock'] });
+        expect(ok.outOfUniverseTradeRows).toHaveLength(0);
+        expect(buildScopeDisclosure({ shares: {}, underCovered: ['STT'], outOfUniverseTradeRows: ['| Long MSFT |'] }))
+            .toContain('STT');
+        expect(buildScopeDisclosure({ shares: {}, underCovered: [], outOfUniverseTradeRows: [] })).toBe('');
+    });
+});
+
 // ─── QA-5 (P0-1) title hygiene ──────────────────────────────────────────────
 
 import { normalizeDisplaySubtitle } from './reportQaGates';

@@ -531,6 +531,86 @@ export function buildCoverageDisclosure(gaps: CoverageGap[]): string {
     return `\n\n> **Coverage disclosure:** No internal documents available for ${missing.map(g => g.ticker).join(', ')}; analysis relies on web sources.\n`;
 }
 
+// ─── Scope adherence (spec P1-4) ────────────────────────────────────────────
+// The audited report promised three firms, gave State Street two thin
+// paragraphs, and put MSFT/NVDA/GOOGL in half the trade expressions. Check:
+// (a) each coverage entity gets a minimum share of entity mentions, and
+// (b) trade-table rows stay in the coverage universe unless they sit under
+// an "Adjacent expressions" heading.
+
+export interface ScopeAdherenceResult {
+    shares: Record<string, number>;       // ticker → share of coverage-entity mentions
+    underCovered: string[];               // coverage entities below minShare
+    outOfUniverseTradeRows: string[];     // unlabeled out-of-universe trade rows
+}
+
+// Tokens that look like tickers but aren't.
+const NOT_TICKERS = new Set(['LONG', 'SHORT', 'BUY', 'SELL', 'HOLD', 'USD', 'EUR', 'ETF',
+    'EPS', 'AUM', 'FCF', 'CEO', 'CFO', 'YOY', 'QOQ', 'FY', 'IPO', 'AI', 'ML', 'GAAP', 'CAGR']);
+
+export function checkScopeAdherence(
+    markdown: string,
+    coverageTickers: string[],
+    aliases: EntityAliases,
+    minShare = 0.15,
+): ScopeAdherenceResult {
+    // (a) mention shares
+    const counts: Record<string, number> = {};
+    let total = 0;
+    for (const t of coverageTickers) {
+        const names = aliases[t] ?? [t];
+        let n = 0;
+        for (const name of names) {
+            const isBareTicker = name.length <= 5 && name === name.toUpperCase();
+            const re = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, isBareTicker ? 'g' : 'gi');
+            n += (markdown.match(re) ?? []).length;
+        }
+        counts[t] = n;
+        total += n;
+    }
+    const shares: Record<string, number> = {};
+    for (const t of coverageTickers) shares[t] = total > 0 ? counts[t] / total : 0;
+    const underCovered = coverageTickers.length >= 2 && total > 0
+        ? coverageTickers.filter(t => shares[t] < minShare)
+        : [];
+
+    // (b) trade rows outside the universe
+    const outOfUniverseTradeRows: string[] = [];
+    const coverage = new Set(coverageTickers);
+    let currentHeading = '';
+    let inTradeTable = false;
+    for (const line of markdown.split('\n')) {
+        const h = line.match(/^#{2,4}\s+(.*)$/);
+        if (h) { currentHeading = h[1]; inTradeTable = false; continue; }
+        if (line.trim().startsWith('|')) {
+            if (TRADE_HEADER_RE.test(line)) { inTradeTable = true; continue; }
+            if (/^\s*\|[\s|:-]+\|\s*$/.test(line)) continue;
+            if (inTradeTable && !/adjacent/i.test(currentHeading)) {
+                const tickers = (line.match(/\b[A-Z]{2,5}\b/g) ?? [])
+                    .filter(t => !NOT_TICKERS.has(t));
+                if (tickers.length > 0 && tickers.every(t => !coverage.has(t))) {
+                    outOfUniverseTradeRows.push(line.trim().slice(0, 100));
+                }
+            }
+        } else {
+            inTradeTable = false;
+        }
+    }
+    return { shares, underCovered, outOfUniverseTradeRows };
+}
+
+export function buildScopeDisclosure(r: ScopeAdherenceResult): string {
+    const parts: string[] = [];
+    if (r.underCovered.length > 0) {
+        parts.push(`coverage entities with thin treatment: ${r.underCovered.join(', ')}`);
+    }
+    if (r.outOfUniverseTradeRows.length > 0) {
+        parts.push(`${r.outOfUniverseTradeRows.length} trade expression(s) outside the coverage universe (label under "Adjacent expressions")`);
+    }
+    if (parts.length === 0) return '';
+    return `\n\n> **Scope note:** ${parts.join('; ')}.\n`;
+}
+
 // ─── Compliance lint (spec P0-5) ────────────────────────────────────────────
 // "Source: Goldman Sachs Research estimates" on AI-generated price targets is
 // a fabricated third-party attribution — a regulatory hazard, not a typo.

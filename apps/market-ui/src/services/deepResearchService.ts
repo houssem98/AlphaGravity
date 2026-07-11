@@ -23,7 +23,7 @@ import {
     capConfidence, buildConfidenceBanner, remapRagCitations, stripInternalTags,
     clampToSentence, lintTemporal, recencyWeightQueries, extractDateFromUrl,
     lintCompliance, addTradeTableFraming, checkRagCoverage, buildCoverageDisclosure,
-    buildSourceTierIndex, findT3OnlyClaims,
+    buildSourceTierIndex, findT3OnlyClaims, checkScopeAdherence, buildScopeDisclosure,
     type EntityAliases,
 } from './reportQaGates';
 import { searchFilings, type SECFiling } from './secEdgarService';
@@ -4779,10 +4779,14 @@ export const performDeepResearch = async (
         entityAliases,
     ));
 
+    // P1-4: thin coverage + out-of-universe trade expressions get a scope note.
+    const scopeDisclosure = buildScopeDisclosure(
+        checkScopeAdherence(markdown, blueprint.tickers, entityAliases));
+
     // P0-4: confidence banner at the very top — cover + above exec summary.
     const finalMarkdown = buildConfidenceBanner(confidence, publicationGates.violations)
         + (webDead ? buildNoWebBanner(secFilings.length, ragSourceCount) : '')
-        + renderMarkdown + coverageDisclosure + limitations.section + methodologyMd;
+        + renderMarkdown + coverageDisclosure + scopeDisclosure + limitations.section + methodologyMd;
 
     const auditTail = claimAudit
         ? ` · ${claimAudit.supported}/${claimAudit.audited} claims supported`
