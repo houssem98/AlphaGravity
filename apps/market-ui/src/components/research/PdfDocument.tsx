@@ -16,6 +16,7 @@ import {
     type ExhibitSpec,
 } from '../../services/reportQaGates';
 import { tierOf } from '../../services/tavilyService';
+import type { DesignSpec } from '../../services/pdfDesigner';
 
 Font.registerHyphenationCallback(word => [word]);
 
@@ -662,7 +663,7 @@ function PageFooter({ year }: { year: number }) {
     );
 }
 
-function RenderBlocks({ blocks }: { blocks: ParsedBlock[] }) {
+function RenderBlocks({ blocks, bodyStyle = {} }: { blocks: ParsedBlock[]; bodyStyle?: object }) {
     return (
         <>
             {blocks.map((block, i) => {
@@ -670,11 +671,11 @@ function RenderBlocks({ blocks }: { blocks: ParsedBlock[] }) {
                     case 'h2': return <Text key={i} style={s.heading2}>{renderInlineText(block.content)}</Text>;
                     case 'h3': return <Text key={i} style={s.heading3}>{renderInlineText(block.content)}</Text>;
                     case 'h4': return <Text key={i} style={s.heading4}>{renderInlineText(block.content)}</Text>;
-                    case 'p':  return <Text key={i} style={s.paragraph}>{renderInlineText(block.content)}</Text>;
+                    case 'p':  return <Text key={i} style={[s.paragraph, bodyStyle]}>{renderInlineText(block.content)}</Text>;
                     case 'li': return (
                         <View key={i} style={s.listItem}>
                             <Text style={s.listBullet}>•</Text>
-                            <Text style={s.listText}>{renderInlineText(block.content)}</Text>
+                            <Text style={[s.listText, bodyStyle]}>{renderInlineText(block.content)}</Text>
                         </View>
                     );
                     case 'blockquote': return (
@@ -742,9 +743,11 @@ function Exhibit({ spec, index }: { spec: ExhibitSpec; index: number }) {
 // P0-5: CONFIDENTIAL stamp is config-gated, default OFF — the report is built
 // from public sources; stamping it confidential was a compliance bug.
 // P2-7: poweredBy is whitelabel-gated — default hides the model attribution.
-interface Props { report: ResearchReport; showConfidential?: boolean; poweredBy?: string }
+// `design` = validated DesignSpec from the self-improving design loop
+// (pdfDesigner.ts); absent → the house default design.
+interface Props { report: ResearchReport; showConfidential?: boolean; poweredBy?: string; design?: DesignSpec }
 
-export default function PdfDocument({ report, showConfidential = false, poweredBy }: Props) {
+export default function PdfDocument({ report, showConfidential = false, poweredBy, design }: Props) {
     const generatedDate = new Date(report.metadata.generatedAt).toLocaleDateString('en-US', {
         year: 'numeric', month: 'long', day: 'numeric',
     });
@@ -756,7 +759,18 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
     // P1-6: cover, exec summary, and references all read from ONE struct.
     const stats = deriveReportStats(report.citations, report.metadata.sourcesAnalyzed);
     // P2-1: exhibits from the NumericClaim store (empty when claims are thin).
-    const exhibits = buildExhibits(report.metadata.numericClaims ?? []);
+    const exhibits = buildExhibits(report.metadata.numericClaims ?? [])
+        .map((ex, i) => design?.exhibitTitles[i] ? { ...ex, title: design.exhibitTitles[i] } : ex);
+
+    // Design-loop knobs (all validated upstream in pdfDesigner).
+    const accents = design ? [design.accent, ...ACCENTS.filter(a => a !== design.accent)] : ACCENTS;
+    const compact = design?.density === 'compact';
+    const bodyStyle = compact ? { fontSize: 8.5, lineHeight: 1.6 } : {};
+    const kicker = design?.coverKicker || 'Deep Research Report';
+    const abstractText = design?.abstract || stripMd(report.summary);
+    const quoteForSection = (title: string) =>
+        design?.pullQuotes.find(q => title.toLowerCase().includes(q.section.toLowerCase())
+            || q.section.toLowerCase().includes(title.toLowerCase()));
 
     const tocItems: string[] = [];
     const headingRegex = /^## (.+)$/gm;
@@ -799,7 +813,7 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
                     <View>
                         {/* P0-4: confidence verdict on the cover, not page 27 */}
                         <View style={{ flexDirection: 'row', gap: 8 }}>
-                            <Text style={s.coverBadge}>Deep Research Report</Text>
+                            <Text style={s.coverBadge}>{kicker}</Text>
                             {report.metadata.confidence ? (
                                 <Text style={[s.coverBadge, {
                                     color: report.metadata.confidence === 'High' ? '#34D399'
@@ -856,7 +870,7 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
                 <View style={s.tocRow}>
                     {tocItems.map((item, i) => (
                         <View key={i} style={s.tocCard}>
-                            <View style={[s.tocBadge, { backgroundColor: ACCENTS[i % ACCENTS.length] }]}>
+                            <View style={[s.tocBadge, { backgroundColor: accents[i % accents.length] }]}>
                                 <Text style={s.tocBadgeText}>{i + 1}</Text>
                             </View>
                             <Text style={s.tocCardText}>{item}</Text>
@@ -876,7 +890,7 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
                     {/* Blue accent card */}
                     <View style={s.execSummaryCard}>
                         <Text style={s.execSummaryLabel}>Executive Summary</Text>
-                        <Text style={s.execSummaryText}>{stripMd(report.summary)}</Text>
+                        <Text style={s.execSummaryText}>{stripMd(abstractText)}</Text>
 
                         {/* Mini stats strip inside card */}
                         <View style={s.execStatsRow}>
@@ -911,7 +925,8 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
                 SECTION SLIDES
             ══════════════════════════════════ */}
             {sections.map((section, idx) => {
-                const accent = ACCENTS[idx % ACCENTS.length];
+                const accent = accents[idx % accents.length];
+                const pull = quoteForSection(section.title);
                 const sectionNum = String(idx + 1).padStart(2, '0');
                 return (
                     <Page key={idx} size="A4" style={s.page} wrap>
@@ -950,7 +965,14 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
                             borderBottomRightRadius: 10,
                             backgroundColor: C.pageBody,
                         }}>
-                            <RenderBlocks blocks={section.blocks} />
+                            {/* Design loop: verbatim pull quote gets visual emphasis */}
+                            {pull ? (
+                                <View style={[s.blockquote, { borderLeftColor: accent }]}>
+                                    <Text style={[s.blockquoteLabel, { color: accent }]}>Pull Quote</Text>
+                                    <Text style={s.blockquoteText}>{stripMd(pull.text)}</Text>
+                                </View>
+                            ) : null}
+                            <RenderBlocks blocks={section.blocks} bodyStyle={bodyStyle} />
                         </View>
 
                         <PageFooter year={year} />

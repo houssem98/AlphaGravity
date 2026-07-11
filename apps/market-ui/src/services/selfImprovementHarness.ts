@@ -78,6 +78,11 @@ export async function maybeRunQualityLoop<T extends { markdown: string; citation
     return winner;
 }
 
+// Shared DeepSeek chat call (market-server proxy) — also used by pdfDesigner.
+export async function llmChat(prompt: string): Promise<string> {
+    return judgeCall(prompt);
+}
+
 async function judgeCall(prompt: string): Promise<string> {
     const res = await fetch(`${API}/api/llm/chat`, {
         method: 'POST',
