@@ -90,5 +90,17 @@ describe.skipIf(process.env.RUN_PDF_E2E !== '1')('live designed PDF export', () 
         }, null, 2));
 
         expect(qa.pages).toBeGreaterThan(3);
+
+        // ── Structural QA (opendataloader-pdf → geometry) — regression test 7 ──
+        // Runs only when Java 11+ is present; skips clean otherwise.
+        const { structuralQa, isJavaAvailable } = await import('../src/services/pdfStructuralQa');
+        if (await isJavaAvailable()) {
+            const struct = await structuralQa(outPath);
+            console.log('STRUCTURAL QA:', JSON.stringify(struct, null, 2));
+            expect(struct).not.toBeNull();
+            expect(struct!.splitRows).toHaveLength(0);   // no table row spans a page break
+        } else {
+            console.log('STRUCTURAL QA: skipped — Java 11+ not installed (opendataloader-pdf needs a JRE)');
+        }
     }, 600_000);
 });
