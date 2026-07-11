@@ -360,6 +360,34 @@ export function scanCitationIntegrity(markdown: string, citationCount: number): 
     return { orphanPunctuation, unresolvedIds, ok: orphanPunctuation.length === 0 && unresolvedIds.length === 0 };
 }
 
+// ─── Display subtitle normalization (spec P0-1) ─────────────────────────────
+// The raw user query must NEVER render on the cover ("ai in asset managment"
+// shipped verbatim as a subtitle). Deterministic: common-typo fixes →
+// title-case with small-word/acronym handling. Raw query stays in metadata.
+
+const TYPO_FIXES: Record<string, string> = {
+    managment: 'management', mangement: 'management', anaylsis: 'analysis',
+    analyis: 'analysis', finanical: 'financial', financal: 'financial',
+    stratagy: 'strategy', strategey: 'strategy', comapny: 'company',
+    performace: 'performance', investement: 'investment', bussiness: 'business',
+};
+
+const SMALL_WORDS = new Set(['a', 'an', 'and', 'as', 'at', 'by', 'for', 'in', 'of', 'on', 'or', 'the', 'to', 'vs', 'with']);
+
+const ACRONYMS = new Set(['ai', 'ml', 'esg', 'etf', 'ipo', 'm&a', 'fy', 'q1', 'q2', 'q3', 'q4',
+    'eps', 'aum', 'fcf', 'roi', 'roic', 'capex', 'gdp', 'sec', 'us', 'uk', 'eu']);
+
+export function normalizeDisplaySubtitle(rawQuery: string): string {
+    const words = rawQuery.trim().replace(/\s+/g, ' ').split(' ');
+    return words.map((w, i) => {
+        const lower = w.toLowerCase();
+        const fixed = TYPO_FIXES[lower] ?? lower;
+        if (ACRONYMS.has(fixed)) return fixed.toUpperCase();
+        if (i > 0 && i < words.length - 1 && SMALL_WORDS.has(fixed)) return fixed;
+        return fixed.charAt(0).toUpperCase() + fixed.slice(1);
+    }).join(' ');
+}
+
 // ─── Sentence-safe clamp (spec P0-7 fix 3) ──────────────────────────────────
 // The exec-summary card must never render a mid-sentence char-slice ("…the
 // primary determinant of"). Cut at the last sentence boundary under the cap.

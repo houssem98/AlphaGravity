@@ -257,6 +257,25 @@ describe('P0-6 remap + internal-tag strip', () => {
     });
 });
 
+// ─── QA-5 (P0-1) title hygiene ──────────────────────────────────────────────
+
+import { normalizeDisplaySubtitle } from './reportQaGates';
+
+describe('regression test 1 — raw query never renders on the cover', () => {
+    it('"ai in asset managment" → "AI in Asset Management"', () => {
+        expect(normalizeDisplaySubtitle('ai in asset managment')).toBe('AI in Asset Management');
+    });
+
+    it('title-cases with small-word exceptions', () => {
+        expect(normalizeDisplaySubtitle('the future of etf flows and esg investing'))
+            .toBe('The Future of ETF Flows and ESG Investing');
+    });
+
+    it('collapses whitespace', () => {
+        expect(normalizeDisplaySubtitle('  nvidia   q4  eps ')).toBe('Nvidia Q4 EPS');
+    });
+});
+
 describe('helpers', () => {
     it('detectMetric hits the ontology', () => {
         expect(detectMetric('EPS of $2.22')).toBe('eps');

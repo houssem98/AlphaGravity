@@ -11,6 +11,7 @@ import {
     parseMarkdown, parseSections, parseInlineSegments, stripMd,
     type ParsedBlock,
 } from './pdfMarkdown';
+import { normalizeDisplaySubtitle } from '../../services/reportQaGates';
 
 Font.registerHyphenationCallback(word => [word]);
 
@@ -773,7 +774,8 @@ export default function PdfDocument({ report }: Props) {
                             ) : null}
                         </View>
                         <Text style={s.coverTitle}>{stripMd(report.title)}</Text>
-                        <Text style={s.coverQuery}>{stripMd(report.query)}</Text>
+                        {/* P0-1: normalized display subtitle — raw query never renders */}
+                        <Text style={s.coverQuery}>{normalizeDisplaySubtitle(stripMd(report.query))}</Text>
                         <View style={s.coverDivider} />
 
                         {/* Stats strip */}
