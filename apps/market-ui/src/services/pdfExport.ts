@@ -33,6 +33,30 @@ export async function generatePdfBlob(report: ResearchReport): Promise<Blob> {
   const doc = React.createElement(PdfDocument, { report, design });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const blob = await pdf(doc as any).toBlob();
+
+  // P0-6 fix 4: audit the text layer of the RENDERED output — orphans,
+  // unresolved bracket ids, markdown literals, leaked internal tags.
+  // Advisory (never blocks a download); VITE_PDF_RENDER_QA=false disables.
+  const env = (import.meta as any)?.env ?? {};
+  if (env.VITE_PDF_RENDER_QA !== 'false') {
+    try {
+      const { postRenderQa } = await import('./pdfPostRenderQa');
+      const qa = await postRenderQa(blob, report.citations.length);
+      if (!qa.ok) {
+        console.warn('[pdfRenderQa] rendered-output issues:', {
+          orphans: qa.orphanPunctuation.slice(0, 5),
+          unresolved: qa.unresolvedIds.slice(0, 5),
+          literals: qa.markdownLiterals.slice(0, 5),
+          internalTags: qa.internalTags.slice(0, 5),
+          pages: qa.pages,
+        });
+      } else {
+        console.log(`[pdfRenderQa] clean — ${qa.pages} pages, 0 issues`);
+      }
+    } catch (e: any) {
+      console.warn('[pdfRenderQa] audit skipped:', e?.message);
+    }
+  }
   return blob;
 }
 
