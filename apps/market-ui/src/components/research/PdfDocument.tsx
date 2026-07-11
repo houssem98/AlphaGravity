@@ -709,9 +709,11 @@ function RenderBlocks({ blocks }: { blocks: ParsedBlock[] }) {
 }
 
 /* ── Main PDF Document ── */
-interface Props { report: ResearchReport }
+// P0-5: CONFIDENTIAL stamp is config-gated, default OFF — the report is built
+// from public sources; stamping it confidential was a compliance bug.
+interface Props { report: ResearchReport; showConfidential?: boolean }
 
-export default function PdfDocument({ report }: Props) {
+export default function PdfDocument({ report, showConfidential = false }: Props) {
     const generatedDate = new Date(report.metadata.generatedAt).toLocaleDateString('en-US', {
         year: 'numeric', month: 'long', day: 'numeric',
     });
@@ -803,7 +805,7 @@ export default function PdfDocument({ report }: Props) {
                             <Text style={s.coverBottomText}>{generatedDate} · {generatedTime}</Text>
                             <Text style={s.coverBottomText}>AI Research Engine — Powered by Gemini</Text>
                         </View>
-                        <Text style={s.coverConfidential}>Confidential</Text>
+                        {showConfidential ? <Text style={s.coverConfidential}>Confidential</Text> : null}
                     </View>
                 </View>
             </Page>

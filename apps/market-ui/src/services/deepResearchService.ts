@@ -22,6 +22,7 @@ import {
     runEntityGate, buildSourceEntityIndex, evaluatePublicationGates,
     capConfidence, buildConfidenceBanner, remapRagCitations, stripInternalTags,
     clampToSentence, lintTemporal, recencyWeightQueries, extractDateFromUrl,
+    lintCompliance, addTradeTableFraming,
     type EntityAliases,
 } from './reportQaGates';
 import { searchFilings, type SECFiling } from './secEdgarService';
@@ -4586,6 +4587,9 @@ export const performDeepResearch = async (
     // provenance are publication-gate inputs.
     const temporalViolations = lintTemporal(markdown, new Date());
 
+    // P0-5 compliance lint: fabricated third-party attributions block render.
+    const complianceViolations = lintCompliance(markdown);
+
     // Citation-attribution verifier (NLI-lite): per cited sentence, check
     // whether a key token from the sentence appears in the specific source
     // it references. Deterministic; zero LLM cost.
@@ -4689,6 +4693,7 @@ export const performDeepResearch = async (
         revisorAccepted: revisions.editsApplied,
         elapsedPeriodEstimates: temporalViolations.filter(v => v.kind === 'elapsed_period_estimate').length,
         unprovenancedPriceDates: temporalViolations.filter(v => v.kind === 'unprovenanced_price_date').length,
+        thirdPartyAttributions: complianceViolations.length,
     });
 
     // W2b: a run without live web sources can never claim better than Low —
@@ -4743,7 +4748,9 @@ export const performDeepResearch = async (
     // 1–N position (RAG entries follow web + SEC in the citations array), and
     // internal pipeline tags are stripped before anything reaches a renderer.
     const ragCitationOffset = Math.min(webSources.length, 50) + secFilings.length;
-    const renderMarkdown = stripInternalTags(remapRagCitations(markdown, ragCitationOffset));
+    // P0-5: trade-expression tables get a standard framing line.
+    const renderMarkdown = addTradeTableFraming(
+        stripInternalTags(remapRagCitations(markdown, ragCitationOffset)));
 
     // P0-4: confidence banner at the very top — cover + above exec summary.
     const finalMarkdown = buildConfidenceBanner(confidence, publicationGates.violations)

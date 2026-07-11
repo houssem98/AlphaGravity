@@ -316,6 +316,50 @@ describe('P0-2 retrieval recency helpers', () => {
     });
 });
 
+// ─── QA-7 (P0-5) compliance lint ────────────────────────────────────────────
+
+import { lintCompliance, addTradeTableFraming, TRADE_TABLE_FRAMING } from './reportQaGates';
+
+describe('regression test 8 — fabricated third-party attribution fails the build', () => {
+    it('the exact string from the shipped report is caught', () => {
+        const v = lintCompliance('Entry $980, target $1,150.\n\nSource: Goldman Sachs Research estimates');
+        expect(v).toHaveLength(1);
+        expect(v[0].excerpt).toContain('Goldman Sachs Research estimates');
+    });
+
+    it('"per <bank> research" variant is caught', () => {
+        expect(lintCompliance('valuation per Morgan research suggests upside').length).toBe(1);
+    });
+
+    it('our standardized source line passes', () => {
+        expect(lintCompliance('Source: Market Intelligence AI estimates; company filings; cited sources.')).toHaveLength(0);
+    });
+
+    it('gate blocks on third-party attributions', () => {
+        const r = evaluatePublicationGates({ ...CLEAN_GATES, thirdPartyAttributions: 1 });
+        expect(r.passed).toBe(false);
+        expect(r.maxConfidence).toBe('Low');
+    });
+});
+
+describe('P0-5 trade-table framing', () => {
+    const table = '| Expression | Entry | Target | Stop-Loss |\n|---|---|---|---|\n| Long BLK | $980 | $1150 | $890 |';
+
+    it('framing line inserted above a trade table', () => {
+        const out = addTradeTableFraming(`## Trade Expressions\n\n${table}`);
+        const lines = out.split('\n');
+        const idx = lines.findIndex(l => l.startsWith('|') && l.includes('Expression'));
+        expect(lines[idx - 2]).toBe(TRADE_TABLE_FRAMING);
+    });
+
+    it('non-trade tables untouched; no double-framing', () => {
+        const plain = '| Metric | Value |\n|---|---|\n| Revenue | $5B |';
+        expect(addTradeTableFraming(plain)).toBe(plain);
+        const once = addTradeTableFraming(addTradeTableFraming(`${TRADE_TABLE_FRAMING}\n\n${table}`));
+        expect(once.split('\n').filter(l => l.includes(TRADE_TABLE_FRAMING))).toHaveLength(1);
+    });
+});
+
 // ─── QA-5 (P0-1) title hygiene ──────────────────────────────────────────────
 
 import { normalizeDisplaySubtitle } from './reportQaGates';

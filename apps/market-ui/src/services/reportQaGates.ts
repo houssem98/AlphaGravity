@@ -230,6 +230,8 @@ export interface PublicationGateInput {
     // P0-2 temporal linter (optional — 0 when linter not run)
     elapsedPeriodEstimates?: number;   // "our FY2025 estimate" in a 2026 report
     unprovenancedPriceDates?: number;  // "Prices as of <date>" without tool provenance
+    // P0-5 compliance lint (optional)
+    thirdPartyAttributions?: number;   // "Source: <bank> Research estimates"
 }
 
 export interface GateViolation {
@@ -284,6 +286,14 @@ export function evaluatePublicationGates(i: PublicationGateInput): PublicationGa
             gate: 'stale_sources',
             detail: `${Math.round(i.staleSourceRatio * 100)}% of web sources stale/archival/undated (> 40%)`,
             severity: 'warn',
+        });
+        lower('Low');
+    }
+    if ((i.thirdPartyAttributions ?? 0) > 0) {
+        violations.push({
+            gate: 'third_party_attribution',
+            detail: `${i.thirdPartyAttributions} fabricated third-party research attribution(s)`,
+            severity: 'block',
         });
         lower('Low');
     }
@@ -453,6 +463,52 @@ export function extractDateFromUrl(url: string): string | null {
     if (month < 1 || month > 12) return null;
     const day = d ? Math.min(Math.max(parseInt(d, 10), 1), 28) : 1;
     return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// ─── Compliance lint (spec P0-5) ────────────────────────────────────────────
+// "Source: Goldman Sachs Research estimates" on AI-generated price targets is
+// a fabricated third-party attribution — a regulatory hazard, not a typo.
+
+export interface ComplianceViolation {
+    kind: 'third_party_attribution';
+    excerpt: string;
+}
+
+const THIRD_PARTY_ATTRIBUTION_RE =
+    /\b[A-Z][A-Za-z&.]*(?:\s+[A-Z][A-Za-z&.]*){0,3}\s+Research\s+estimates\b|\bper\s+[A-Z][A-Za-z]+\s+research\b/g;
+
+export function lintCompliance(markdown: string): ComplianceViolation[] {
+    const out: ComplianceViolation[] = [];
+    for (const m of markdown.matchAll(THIRD_PARTY_ATTRIBUTION_RE)) {
+        if (m[0].startsWith('Market Intelligence')) continue;   // our own standardized line
+        out.push({ kind: 'third_party_attribution', excerpt: m[0] });
+    }
+    return out;
+}
+
+// Standard framing line inserted above any trade-expression table (spec P0-5:
+// price targets/stop-losses must never sit unframed next to the disclaimer).
+export const TRADE_TABLE_FRAMING =
+    '*Illustrative expressions, not investment advice; see disclaimer.*';
+
+const TRADE_HEADER_RE = /\|.*(expression|entry|target|stop.?loss|direction).*\|/i;
+
+export function addTradeTableFraming(markdown: string): string {
+    const lines = markdown.split('\n');
+    const out: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const isTableHeader = line.trim().startsWith('|')
+            && TRADE_HEADER_RE.test(line)
+            && /^\s*\|[\s|:-]+\|\s*$/.test(lines[i + 1] ?? '');
+        const alreadyFramed = out.length > 0
+            && out.slice(-3).some(l => l.includes(TRADE_TABLE_FRAMING));
+        if (isTableHeader && !alreadyFramed) {
+            out.push(TRADE_TABLE_FRAMING, '');
+        }
+        out.push(line);
+    }
+    return out.join('\n');
 }
 
 // ─── Display subtitle normalization (spec P0-1) ─────────────────────────────
