@@ -7,7 +7,7 @@
 // is structurally impossible. Any LLM failure → default design, export
 // never blocks.
 
-import { parseJudgeJson } from '../../eval/rubric';
+import { parseJudgeJson } from './evalRubric';
 import { llmChat } from './selfImprovementHarness';
 import type { ExhibitSpec } from './reportQaGates';
 

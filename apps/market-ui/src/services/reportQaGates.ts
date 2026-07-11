@@ -573,7 +573,7 @@ const UNIT_LABELS: Record<string, string> = {
 export type ExhibitClaim = Pick<NumericClaim, 'entity' | 'metric' | 'period' | 'value' | 'unit' | 'sourceIds'>;
 
 export function buildExhibits(claims: ExhibitClaim[], max = 3): ExhibitSpec[] {
-    const groups = new Map<string, NumericClaim[]>();
+    const groups = new Map<string, ExhibitClaim[]>();
     for (const c of claims) {
         if (c.metric === 'other' || c.value <= 0) continue;
         const key = `${c.metric}|${c.unit}`;
@@ -582,7 +582,7 @@ export function buildExhibits(claims: ExhibitClaim[], max = 3): ExhibitSpec[] {
     const specs: ExhibitSpec[] = [];
     for (const [key, group] of groups) {
         // One bar per entity — keep the first claim seen for each.
-        const byEntity = new Map<string, NumericClaim>();
+        const byEntity = new Map<string, ExhibitClaim>();
         for (const c of group) if (!byEntity.has(c.entity)) byEntity.set(c.entity, c);
         if (byEntity.size < 2) continue;
         const [metric, unit] = key.split('|');

@@ -2,7 +2,7 @@
 // Runs performDeepResearch in a loop, judge-scores each iteration, re-runs with feedback until passing or max iterations.
 // Used by: npm run eval:loop, LOOP_SELF_IMPROVE.sh
 
-import { buildJudgePrompt, buildCitationSpotPrompt, parseJudgeJson, type JudgeScores } from '../../eval/rubric';
+import { buildJudgePrompt, buildCitationSpotPrompt, parseJudgeJson, type JudgeScores } from './evalRubric';
 import type { ResearchModelId } from './deepResearchService';
 
 const API = process.env.VITE_API_URL || 'http://localhost:3002';
@@ -93,13 +93,13 @@ async function judgeCall(prompt: string): Promise<string> {
     return (await res.json()).text ?? '';
 }
 
-function avgScore(judge: JudgeScores | undefined): number {
+function avgScore(judge: JudgeScores | null | undefined): number {
     if (!judge) return 0;
     const vals = [judge.comprehensiveness, judge.insight, judge.instruction_following, judge.readability];
     return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
-function minScore(judge: JudgeScores | undefined): number {
+function minScore(judge: JudgeScores | null | undefined): number {
     if (!judge) return 0;
     const vals = [judge.comprehensiveness, judge.insight, judge.instruction_following, judge.readability];
     return Math.min(...vals);
@@ -185,7 +185,10 @@ export async function runSelfImprovementHarness(
             }
         }
 
-        const iterResult: IterationResult = { iteration: iter, ok: !!report, wallMs, report, judge, citationSpot };
+        const iterResult: IterationResult = {
+            iteration: iter, ok: !!report, wallMs, report,
+            judge: judge ?? undefined, citationSpot: citationSpot ?? undefined,
+        };
         iterations.push(iterResult);
 
         const min = minScore(judge);

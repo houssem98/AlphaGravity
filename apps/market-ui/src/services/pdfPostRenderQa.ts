@@ -55,19 +55,19 @@ export async function extractPdfPageTexts(blob: Blob): Promise<string[]> {
     const pdfjs = await import('pdfjs-dist');
     if (!pdfjs.GlobalWorkerOptions.workerSrc) {
         // Vite serves the worker as an asset URL; exports are rare, lazy is fine.
-        // @ts-expect-error — Vite ?url import has no type declaration
         const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
         pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
     }
     const data = new Uint8Array(await blob.arrayBuffer());
-    const doc = await pdfjs.getDocument({ data, disableFontFace: true }).promise;
+    const loadingTask = pdfjs.getDocument({ data, disableFontFace: true });
+    const doc = await loadingTask.promise;
     const pages: string[] = [];
     for (let p = 1; p <= doc.numPages; p++) {
         const page = await doc.getPage(p);
         const content = await page.getTextContent();
         pages.push(content.items.map((it: any) => it.str ?? '').join(' '));
     }
-    await doc.destroy();
+    await loadingTask.destroy();
     return pages;
 }
 

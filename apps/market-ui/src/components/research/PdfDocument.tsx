@@ -665,8 +665,10 @@ function PageFooter({ year }: { year: number }) {
 
 interface TableTheme { design: TableDesign; accent: string }
 
+import type { Style } from '@react-pdf/types';
+
 function RenderBlocks({ blocks, bodyStyle = {}, tableTheme }: {
-    blocks: ParsedBlock[]; bodyStyle?: object; tableTheme?: TableTheme;
+    blocks: ParsedBlock[]; bodyStyle?: Style; tableTheme?: TableTheme;
 }) {
     return (
         <>
@@ -1056,7 +1058,8 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
                                         <Text style={s.refSECBadge}>SEC EDGAR</Text>
                                     )}
                                     <Link src={c.url} style={{ textDecoration: 'none' }}>
-                                        <Text style={s.refUrl} maxLines={1}>{c.url}</Text>
+                                        {/* maxLines is runtime-supported; v4 typings lag behind */}
+                                        <Text style={s.refUrl} {...({ maxLines: 1 } as object)}>{c.url}</Text>
                                     </Link>
                                 </View>
                             </View>
