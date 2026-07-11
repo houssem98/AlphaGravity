@@ -541,6 +541,37 @@ export function buildCoverageDisclosure(gaps: CoverageGap[]): string {
     return `\n\n> **Coverage disclosure:** No internal documents available for ${missing.map(g => g.ticker).join(', ')}; analysis relies on web sources.\n`;
 }
 
+// ─── Telemetry consistency (spec P1-6) ──────────────────────────────────────
+// One struct feeds cover, methodology, and references — the audited report
+// claimed "172 sources" on the cover, "0 SEC filings" in methodology, and had
+// sec.gov 10-Ks all through the references. sec.gov URLs count as SEC
+// regardless of how the source was labeled upstream.
+
+export function isSecEdgarUrl(url: string): boolean {
+    return /sec\.gov\/(?:Archives\/)?edgar/i.test(url);
+}
+
+export interface ReportStats {
+    sourcesAnalyzed: number;   // everything the pipeline ingested
+    sourcesCited: number;      // references entries — sources contributing facts
+    web: number;
+    sec: number;
+    rag: number;
+}
+
+export function deriveReportStats(
+    citations: Array<{ source: string; url: string }>,
+    sourcesAnalyzed: number,
+): ReportStats {
+    let web = 0, sec = 0, rag = 0;
+    for (const c of citations) {
+        if (c.source === 'SEC EDGAR' || isSecEdgarUrl(c.url)) sec += 1;
+        else if (c.source === 'Gravity RAG') rag += 1;
+        else web += 1;
+    }
+    return { sourcesAnalyzed, sourcesCited: citations.length, web, sec, rag };
+}
+
 // ─── Estimate discipline (spec P1-5) ────────────────────────────────────────
 // "$400–600M Aladdin ACV uplift" with zero shown work is invented precision.
 // Every "we estimate" needs a one-line method (inputs + arithmetic) or an

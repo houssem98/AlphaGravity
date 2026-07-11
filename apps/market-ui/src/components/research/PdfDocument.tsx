@@ -11,7 +11,7 @@ import {
     parseMarkdown, parseSections, parseInlineSegments, stripMd,
     type ParsedBlock,
 } from './pdfMarkdown';
-import { normalizeDisplaySubtitle } from '../../services/reportQaGates';
+import { normalizeDisplaySubtitle, deriveReportStats, isSecEdgarUrl } from '../../services/reportQaGates';
 import { tierOf } from '../../services/tavilyService';
 
 Font.registerHyphenationCallback(word => [word]);
@@ -723,6 +723,8 @@ export default function PdfDocument({ report, showConfidential = false }: Props)
     });
     const year = new Date().getFullYear();
     const sections = parseSections(report.markdown);
+    // P1-6: cover, exec summary, and references all read from ONE struct.
+    const stats = deriveReportStats(report.citations, report.metadata.sourcesAnalyzed);
 
     const tocItems: string[] = [];
     const headingRegex = /^## (.+)$/gm;
@@ -784,18 +786,18 @@ export default function PdfDocument({ report, showConfidential = false }: Props)
                         {/* Stats strip */}
                         <View style={s.coverStats}>
                             <View style={s.coverStat}>
-                                <Text style={s.coverStatValue}>{report.metadata.sourcesAnalyzed}</Text>
-                                <Text style={s.coverStatLabel}>Sources</Text>
+                                <Text style={s.coverStatValue}>{stats.sourcesAnalyzed}</Text>
+                                <Text style={s.coverStatLabel}>Sources Analyzed</Text>
+                            </View>
+                            <View style={s.coverStatDivider} />
+                            <View style={s.coverStat}>
+                                <Text style={s.coverStatValue}>{stats.sourcesCited}</Text>
+                                <Text style={s.coverStatLabel}>Sources Cited</Text>
                             </View>
                             <View style={s.coverStatDivider} />
                             <View style={s.coverStat}>
                                 <Text style={s.coverStatValue}>{report.metadata.estimatedReadTime}</Text>
                                 <Text style={s.coverStatLabel}>Min Read</Text>
-                            </View>
-                            <View style={s.coverStatDivider} />
-                            <View style={s.coverStat}>
-                                <Text style={s.coverStatValue}>{report.citations.length}</Text>
-                                <Text style={s.coverStatLabel}>Citations</Text>
                             </View>
                         </View>
                     </View>
@@ -847,16 +849,16 @@ export default function PdfDocument({ report, showConfidential = false }: Props)
                         {/* Mini stats strip inside card */}
                         <View style={s.execStatsRow}>
                             <View style={s.execStat}>
-                                <Text style={s.execStatValue}>{report.metadata.sourcesAnalyzed}</Text>
+                                <Text style={s.execStatValue}>{stats.sourcesAnalyzed}</Text>
                                 <Text style={s.execStatLabel}>Sources Analyzed</Text>
                             </View>
                             <View style={s.execStat}>
-                                <Text style={s.execStatValue}>{report.metadata.estimatedReadTime}m</Text>
-                                <Text style={s.execStatLabel}>Read Time</Text>
+                                <Text style={s.execStatValue}>{stats.sourcesCited}</Text>
+                                <Text style={s.execStatLabel}>Sources Cited</Text>
                             </View>
                             <View style={s.execStat}>
-                                <Text style={s.execStatValue}>{report.citations.length}</Text>
-                                <Text style={s.execStatLabel}>Citations</Text>
+                                <Text style={s.execStatValue}>{stats.sec}</Text>
+                                <Text style={s.execStatLabel}>SEC Filings</Text>
                             </View>
                         </View>
                     </View>
@@ -929,7 +931,7 @@ export default function PdfDocument({ report, showConfidential = false }: Props)
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                         {report.citations.map((c, i) => (
                             <View key={i} style={s.refCard}>
-                                <View style={[s.refBadge, { backgroundColor: c.source === 'SEC EDGAR' ? '#1E3A8A' : C.blue }]}>
+                                <View style={[s.refBadge, { backgroundColor: c.source === 'SEC EDGAR' || isSecEdgarUrl(c.url) ? '#1E3A8A' : C.blue }]}>
                                     <Text style={s.refBadgeText}>{i + 1}</Text>
                                 </View>
                                 <View style={{ flex: 1, minWidth: 0 }}>

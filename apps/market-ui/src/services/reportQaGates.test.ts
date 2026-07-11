@@ -524,6 +524,39 @@ describe('P1-5 estimate discipline', () => {
     });
 });
 
+// ─── QA-13 (P1-6) telemetry consistency ─────────────────────────────────────
+
+import { deriveReportStats, isSecEdgarUrl } from './reportQaGates';
+
+describe('P1-6 telemetry consistency', () => {
+    const citations = [
+        { source: 'Web', url: 'https://www.reuters.com/x' },
+        { source: 'Web', url: 'https://www.sec.gov/Archives/edgar/data/0001.htm' },   // the "0 SEC filings" classifier bug
+        { source: 'SEC EDGAR', url: 'https://www.sec.gov/Archives/edgar/data/0002.htm' },
+        { source: 'Gravity RAG', url: '' },
+    ];
+
+    it('sec.gov URLs count as SEC even when labeled Web', () => {
+        const stats = deriveReportStats(citations, 172);
+        expect(stats.sec).toBe(2);
+        expect(stats.web).toBe(1);
+        expect(stats.rag).toBe(1);
+    });
+
+    it('one struct: cited count == references length; breakdown sums', () => {
+        const stats = deriveReportStats(citations, 172);
+        expect(stats.sourcesCited).toBe(citations.length);
+        expect(stats.web + stats.sec + stats.rag).toBe(stats.sourcesCited);
+        expect(stats.sourcesAnalyzed).toBe(172);
+    });
+
+    it('isSecEdgarUrl matches Archives and bare edgar paths', () => {
+        expect(isSecEdgarUrl('https://www.sec.gov/Archives/edgar/data/x')).toBe(true);
+        expect(isSecEdgarUrl('https://efts.sec.gov/edgar/search')).toBe(true);
+        expect(isSecEdgarUrl('https://www.reuters.com/sec-story')).toBe(false);
+    });
+});
+
 // ─── QA-5 (P0-1) title hygiene ──────────────────────────────────────────────
 
 import { normalizeDisplaySubtitle } from './reportQaGates';
