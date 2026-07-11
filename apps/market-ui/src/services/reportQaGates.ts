@@ -360,6 +360,19 @@ export function scanCitationIntegrity(markdown: string, citationCount: number): 
     return { orphanPunctuation, unresolvedIds, ok: orphanPunctuation.length === 0 && unresolvedIds.length === 0 };
 }
 
+// ─── Sentence-safe clamp (spec P0-7 fix 3) ──────────────────────────────────
+// The exec-summary card must never render a mid-sentence char-slice ("…the
+// primary determinant of"). Cut at the last sentence boundary under the cap.
+
+export function clampToSentence(text: string, maxChars: number): string {
+    const t = text.trim();
+    if (t.length <= maxChars) return t;
+    const slice = t.slice(0, maxChars);
+    const lastEnd = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('! '), slice.lastIndexOf('? '),
+        slice.endsWith('.') ? slice.length - 1 : -1);
+    return lastEnd > 0 ? slice.slice(0, lastEnd + 1).trim() : slice.trim() + '…';
+}
+
 // ─── Gate runner ─────────────────────────────────────────────────────────────
 
 export function runEntityGate(

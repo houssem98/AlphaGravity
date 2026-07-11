@@ -7,13 +7,12 @@ import {
     StyleSheet,
 } from '@react-pdf/renderer';
 import type { ResearchReport } from '../../services/deepResearchService';
+import {
+    parseMarkdown, parseSections, parseInlineSegments, stripMd,
+    type ParsedBlock,
+} from './pdfMarkdown';
 
 Font.registerHyphenationCallback(word => [word]);
-
-function stripMd(s: string): string {
-    return s.replace(/\*\*\*/g, '').replace(/\*\*/g, '').replace(/\*/g, '')
-        .replace(/`([^`]+)`/g, '$1').replace(/\[(\d+)\]/g, '').trim();
-}
 
 /* ── Unified Color Palette (mirrors web app) ── */
 const C = {
@@ -618,86 +617,19 @@ const s = StyleSheet.create({
     },
 });
 
-/* ── Markdown parser ── */
-interface ParsedBlock {
-    type: 'h2' | 'h3' | 'h4' | 'p' | 'li' | 'blockquote' | 'hr' | 'table';
-    content: string;
-    cells?: string[][];
-}
-
-function parseMarkdown(md: string): ParsedBlock[] {
-    const lines = md.split('\n');
-    const blocks: ParsedBlock[] = [];
-    let tableRows: string[][] = [];
-    let inTable = false;
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) {
-            if (inTable && tableRows.length > 0) {
-                blocks.push({ type: 'table', content: '', cells: tableRows });
-                tableRows = []; inTable = false;
-            }
-            continue;
-        }
-        if (line.startsWith('|') && line.endsWith('|')) {
-            const cells = line.split('|').filter(Boolean).map(c => c.trim());
-            if (cells.every(c => /^[-:]+$/.test(c))) { inTable = true; continue; }
-            tableRows.push(cells); inTable = true; continue;
-        } else if (inTable && tableRows.length > 0) {
-            blocks.push({ type: 'table', content: '', cells: tableRows });
-            tableRows = []; inTable = false;
-        }
-        if (line.startsWith('#### ')) blocks.push({ type: 'h4', content: line.slice(5) });
-        else if (line.startsWith('### ')) blocks.push({ type: 'h3', content: line.slice(4) });
-        else if (line.startsWith('## ')) blocks.push({ type: 'h2', content: line.slice(3) });
-        else if (line.startsWith('> ')) blocks.push({ type: 'blockquote', content: line.slice(2) });
-        else if (line === '---') blocks.push({ type: 'hr', content: '' });
-        else if (line.startsWith('- ')) blocks.push({ type: 'li', content: line.slice(2) });
-        else if (/^\d+\.\s/.test(line)) blocks.push({ type: 'li', content: line.replace(/^\d+\.\s/, '') });
-        else blocks.push({ type: 'p', content: line });
-    }
-    if (tableRows.length > 0) blocks.push({ type: 'table', content: '', cells: tableRows });
-    return blocks;
-}
-
-/* ── Inline rich text ── */
+/* ── Inline rich text — maps pure segments to react-pdf components.
+     Citation markers [n] RENDER (small blue) instead of being stripped:
+     stripping them left "44.5% ." orphans on nearly every page (P0-6). ── */
 function renderInlineText(text: string): React.ReactNode[] {
-    const cleaned = text.replace(/\[(\d+)\]/g, '');
-    const parts: React.ReactNode[] = [];
-    let key = 0;
-    const regex = /\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)/g;
-    let lastIndex = 0;
-    let m;
-    while ((m = regex.exec(cleaned)) !== null) {
-        if (m.index > lastIndex) parts.push(<Text key={key++}>{cleaned.slice(lastIndex, m.index)}</Text>);
-        if (m[1]) parts.push(<Text key={key++} style={s.bold}>{m[1]}</Text>);
-        else if (m[2]) parts.push(<Text key={key++} style={s.codeInline}>{m[2]}</Text>);
-        else if (m[3] && m[4]) parts.push(
-            <Link key={key++} src={m[4]} style={{ color: C.blue, fontSize: 9 }}>{m[3]}</Link>
-        );
-        lastIndex = m.index + m[0].length;
-    }
-    if (lastIndex < cleaned.length) parts.push(<Text key={key++}>{cleaned.slice(lastIndex)}</Text>);
-    if (parts.length === 0) parts.push(<Text key={0}>{cleaned}</Text>);
-    return parts;
-}
-
-/* ── Section splitter ── */
-interface Section { title: string; blocks: ParsedBlock[] }
-function parseSections(markdown: string): Section[] {
-    const sections: Section[] = [];
-    const parts = markdown.split(/^(?=## )/m);
-    for (const part of parts) {
-        const trimmed = part.trim();
-        if (!trimmed) continue;
-        const m = trimmed.match(/^## (.+)$/m);
-        if (!m) continue;
-        const title = m[1].replace(/\*\*/g, '').replace(/\[(\d+)\]/g, '').trim();
-        const bodyMd = trimmed.substring(trimmed.indexOf('\n') + 1).trim();
-        sections.push({ title, blocks: parseMarkdown(bodyMd) });
-    }
-    return sections;
+    return parseInlineSegments(text).map((seg, key) => {
+        switch (seg.kind) {
+            case 'bold': return <Text key={key} style={s.bold}>{seg.text}</Text>;
+            case 'code': return <Text key={key} style={s.codeInline}>{seg.text}</Text>;
+            case 'link': return <Link key={key} src={seg.href!} style={{ color: C.blue, fontSize: 9 }}>{seg.text}</Link>;
+            case 'citation': return <Text key={key} style={{ color: C.blue, fontSize: 7 }}>{seg.text}</Text>;
+            default: return <Text key={key}>{seg.text}</Text>;
+        }
+    });
 }
 
 /* ── Sub-components ── */
@@ -749,17 +681,20 @@ function RenderBlocks({ blocks }: { blocks: ParsedBlock[] }) {
                     case 'hr': return (
                         <View key={i} style={{ height: 1, backgroundColor: C.gray100, marginVertical: 12 }} />
                     );
+                    // P0-7: rows never split across pages (wrap={false} +
+                    // minPresenceAhead) and cell text goes through the inline
+                    // parser so "**- EXPRESSION**" markdown can't render raw.
                     case 'table': return block.cells && block.cells.length > 0 ? (
                         <View key={i} style={s.table}>
-                            <View style={s.tableHeaderRow}>
+                            <View style={s.tableHeaderRow} wrap={false} minPresenceAhead={40}>
                                 {block.cells[0].map((cell, ci) => (
-                                    <Text key={ci} style={s.tableHeaderCell}>{cell}</Text>
+                                    <Text key={ci} style={s.tableHeaderCell}>{renderInlineText(cell)}</Text>
                                 ))}
                             </View>
                             {block.cells.slice(1).map((row, ri) => (
-                                <View key={ri} style={[s.tableRow, ri % 2 === 1 ? s.tableRowEven : {}]}>
+                                <View key={ri} style={[s.tableRow, ri % 2 === 1 ? s.tableRowEven : {}]} wrap={false} minPresenceAhead={24}>
                                     {row.map((cell, ci) => (
-                                        <Text key={ci} style={s.tableCell}>{cell}</Text>
+                                        <Text key={ci} style={s.tableCell}>{renderInlineText(cell)}</Text>
                                     ))}
                                 </View>
                             ))}
@@ -824,7 +759,19 @@ export default function PdfDocument({ report }: Props) {
 
                     {/* Main title area */}
                     <View>
-                        <Text style={s.coverBadge}>Deep Research Report</Text>
+                        {/* P0-4: confidence verdict on the cover, not page 27 */}
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                            <Text style={s.coverBadge}>Deep Research Report</Text>
+                            {report.metadata.confidence ? (
+                                <Text style={[s.coverBadge, {
+                                    color: report.metadata.confidence === 'High' ? '#34D399'
+                                        : report.metadata.confidence === 'Medium' ? '#FBBF24' : '#F87171',
+                                    borderColor: 'rgba(255,255,255,0.2)',
+                                }]}>
+                                    Confidence: {report.metadata.confidence}
+                                </Text>
+                            ) : null}
+                        </View>
                         <Text style={s.coverTitle}>{stripMd(report.title)}</Text>
                         <Text style={s.coverQuery}>{stripMd(report.query)}</Text>
                         <View style={s.coverDivider} />
@@ -987,7 +934,7 @@ export default function PdfDocument({ report }: Props) {
                                         <Text style={s.refSECBadge}>SEC EDGAR</Text>
                                     )}
                                     <Link src={c.url} style={{ textDecoration: 'none' }}>
-                                        <Text style={s.refUrl}>{c.url}</Text>
+                                        <Text style={s.refUrl} maxLines={1}>{c.url}</Text>
                                     </Link>
                                 </View>
                             </View>

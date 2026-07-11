@@ -21,7 +21,7 @@ import { queryGravityRAG, formatRAGSourcesForPrompt, formatRAGStructuredData, ty
 import {
     runEntityGate, buildSourceEntityIndex, evaluatePublicationGates,
     capConfidence, buildConfidenceBanner, remapRagCitations, stripInternalTags,
-    type EntityAliases,
+    clampToSentence, type EntityAliases,
 } from './reportQaGates';
 import { searchFilings, type SECFiling } from './secEdgarService';
 import { getCompanyOverview, type CompanyOverview } from './marketData';
@@ -4811,7 +4811,7 @@ export const performDeepResearch = async (
     const report: ResearchReport = {
         query,
         title: titleMatch ? titleMatch[1].replace(/\*\*/g, '').trim() : query,
-        summary: summaryMatch ? summaryMatch[1].trim().substring(0, 500) : '',
+        summary: summaryMatch ? clampToSentence(summaryMatch[1], 500) : '',
         markdown: finalMarkdown,
         citations,
         metadata: {
