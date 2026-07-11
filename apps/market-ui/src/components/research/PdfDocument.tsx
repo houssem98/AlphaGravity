@@ -11,7 +11,10 @@ import {
     parseMarkdown, parseSections, parseInlineSegments, stripMd,
     type ParsedBlock,
 } from './pdfMarkdown';
-import { normalizeDisplaySubtitle, deriveReportStats, isSecEdgarUrl } from '../../services/reportQaGates';
+import {
+    normalizeDisplaySubtitle, deriveReportStats, isSecEdgarUrl, buildExhibits,
+    type ExhibitSpec,
+} from '../../services/reportQaGates';
 import { tierOf } from '../../services/tavilyService';
 
 Font.registerHyphenationCallback(word => [word]);
@@ -709,6 +712,32 @@ function RenderBlocks({ blocks }: { blocks: ParsedBlock[] }) {
     );
 }
 
+/* ── Exhibit bar chart (P2-1) — plain Views, no SVG runtime needed ── */
+function Exhibit({ spec, index }: { spec: ExhibitSpec; index: number }) {
+    const maxValue = Math.max(...spec.bars.map(b => b.value));
+    return (
+        <View style={{ marginBottom: 16 }} wrap={false}>
+            <Text style={{ fontSize: 9, fontWeight: 700, color: C.darkLift, marginBottom: 6 }}>
+                Exhibit {index + 1}: {spec.title} ({spec.unit})
+            </Text>
+            {spec.bars.map((bar, i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+                    <Text style={{ width: 42, fontSize: 8, fontWeight: 700, color: C.gray600 }}>{bar.label}</Text>
+                    <View style={{ flex: 1, height: 10, backgroundColor: C.gray50, borderRadius: 2 }}>
+                        <View style={{
+                            width: `${Math.max((bar.value / maxValue) * 100, 2)}%`,
+                            height: 10, backgroundColor: ACCENTS[i % ACCENTS.length], borderRadius: 2,
+                        }} />
+                    </View>
+                    <Text style={{ width: 110, fontSize: 7, color: C.gray500, paddingLeft: 6 }}>
+                        {bar.value}{spec.unit}{bar.period ? ` · ${bar.period}` : ''}{bar.sourceIds.length ? ` [${bar.sourceIds.join('][')}]` : ''}
+                    </Text>
+                </View>
+            ))}
+        </View>
+    );
+}
+
 /* ── Main PDF Document ── */
 // P0-5: CONFIDENTIAL stamp is config-gated, default OFF — the report is built
 // from public sources; stamping it confidential was a compliance bug.
@@ -726,6 +755,8 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
     const sections = parseSections(report.markdown);
     // P1-6: cover, exec summary, and references all read from ONE struct.
     const stats = deriveReportStats(report.citations, report.metadata.sourcesAnalyzed);
+    // P2-1: exhibits from the NumericClaim store (empty when claims are thin).
+    const exhibits = buildExhibits(report.metadata.numericClaims ?? []);
 
     const tocItems: string[] = [];
     const headingRegex = /^## (.+)$/gm;
@@ -863,6 +894,14 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
                             </View>
                         </View>
                     </View>
+
+                    {/* P2-1: exhibits lead the analysis, right in the summary page */}
+                    {exhibits.length > 0 ? (
+                        <View style={{ marginTop: 6 }}>
+                            <Text style={s.sectionLabel}>Exhibits</Text>
+                            {exhibits.map((ex, i) => <Exhibit key={i} spec={ex} index={i} />)}
+                        </View>
+                    ) : null}
 
                     <PageFooter year={year} />
                 </Page>

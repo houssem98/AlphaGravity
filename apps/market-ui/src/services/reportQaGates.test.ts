@@ -524,6 +524,33 @@ describe('P1-5 estimate discipline', () => {
     });
 });
 
+// ─── QA-16 (P2-1) auto-exhibits ─────────────────────────────────────────────
+
+import { buildExhibits, type ExhibitClaim } from './reportQaGates';
+
+describe('P2-1 auto-exhibits from the NumericClaim store', () => {
+    const claim = (entity: string, metric: string, value: number, unit = 'usd_b'): ExhibitClaim =>
+        ({ entity, metric, period: 'Q1-2026', value, unit, sourceIds: ['3'] });
+
+    it('a (metric, unit) held by ≥2 entities becomes a cited exhibit', () => {
+        const specs = buildExhibits([
+            claim('BLK', 'revenue', 5.2), claim('STT', 'revenue', 3.1), claim('BLK', 'eps', 9.8, 'usd'),
+        ]);
+        expect(specs).toHaveLength(1);
+        expect(specs[0].title).toContain('Revenue');
+        expect(specs[0].bars.map(b => b.label)).toEqual(['BLK', 'STT']);   // sorted desc by value
+        expect(specs[0].bars[0].sourceIds).toEqual(['3']);
+    });
+
+    it('single-entity metrics and "other"/non-positive claims are skipped; caps at 3', () => {
+        expect(buildExhibits([claim('BLK', 'eps', 2.2, 'usd')])).toHaveLength(0);
+        expect(buildExhibits([claim('BLK', 'other', 5), claim('STT', 'other', 3)])).toHaveLength(0);
+        const many: ExhibitClaim[] = ['revenue', 'eps', 'aum', 'margin', 'fcf'].flatMap(m =>
+            [claim('BLK', m, 5), claim('STT', m, 3)]);
+        expect(buildExhibits(many)).toHaveLength(3);
+    });
+});
+
 // ─── QA-13 (P1-6) telemetry consistency ─────────────────────────────────────
 
 import { deriveReportStats, isSecEdgarUrl } from './reportQaGates';

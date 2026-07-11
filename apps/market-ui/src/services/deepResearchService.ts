@@ -531,6 +531,11 @@ export interface ResearchReport {
             duplicates: number;     // same (metric,period,value) on 2+ entities
             samples: string[];      // up to 5 short descriptions
         };
+        // P2-1: the NumericClaim store (capped) — exhibits render from this.
+        numericClaims?: Array<{
+            entity: string; metric: string; period: string;
+            value: number; unit: string; sourceIds: string[];
+        }>;
         publicationGates?: {
             passed: boolean;        // false = a blocker fired; confidence capped
             maxConfidence: Confidence;
@@ -4929,6 +4934,12 @@ export const performDeepResearch = async (
                 maxConfidence: publicationGates.maxConfidence,
                 violations: publicationGates.violations.map(v => ({ ...v })),
             },
+            numericClaims: entityGate.claims.length > 0
+                ? entityGate.claims.slice(0, 40).map(c => ({
+                    entity: c.entity, metric: c.metric, period: c.period,
+                    value: c.value, unit: c.unit, sourceIds: c.sourceIds,
+                }))
+                : undefined,
             entityGate: entityGate.claims.length > 0 || entityGate.misAttributedCount > 0 ? {
                 claims: entityGate.claims.length,
                 misattributed: entityGate.misattributed.length,

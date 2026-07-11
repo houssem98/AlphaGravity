@@ -541,6 +541,64 @@ export function buildCoverageDisclosure(gaps: CoverageGap[]): string {
     return `\n\n> **Coverage disclosure:** No internal documents available for ${missing.map(g => g.ticker).join(', ')}; analysis relies on web sources.\n`;
 }
 
+// ─── Auto-exhibits (spec P2-1) ──────────────────────────────────────────────
+// Institutional notes are exhibit-led; the audited report was 31 pages with
+// zero charts. Build comparison-bar specs from the NumericClaim store: any
+// (metric, unit) held by ≥2 entities becomes an exhibit, every bar cites its
+// claim's sources.
+
+export interface ExhibitBar {
+    label: string;         // entity ticker
+    value: number;
+    period: string;
+    sourceIds: string[];
+}
+
+export interface ExhibitSpec {
+    title: string;         // e.g. "Revenue — cross-entity comparison"
+    unit: string;
+    bars: ExhibitBar[];
+}
+
+const METRIC_LABELS: Record<string, string> = {
+    eps: 'EPS', revenue: 'Revenue', aum: 'AUM', margin: 'Margin', fcf: 'Free Cash Flow',
+    capacity: 'Capacity', nii: 'Net Interest Income', capex: 'Capex',
+    price_target: 'Price Target', market_share: 'Market Share', growth: 'Growth',
+};
+
+const UNIT_LABELS: Record<string, string> = {
+    usd_t: '$T', usd_b: '$B', usd_m: '$M', usd_k: '$K', usd: '$', pct: '%', bps: 'bps', x: '×',
+};
+
+export type ExhibitClaim = Pick<NumericClaim, 'entity' | 'metric' | 'period' | 'value' | 'unit' | 'sourceIds'>;
+
+export function buildExhibits(claims: ExhibitClaim[], max = 3): ExhibitSpec[] {
+    const groups = new Map<string, NumericClaim[]>();
+    for (const c of claims) {
+        if (c.metric === 'other' || c.value <= 0) continue;
+        const key = `${c.metric}|${c.unit}`;
+        groups.set(key, [...(groups.get(key) ?? []), c]);
+    }
+    const specs: ExhibitSpec[] = [];
+    for (const [key, group] of groups) {
+        // One bar per entity — keep the first claim seen for each.
+        const byEntity = new Map<string, NumericClaim>();
+        for (const c of group) if (!byEntity.has(c.entity)) byEntity.set(c.entity, c);
+        if (byEntity.size < 2) continue;
+        const [metric, unit] = key.split('|');
+        specs.push({
+            title: `${METRIC_LABELS[metric] ?? metric} — cross-entity comparison`,
+            unit: UNIT_LABELS[unit] ?? unit,
+            bars: [...byEntity.values()]
+                .sort((a, b) => b.value - a.value)
+                .map(c => ({ label: c.entity, value: c.value, period: c.period, sourceIds: c.sourceIds })),
+        });
+    }
+    return specs
+        .sort((a, b) => b.bars.length - a.bars.length)
+        .slice(0, max);
+}
+
 // ─── Telemetry consistency (spec P1-6) ──────────────────────────────────────
 // One struct feeds cover, methodology, and references — the audited report
 // claimed "172 sources" on the cover, "0 SEC filings" in methodology, and had
