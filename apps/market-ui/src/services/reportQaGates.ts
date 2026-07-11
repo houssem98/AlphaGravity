@@ -465,6 +465,38 @@ export function extractDateFromUrl(url: string): string | null {
     return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+// ─── Retrieval scope guard (spec P1-1) ──────────────────────────────────────
+// Coverage universe × corpus check: the audited report covered BLK/V/STT but
+// every RAG passage was MRSH/BAC/PAYX/ARES — and the writer force-fit them
+// instead of admitting the gap. A coverage entity with zero RAG docs must be
+// backed by SEC filings or get an explicit disclosure line.
+
+export interface CoverageGap {
+    ticker: string;
+    hasSec: boolean;   // SEC filings for this entity exist in the run's corpus
+}
+
+export function checkRagCoverage(
+    coverageTickers: string[],
+    ragSources: Array<{ ticker: string }>,
+    secDocs: Array<{ company: string }>,
+    aliases: EntityAliases,
+): CoverageGap[] {
+    const ragTickers = new Set(ragSources.map(s => s.ticker).filter(Boolean));
+    return coverageTickers
+        .filter(t => !ragTickers.has(t))
+        .map(t => ({
+            ticker: t,
+            hasSec: secDocs.some(d => findEntities(d.company, { [t]: aliases[t] ?? [t] }).length > 0),
+        }));
+}
+
+export function buildCoverageDisclosure(gaps: CoverageGap[]): string {
+    const missing = gaps.filter(g => !g.hasSec);
+    if (missing.length === 0) return '';
+    return `\n\n> **Coverage disclosure:** No internal documents available for ${missing.map(g => g.ticker).join(', ')}; analysis relies on web sources.\n`;
+}
+
 // ─── Compliance lint (spec P0-5) ────────────────────────────────────────────
 // "Source: Goldman Sachs Research estimates" on AI-generated price targets is
 // a fabricated third-party attribution — a regulatory hazard, not a typo.

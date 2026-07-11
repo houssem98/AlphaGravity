@@ -22,7 +22,7 @@ import {
     runEntityGate, buildSourceEntityIndex, evaluatePublicationGates,
     capConfidence, buildConfidenceBanner, remapRagCitations, stripInternalTags,
     clampToSentence, lintTemporal, recencyWeightQueries, extractDateFromUrl,
-    lintCompliance, addTradeTableFraming,
+    lintCompliance, addTradeTableFraming, checkRagCoverage, buildCoverageDisclosure,
     type EntityAliases,
 } from './reportQaGates';
 import { searchFilings, type SECFiling } from './secEdgarService';
@@ -4752,10 +4752,19 @@ export const performDeepResearch = async (
     const renderMarkdown = addTradeTableFraming(
         stripInternalTags(remapRagCitations(markdown, ragCitationOffset)));
 
+    // P1-1: coverage entities with zero RAG docs and no SEC filings get an
+    // explicit disclosure instead of force-fit cross-entity analogies.
+    const coverageDisclosure = buildCoverageDisclosure(checkRagCoverage(
+        blueprint.tickers,
+        ragResult.available ? ragResult.sources : [],
+        secFilings.map(f => ({ company: f.company })),
+        entityAliases,
+    ));
+
     // P0-4: confidence banner at the very top — cover + above exec summary.
     const finalMarkdown = buildConfidenceBanner(confidence, publicationGates.violations)
         + (webDead ? buildNoWebBanner(secFilings.length, ragSourceCount) : '')
-        + renderMarkdown + limitations.section + methodologyMd;
+        + renderMarkdown + coverageDisclosure + limitations.section + methodologyMd;
 
     const auditTail = claimAudit
         ? ` · ${claimAudit.supported}/${claimAudit.audited} claims supported`

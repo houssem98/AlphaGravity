@@ -360,6 +360,34 @@ describe('P0-5 trade-table framing', () => {
     });
 });
 
+// ─── QA-8 (P1-1) retrieval scope guard ──────────────────────────────────────
+
+import { checkRagCoverage, buildCoverageDisclosure } from './reportQaGates';
+
+describe('regression test 11 — RAG corpus has zero docs for a coverage entity', () => {
+    it('gap without SEC coverage → disclosure inserted', () => {
+        const gaps = checkRagCoverage(
+            ['BLK', 'STT'],
+            [{ ticker: 'PAYX' }, { ticker: 'BAC' }],   // zero coverage overlap (the real bug)
+            [],                                          // no SEC filings either
+            ALIASES,
+        );
+        expect(gaps).toHaveLength(2);
+        const disclosure = buildCoverageDisclosure(gaps);
+        expect(disclosure).toContain('No internal documents available for BLK, STT');
+    });
+
+    it('gap covered by SEC filings → no disclosure (EDGAR branch)', () => {
+        const gaps = checkRagCoverage(['STT'], [], [{ company: 'State Street Corporation' }], ALIASES);
+        expect(gaps[0].hasSec).toBe(true);
+        expect(buildCoverageDisclosure(gaps)).toBe('');
+    });
+
+    it('entity present in RAG → no gap', () => {
+        expect(checkRagCoverage(['BLK'], [{ ticker: 'BLK' }], [], ALIASES)).toHaveLength(0);
+    });
+});
+
 // ─── QA-5 (P0-1) title hygiene ──────────────────────────────────────────────
 
 import { normalizeDisplaySubtitle } from './reportQaGates';
