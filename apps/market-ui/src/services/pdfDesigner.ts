@@ -21,14 +21,25 @@ export interface PullQuote {
     text: string;      // MUST be a verbatim substring of the report markdown
 }
 
+export interface TableDesign {
+    headerAccent: boolean;       // header row tinted with the design accent (vs house navy)
+    zebra: boolean;              // alternating row shading
+    highlightColumns: string[];  // ≤2 header names whose cells render emphasized
+}
+
+export type ExhibitStyle = 'monochrome' | 'categorical';
+
 export interface DesignSpec {
     tone: ReportTone;
-    accent: string;            // hex from ALLOWED_ACCENTS only
+    accent: string;              // hex from ALLOWED_ACCENTS only
     density: Density;
-    coverKicker: string;       // cover badge text, ≤32 chars
-    abstract: string;          // exec-summary card text, 2–3 sentences ≤500 chars
-    pullQuotes: PullQuote[];   // ≤2, verbatim-enforced
-    exhibitTitles: string[];   // override per exhibit, each ≤60 chars
+    coverKicker: string;         // cover badge text, ≤32 chars
+    abstract: string;            // exec-summary card text, 2–3 sentences ≤500 chars
+    pullQuotes: PullQuote[];     // ≤2, verbatim-enforced
+    exhibitTitles: string[];     // override per exhibit, each ≤60 chars
+    tableDesign: TableDesign;
+    exhibitStyle: ExhibitStyle;  // monochrome = all bars in the design accent
+    exhibitPick: number[];       // which exhibits ship, in what order (≤3, valid indices)
 }
 
 export const ALLOWED_ACCENTS = [
@@ -48,7 +59,24 @@ export function defaultDesignSpec(tone: ReportTone = 'neutral'): DesignSpec {
         abstract: '',
         pullQuotes: [],
         exhibitTitles: [],
+        tableDesign: { headerAccent: false, zebra: true, highlightColumns: [] },
+        exhibitStyle: 'categorical',
+        exhibitPick: [],
     };
+}
+
+// Deterministic table column sizing (spec P0-7: "column widths by content
+// class — ticker/direction narrow, thesis wide"). Pure layout math, no LLM:
+// a column's flex grows with the longest cell it has to fit.
+export function computeColumnFlex(cells: string[][]): number[] {
+    if (cells.length === 0) return [];
+    const cols = cells[0].length;
+    const flex: number[] = [];
+    for (let c = 0; c < cols; c++) {
+        const maxLen = Math.max(...cells.map(row => (row[c] ?? '').length));
+        flex.push(maxLen <= 8 ? 0.6 : maxLen >= 60 ? 2 : 1);
+    }
+    return flex;
 }
 
 // ─── Deterministic validator — the safety rail ──────────────────────────────
@@ -112,7 +140,37 @@ export function validateDesignSpec(
         ? (r.exhibitTitles as unknown[]).slice(0, exhibitCount).map(t => sanitizeLine(t, 60))
         : [];
 
-    return { spec: { tone, accent, density, coverKicker, abstract, pullQuotes, exhibitTitles }, violations };
+    // Table design — booleans coerced, highlight columns sanitized + capped.
+    const td = (r.tableDesign ?? {}) as Record<string, unknown>;
+    const tableDesign: TableDesign = {
+        headerAccent: td.headerAccent === true,
+        zebra: td.zebra !== false,
+        highlightColumns: Array.isArray(td.highlightColumns)
+            ? (td.highlightColumns as unknown[]).slice(0, 2).map(h => sanitizeLine(h, 30)).filter(Boolean)
+            : [],
+    };
+
+    const exhibitStyle: ExhibitStyle = r.exhibitStyle === 'monochrome' ? 'monochrome' : 'categorical';
+
+    let exhibitPick: number[] = [];
+    if (Array.isArray(r.exhibitPick)) {
+        exhibitPick = Array.from(new Set(
+            (r.exhibitPick as unknown[])
+                .map(n => (typeof n === 'number' && Number.isInteger(n) ? n : -1))
+                .filter(n => n >= 0 && n < exhibitCount),
+        )).slice(0, 3);
+        if (exhibitPick.length !== (r.exhibitPick as unknown[]).length) {
+            violations.push('exhibitPick contained invalid/duplicate indices — cleaned');
+        }
+    }
+
+    return {
+        spec: {
+            tone, accent, density, coverKicker, abstract, pullQuotes, exhibitTitles,
+            tableDesign, exhibitStyle, exhibitPick,
+        },
+        violations,
+    };
 }
 
 // ─── Prompts ─────────────────────────────────────────────────────────────────
@@ -144,13 +202,16 @@ Your ONLY levers (anything else is ignored):
 - abstract: 2–3 COMPLETE sentences (≤500 chars) distilling the report for the executive-summary card — grounded ONLY in what the report says
 - pullQuotes: up to 2 — each MUST be an EXACT verbatim sentence copied character-for-character from the report (they get visual emphasis; you may not rewrite them), 40–240 chars, with the section title it belongs to
 - exhibitTitles: sharper title per exhibit (≤60 chars each), same order as listed
+- tableDesign: {"headerAccent": bool (tint table headers with the accent — good when tables carry the thesis), "zebra": bool (row striping — good for wide tables), "highlightColumns": up to 2 column header names whose cells deserve emphasis (e.g. "Target", "Upside")}
+- exhibitStyle: "monochrome" (all bars in the accent — one story) | "categorical" (one color per entity — comparison story)
+- exhibitPick: array of exhibit indices (0-based, from the EXHIBITS list) to include, in display order, ≤3 — drop exhibits that don't advance the thesis; empty array = keep all
 
 REPORT TITLE: ${title}
 
 ${reportDigest(markdown, exhibits)}
 ${feedback ? `\n--- REVISION FEEDBACK (fix these) ---\n${feedback}\n` : ''}
 Return ONLY valid JSON:
-{"tone": "...", "accent": "#......", "density": "...", "coverKicker": "...", "abstract": "...", "pullQuotes": [{"section": "...", "text": "..."}], "exhibitTitles": ["..."]}`;
+{"tone": "...", "accent": "#......", "density": "...", "coverKicker": "...", "abstract": "...", "pullQuotes": [{"section": "...", "text": "..."}], "exhibitTitles": ["..."], "tableDesign": {"headerAccent": false, "zebra": true, "highlightColumns": ["..."]}, "exhibitStyle": "categorical", "exhibitPick": [0]}`;
 }
 
 export interface DesignCritique {

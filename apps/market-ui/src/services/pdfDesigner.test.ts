@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     validateDesignSpec, runDesignLoop, defaultDesignSpec, ALLOWED_ACCENTS,
-    type DesignSpec,
+    computeColumnFlex,
 } from './pdfDesigner';
 
 const MARKDOWN = [
@@ -70,6 +70,47 @@ describe('validator — the bounded design surface', () => {
         }, MARKDOWN, 1);
         expect(spec.pullQuotes.length).toBeLessThanOrEqual(2);
         expect(spec.exhibitTitles).toHaveLength(1);
+    });
+});
+
+describe('table + graphic design knobs', () => {
+    it('tableDesign coerced safely; highlight columns sanitized and capped at 2', () => {
+        const { spec } = validateDesignSpec({
+            ...GOOD_SPEC,
+            tableDesign: { headerAccent: true, zebra: false, highlightColumns: ['Target', '[Upside]', 'Entry'] },
+        }, MARKDOWN, 1);
+        expect(spec.tableDesign.headerAccent).toBe(true);
+        expect(spec.tableDesign.zebra).toBe(false);
+        expect(spec.tableDesign.highlightColumns).toEqual(['Target', 'Upside']);
+    });
+
+    it('missing tableDesign → safe defaults (zebra on, no accent header)', () => {
+        const { spec } = validateDesignSpec(GOOD_SPEC, MARKDOWN, 1);
+        expect(spec.tableDesign).toEqual({ headerAccent: false, zebra: true, highlightColumns: [] });
+        expect(spec.exhibitStyle).toBe('categorical');
+        expect(spec.exhibitPick).toEqual([]);
+    });
+
+    it('exhibitStyle enum-clamped; exhibitPick de-duped, bounds-checked, capped at 3', () => {
+        const { spec, violations } = validateDesignSpec({
+            ...GOOD_SPEC,
+            exhibitStyle: 'rainbow',
+            exhibitPick: [2, 2, 0, 9, -1, 1, 3],
+        }, MARKDOWN, 3);
+        expect(spec.exhibitStyle).toBe('categorical');
+        expect(spec.exhibitPick).toEqual([2, 0, 1]);
+        expect(violations.some(v => v.includes('exhibitPick'))).toBe(true);
+    });
+
+    it('computeColumnFlex: narrow tickers, wide thesis columns (P0-7 content classes)', () => {
+        const flex = computeColumnFlex([
+            ['Ticker', 'Direction', 'Thesis'],
+            ['BLK', 'Long', 'Aladdin platform compounding drives multi-year fee-revenue growth well beyond consensus estimates'],
+        ]);
+        expect(flex[0]).toBe(0.6);   // ≤8 chars
+        expect(flex[1]).toBe(1);     // medium ("Direction" header = 9 chars)
+        expect(flex[2]).toBe(2);     // ≥60 chars
+        expect(computeColumnFlex([])).toEqual([]);
     });
 });
 

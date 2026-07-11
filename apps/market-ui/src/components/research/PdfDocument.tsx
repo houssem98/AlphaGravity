@@ -16,7 +16,7 @@ import {
     type ExhibitSpec,
 } from '../../services/reportQaGates';
 import { tierOf } from '../../services/tavilyService';
-import type { DesignSpec } from '../../services/pdfDesigner';
+import { computeColumnFlex, type DesignSpec, type TableDesign } from '../../services/pdfDesigner';
 
 Font.registerHyphenationCallback(word => [word]);
 
@@ -663,7 +663,11 @@ function PageFooter({ year }: { year: number }) {
     );
 }
 
-function RenderBlocks({ blocks, bodyStyle = {} }: { blocks: ParsedBlock[]; bodyStyle?: object }) {
+interface TableTheme { design: TableDesign; accent: string }
+
+function RenderBlocks({ blocks, bodyStyle = {}, tableTheme }: {
+    blocks: ParsedBlock[]; bodyStyle?: object; tableTheme?: TableTheme;
+}) {
     return (
         <>
             {blocks.map((block, i) => {
@@ -688,24 +692,47 @@ function RenderBlocks({ blocks, bodyStyle = {} }: { blocks: ParsedBlock[]; bodyS
                         <View key={i} style={{ height: 1, backgroundColor: C.gray100, marginVertical: 12 }} />
                     );
                     // P0-7: rows never split across pages (wrap={false} +
-                    // minPresenceAhead) and cell text goes through the inline
-                    // parser so "**- EXPRESSION**" markdown can't render raw.
-                    case 'table': return block.cells && block.cells.length > 0 ? (
-                        <View key={i} style={s.table}>
-                            <View style={s.tableHeaderRow} wrap={false} minPresenceAhead={40}>
-                                {block.cells[0].map((cell, ci) => (
-                                    <Text key={ci} style={s.tableHeaderCell}>{renderInlineText(cell)}</Text>
-                                ))}
-                            </View>
-                            {block.cells.slice(1).map((row, ri) => (
-                                <View key={ri} style={[s.tableRow, ri % 2 === 1 ? s.tableRowEven : {}]} wrap={false} minPresenceAhead={24}>
-                                    {row.map((cell, ci) => (
-                                        <Text key={ci} style={s.tableCell}>{renderInlineText(cell)}</Text>
+                    // minPresenceAhead), cells go through the inline parser,
+                    // columns auto-size by content class. Design loop controls
+                    // header accent, zebra striping, and emphasized columns.
+                    case 'table': {
+                        if (!block.cells || block.cells.length === 0) return null;
+                        const flex = computeColumnFlex(block.cells);
+                        const td = tableTheme?.design;
+                        const headers = block.cells[0].map(h => h.toLowerCase());
+                        const emphasized = new Set<number>();
+                        for (const name of td?.highlightColumns ?? []) {
+                            const ci = headers.findIndex(h => h.includes(name.toLowerCase()));
+                            if (ci >= 0) emphasized.add(ci);
+                        }
+                        return (
+                            <View key={i} style={s.table}>
+                                <View
+                                    style={[s.tableHeaderRow, td?.headerAccent && tableTheme ? { backgroundColor: tableTheme.accent } : {}]}
+                                    wrap={false} minPresenceAhead={40}
+                                >
+                                    {block.cells[0].map((cell, ci) => (
+                                        <Text key={ci} style={[s.tableHeaderCell, { flex: flex[ci] ?? 1 }]}>{renderInlineText(cell)}</Text>
                                     ))}
                                 </View>
-                            ))}
-                        </View>
-                    ) : null;
+                                {block.cells.slice(1).map((row, ri) => (
+                                    <View
+                                        key={ri}
+                                        style={[s.tableRow, (td?.zebra ?? true) && ri % 2 === 1 ? s.tableRowEven : {}]}
+                                        wrap={false} minPresenceAhead={24}
+                                    >
+                                        {row.map((cell, ci) => (
+                                            <Text key={ci} style={[
+                                                s.tableCell,
+                                                { flex: flex[ci] ?? 1 },
+                                                emphasized.has(ci) ? { fontWeight: 700, color: C.textDark } : {},
+                                            ]}>{renderInlineText(cell)}</Text>
+                                        ))}
+                                    </View>
+                                ))}
+                            </View>
+                        );
+                    }
                     default: return null;
                 }
             })}
@@ -714,7 +741,7 @@ function RenderBlocks({ blocks, bodyStyle = {} }: { blocks: ParsedBlock[]; bodyS
 }
 
 /* ── Exhibit bar chart (P2-1) — plain Views, no SVG runtime needed ── */
-function Exhibit({ spec, index }: { spec: ExhibitSpec; index: number }) {
+function Exhibit({ spec, index, barColor }: { spec: ExhibitSpec; index: number; barColor?: string }) {
     const maxValue = Math.max(...spec.bars.map(b => b.value));
     return (
         <View style={{ marginBottom: 16 }} wrap={false}>
@@ -727,7 +754,7 @@ function Exhibit({ spec, index }: { spec: ExhibitSpec; index: number }) {
                     <View style={{ flex: 1, height: 10, backgroundColor: C.gray50, borderRadius: 2 }}>
                         <View style={{
                             width: `${Math.max((bar.value / maxValue) * 100, 2)}%`,
-                            height: 10, backgroundColor: ACCENTS[i % ACCENTS.length], borderRadius: 2,
+                            height: 10, backgroundColor: barColor ?? ACCENTS[i % ACCENTS.length], borderRadius: 2,
                         }} />
                     </View>
                     <Text style={{ width: 110, fontSize: 7, color: C.gray500, paddingLeft: 6 }}>
@@ -759,8 +786,13 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
     // P1-6: cover, exec summary, and references all read from ONE struct.
     const stats = deriveReportStats(report.citations, report.metadata.sourcesAnalyzed);
     // P2-1: exhibits from the NumericClaim store (empty when claims are thin).
-    const exhibits = buildExhibits(report.metadata.numericClaims ?? [])
+    // Design loop: retitle, then select/order (exhibitPick), then color style.
+    const allExhibits = buildExhibits(report.metadata.numericClaims ?? [])
         .map((ex, i) => design?.exhibitTitles[i] ? { ...ex, title: design.exhibitTitles[i] } : ex);
+    const exhibits = design && design.exhibitPick.length > 0
+        ? design.exhibitPick.map(i => allExhibits[i]).filter(Boolean)
+        : allExhibits;
+    const exhibitBarColor = design?.exhibitStyle === 'monochrome' ? design.accent : undefined;
 
     // Design-loop knobs (all validated upstream in pdfDesigner).
     const accents = design ? [design.accent, ...ACCENTS.filter(a => a !== design.accent)] : ACCENTS;
@@ -913,7 +945,7 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
                     {exhibits.length > 0 ? (
                         <View style={{ marginTop: 6 }}>
                             <Text style={s.sectionLabel}>Exhibits</Text>
-                            {exhibits.map((ex, i) => <Exhibit key={i} spec={ex} index={i} />)}
+                            {exhibits.map((ex, i) => <Exhibit key={i} spec={ex} index={i} barColor={exhibitBarColor} />)}
                         </View>
                     ) : null}
 
@@ -972,7 +1004,11 @@ export default function PdfDocument({ report, showConfidential = false, poweredB
                                     <Text style={s.blockquoteText}>{stripMd(pull.text)}</Text>
                                 </View>
                             ) : null}
-                            <RenderBlocks blocks={section.blocks} bodyStyle={bodyStyle} />
+                            <RenderBlocks
+                                blocks={section.blocks}
+                                bodyStyle={bodyStyle}
+                                tableTheme={design ? { design: design.tableDesign, accent: design.accent } : undefined}
+                            />
                         </View>
 
                         <PageFooter year={year} />
