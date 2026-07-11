@@ -502,6 +502,28 @@ describe('P1-4 scope adherence', () => {
     });
 });
 
+// ─── QA-12 (P1-5) estimate discipline ───────────────────────────────────────
+
+import { lintEstimates } from './reportQaGates';
+
+describe('P1-5 estimate discipline', () => {
+    it('"we estimate" without method flagged (the $400-600M ACV bug)', () => {
+        const v = lintEstimates('We estimate a $400-600M Aladdin ACV uplift over three years.');
+        expect(v).toHaveLength(1);
+    });
+
+    it('estimate with shown work passes', () => {
+        expect(lintEstimates('We estimate $500M uplift, based on 2,000 clients × $250K average contract value.')).toHaveLength(0);
+        expect(lintEstimates('We estimate 300bps (illustrative) cost impact.')).toHaveLength(0);
+    });
+
+    it('gate warns and caps Medium', () => {
+        const r = evaluatePublicationGates({ ...CLEAN_GATES, unmethodEstimates: 4 });
+        expect(r.passed).toBe(true);
+        expect(r.maxConfidence).toBe('Medium');
+    });
+});
+
 // ─── QA-5 (P0-1) title hygiene ──────────────────────────────────────────────
 
 import { normalizeDisplaySubtitle } from './reportQaGates';

@@ -234,6 +234,8 @@ export interface PublicationGateInput {
     thirdPartyAttributions?: number;   // "Source: <bank> Research estimates"
     // P1-2 tier gate (optional)
     t3OnlyNumericClaims?: number;      // numeric claims supported only by T3 sources
+    // P1-5 estimate discipline (optional)
+    unmethodEstimates?: number;        // "we estimate" without method note or illustrative tag
 }
 
 export interface GateViolation {
@@ -314,6 +316,14 @@ export function evaluatePublicationGates(i: PublicationGateInput): PublicationGa
             severity: 'block',
         });
         lower('Low');
+    }
+    if ((i.unmethodEstimates ?? 0) > 0) {
+        violations.push({
+            gate: 'estimates_without_method',
+            detail: `${i.unmethodEstimates} "we estimate" claim(s) without a method note or illustrative tag`,
+            severity: 'warn',
+        });
+        lower('Medium');
     }
     if ((i.elapsedPeriodEstimates ?? 0) > 0) {
         violations.push({
@@ -529,6 +539,30 @@ export function buildCoverageDisclosure(gaps: CoverageGap[]): string {
     const missing = gaps.filter(g => !g.hasSec);
     if (missing.length === 0) return '';
     return `\n\n> **Coverage disclosure:** No internal documents available for ${missing.map(g => g.ticker).join(', ')}; analysis relies on web sources.\n`;
+}
+
+// ─── Estimate discipline (spec P1-5) ────────────────────────────────────────
+// "$400–600M Aladdin ACV uplift" with zero shown work is invented precision.
+// Every "we estimate" needs a one-line method (inputs + arithmetic) or an
+// explicit `illustrative` tag.
+
+export interface EstimateViolation { excerpt: string }
+
+const ESTIMATE_CLAIM_RE = /\b(?:we|our)\s+estimate/i;
+const METHOD_MARKERS = /illustrative|method:|based on|derived from|assuming|calculated (?:as|from)|implies|per our model/i;
+
+export function lintEstimates(markdown: string): EstimateViolation[] {
+    const out: EstimateViolation[] = [];
+    const sentences = markdown
+        .replace(/^#+\s.*$/gm, '')
+        .split(/(?<=[.!?])\s+(?=[A-Z(])|\n{2,}/)
+        .map(s => s.replace(/\s+/g, ' ').trim());
+    for (const s of sentences) {
+        if (ESTIMATE_CLAIM_RE.test(s) && !METHOD_MARKERS.test(s)) {
+            out.push({ excerpt: s.length > 140 ? s.slice(0, 137) + '…' : s });
+        }
+    }
+    return out;
 }
 
 // ─── Scope adherence (spec P1-4) ────────────────────────────────────────────
