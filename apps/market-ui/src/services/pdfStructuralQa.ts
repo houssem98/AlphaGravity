@@ -127,12 +127,44 @@ export function auditStructure(root: OdlNode | OdlNode[]): StructuralQaResult {
 
 let _javaChecked: boolean | null = null;
 
+// Resolve a working `java`: try PATH first, then the standard Adoptium/JDK
+// install dirs (winget drops Temurin here but doesn't refresh a running
+// shell's PATH). When found off-PATH, prepend its bin to process.env.PATH so
+// the opendataloader child process — which spawns `java` by name — finds it.
+// Net effect: install a JRE and structural QA just works, no PATH fiddling.
+async function resolveJava(): Promise<boolean> {
+    const { execFileSync } = await import('node:child_process');
+    try {
+        execFileSync('java', ['-version'], { stdio: 'ignore' });
+        return true;
+    } catch { /* not on PATH — probe known install dirs */ }
+
+    if (process.platform !== 'win32') return false;
+    const { existsSync, readdirSync } = await import('node:fs');
+    const { join, delimiter } = await import('node:path');
+    const roots = [
+        'C:\\Program Files\\Eclipse Adoptium',
+        'C:\\Program Files\\Java',
+        'C:\\Program Files\\Microsoft\\jdk',
+    ];
+    for (const root of roots) {
+        if (!existsSync(root)) continue;
+        for (const entry of readdirSync(root)) {
+            const bin = join(root, entry, 'bin');
+            if (existsSync(join(bin, 'java.exe'))) {
+                process.env.PATH = `${bin}${delimiter}${process.env.PATH ?? ''}`;
+                try { execFileSync('java', ['-version'], { stdio: 'ignore' }); return true; }
+                catch { /* keep probing */ }
+            }
+        }
+    }
+    return false;
+}
+
 export async function isJavaAvailable(): Promise<boolean> {
     if (_javaChecked !== null) return _javaChecked;
     try {
-        const { execFileSync } = await import('node:child_process');
-        execFileSync('java', ['-version'], { stdio: 'ignore' });
-        _javaChecked = true;
+        _javaChecked = await resolveJava();
     } catch {
         _javaChecked = false;
     }
@@ -142,12 +174,27 @@ export async function isJavaAvailable(): Promise<boolean> {
 // Extract structure from a PDF on disk. Returns null (never throws) when Java
 // or the package is unavailable, so callers can treat structural QA as an
 // enhancement that either runs or is cleanly skipped.
+//
+// opendataloader's `convert` writes the JSON to `outputDir` (its toStdout path
+// returns an empty string in practice, verified 2026-07-11) — so we point it
+// at a temp dir, read the single `.json` it emits, and clean up.
 export async function extractStructure(pdfPath: string): Promise<OdlNode | OdlNode[] | null> {
     if (!(await isJavaAvailable())) return null;
     try {
+        const { mkdtempSync, readdirSync, readFileSync, rmSync } = await import('node:fs');
+        const { tmpdir } = await import('node:os');
+        const { join } = await import('node:path');
         const odl = await import('@opendataloader/pdf');
-        const json = await odl.convert(pdfPath, { format: 'json', toStdout: true, quiet: true } as any);
-        return JSON.parse(json);
+
+        const outDir = mkdtempSync(join(tmpdir(), 'odl-'));
+        try {
+            await odl.convert(pdfPath, { format: 'json', outputDir: outDir, quiet: true } as any);
+            const jsonFile = readdirSync(outDir).find(f => f.endsWith('.json'));
+            if (!jsonFile) return null;
+            return JSON.parse(readFileSync(join(outDir, jsonFile), 'utf8'));
+        } finally {
+            rmSync(outDir, { recursive: true, force: true });
+        }
     } catch {
         return null;
     }
