@@ -2932,21 +2932,25 @@ export function assembleSectionedReport(
         .map(s => `## ${s.title}\n\n${s.body.trim()}`)
         .join('\n\n');
 
-    const firstOk = sections.find(s => s.ok && s.body.trim().length > 0);
-    const keyFinding = firstOk ? extractKeyFinding(firstOk.body) : null;
+    // P2-5: the Key Finding must not re-quote the exec summary (section 1 is
+    // what the summary card renders) — prefer the first grounded claim from a
+    // LATER section, fall back to section 1 only when nothing else qualifies.
+    const okSections = sections.filter(s => s.ok && s.body.trim().length > 0);
+    let keyFinding: string | null = null;
+    for (const s of okSections.slice(1)) {
+        keyFinding = extractKeyFinding(s.body);
+        if (keyFinding) break;
+    }
+    if (!keyFinding && okSections.length > 0) keyFinding = extractKeyFinding(okSections[0].body);
     const keyFindingBlock = keyFinding
         ? `\n\n---\n\n> **Key Finding:** ${keyFinding}\n`
         : '';
 
-    const webSourcesFooter = webSources.length > 0
-        ? `\n\n---\n\n### Web Sources\n\n${
-            webSources.slice(0, 35)
-                .map((s, i) => `[${i + 1}] ${s.title} — ${s.url}`)
-                .join('\n')
-          }`
-        : '';
+    // P2-5: no mid-report "Web Sources" dump — it duplicated the References
+    // section. The citations array is the single source list.
+    void webSources;
 
-    return `# ${title}\n\n${body}${keyFindingBlock}${webSourcesFooter}`;
+    return `# ${title}\n\n${body}${keyFindingBlock}`;
 }
 
 // ─── Stage 6: Numeric-Consistency Verifier ──────────────────────────────────

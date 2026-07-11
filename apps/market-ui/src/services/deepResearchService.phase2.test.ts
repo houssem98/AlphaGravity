@@ -297,6 +297,9 @@ const fakeDeps: CellRunnerDeps = {
         capturedPrompts.push(prompt);
         return { text: `Answer to: ${prompt.slice(-50)}`, model: 'gemini-2.5-flash' as any };
     },
+    // The 2026-06-16 no-sources guard (1ff42cc) short-circuits before the LLM
+    // when there is no evidence — supply one web citation so the LLM path runs.
+    searchWeb: async () => [{ id: 1, title: 'NVDA datacenter growth', url: 'https://reuters.com/nvda', source: 'Web' }],
 };
 
 const cell = await runGridCell(def, 'NVDA', 'thesis', fakeDeps);
@@ -313,6 +316,7 @@ check('runGridCell unknown promptId has error message', !!errCell.error);
 
 const failingDeps: CellRunnerDeps = {
     callLLM: async () => { throw new Error('LLM offline'); },
+    searchWeb: async () => [{ id: 1, title: 'NVDA datacenter growth', url: 'https://reuters.com/nvda', source: 'Web' }],
 };
 const failed = await runGridCell(def, 'NVDA', 'thesis', failingDeps);
 check('runGridCell LLM failure -> error', failed.status === 'error');
@@ -330,6 +334,7 @@ const blockingDeps: CellRunnerDeps = {
             });
         });
     },
+    searchWeb: async () => [{ id: 1, title: 'NVDA datacenter growth', url: 'https://reuters.com/nvda', source: 'Web' }],
 };
 const cancelPromise = runGridCell(def, 'NVDA', 'thesis', blockingDeps, ac2.signal);
 setTimeout(() => ac2.abort(), 10);
@@ -349,10 +354,10 @@ check('runGrid all cells done', Object.values(finalState.cells).every(c => c.sta
 check('runGrid sets completedAt', !!finalState.completedAt);
 check('runGrid sets startedAt', !!finalState.startedAt);
 
-// Seed prompts sanity
-check('SEED_GRID_PROMPTS has 6 entries', SEED_GRID_PROMPTS.length === 6);
+// Seed prompts sanity (7 since the synthesis prompt landed)
+check('SEED_GRID_PROMPTS has 7 entries', SEED_GRID_PROMPTS.length === 7);
 check('SEED_GRID_PROMPTS all use {ticker}',
-    SEED_GRID_PROMPTS.every(p => p.prompt.includes('{ticker}')));
+    SEED_GRID_PROMPTS.every(p => p.synthesis || p.prompt.includes('{ticker}')));
 
 // toCSV
 const csv = toCSV(finalState);
@@ -998,7 +1003,7 @@ console.log('\n[21] assembleSectionedReport');
 
     const sections: SectionFanoutResult['sections'] = [
         { title: 'Executive Summary', body: 'NVDA reported $35.1B in Q3 revenue, a record for the data center segment [1]. Full-year guidance was raised by 8 percent to $125B in total revenue [2].', ok: true },
-        { title: 'Investment Thesis', body: 'Strong AI demand across hyperscalers supports the buy thesis [3]. Gross margin expansion continues above 75 percent [4].', ok: true },
+        { title: 'Investment Thesis', body: 'Strong AI demand across hyperscalers supports the buy thesis [3]. Gross margin expansion continues above 75% of revenue [4].', ok: true },
         { title: 'Financial Performance', body: '', ok: false, error: 'LLM timeout' },
     ];
     const webSources: TavilySearchResult[] = [
@@ -1015,12 +1020,13 @@ console.log('\n[21] assembleSectionedReport');
         /## Investment Thesis\n\nStrong AI/.test(md));
     check('assemble: skips failed (Financial Performance) section',
         !md.includes('## Financial Performance'));
-    check('assemble: emits Key Finding block from first cited sentence',
-        /> \*\*Key Finding:\*\* NVDA reported \$35\.1B/.test(md));
-    check('assemble: appends Web Sources footer with indexed URLs',
-        /### Web Sources[\s\S]*\[1\] Source A[\s\S]*\[2\] Source B/.test(md));
+    // P2-5: Key Finding comes from a NON-summary section (no exec-summary re-quote).
+    check('assemble: emits Key Finding block from a later section, not exec summary',
+        /> \*\*Key Finding:\*\* Gross margin expansion/.test(md));
+    check('assemble: no mid-report Web Sources dump (duplicates References)',
+        !md.includes('### Web Sources'));
 
-    // Empty sections case — H1 title + Web Sources footer, no body sections.
+    // Empty sections case — H1 title only, no body sections.
     const mdEmpty = assembleSectionedReport(blueprint, tmpl, [], webSources);
     check('assemble: handles empty sections gracefully',
         mdEmpty.startsWith('# Investment Memo:')
@@ -2812,10 +2818,11 @@ console.log('\n[56] WORKFLOW_PRESETS registry');
     ]);
     const workflowIds: WorkflowId[] = [
         'earnings_reaction', 'swot_analysis', 'company_profile', 'ma_screen', 'channel_check',
+        'investment_committee',
     ];
 
-    check('workflows: 5 presets registered',
-        Object.keys(WORKFLOW_PRESETS).length === 5);
+    check('workflows: 6 presets registered',
+        Object.keys(WORKFLOW_PRESETS).length === 6);
 
     for (const id of workflowIds) {
         const p = WORKFLOW_PRESETS[id];
