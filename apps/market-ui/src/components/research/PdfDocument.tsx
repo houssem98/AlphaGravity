@@ -12,6 +12,7 @@ import {
     type ParsedBlock,
 } from './pdfMarkdown';
 import { normalizeDisplaySubtitle } from '../../services/reportQaGates';
+import { tierOf } from '../../services/tavilyService';
 
 Font.registerHyphenationCallback(word => [word]);
 
@@ -933,7 +934,10 @@ export default function PdfDocument({ report, showConfidential = false }: Props)
                                 </View>
                                 <View style={{ flex: 1, minWidth: 0 }}>
                                     <Text style={s.refTitle}>{c.title}</Text>
-                                    <Text style={s.refSource}>{c.source}{c.publishedDate ? ` · ${c.publishedDate}` : ''}</Text>
+                                    {/* P1-2: tier per source — filings/RAG are T1, web tiered by domain */}
+                                    <Text style={s.refSource}>
+                                        {c.source === 'Web' ? tierOf(c.url) : 'T1'} · {c.source}{c.publishedDate ? ` · ${c.publishedDate}` : ''}
+                                    </Text>
                                     {c.source === 'SEC EDGAR' && (
                                         <Text style={s.refSECBadge}>SEC EDGAR</Text>
                                     )}

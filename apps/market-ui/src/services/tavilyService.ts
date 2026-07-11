@@ -141,6 +141,29 @@ export function weightedAuthorityScore(r: TavilySearchResult, nowMs: number = Da
     return 0.35 * tavily + 0.45 * auth + 0.20 * rec;
 }
 
+// ─── Source tiering (REPORT_QA_SPEC P1-2) ───────────────────────────────────
+// T1 = regulators/IR/filings · T2 = quality press · T3 = social/SEO/aggregators.
+// T3 may never support a numeric claim (enforced in reportQaGates).
+
+const SOCIAL_SEO_HOSTS = [
+    'instagram.com', 'reddit.com', 'youtube.com', 'youtu.be', 'linkedin.com',
+    'tiktok.com', 'facebook.com', 'x.com', 'twitter.com', 'medium.com',
+    'quora.com', 'pinterest.com',
+];
+
+export type SourceTier = 'T1' | 'T2' | 'T3';
+
+export function tierOf(url: string): SourceTier {
+    const host = hostFromUrl(url);
+    if (hostMatches(host, SOCIAL_SEO_HOSTS)) return 'T3';
+    switch (classifyAuthority(url)) {
+        case 'primary': return 'T1';
+        case 'premium_news':
+        case 'mainstream': return 'T2';
+        default: return 'T3';   // aggregators + unknown domains (SEO-farm zone)
+    }
+}
+
 async function postTavily(query: string, maxResults: number, includeRaw = false): Promise<TavilySearchResponse> {
     const token = await getAccessToken();
     if (!token) throw new Error('Not authenticated — sign in to run web search');

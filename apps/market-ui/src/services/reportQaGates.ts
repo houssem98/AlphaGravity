@@ -232,6 +232,8 @@ export interface PublicationGateInput {
     unprovenancedPriceDates?: number;  // "Prices as of <date>" without tool provenance
     // P0-5 compliance lint (optional)
     thirdPartyAttributions?: number;   // "Source: <bank> Research estimates"
+    // P1-2 tier gate (optional)
+    t3OnlyNumericClaims?: number;      // numeric claims supported only by T3 sources
 }
 
 export interface GateViolation {
@@ -286,6 +288,14 @@ export function evaluatePublicationGates(i: PublicationGateInput): PublicationGa
             gate: 'stale_sources',
             detail: `${Math.round(i.staleSourceRatio * 100)}% of web sources stale/archival/undated (> 40%)`,
             severity: 'warn',
+        });
+        lower('Low');
+    }
+    if ((i.t3OnlyNumericClaims ?? 0) > 0) {
+        violations.push({
+            gate: 't3_numeric_support',
+            detail: `${i.t3OnlyNumericClaims} numeric claim(s) supported only by social/SEO/aggregator sources`,
+            severity: 'block',
         });
         lower('Low');
     }
@@ -463,6 +473,30 @@ export function extractDateFromUrl(url: string): string | null {
     if (month < 1 || month > 12) return null;
     const day = d ? Math.min(Math.max(parseInt(d, 10), 1), 28) : 1;
     return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// ─── Source-tier gate (spec P1-2) ───────────────────────────────────────────
+// A numeric claim whose every cited source is T3 (social/SEO/aggregator) is
+// rejected — an Instagram reel can't ground a market-size figure. RAG
+// passages are indexed SEC filings → T1.
+
+import { tierOf, type SourceTier } from './tavilyService';
+
+export function buildSourceTierIndex(
+    webSources: Array<{ url: string }>,
+): Map<string, SourceTier> {
+    const index = new Map<string, SourceTier>();
+    webSources.slice(0, 50).forEach((s, i) => index.set(String(i + 1), tierOf(s.url)));
+    return index;
+}
+
+export function findT3OnlyClaims(
+    claims: NumericClaim[],
+    tierById: Map<string, SourceTier>,
+): NumericClaim[] {
+    return claims.filter(c =>
+        c.sourceIds.length > 0
+        && c.sourceIds.every(id => tierById.get(id) === 'T3'));
 }
 
 // ─── Retrieval scope guard (spec P1-1) ──────────────────────────────────────

@@ -23,6 +23,7 @@ import {
     capConfidence, buildConfidenceBanner, remapRagCitations, stripInternalTags,
     clampToSentence, lintTemporal, recencyWeightQueries, extractDateFromUrl,
     lintCompliance, addTradeTableFraming, checkRagCoverage, buildCoverageDisclosure,
+    buildSourceTierIndex, findT3OnlyClaims,
     type EntityAliases,
 } from './reportQaGates';
 import { searchFilings, type SECFiling } from './secEdgarService';
@@ -4694,6 +4695,7 @@ export const performDeepResearch = async (
         elapsedPeriodEstimates: temporalViolations.filter(v => v.kind === 'elapsed_period_estimate').length,
         unprovenancedPriceDates: temporalViolations.filter(v => v.kind === 'unprovenanced_price_date').length,
         thirdPartyAttributions: complianceViolations.length,
+        t3OnlyNumericClaims: findT3OnlyClaims(entityGate.claims, buildSourceTierIndex(webSources)).length,
     });
 
     // W2b: a run without live web sources can never claim better than Low —

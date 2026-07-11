@@ -360,6 +360,46 @@ describe('P0-5 trade-table framing', () => {
     });
 });
 
+// ─── QA-9 (P1-2) source tiering ─────────────────────────────────────────────
+
+import { buildSourceTierIndex, findT3OnlyClaims } from './reportQaGates';
+import { tierOf } from './tavilyService';
+
+describe('regression test 12 — numeric claim supported only by instagram/reddit', () => {
+    it('tier gate rejects the claim', () => {
+        const md = 'BlackRock AI market opportunity is worth $10 billion by 2027 [1][2].';
+        const claims = extractNumericClaims(md, ALIASES);
+        const tierIndex = buildSourceTierIndex([
+            { url: 'https://www.instagram.com/reel/xyz' },
+            { url: 'https://www.reddit.com/r/stocks/abc' },
+        ]);
+        const t3Only = findT3OnlyClaims(claims, tierIndex);
+        expect(t3Only).toHaveLength(1);
+        const r = evaluatePublicationGates({ ...CLEAN_GATES, t3OnlyNumericClaims: t3Only.length });
+        expect(r.passed).toBe(false);
+        expect(r.maxConfidence).toBe('Low');
+    });
+
+    it('same claim with one T1/T2 source passes', () => {
+        const md = 'BlackRock AI market opportunity is worth $10 billion by 2027 [1][2].';
+        const claims = extractNumericClaims(md, ALIASES);
+        const tierIndex = buildSourceTierIndex([
+            { url: 'https://www.reuters.com/markets/blackrock-ai' },
+            { url: 'https://www.reddit.com/r/stocks/abc' },
+        ]);
+        expect(findT3OnlyClaims(claims, tierIndex)).toHaveLength(0);
+    });
+
+    it('tierOf maps hosts correctly', () => {
+        expect(tierOf('https://www.sec.gov/Archives/edgar/data/x.htm')).toBe('T1');
+        expect(tierOf('https://www.bloomberg.com/news/x')).toBe('T2');
+        expect(tierOf('https://www.cnbc.com/2026/x')).toBe('T2');
+        expect(tierOf('https://www.instagram.com/reel/x')).toBe('T3');
+        expect(tierOf('https://seekingalpha.com/article/x')).toBe('T3');
+        expect(tierOf('https://random-seo-farm.biz/market-report')).toBe('T3');
+    });
+});
+
 // ─── QA-8 (P1-1) retrieval scope guard ──────────────────────────────────────
 
 import { checkRagCoverage, buildCoverageDisclosure } from './reportQaGates';
