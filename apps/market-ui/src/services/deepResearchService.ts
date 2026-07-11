@@ -18,7 +18,10 @@ import {
     type RecencyBucket,
 } from './tavilyService';
 import { queryGravityRAG, formatRAGSourcesForPrompt, formatRAGStructuredData, type GravityRAGResult } from './gravitySearchService';
-import { runEntityGate, buildSourceEntityIndex, type EntityAliases } from './reportQaGates';
+import {
+    runEntityGate, buildSourceEntityIndex, evaluatePublicationGates,
+    capConfidence, buildConfidenceBanner, type EntityAliases,
+} from './reportQaGates';
 import { searchFilings, type SECFiling } from './secEdgarService';
 import { getCompanyOverview, type CompanyOverview } from './marketData';
 import { getUnifiedMacroSummaryText as getMacroSummaryText } from './fredService';
@@ -522,6 +525,11 @@ export interface ResearchReport {
             misattributed: number;  // claim entity ≠ cited source entity
             duplicates: number;     // same (metric,period,value) on 2+ entities
             samples: string[];      // up to 5 short descriptions
+        };
+        publicationGates?: {
+            passed: boolean;        // false = a blocker fired; confidence capped
+            maxConfidence: Confidence;
+            violations: Array<{ gate: string; detail: string; severity: 'block' | 'warn' }>;
         };
         cacheHit?: {
             ageMs: number;
@@ -3889,9 +3897,13 @@ export function buildLimitationsSection(inp: LimitationsInputs): LimitationsResu
     }
 
     // ── 2. Unsupported numeric claims ──────────────────────────────────
+    // P0-4: capped lists must disclose the full count — "…and N more", never
+    // a silent truncation (the audited report claimed 26 and listed 6).
     const unsupported = inp.verification.unsupportedClaims ?? [];
     if (unsupported.length > 0) {
-        parts.push(`**Unsupported numeric claims (${unsupported.length})** — numbers present in the report that the source-matching verifier could not ground. Treat as analyst inference, not verified fact:\n${unsupported.slice(0, 6).map(c => `- ${c.length > 140 ? c.slice(0, 137) + '…' : c}`).join('\n')}`);
+        const shown = unsupported.slice(0, 6).map(c => `- ${c.length > 140 ? c.slice(0, 137) + '…' : c}`);
+        if (unsupported.length > 6) shown.push(`- …and ${unsupported.length - 6} more`);
+        parts.push(`**Unsupported numeric claims (${unsupported.length})** — numbers present in the report that the source-matching verifier could not ground. Treat as analyst inference, not verified fact:\n${shown.join('\n')}`);
         topics.push(`${unsupported.length} unsupported claim${unsupported.length === 1 ? '' : 's'}`);
         count += unsupported.length;
     }
@@ -3899,7 +3911,9 @@ export function buildLimitationsSection(inp: LimitationsInputs): LimitationsResu
     // ── 3. Unhedged forecasts ──────────────────────────────────────────
     const unhedged = inp.factInference?.unhedgedSamples ?? [];
     if (unhedged.length > 0) {
-        parts.push(`**Unhedged forecasts (${unhedged.length})** — forward-looking statements presented without a hedge or attribution. The Revisor may have fixed most; anything below remained after surgical edits:\n${unhedged.slice(0, 4).map(s => `- ${s}`).join('\n')}`);
+        const shown = unhedged.slice(0, 4).map(s => `- ${s}`);
+        if (unhedged.length > 4) shown.push(`- …and ${unhedged.length - 4} more`);
+        parts.push(`**Unhedged forecasts (${unhedged.length})** — forward-looking statements presented without a hedge or attribution. The Revisor may have fixed most; anything below remained after surgical edits:\n${shown.join('\n')}`);
         topics.push(`${unhedged.length} unhedged forecast${unhedged.length === 1 ? '' : 's'}`);
         count += unhedged.length;
     }
@@ -4637,15 +4651,32 @@ export const performDeepResearch = async (
     const multiSourceRate = verification.groundedClaims > 0
         ? verification.multiSourceClaims / verification.groundedClaims
         : 1;
+    // P0-4 publication gates: enforce the telemetry the pipeline already
+    // measures. A draft violating a blocker can never ship Medium/High.
+    const staleSourceRatio = recency.total > 0
+        ? (recency.stale + recency.archival + recency.undated) / recency.total
+        : 0;
+    const publicationGates = evaluatePublicationGates({
+        misattributed: entityGate.misattributed.length,
+        duplicates: entityGate.duplicates.length,
+        unsupportedClaims: verification.unsupportedClaims.length,
+        citationDensity: citationDensity.density,
+        totalFactSentences: citationDensity.totalFactSentences,
+        staleSourceRatio,
+        revisorRan: revisions.used && !revisions.fallback,
+        revisorFlags: revisions.issuesBefore,
+        revisorAccepted: revisions.editsApplied,
+    });
+
     // W2b: a run without live web sources can never claim better than Low —
     // whatever the internal grounding ratios say, recency is unverifiable.
-    const confidence = webDead ? 'Low' : deriveConfidence({
+    const confidence = webDead ? 'Low' : capConfidence(deriveConfidence({
         numericGroundingRate: numericRate,
         multiSourceRate,
         citationDensity: citationDensity.density,
         totalClaims: verification.totalClaims,
         factInferenceRate: factInference.hedgingRate,
-    });
+    }), publicationGates.maxConfidence);
 
     const subQuestions = blueprint.researchAngles.length > 0
         ? blueprint.researchAngles
@@ -4685,7 +4716,9 @@ export const performDeepResearch = async (
         confidence,
     });
 
-    const finalMarkdown = (webDead ? buildNoWebBanner(secFilings.length, ragSourceCount) : '')
+    // P0-4: confidence banner at the very top — cover + above exec summary.
+    const finalMarkdown = buildConfidenceBanner(confidence, publicationGates.violations)
+        + (webDead ? buildNoWebBanner(secFilings.length, ragSourceCount) : '')
         + markdown + limitations.section + methodologyMd;
 
     const auditTail = claimAudit
@@ -4818,6 +4851,11 @@ export const performDeepResearch = async (
                 orphan: entailment.orphan,
                 entailmentRate: entailment.entailmentRate,
             } : undefined,
+            publicationGates: {
+                passed: publicationGates.passed,
+                maxConfidence: publicationGates.maxConfidence,
+                violations: publicationGates.violations.map(v => ({ ...v })),
+            },
             entityGate: entityGate.claims.length > 0 || entityGate.misAttributedCount > 0 ? {
                 claims: entityGate.claims.length,
                 misattributed: entityGate.misattributed.length,

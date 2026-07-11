@@ -11,8 +11,13 @@ import {
     detectMetric,
     detectPeriod,
     detectValue,
+    evaluatePublicationGates,
+    capConfidence,
+    buildConfidenceBanner,
     type EntityAliases,
+    type PublicationGateInput,
 } from './reportQaGates';
+import { buildLimitationsSection } from './deepResearchService';
 
 const ALIASES: EntityAliases = {
     GS:   ['GS', 'Goldman Sachs', 'Goldman'],
@@ -102,6 +107,94 @@ describe('no false positives', () => {
         const md = 'BlackRock revenue grew 14% in Q1 2026 [1]. BlackRock revenue rose 14% in Q1 2026 [2].';
         const claims = extractNumericClaims(md, ALIASES);
         expect(detectDuplicateAttributions(claims)).toHaveLength(0);
+    });
+});
+
+// ─── QA-2 (P0-4) publication gates ──────────────────────────────────────────
+
+const CLEAN_GATES: PublicationGateInput = {
+    misattributed: 0, duplicates: 0, unsupportedClaims: 0,
+    citationDensity: 0.95, totalFactSentences: 100, staleSourceRatio: 0.1,
+    revisorRan: true, revisorFlags: 3, revisorAccepted: 2,
+};
+
+describe('regression test 10 — ungrounded body number, unbadged → gate fails', () => {
+    it('blocks and caps confidence at Low', () => {
+        const r = evaluatePublicationGates({ ...CLEAN_GATES, unsupportedClaims: 26 });
+        expect(r.passed).toBe(false);
+        expect(r.maxConfidence).toBe('Low');
+        expect(r.violations.some(v => v.gate === 'ungrounded_numbers' && v.severity === 'block')).toBe(true);
+    });
+});
+
+describe('regression test 15 — Limitations list capped below flagged count → "+N more"', () => {
+    it('renders explicit "…and N more" when unsupported claims exceed the cap', () => {
+        const unsupportedClaims = Array.from({ length: 26 }, (_, i) => `$${i + 1}.5B invented figure ${i + 1}`);
+        const { section, count } = buildLimitationsSection({
+            markdown: 'body',
+            blueprint: { researchAngles: [], subtopics: [] },
+            verification: {
+                totalClaims: 30, groundedClaims: 4, multiSourceClaims: 1,
+                singleSourceClaims: [], unsupportedClaims,
+            },
+            confidence: 'Low',
+        });
+        expect(count).toBe(26);
+        expect(section).toContain('Unsupported numeric claims (26)');
+        expect(section).toContain('…and 20 more');
+    });
+});
+
+describe('regression test 17 (gate half) — violated gates can never ship Medium/High', () => {
+    it('capConfidence lowers, never raises', () => {
+        expect(capConfidence('High', 'Low')).toBe('Low');
+        expect(capConfidence('Medium', 'Low')).toBe('Low');
+        expect(capConfidence('Low', 'High')).toBe('Low');
+        expect(capConfidence('High', 'High')).toBe('High');
+    });
+
+    it('mis-attributed citations block Medium/High', () => {
+        const r = evaluatePublicationGates({ ...CLEAN_GATES, misattributed: 8 });
+        expect(r.passed).toBe(false);
+        expect(r.maxConfidence).toBe('Low');
+    });
+
+    it('confidence banner renders verdict + reason at top', () => {
+        const r = evaluatePublicationGates({ ...CLEAN_GATES, misattributed: 8 });
+        const banner = buildConfidenceBanner('Low', r.violations);
+        expect(banner).toMatch(/^> \*\*Confidence: Low\*\*/);
+        expect(banner).toContain('8 mis-attributed');
+    });
+});
+
+describe('remaining P0-4 gate rules', () => {
+    it('clean telemetry passes at High', () => {
+        const r = evaluatePublicationGates(CLEAN_GATES);
+        expect(r.passed).toBe(true);
+        expect(r.maxConfidence).toBe('High');
+        expect(r.violations).toHaveLength(0);
+    });
+
+    it('citation density < 90% warns and caps Medium', () => {
+        const r = evaluatePublicationGates({ ...CLEAN_GATES, citationDensity: 0.72 });
+        expect(r.passed).toBe(true);   // warn, not block
+        expect(r.maxConfidence).toBe('Medium');
+    });
+
+    it('stale-source ratio > 40% caps Low', () => {
+        const r = evaluatePublicationGates({ ...CLEAN_GATES, staleSourceRatio: 1.0 });
+        expect(r.maxConfidence).toBe('Low');
+    });
+
+    it('revisor flags>0 accepted==0 is a component-failure block', () => {
+        const r = evaluatePublicationGates({ ...CLEAN_GATES, revisorFlags: 15, revisorAccepted: 0 });
+        expect(r.passed).toBe(false);
+        expect(r.violations.some(v => v.gate === 'revisor_component_failure')).toBe(true);
+    });
+
+    it('revisor rule skipped when revisor never ran', () => {
+        const r = evaluatePublicationGates({ ...CLEAN_GATES, revisorRan: false, revisorFlags: 15, revisorAccepted: 0 });
+        expect(r.passed).toBe(true);
     });
 });
 

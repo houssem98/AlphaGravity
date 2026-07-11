@@ -211,6 +211,108 @@ export function buildSourceEntityIndex(
     return index;
 }
 
+// ─── Publication gates (spec P0-4) ──────────────────────────────────────────
+// The pipeline already MEASURES quality; these gates ENFORCE it. A draft
+// violating any blocker can never ship as Medium/High confidence.
+
+export type GateConfidence = 'High' | 'Medium' | 'Low';
+
+export interface PublicationGateInput {
+    misattributed: number;        // entityGate.misattributed.length
+    duplicates: number;           // entityGate.duplicates.length
+    unsupportedClaims: number;    // verification.unsupportedClaims.length (unbadged body numbers)
+    citationDensity: number;      // 0..1
+    totalFactSentences: number;   // 0 = nothing to judge, density gate skipped
+    staleSourceRatio: number;     // (stale+archival+undated)/total, 0..1; 0 when no web sources
+    revisorRan: boolean;
+    revisorFlags: number;         // issues flagged before revision
+    revisorAccepted: number;      // edits actually applied
+}
+
+export interface GateViolation {
+    gate: string;
+    detail: string;
+    severity: 'block' | 'warn';
+}
+
+export interface PublicationGateResult {
+    passed: boolean;              // no blockers
+    violations: GateViolation[];
+    maxConfidence: GateConfidence; // cap for the derived confidence banner
+}
+
+const CONF_ORDER: Record<GateConfidence, number> = { High: 2, Medium: 1, Low: 0 };
+
+export function capConfidence(derived: GateConfidence, cap: GateConfidence): GateConfidence {
+    return CONF_ORDER[cap] < CONF_ORDER[derived] ? cap : derived;
+}
+
+export function evaluatePublicationGates(i: PublicationGateInput): PublicationGateResult {
+    const violations: GateViolation[] = [];
+    let cap: GateConfidence = 'High';
+    const lower = (c: GateConfidence) => { cap = capConfidence(cap, c); };
+
+    if (i.misattributed + i.duplicates > 0) {
+        violations.push({
+            gate: 'mis_attributed_citations',
+            detail: `${i.misattributed} mis-attributed citation(s), ${i.duplicates} duplicate attribution(s) — must be 0`,
+            severity: 'block',
+        });
+        lower('Low');
+    }
+    if (i.unsupportedClaims > 0) {
+        violations.push({
+            gate: 'ungrounded_numbers',
+            detail: `${i.unsupportedClaims} ungrounded number(s) in body without an unverified badge`,
+            severity: 'block',
+        });
+        lower('Low');
+    }
+    if (i.totalFactSentences > 0 && i.citationDensity < 0.90) {
+        violations.push({
+            gate: 'citation_density',
+            detail: `citation density ${Math.round(i.citationDensity * 100)}% < 90%`,
+            severity: 'warn',
+        });
+        lower('Medium');
+    }
+    if (i.staleSourceRatio > 0.40) {
+        violations.push({
+            gate: 'stale_sources',
+            detail: `${Math.round(i.staleSourceRatio * 100)}% of web sources stale/archival/undated (> 40%)`,
+            severity: 'warn',
+        });
+        lower('Low');
+    }
+    if (i.revisorRan && i.revisorFlags > 0 && i.revisorAccepted === 0) {
+        violations.push({
+            gate: 'revisor_component_failure',
+            detail: `Revisor flagged ${i.revisorFlags} issue(s) but applied 0 edits — component failure`,
+            severity: 'block',
+        });
+        lower('Low');
+    }
+
+    return {
+        passed: !violations.some(v => v.severity === 'block'),
+        violations,
+        maxConfidence: cap,
+    };
+}
+
+// Rendered at the very top of the final markdown so the confidence verdict
+// sits on the cover AND above the Executive Summary — not page 27.
+export function buildConfidenceBanner(
+    confidence: GateConfidence,
+    violations: GateViolation[],
+): string {
+    const reason = violations.length === 0
+        ? 'all publication gates passed'
+        : violations.slice(0, 3).map(v => v.detail).join('; ')
+            + (violations.length > 3 ? `; and ${violations.length - 3} more` : '');
+    return `> **Confidence: ${confidence}** — ${reason}\n\n`;
+}
+
 // ─── Gate runner ─────────────────────────────────────────────────────────────
 
 export function runEntityGate(
