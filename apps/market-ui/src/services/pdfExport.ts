@@ -41,13 +41,14 @@ export async function generatePdfBlob(report: ResearchReport): Promise<Blob> {
   if (env.VITE_PDF_RENDER_QA !== 'false') {
     try {
       const { postRenderQa } = await import('./pdfPostRenderQa');
-      const qa = await postRenderQa(blob, report.citations.length);
+      const qa = await postRenderQa(blob, report.citations.length, report.markdown);
       if (!qa.ok) {
         console.warn('[pdfRenderQa] rendered-output issues:', {
           orphans: qa.orphanPunctuation.slice(0, 5),
           unresolved: qa.unresolvedIds.slice(0, 5),
           literals: qa.markdownLiterals.slice(0, 5),
           internalTags: qa.internalTags.slice(0, 5),
+          splitTableRows: qa.splitTableRows.slice(0, 5),
           pages: qa.pages,
         });
       } else {

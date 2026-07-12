@@ -80,16 +80,20 @@ describe.skipIf(process.env.RUN_PDF_E2E !== '1')('live designed PDF export', () 
         await loadingTask.destroy();
 
         const { auditRenderedText } = await import('../src/services/pdfPostRenderQa');
-        const qa = auditRenderedText(pages, report.citations.length);
+        const qa = auditRenderedText(pages, report.citations.length, markdown);
         console.log('POST-RENDER QA:', JSON.stringify({
             ok: qa.ok, pages: qa.pages,
             orphans: qa.orphanPunctuation.slice(0, 5),
             unresolved: qa.unresolvedIds.slice(0, 8),
             literals: qa.markdownLiterals.slice(0, 5),
             internalTags: qa.internalTags,
+            splitTableRows: qa.splitTableRows,
         }, null, 2));
 
         expect(qa.pages).toBeGreaterThan(3);
+        // Regression test 7, now LIVE at the text layer: no table row split
+        // across a page break in the actually-rendered PDF.
+        expect(qa.splitTableRows).toHaveLength(0);
 
         // ── Structural QA (opendataloader-pdf → geometry) — regression test 7 ──
         // Runs only when Java 11+ is present; skips clean otherwise.

@@ -6,6 +6,8 @@
 // in behind the same result shape once a vision-capable key is live
 // (DeepSeek has no vision — blocked as of 2026-07-11).
 
+import { parseMarkdown } from '../components/research/pdfMarkdown';
+
 export interface PostRenderQaResult {
     ok: boolean;
     pages: number;
@@ -13,10 +15,52 @@ export interface PostRenderQaResult {
     unresolvedIds: string[];       // [n] beyond citation count, [RAG-n] survivors
     markdownLiterals: string[];    // raw **, ##, __ in the text layer
     internalTags: string[];        // [TIER …] / debug tokens
+    splitTableRows: SplitTableRow[]; // table row whose cells span two pages
+}
+
+export interface SplitTableRow {
+    preview: string;    // "Q1 FY2026 | $26.0B | 78%…"
+    pages: number[];    // 1-indexed pages where the row's cells were found
+}
+
+// pdfjs letterSpacing splits glyphs unpredictably — compare whitespace-free.
+// Hyphens stripped too: react-pdf's line-wrapper injects "-" at wrap points
+// inside narrow cells ("~65% (est.," extracts as "~65% (- est.,", verified
+// live 2026-07-12), and this is a co-location check, not a fidelity check.
+const normalizeForMatch = (s: string) =>
+    s.replace(/\[\d+\]/g, '').replace(/[*_`|]/g, '')
+        .replace(/[-‐‑–—]/g, '').replace(/\s+/g, '').toLowerCase();
+
+// Regression test 7 at the text layer: a markdown table row is split across a
+// page break iff NO single rendered page contains all of its cells. react-pdf
+// emits tables as untagged positioned Views (no structure tree — verified
+// 2026-07-12: the pdfkit fork has the struct() API but @react-pdf/render never
+// calls it), so geometry tools can't see rows; textual co-location can.
+export function findSplitTableRows(pageTexts: string[], markdown: string): SplitTableRow[] {
+    const pagesNorm = pageTexts.map(normalizeForMatch);
+    const out: SplitTableRow[] = [];
+    for (const block of parseMarkdown(markdown)) {
+        if (block.type !== 'table' || !block.cells) continue;
+        for (const row of block.cells) {
+            // Anchor on each cell's first 12 normalized chars — the renderer
+            // may truncate long cells to one line, so tails are unreliable.
+            const anchors = row.map(normalizeForMatch)
+                .filter(c => c.length >= 4)
+                .map(c => c.slice(0, 12));
+            if (anchors.length < 2) continue;   // one anchor can't prove co-location
+            if (!pagesNorm.some(p => anchors.every(a => p.includes(a)))) {
+                const pages = pagesNorm.flatMap((p, i) =>
+                    anchors.some(a => p.includes(a)) ? [i + 1] : []);
+                out.push({ preview: row.join(' | ').slice(0, 80), pages });
+            }
+        }
+    }
+    return out;
 }
 
 // Pure auditor over extracted page text — unit-testable without a PDF.
-export function auditRenderedText(pageTexts: string[], citationCount: number): PostRenderQaResult {
+// Pass the source markdown to also run the split-table-row check.
+export function auditRenderedText(pageTexts: string[], citationCount: number, markdown?: string): PostRenderQaResult {
     const orphanPunctuation: string[] = [];
     const unresolvedIds: string[] = [];
     const markdownLiterals: string[] = [];
@@ -41,11 +85,14 @@ export function auditRenderedText(pageTexts: string[], citationCount: number): P
         }
     }
 
+    const splitTableRows = markdown ? findSplitTableRows(pageTexts, markdown) : [];
+
     return {
         ok: orphanPunctuation.length === 0 && unresolvedIds.length === 0
-            && markdownLiterals.length === 0 && internalTags.length === 0,
+            && markdownLiterals.length === 0 && internalTags.length === 0
+            && splitTableRows.length === 0,
         pages: pageTexts.length,
-        orphanPunctuation, unresolvedIds, markdownLiterals, internalTags,
+        orphanPunctuation, unresolvedIds, markdownLiterals, internalTags, splitTableRows,
     };
 }
 
@@ -71,6 +118,6 @@ export async function extractPdfPageTexts(blob: Blob): Promise<string[]> {
     return pages;
 }
 
-export async function postRenderQa(blob: Blob, citationCount: number): Promise<PostRenderQaResult> {
-    return auditRenderedText(await extractPdfPageTexts(blob), citationCount);
+export async function postRenderQa(blob: Blob, citationCount: number, markdown?: string): Promise<PostRenderQaResult> {
+    return auditRenderedText(await extractPdfPageTexts(blob), citationCount, markdown);
 }
