@@ -1,6 +1,6 @@
 # Crypto Screener V3 Coverage Audit
 
-Generated: 2026-07-12T21:22:49.498Z | Target: https://market-ui-self.vercel.app | Coins: 100
+Generated: 2026-07-12T21:33:12.730Z | Target: https://market-ui-self.vercel.app | Coins: 100
 
 ## Totals
 
@@ -54,7 +54,7 @@ Generated: 2026-07-12T21:22:49.498Z | Target: https://market-ui-self.vercel.app 
 | 37 | XAUT (tether-gold) | OK | OK | OK | OK |
 | 38 | NEAR (near) | OK | OK | OK | OK |
 | 39 | UNI (uniswap) | OK | OK | OK | OK |
-| 40 | DEXE (dexe) | OK | OK | OK | OK |
+| 40 | DEXE (dexe) | OK | OK | OK | · |
 | 41 | USDY (ondo-us-dollar-yield) | · | · | · | · |
 | 42 | TAO (bittensor) | OK | OK | OK | OK |
 | 43 | PAXG (pax-gold) | OK | OK | OK | · |
@@ -89,10 +89,10 @@ Generated: 2026-07-12T21:22:49.498Z | Target: https://market-ui-self.vercel.app 
 | 72 | JTRSY (janus-henderson-anemoy-treasury-fund) | · | · | · | · |
 | 73 | JST (just) | OK | OK | OK | OK |
 | 74 | POL (polygon-ecosystem-token) | OK | OK | OK | OK |
-| 75 | ADI (adi-token) | · | · | · | · |
+| 75 | ADI (adi-token) | · | · | · | OK |
 | 76 | ATOM (cosmos) | OK | OK | OK | · |
-| 77 | BEAT (audiera) | · | · | OK | · |
-| 78 | RENDER (render-token) | OK | OK | OK | · |
+| 77 | RENDER (render-token) | OK | OK | OK | · |
+| 78 | BEAT (audiera) | · | · | OK | · |
 | 79 | KAS (kaspa) | · | · | OK | OK |
 | 80 | USTB (superstate-short-duration-us-government-securities-fund-ustb) | · | · | · | · |
 | 81 | EURSAFO (spiko-amundi-overnight-swap-fund-eur) | · | · | · | · |

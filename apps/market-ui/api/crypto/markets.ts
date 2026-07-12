@@ -25,14 +25,15 @@ async function fetchCoinGecko() {
     csupply: String(c.circulating_supply ?? 0),
     tsupply: String(c.total_supply ?? 0),
     msupply: String(c.max_supply ?? 0),
-    // additive (CS-2)
+    // additive (CS-2). CT-5: missing CG metric -> '' (honest absence), never a
+    // fake '0' — the UI renders '' as '—'; a real 0 from CG still comes through.
     image: c.image || '',
-    ath: String(c.ath ?? 0),
-    athChangePct: String(c.ath_change_percentage ?? 0),
-    changePercent14d: String(c.price_change_percentage_14d_in_currency ?? 0),
-    changePercent30d: String(c.price_change_percentage_30d_in_currency ?? 0),
-    changePercent1y: String(c.price_change_percentage_1y_in_currency ?? 0),
-    fdvUsd: String(c.fully_diluted_valuation ?? 0),
+    ath: c.ath == null ? '' : String(c.ath),
+    athChangePct: c.ath_change_percentage == null ? '' : String(c.ath_change_percentage),
+    changePercent14d: c.price_change_percentage_14d_in_currency == null ? '' : String(c.price_change_percentage_14d_in_currency),
+    changePercent30d: c.price_change_percentage_30d_in_currency == null ? '' : String(c.price_change_percentage_30d_in_currency),
+    changePercent1y: c.price_change_percentage_1y_in_currency == null ? '' : String(c.price_change_percentage_1y_in_currency),
+    fdvUsd: c.fully_diluted_valuation == null ? '' : String(c.fully_diluted_valuation),
     source: 'coingecko',
   }));
 }

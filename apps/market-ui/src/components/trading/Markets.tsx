@@ -215,10 +215,14 @@ const loadPrefs = (): { tf?: ChangeTf; cols?: Partial<Record<ColKey, boolean>> }
   try { return JSON.parse(localStorage.getItem('nexus_crypto_cols') || '{}'); } catch { return {}; }
 };
 
-// Colored ±% cell for optional string fields ('—' when the fallback source lacks the metric).
+// CT-5: every honest-null cell shares this dash + tooltip.
+const NO_SOURCE = 'no verified source for this coin';
+const Dash = () => <span className="text-[color:var(--text-3)]" title={NO_SOURCE}>—</span>;
+
+// Colored ±% cell for optional string fields ('—' when the source lacks the metric).
 const PctVal = ({ v }: { v?: string }) => {
   const n = v === undefined || v === '' ? NaN : parseFloat(v);
-  if (!isFinite(n)) return <span className="text-[color:var(--text-3)]">—</span>;
+  if (!isFinite(n)) return <Dash />;
   return <span className={n >= 0 ? 'up' : 'down'}>{n >= 0 ? '+' : '-'}{Math.abs(n).toFixed(2)}%</span>;
 };
 
@@ -881,7 +885,9 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                     </tr>
                   ) : (
                     paginatedMarkets.map((market, index) => {
-                      const chg = parseFloat((market[tfKey] as string) || '0');
+                      // CT-5: '' / absent timeframe % is not 0 — render '—'.
+                      const chgRaw = market[tfKey] as string | undefined;
+                      const chg = chgRaw === undefined || chgRaw === '' ? NaN : parseFloat(chgRaw);
                       const chgPos = chg >= 0;
                       const fdvSupply = parseFloat(market.msupply || '0') || parseFloat(market.tsupply || '0');
                       const mcapNum = parseFloat(market.marketCapUsd || '0');
@@ -927,20 +933,20 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                               ${parseFloat(market.priceUsd || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                             </td>
                             {cols.change && (
-                              <td className={`py-2.5 px-4 text-right font-mono text-data ${chgPos ? 'up' : 'down'}`}>
-                                {chgPos ? '+' : '-'}{Math.abs(chg).toFixed(2)}%
+                              <td className={`py-2.5 px-4 text-right font-mono text-data ${!isFinite(chg) ? '' : chgPos ? 'up' : 'down'}`}>
+                                {!isFinite(chg) ? <Dash /> : <>{chgPos ? '+' : '-'}{Math.abs(chg).toFixed(2)}%</>}
                               </td>
                             )}
                             {cols.marketCap && (
                               <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden sm:table-cell">
-                                ${formatNumber(market.marketCapUsd || '0')}
+                                {parseFloat(market.marketCapUsd || '0') > 0 ? '$' + formatNumber(market.marketCapUsd) : <Dash />}
                               </td>
                             )}
                             {cols.fdv && (
                               <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
                                 {market.fdvUsd && parseFloat(market.fdvUsd) > 0
                                   ? '$' + formatNumber(market.fdvUsd)
-                                  : fdvSupply > 0 ? '$' + formatNumber(fdvSupply * parseFloat(market.priceUsd || '0')) : '—'}
+                                  : fdvSupply > 0 ? '$' + formatNumber(fdvSupply * parseFloat(market.priceUsd || '0')) : <Dash />}
                               </td>
                             )}
                             {cols.volume && (
@@ -953,14 +959,14 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             )}
                             {cols.volMcap && (
                               <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                {mcapNum > 0 ? (parseFloat(market.volumeUsd24Hr || '0') / mcapNum).toFixed(4) : '—'}
+                                {mcapNum > 0 ? (parseFloat(market.volumeUsd24Hr || '0') / mcapNum).toFixed(4) : <Dash />}
                               </td>
                             )}
                             {cols.circulating && (
                               <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
                                 <div className="flex flex-col items-end leading-tight">
-                                  <span>{formatNumber(market.csupply || '0')} {market.symbol}</span>
-                                  {market.msupply && market.msupply !== '0' && (
+                                  <span>{parseFloat(market.csupply || '0') > 0 ? <>{formatNumber(market.csupply)} {market.symbol}</> : <Dash />}</span>
+                                  {parseFloat(market.csupply || '0') > 0 && market.msupply && market.msupply !== '0' && (
                                     <div className="w-24 h-0.5 bg-[color:var(--line)] mt-1 overflow-hidden">
                                       <div
                                         className="h-full bg-[color:var(--text-3)]"
@@ -973,7 +979,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             )}
                             {cols.tsupply && (
                               <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                {formatNumber(market.tsupply || '0')} {market.symbol}
+                                {parseFloat(market.tsupply || '0') > 0 ? <>{formatNumber(market.tsupply)} {market.symbol}</> : <Dash />}
                               </td>
                             )}
                             {cols.msupply && (
@@ -992,7 +998,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             )}
                             {cols.athVal && (
                               <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                {market.ath && parseFloat(market.ath) > 0 ? '$' + formatCurrency(market.ath) : '—'}
+                                {market.ath && parseFloat(market.ath) > 0 ? '$' + formatCurrency(market.ath) : <Dash />}
                               </td>
                             )}
                             {cols.athPct && (
@@ -1001,7 +1007,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             {(() => {
                               const sp = spot[market.symbol];
                               const t0 = tech[market.symbol];
-                              const dash = <span className="text-[color:var(--text-3)]">—</span>;
+                              const dash = <Dash />;
                               const px = (v: number | null | undefined) => (v != null ? '$' + formatCurrency(v) : dash);
                               const pct = (v: number | null | undefined) => (v != null ? <PctVal v={String(v)} /> : dash);
                               return (
@@ -1029,7 +1035,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             })()}
                             {(() => {
                               const me = metas[market.symbol];
-                              const dash = <span className="text-[color:var(--text-3)]">—</span>;
+                              const dash = <Dash />;
                               const mcapN = parseFloat(market.marketCapUsd || '0');
                               return (
                                 <>
@@ -1066,7 +1072,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             {(() => {
                               const t = tech[market.symbol];
                               const num = (v: number | null | undefined, cls = 'text-[color:var(--text-2)]') => (
-                                <span className={v == null ? 'text-[color:var(--text-3)]' : cls}>{fmtTech(v)}</span>
+                                <span className={v == null ? 'text-[color:var(--text-3)]' : cls} title={v == null ? NO_SOURCE : undefined}>{fmtTech(v)}</span>
                               );
                               return (
                                 <>
@@ -1076,14 +1082,14 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                         <span className={`text-label font-semibold px-1.5 py-0.5 rounded-sm border border-[color:var(--line)] bg-[color:var(--bg)] ${t.rating.includes('Buy') ? 'up' : t.rating.includes('Sell') ? 'down' : 'text-[color:var(--text-3)]'}`} style={{ letterSpacing: '0.04em' }}>
                                           {t.rating.toUpperCase()}
                                         </span>
-                                      ) : <span className="text-[color:var(--text-3)]">—</span>}
+                                      ) : <Dash />}
                                     </td>
                                   )}
                                   {cols.rsi && (
                                     <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
                                       {t?.rsi != null ? (
                                         <span className={t.rsi > 70 ? 'down' : t.rsi < 30 ? 'up' : 'text-[color:var(--text-2)]'}>{t.rsi.toFixed(1)}</span>
-                                      ) : <span className="text-[color:var(--text-3)]">—</span>}
+                                      ) : <Dash />}
                                     </td>
                                   )}
                                   {cols.ema20 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema20)}</td>}
@@ -1099,14 +1105,14 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                           <span className={t.macdSignal != null && t.macd > t.macdSignal ? 'up' : 'down'}>{fmtTech(t.macd)}</span>
                                           <span className="text-label text-[color:var(--text-3)]">sig {fmtTech(t.macdSignal)}</span>
                                         </div>
-                                      ) : <span className="text-[color:var(--text-3)]">—</span>}
+                                      ) : <Dash />}
                                     </td>
                                   )}
                                   {cols.bbU && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbUpper)}</td>}
                                   {cols.bbL && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbLower)}</td>}
                                   {cols.atr && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.atr)}</td>}
                                   {(() => {
-                                    const dash2 = <span className="text-[color:var(--text-3)]">—</span>;
+                                    const dash2 = <Dash />;
                                     const pill = (r: string | null | undefined) => r ? (
                                       <span className={`text-label font-semibold px-1.5 py-0.5 rounded-sm border border-[color:var(--line)] bg-[color:var(--bg)] ${r.includes('Buy') ? 'up' : r.includes('Sell') ? 'down' : 'text-[color:var(--text-3)]'}`} style={{ letterSpacing: '0.04em' }}>
                                         {r.toUpperCase()}
@@ -1115,7 +1121,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                     const pair = (a: number | null | undefined, b: number | null | undefined, f: (n: number) => string = (n) => fmtTech(n)) => a != null ? (
                                       <div className="flex flex-col items-end leading-tight">
                                         <span className="text-[color:var(--text-2)]">{f(a)}</span>
-                                        <span className="text-label text-[color:var(--text-3)]">{b != null ? f(b) : '—'}</span>
+                                        <span className="text-label text-[color:var(--text-3)]">{b != null ? f(b) : <Dash />}</span>
                                       </div>
                                     ) : dash2;
                                     const cell = (on: boolean, body: React.ReactNode, cls = 'hidden xl:table-cell') =>
@@ -1168,7 +1174,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             })()}
                             {(() => {
                               const dv = derivs[market.symbol];
-                              const dash = <span className="text-[color:var(--text-3)]">—</span>;
+                              const dash = <Dash />;
                               const vol = parseFloat(market.volumeUsd24Hr || '0');
                               return (
                                 <>
