@@ -82,6 +82,55 @@ router.post('/scrape', async (req: Request, res: Response) => {
     }
 });
 
+// POST /api/firecrawl/search { query, limit? } → { results: [{title,url,content,score}] }
+// Web-search fallback for the deep-research pipeline: Tavily is quota-capped
+// (432), so this is the node-harness-reachable twin of the Vercel tn
+// dispatcher's websearch. Same response shape.
+router.post('/search', async (req: Request, res: Response) => {
+    const apiKey = process.env.FIRECRAWL_API_KEY;
+    if (!apiKey) return res.status(503).json({ error: 'FIRECRAWL_API_KEY not configured' });
+
+    const { query, limit } = req.body ?? {};
+    if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'query is required' });
+    }
+    const n = Math.min(10, Math.max(1, Number(limit) || 6));
+
+    const cacheKey = `search:${query}:${n}`;
+    const cached = getCached(cacheKey);
+    if (cached) return res.json(cached);
+
+    try {
+        const upstream = await fetch(`${FIRECRAWL_BASE}/v1/search`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({ query, limit: n }),
+        });
+        if (!upstream.ok) {
+            const text = await upstream.text();
+            return res.status(upstream.status).json({ error: `Firecrawl ${upstream.status}`, detail: text.slice(0, 300) });
+        }
+        const json = await upstream.json();
+        const results = (json?.data || [])
+            .map((d: any) => ({
+                title: d.title || d.url,
+                url: d.url,
+                content: d.description || d.markdown || '',
+                score: 0.6,
+            }))
+            .filter((r: any) => r.url);
+        const payload = { results };
+        setCached(cacheKey, payload);
+        res.json(payload);
+    } catch (err: any) {
+        console.error('Firecrawl search error:', err);
+        res.status(500).json({ error: err?.message || 'Firecrawl search failed' });
+    }
+});
+
 // POST /api/firecrawl/crawl { url, limit?, maxDepth? }
 // Returns the Firecrawl crawl job id; poll status separately.
 router.post('/crawl', async (req: Request, res: Response) => {

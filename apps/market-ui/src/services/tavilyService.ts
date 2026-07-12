@@ -218,11 +218,20 @@ export const searchMultipleQueries = async (
 };
 
 // Parallel version — fires all queries simultaneously for maximum speed
-// Firecrawl web search via the Vercel tn dispatcher (key stays server-side).
+// Firecrawl web search (key stays server-side). Browser goes through the
+// Vercel tn dispatcher (same-origin); node/harness goes through market-server
+// /api/firecrawl/search — a relative URL has no origin under vitest, which
+// left this fallback dead exactly where the live loop runs (Tavily 432).
 // Returns [] when FIRECRAWL_API_KEY is unset or on any failure — purely additive.
 export const searchWebFirecrawl = async (query: string, maxResults = 6): Promise<TavilySearchResult[]> => {
     try {
-        const res = await fetch(`/api/tn/websearch?q=${encodeURIComponent(query)}&limit=${maxResults}`);
+        const res = typeof window !== 'undefined'
+            ? await fetch(`/api/tn/websearch?q=${encodeURIComponent(query)}&limit=${maxResults}`)
+            : await fetch(`${API_BASE}/api/firecrawl/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, limit: maxResults }),
+            });
         if (!res.ok) return [];
         const data = await res.json();
         return (data.results || []).map((r: any) => ({
