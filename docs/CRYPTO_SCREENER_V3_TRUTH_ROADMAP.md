@@ -37,7 +37,7 @@ technicals/derivatives/spot/meta groups, (b) some coins show WRONG data
 
 ## Ledger
 
-- [ ] CT-1 **Ground-truth audit (no code changes to app)**: write
+- [x] CT-1 **Ground-truth audit (no code changes to app)**: write
   `apps/market-ui/scripts/audit_crypto_coverage.mjs` — pulls prod
   `/api/crypto/markets` (100 coins, id+symbol+price), then `view=spot`,
   `view=technicals`, `view=derivatives`, `view=meta` for ALL 100 (batched ≤25).
@@ -78,4 +78,4 @@ technicals/derivatives/spot/meta groups, (b) some coins show WRONG data
 
 ## Progress log
 
-(loop appends one line per completed task — real numbers only)
+- CT-1 baseline: spot 0/100 OK, technicals 0/100 OK, derivatives 0/100 OK, meta 0/100 OK (all views absent, 400 NULL)
