@@ -43,7 +43,9 @@ type ColKey = 'rank' | 'change' | 'p14d' | 'p30d' | 'p1y' | 'athVal' | 'athPct' 
   | 'marketCap' | 'fdv' | 'volMcap' | 'circulating' | 'tsupply' | 'msupply' | 'spark'
   | 'rating' | 'rsi' | 'ema20' | 'ema50' | 'ema200' | 'sma20' | 'sma50' | 'sma200' | 'macd' | 'bbU' | 'bbL' | 'atr'
   | 'funding' | 'oi' | 'oiVol'
-  | 'openC' | 'highC' | 'lowC' | 'cfoPct' | 'gapPct' | 'volaPct' | 'chgAbs' | 'volD';
+  | 'openC' | 'highC' | 'lowC' | 'cfoPct' | 'gapPct' | 'volaPct' | 'chgAbs' | 'volD'
+  | 'maR' | 'oscR' | 'stoch' | 'stochRsi' | 'willR' | 'cci' | 'adxK' | 'roc' | 'mom' | 'ao'
+  | 'psarK' | 'aroon' | 'hmaK' | 'ichi' | 'donch' | 'kelt' | 'bbp' | 'candle' | 'piv' | 'fib' | 'atrPct';
 
 // ?view=spot row shape (CX-2 server).
 interface SpotData {
@@ -63,10 +65,20 @@ interface TechData {
   symbol: string; rsi: number | null; ema20: number | null; ema50: number | null; ema200: number | null;
   sma20: number | null; sma50: number | null; sma200: number | null; macd: number | null; macdSignal: number | null;
   bbUpper: number | null; bbLower: number | null; atr: number | null; rating: string | null;
-  volChangePct?: number | null; // arrives with CX-4 server technicals v2
+  volChangePct?: number | null;
+  // CX-4 extended fields
+  stochK?: number | null; stochD?: number | null; stochRsi?: number | null; willR?: number | null;
+  cci?: number | null; adx?: number | null; diPlus?: number | null; diMinus?: number | null;
+  roc?: number | null; mom?: number | null; ao?: number | null; psar?: number | null;
+  aroonUp?: number | null; aroonDown?: number | null; atrPct?: number | null;
+  donchU?: number | null; donchL?: number | null; keltU?: number | null; keltL?: number | null;
+  hma?: number | null; ichiConv?: number | null; ichiBase?: number | null; bbp?: number | null;
+  pivP?: number | null; pivR1?: number | null; pivS1?: number | null; fibR1?: number | null; fibS1?: number | null;
+  maRating?: string | null; oscRating?: string | null; candle?: string | null;
 }
 
-const TECH_KEYS: ColKey[] = ['rating', 'rsi', 'ema20', 'ema50', 'ema200', 'sma20', 'sma50', 'sma200', 'macd', 'bbU', 'bbL', 'atr', 'volD'];
+const TECH_KEYS: ColKey[] = ['rating', 'rsi', 'ema20', 'ema50', 'ema200', 'sma20', 'sma50', 'sma200', 'macd', 'bbU', 'bbL', 'atr', 'volD',
+  'maR', 'oscR', 'stoch', 'stochRsi', 'willR', 'cci', 'adxK', 'roc', 'mom', 'ao', 'psarK', 'aroon', 'hmaK', 'ichi', 'donch', 'kelt', 'bbp', 'candle', 'piv', 'fib', 'atrPct'];
 
 const fmtTech = (n: number | null | undefined) =>
   n == null ? '—' : Math.abs(n) >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : Math.abs(n) >= 1 ? n.toFixed(2) : n.toFixed(6);
@@ -103,19 +115,44 @@ const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }
     ],
   },
   {
-    label: 'Technicals', icon: Gauge, cols: [
+    label: 'Technicals — Trend', icon: Gauge, cols: [
       { k: 'rating', label: 'Tech Rating' },
-      { k: 'rsi', label: 'RSI (14)' },
+      { k: 'maR', label: 'MAs Rating' },
       { k: 'ema20', label: 'EMA (20)' },
       { k: 'ema50', label: 'EMA (50)' },
       { k: 'ema200', label: 'EMA (200)' },
       { k: 'sma20', label: 'SMA (20)' },
       { k: 'sma50', label: 'SMA (50)' },
       { k: 'sma200', label: 'SMA (200)' },
+      { k: 'hmaK', label: 'HMA (20)' },
       { k: 'macd', label: 'MACD' },
+      { k: 'psarK', label: 'Parabolic SAR' },
+      { k: 'adxK', label: 'ADX (±DI)' },
+      { k: 'aroon', label: 'Aroon Up/Down' },
+      { k: 'ichi', label: 'Ichimoku Conv/Base' },
+      { k: 'donch', label: 'Donchian (20)' },
+      { k: 'kelt', label: 'Keltner Channels' },
       { k: 'bbU', label: 'BB Upper' },
       { k: 'bbL', label: 'BB Lower' },
+    ],
+  },
+  {
+    label: 'Technicals — Oscillators', icon: TrendingUp, cols: [
+      { k: 'oscR', label: 'Oscillators Rating' },
+      { k: 'rsi', label: 'RSI (14)' },
+      { k: 'stoch', label: 'Stochastic %K/%D' },
+      { k: 'stochRsi', label: 'Stochastic RSI' },
+      { k: 'willR', label: 'Williams %R' },
+      { k: 'cci', label: 'CCI (20)' },
+      { k: 'roc', label: 'ROC (12)' },
+      { k: 'mom', label: 'Momentum (10)' },
+      { k: 'ao', label: 'Awesome Oscillator' },
+      { k: 'bbp', label: 'Bull Bear Power' },
       { k: 'atr', label: 'ATR (14)' },
+      { k: 'atrPct', label: 'ATR %' },
+      { k: 'candle', label: 'Candle Pattern' },
+      { k: 'piv', label: 'Pivot Classic P/R1/S1' },
+      { k: 'fib', label: 'Pivot Fib R1/S1' },
     ],
   },
   {
@@ -136,6 +173,9 @@ const DEFAULT_COLS: Record<ColKey, boolean> = {
   sma20: false, sma50: false, sma200: false, macd: false, bbU: false, bbL: false, atr: false,
   funding: false, oi: false, oiVol: false,
   openC: false, highC: false, lowC: false, cfoPct: false, gapPct: false, volaPct: false, chgAbs: false, volD: false,
+  maR: false, oscR: false, stoch: false, stochRsi: false, willR: false, cci: false, adxK: false, roc: false,
+  mom: false, ao: false, psarK: false, aroon: false, hmaK: false, ichi: false, donch: false, kelt: false,
+  bbp: false, candle: false, piv: false, fib: false, atrPct: false,
 };
 
 type ChangeTf = '1h' | '24h' | '7d' | '14d' | '30d' | '1y';
@@ -316,14 +356,30 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     return n.toFixed(2);
   };
 
+  // Lazy per-page data maps (declared before sorting so tech sort can read them).
+  const [tech, setTech] = useState<Record<string, TechData>>({});
+  const [derivs, setDerivs] = useState<Record<string, DerivData>>({});
+  const [spot, setSpot] = useState<Record<string, SpotData>>({});
+  const [techSort, setTechSort] = useState<{ field: string; dir: 'asc' | 'desc' } | null>(null);
+
   const handleSort = (key: keyof MarketData) => {
+    setTechSort(null);
     setSortConfig(prev => ({
       key,
       direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
     }));
   };
+  const handleTechSort = (field: string) =>
+    setTechSort((p) => (p && p.field === field ? { field, dir: p.dir === 'desc' ? 'asc' : 'desc' } : { field, dir: 'desc' }));
 
   const sortedMarkets = [...markets].sort((a, b) => {
+    if (techSort) {
+      const av = (tech[a.symbol] as any)?.[techSort.field];
+      const bv = (tech[b.symbol] as any)?.[techSort.field];
+      const an = typeof av === 'number' ? av : -Infinity;
+      const bn = typeof bv === 'number' ? bv : -Infinity;
+      return (an - bn) * (techSort.dir === 'asc' ? 1 : -1);
+    }
     let aValue: any = a[sortConfig.key];
     let bValue: any = b[sortConfig.key];
 
@@ -355,7 +411,6 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
 
   // Technicals: fetch for the visible page only, and only when a Technicals
   // column is on. Batches of 25 (server cap) chain via the `tech` dep.
-  const [tech, setTech] = useState<Record<string, TechData>>({});
   const techWanted = TECH_KEYS.some((k) => cols[k]);
   const pageSymbols = paginatedMarkets.map((m) => m.symbol).join(',');
   useEffect(() => {
@@ -374,7 +429,6 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   }, [techWanted, pageSymbols, tech]);
 
   // Spot OHL extras: same page-only lazy pattern as technicals (CX-3).
-  const [spot, setSpot] = useState<Record<string, SpotData>>({});
   const spotWanted = SPOT_KEYS.some((k) => cols[k]);
   useEffect(() => {
     if (!spotWanted || !pageSymbols) return;
@@ -392,7 +446,6 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   }, [spotWanted, pageSymbols, spot]);
 
   // Derivatives: same page-only lazy pattern as technicals.
-  const [derivs, setDerivs] = useState<Record<string, DerivData>>({});
   const derivWanted = DERIV_KEYS.some((k) => cols[k]);
   useEffect(() => {
     if (!derivWanted || !pageSymbols) return;
@@ -443,6 +496,15 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   const tfLabel = `${changeTf} %`;
   const tfLong = TF_LONG;
   const colCount = 4 + Object.values(cols).filter(Boolean).length;
+  const techTh = (field: string, label: string, cls = 'text-right hidden xl:table-cell') => (
+    <th className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group ${cls}`} onClick={() => handleTechSort(field)}>
+      <div className="flex items-center gap-1 justify-end">
+        {label}
+        <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+    </th>
+  );
+
   const sortTh = (k: keyof MarketData, label: string, cls: string) => (
     <th className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group ${cls}`} onClick={() => handleSort(k)}>
       <div className={`flex items-center gap-1 ${cls.includes('text-right') ? 'justify-end' : ''}`}>
@@ -631,17 +693,38 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                     {cols.chgAbs && <th className="py-2 px-4 label text-right hidden xl:table-cell">24h Δ $</th>}
                     {cols.volD && <th className="py-2 px-4 label text-right hidden xl:table-cell">Vol Δ %</th>}
                     {cols.rating && <th className="py-2 px-4 label text-right hidden md:table-cell">Tech Rating</th>}
-                    {cols.rsi && <th className="py-2 px-4 label text-right hidden md:table-cell">RSI (14)</th>}
-                    {cols.ema20 && <th className="py-2 px-4 label text-right hidden xl:table-cell">EMA (20)</th>}
-                    {cols.ema50 && <th className="py-2 px-4 label text-right hidden xl:table-cell">EMA (50)</th>}
-                    {cols.ema200 && <th className="py-2 px-4 label text-right hidden xl:table-cell">EMA (200)</th>}
-                    {cols.sma20 && <th className="py-2 px-4 label text-right hidden xl:table-cell">SMA (20)</th>}
-                    {cols.sma50 && <th className="py-2 px-4 label text-right hidden xl:table-cell">SMA (50)</th>}
-                    {cols.sma200 && <th className="py-2 px-4 label text-right hidden xl:table-cell">SMA (200)</th>}
-                    {cols.macd && <th className="py-2 px-4 label text-right hidden xl:table-cell">MACD</th>}
-                    {cols.bbU && <th className="py-2 px-4 label text-right hidden xl:table-cell">BB Upper</th>}
-                    {cols.bbL && <th className="py-2 px-4 label text-right hidden xl:table-cell">BB Lower</th>}
-                    {cols.atr && <th className="py-2 px-4 label text-right hidden xl:table-cell">ATR (14)</th>}
+                    {cols.rsi && techTh('rsi', 'RSI (14)', 'text-right hidden md:table-cell')}
+                    {cols.ema20 && techTh('ema20', 'EMA (20)')}
+                    {cols.ema50 && techTh('ema50', 'EMA (50)')}
+                    {cols.ema200 && techTh('ema200', 'EMA (200)')}
+                    {cols.sma20 && techTh('sma20', 'SMA (20)')}
+                    {cols.sma50 && techTh('sma50', 'SMA (50)')}
+                    {cols.sma200 && techTh('sma200', 'SMA (200)')}
+                    {cols.macd && techTh('macd', 'MACD')}
+                    {cols.bbU && techTh('bbUpper', 'BB Upper')}
+                    {cols.bbL && techTh('bbLower', 'BB Lower')}
+                    {cols.atr && techTh('atr', 'ATR (14)')}
+                    {cols.maR && <th className="py-2 px-4 label text-right hidden md:table-cell">MAs Rating</th>}
+                    {cols.oscR && <th className="py-2 px-4 label text-right hidden md:table-cell">Osc Rating</th>}
+                    {cols.stoch && techTh('stochK', 'Stoch %K/%D')}
+                    {cols.stochRsi && techTh('stochRsi', 'Stoch RSI')}
+                    {cols.willR && techTh('willR', 'Williams %R')}
+                    {cols.cci && techTh('cci', 'CCI (20)')}
+                    {cols.adxK && techTh('adx', 'ADX ±DI')}
+                    {cols.roc && techTh('roc', 'ROC (12)')}
+                    {cols.mom && techTh('mom', 'Momentum')}
+                    {cols.ao && techTh('ao', 'Awesome Osc')}
+                    {cols.psarK && techTh('psar', 'PSAR')}
+                    {cols.aroon && techTh('aroonUp', 'Aroon ↑/↓')}
+                    {cols.hmaK && techTh('hma', 'HMA (20)')}
+                    {cols.ichi && <th className="py-2 px-4 label text-right hidden xl:table-cell">Ichimoku C/B</th>}
+                    {cols.donch && <th className="py-2 px-4 label text-right hidden xl:table-cell">Donchian U/L</th>}
+                    {cols.kelt && <th className="py-2 px-4 label text-right hidden xl:table-cell">Keltner U/L</th>}
+                    {cols.bbp && techTh('bbp', 'Bull Bear Pwr')}
+                    {cols.candle && <th className="py-2 px-4 label text-right hidden xl:table-cell">Candle</th>}
+                    {cols.piv && <th className="py-2 px-4 label text-right hidden xl:table-cell">Pivot P·R1·S1</th>}
+                    {cols.fib && <th className="py-2 px-4 label text-right hidden xl:table-cell">Fib R1·S1</th>}
+                    {cols.atrPct && techTh('atrPct', 'ATR %')}
                     {cols.funding && <th className="py-2 px-4 label text-right hidden md:table-cell">Funding</th>}
                     {cols.oi && <th className="py-2 px-4 label text-right hidden md:table-cell">Open Interest</th>}
                     {cols.oiVol && <th className="py-2 px-4 label text-right hidden xl:table-cell">OI/Vol</th>}
@@ -714,6 +797,17 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                           </button>
                                         );
                                       })}
+                                  {!colSearch && (
+                                    <>
+                                      <div className="h-px bg-[color:var(--line)] my-1" />
+                                      <button
+                                        onClick={() => { setCols(DEFAULT_COLS); setTechSort(null); }}
+                                        className="w-full px-3 py-1.5 text-body font-normal text-left text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
+                                      >
+                                        Reset columns
+                                      </button>
+                                    </>
+                                  )}
                                 </>
                               )}
                             </div>
@@ -920,6 +1014,64 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                   {cols.bbU && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbUpper)}</td>}
                                   {cols.bbL && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbLower)}</td>}
                                   {cols.atr && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.atr)}</td>}
+                                  {(() => {
+                                    const dash2 = <span className="text-[color:var(--text-3)]">—</span>;
+                                    const pill = (r: string | null | undefined) => r ? (
+                                      <span className={`text-label font-semibold px-1.5 py-0.5 rounded-sm border border-[color:var(--line)] bg-[color:var(--bg)] ${r.includes('Buy') ? 'up' : r.includes('Sell') ? 'down' : 'text-[color:var(--text-3)]'}`} style={{ letterSpacing: '0.04em' }}>
+                                        {r.toUpperCase()}
+                                      </span>
+                                    ) : dash2;
+                                    const pair = (a: number | null | undefined, b: number | null | undefined, f: (n: number) => string = (n) => fmtTech(n)) => a != null ? (
+                                      <div className="flex flex-col items-end leading-tight">
+                                        <span className="text-[color:var(--text-2)]">{f(a)}</span>
+                                        <span className="text-label text-[color:var(--text-3)]">{b != null ? f(b) : '—'}</span>
+                                      </div>
+                                    ) : dash2;
+                                    const cell = (on: boolean, body: React.ReactNode, cls = 'hidden xl:table-cell') =>
+                                      on ? <td className={`py-2.5 px-4 text-right font-mono text-data ${cls}`}>{body}</td> : null;
+                                    return (
+                                      <>
+                                        {cell(cols.maR, pill(t?.maRating), 'hidden md:table-cell')}
+                                        {cell(cols.oscR, pill(t?.oscRating), 'hidden md:table-cell')}
+                                        {cell(cols.stoch, pair(t?.stochK, t?.stochD, (n) => n.toFixed(1)))}
+                                        {cell(cols.stochRsi, num(t?.stochRsi))}
+                                        {cell(cols.willR, num(t?.willR))}
+                                        {cell(cols.cci, num(t?.cci))}
+                                        {cell(cols.adxK, t?.adx != null ? (
+                                          <div className="flex flex-col items-end leading-tight">
+                                            <span className="text-[color:var(--text-2)]">{t.adx.toFixed(1)}</span>
+                                            <span className="text-label"><span className="up">+{t.diPlus?.toFixed(0) ?? '—'}</span> <span className="down">−{t.diMinus?.toFixed(0) ?? '—'}</span></span>
+                                          </div>
+                                        ) : dash2)}
+                                        {cell(cols.roc, t?.roc != null ? <span className={t.roc >= 0 ? 'up' : 'down'}>{t.roc.toFixed(2)}%</span> : dash2)}
+                                        {cell(cols.mom, t?.mom != null ? <span className={t.mom >= 0 ? 'up' : 'down'}>{fmtTech(t.mom)}</span> : dash2)}
+                                        {cell(cols.ao, t?.ao != null ? <span className={t.ao >= 0 ? 'up' : 'down'}>{fmtTech(t.ao)}</span> : dash2)}
+                                        {cell(cols.psarK, num(t?.psar))}
+                                        {cell(cols.aroon, t?.aroonUp != null ? (
+                                          <div className="flex flex-col items-end leading-tight">
+                                            <span className="up">↑ {t.aroonUp.toFixed(0)}</span>
+                                            <span className="text-label down">↓ {t.aroonDown?.toFixed(0) ?? '—'}</span>
+                                          </div>
+                                        ) : dash2)}
+                                        {cell(cols.hmaK, num(t?.hma))}
+                                        {cell(cols.ichi, pair(t?.ichiConv, t?.ichiBase))}
+                                        {cell(cols.donch, pair(t?.donchU, t?.donchL))}
+                                        {cell(cols.kelt, pair(t?.keltU, t?.keltL))}
+                                        {cell(cols.bbp, t?.bbp != null ? <span className={t.bbp >= 0 ? 'up' : 'down'}>{fmtTech(t.bbp)}</span> : dash2)}
+                                        {cell(cols.candle, t?.candle ? (
+                                          <span className={`text-label font-semibold ${t.candle.includes('Bull') || t.candle === 'Hammer' ? 'up' : t.candle.includes('Bear') ? 'down' : 'text-[color:var(--text-2)]'}`}>{t.candle.toUpperCase()}</span>
+                                        ) : dash2)}
+                                        {cell(cols.piv, t?.pivP != null ? (
+                                          <div className="flex flex-col items-end leading-tight">
+                                            <span className="text-[color:var(--text-2)]">{fmtTech(t.pivP)}</span>
+                                            <span className="text-label text-[color:var(--text-3)]">R1 {fmtTech(t.pivR1)} · S1 {fmtTech(t.pivS1)}</span>
+                                          </div>
+                                        ) : dash2)}
+                                        {cell(cols.fib, pair(t?.fibR1, t?.fibS1))}
+                                        {cell(cols.atrPct, t?.atrPct != null ? t.atrPct.toFixed(2) + '%' : dash2)}
+                                      </>
+                                    );
+                                  })()}
                                 </>
                               );
                             })()}
