@@ -1,0 +1,24 @@
+name: Qdrant Keepalive
+
+on:
+  schedule:
+    # Run every 24 hours at 3 AM UTC (prevents inactivity suspension)
+    - cron: '0 3 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Qdrant cluster
+        run: |
+          CLUSTER_ID="343ab8f1-6fab-4b10-8cf0-99770a4681a9"
+          QDRANT_URL="https://${CLUSTER_ID}.api.qdrant.io:6333"
+
+          echo "Sending keepalive ping to Qdrant..."
+          curl -s -X GET "$QDRANT_URL/health" \
+            -H "api-key: ${{ secrets.QDRANT_API_KEY }}" \
+            -H "Accept: application/json" \
+            -w "\nStatus: %{http_code}\n"
+
+          echo "Keepalive sent at $(date)"
