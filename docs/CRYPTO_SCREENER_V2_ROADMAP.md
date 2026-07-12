@@ -62,7 +62,7 @@ columns client-sortable; "Reset columns" button in the `+` menu.
   Gap %, Volatility %, 24h Δ $, Vol Δ %) wired to view=spot (page-only lazy,
   same pattern as tech); merged-% dropdown gains 14d/30d/1y options (data
   already in rows from v1 CS-2).
-- [ ] CX-4 **Server technicals v2**: extend techFor() same-klines math —
+- [x] CX-4 **Server technicals v2**: extend techFor() same-klines math —
   stochK/stochD, stochRsi, willR, cci20, adx/diPlus/diMinus, roc12, mom10,
   ao, psar, aroonUp/aroonDown, atrPct, donchU/donchL (20), keltU/keltL,
   hma20, ichiConv/ichiBase, bbp, pivP/pivR1/pivS1 (classic), fibR1/fibS1,
@@ -89,6 +89,7 @@ columns client-sortable; "Reset columns" button in the `+` menu.
 
 (loop appends one line per completed task — real numbers only)
 
+- 2026-07-12 CX-4 server: +25 indicator fields in techFor (same klines, 0 new calls) — stochK/D, stochRsi, willR, cci20, adx/±DI, roc12, mom10, AO, PSAR, aroonUp/Down, atrPct, donchU/L, keltU/L, hma20, ichiConv/Base, BBP, classic+fib pivots (from last COMPLETED candle), maRating/oscRating (scoreLabel), candle pattern (doji/hammer/engulfing), volChangePct (completed d/d). Prod BTC: stochK 91.8 willR -8.2 adx 24.5 psar 60928 pivP 64047 maR Sell oscR Neutral volD -48.0%; ETH candle=Bull Engulfing ✓.
 - 2026-07-12 CX-3 UI: 8 Market-data cols (Open/High/Low $, Chg-Open %, Gap %, Volatility %, 24h Δ$ ±colored, Vol Δ% reading tech.volChangePct — lights up at CX-4); spot page-only lazy fetch (SPOT_KEYS gate); merged-% dropdown now 6 timeframes (1h/24h/7d/14d/30d/1y via TF_KEY map, persisted). typecheck 0, deployed.
 - 2026-07-12 CX-2 server: ?view=spot&symbols= (≤100) — 5-min cached full ticker24hr USDT map → open/high/low/prevClose/chgAbs + derived changeFromOpenPct/gapPct/volatilityPct. Prod: BTC o 64223.99 h 64463.83 l 63640.83 vola 1.29%; DOGE cfo -2.036% vola 4.55%; FAKECOIN nulls ✓.
 - 2026-07-12 CX-1 audit: ALL 7 new sources live. ticker24hr all-symbols 3638 rows 1.8MB (BTCUSDT open 64192.64 high 64463.83 low 63640.83 prevClose 64192.63 chgAbs -39.23); oiHist has sumOpenInterestValue USD directly (6.665B→6.467B d/d = -2.97% BTC) — no mark-price multiply needed; globalLongShortAccountRatio BTC 1.2573; takerlongshortRatio 0.8899; llama protocols 7827 rows 7.9MB (AAVE tvl 13.2B — map-only cache mandatory), v2/chains 456 w/ tokenSymbol (ETH 40.4B, SOL 4.9B); CG category layer-1 100 coins; CG trending 15 (UNI#3, ETH#7). No code changes.

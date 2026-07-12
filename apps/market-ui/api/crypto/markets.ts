@@ -109,6 +109,100 @@ const atrCalc = (h: number[], l: number[], c: number[], n = 14) => {
   return a;
 };
 
+// ---- CX-4: extended indicator math (same klines, no extra calls) ----
+
+const scoreLabel = (buys: number, sells: number, total: number) => {
+  if (total === 0) return null;
+  const score = (buys - sells) / total;
+  return score > 0.5 ? 'Strong Buy' : score > 0.1 ? 'Buy' : score >= -0.1 ? 'Neutral' : score >= -0.5 ? 'Sell' : 'Strong Sell';
+};
+
+const wma = (a: number[], n: number) => {
+  if (a.length < n) return null;
+  const s = a.slice(-n);
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) { num += s[i] * (i + 1); den += i + 1; }
+  return num / den;
+};
+
+const hmaCalc = (a: number[], n = 20) => {
+  const m = Math.round(Math.sqrt(n));
+  if (a.length < n + m) return null;
+  const diffs: number[] = [];
+  for (let j = m - 1; j >= 0; j--) {
+    const sub = a.slice(0, a.length - j);
+    const w1 = wma(sub, Math.floor(n / 2)), w2 = wma(sub, n);
+    if (w1 === null || w2 === null) return null;
+    diffs.push(2 * w1 - w2);
+  }
+  return wma(diffs, m);
+};
+
+const rsiSeries = (a: number[], n = 14) => {
+  if (a.length < n + 1) return [] as number[];
+  let g = 0, l = 0;
+  for (let i = 1; i <= n; i++) { const d = a[i] - a[i - 1]; if (d >= 0) g += d; else l -= d; }
+  let ag = g / n, al = l / n;
+  const out = [al === 0 ? 100 : 100 - 100 / (1 + ag / al)];
+  for (let i = n + 1; i < a.length; i++) {
+    const d = a[i] - a[i - 1];
+    ag = (ag * (n - 1) + Math.max(d, 0)) / n;
+    al = (al * (n - 1) + Math.max(-d, 0)) / n;
+    out.push(al === 0 ? 100 : 100 - 100 / (1 + ag / al));
+  }
+  return out;
+};
+
+const stochKAt = (h: number[], l: number[], c: number[], idx: number, n = 14) => {
+  if (idx + 1 < n) return null;
+  const hh = Math.max(...h.slice(idx - n + 1, idx + 1));
+  const ll = Math.min(...l.slice(idx - n + 1, idx + 1));
+  return hh === ll ? 50 : ((c[idx] - ll) / (hh - ll)) * 100;
+};
+
+const adxCalc = (h: number[], l: number[], c: number[], n = 14) => {
+  if (c.length < 2 * n + 1) return { adx: null as number | null, diPlus: null as number | null, diMinus: null as number | null };
+  const tr: number[] = [], pdm: number[] = [], ndm: number[] = [];
+  for (let i = 1; i < c.length; i++) {
+    tr.push(Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1])));
+    const up = h[i] - h[i - 1], dn = l[i - 1] - l[i];
+    pdm.push(up > dn && up > 0 ? up : 0);
+    ndm.push(dn > up && dn > 0 ? dn : 0);
+  }
+  let atrS = tr.slice(0, n).reduce((s, v) => s + v, 0);
+  let pd = pdm.slice(0, n).reduce((s, v) => s + v, 0);
+  let nd = ndm.slice(0, n).reduce((s, v) => s + v, 0);
+  const dxs: number[] = [];
+  let diP = 0, diM = 0;
+  for (let i = n; i < tr.length; i++) {
+    atrS = atrS - atrS / n + tr[i];
+    pd = pd - pd / n + pdm[i];
+    nd = nd - nd / n + ndm[i];
+    diP = (100 * pd) / atrS; diM = (100 * nd) / atrS;
+    dxs.push((100 * Math.abs(diP - diM)) / (diP + diM || 1));
+  }
+  if (dxs.length < n) return { adx: null, diPlus: diP, diMinus: diM };
+  let adx = dxs.slice(0, n).reduce((s, v) => s + v, 0) / n;
+  for (let i = n; i < dxs.length; i++) adx = (adx * (n - 1) + dxs[i]) / n;
+  return { adx, diPlus: diP, diMinus: diM };
+};
+
+const psarCalc = (h: number[], l: number[]) => {
+  if (h.length < 5) return null;
+  let up = true, af = 0.02, ep = h[0], sar = l[0];
+  for (let i = 1; i < h.length; i++) {
+    sar = sar + af * (ep - sar);
+    if (up) {
+      if (l[i] < sar) { up = false; sar = ep; ep = l[i]; af = 0.02; }
+      else if (h[i] > ep) { ep = h[i]; af = Math.min(0.2, af + 0.02); }
+    } else {
+      if (h[i] > sar) { up = true; sar = ep; ep = h[i]; af = 0.02; }
+      else if (l[i] < ep) { ep = l[i]; af = Math.min(0.2, af + 0.02); }
+    }
+  }
+  return sar;
+};
+
 const techCache: Record<string, { at: number; v: any }> = {};
 
 async function techFor(sym: string) {
@@ -123,9 +217,11 @@ async function techFor(sym: string) {
     if (r.ok) {
       const k = await r.json();
       if (Array.isArray(k) && k.length >= 30) {
+        const opens = k.map((x: any) => parseFloat(x[1]));
         const highs = k.map((x: any) => parseFloat(x[2]));
         const lows = k.map((x: any) => parseFloat(x[3]));
         const closes = k.map((x: any) => parseFloat(x[4]));
+        const vols = k.map((x: any) => parseFloat(x[5]));
         const price = closes[closes.length - 1];
         const s20 = sma(closes, 20);
         const sd = s20 === null ? null : Math.sqrt(closes.slice(-20).reduce((s, c) => s + (c - s20) ** 2, 0) / 20);
@@ -153,6 +249,82 @@ async function techFor(sym: string) {
           const score = (buys - sells) / total;
           v.rating = score > 0.5 ? 'Strong Buy' : score > 0.1 ? 'Buy' : score >= -0.1 ? 'Neutral' : score >= -0.5 ? 'Sell' : 'Strong Sell';
         }
+
+        // ---- CX-4 extended indicators (all from the same candles) ----
+        const L = closes.length;
+        const kNow = stochKAt(highs, lows, closes, L - 1);
+        const k1 = stochKAt(highs, lows, closes, L - 2);
+        const k2 = stochKAt(highs, lows, closes, L - 3);
+        v.stochK = kNow;
+        v.stochD = kNow !== null && k1 !== null && k2 !== null ? (kNow + k1 + k2) / 3 : null;
+        const rsis = rsiSeries(closes);
+        if (rsis.length >= 14) {
+          const win = rsis.slice(-14);
+          const mn = Math.min(...win), mx = Math.max(...win);
+          v.stochRsi = mx === mn ? 50 : ((rsis[rsis.length - 1] - mn) / (mx - mn)) * 100;
+        } else v.stochRsi = null;
+        const hh14 = Math.max(...highs.slice(-14)), ll14 = Math.min(...lows.slice(-14));
+        v.willR = hh14 === ll14 ? null : (-100 * (hh14 - price)) / (hh14 - ll14);
+        const tps = closes.map((c, i) => (highs[i] + lows[i] + c) / 3);
+        const tpS = sma(tps, 20);
+        if (tpS !== null) {
+          const dev = tps.slice(-20).reduce((s, t) => s + Math.abs(t - tpS), 0) / 20;
+          v.cci = dev === 0 ? null : (tps[tps.length - 1] - tpS) / (0.015 * dev);
+        } else v.cci = null;
+        const { adx, diPlus, diMinus } = adxCalc(highs, lows, closes);
+        v.adx = adx; v.diPlus = diPlus; v.diMinus = diMinus;
+        v.roc = L > 12 ? (closes[L - 1] / closes[L - 13] - 1) * 100 : null;
+        v.mom = L > 10 ? closes[L - 1] - closes[L - 11] : null;
+        const hl2 = highs.map((h, i) => (h + lows[i]) / 2);
+        const s5 = sma(hl2, 5), s34 = sma(hl2, 34);
+        v.ao = s5 !== null && s34 !== null ? s5 - s34 : null;
+        v.psar = psarCalc(highs, lows);
+        const hi25 = highs.slice(-25), lo25 = lows.slice(-25);
+        v.aroonUp = ((25 - (24 - hi25.indexOf(Math.max(...hi25)))) / 25) * 100;
+        v.aroonDown = ((25 - (24 - lo25.indexOf(Math.min(...lo25)))) / 25) * 100;
+        v.atrPct = v.atr !== null && price > 0 ? (v.atr / price) * 100 : null;
+        v.donchU = Math.max(...highs.slice(-20));
+        v.donchL = Math.min(...lows.slice(-20));
+        v.keltU = v.ema20 !== null && v.atr !== null ? v.ema20 + 2 * v.atr : null;
+        v.keltL = v.ema20 !== null && v.atr !== null ? v.ema20 - 2 * v.atr : null;
+        v.hma = hmaCalc(closes);
+        v.ichiConv = (Math.max(...highs.slice(-9)) + Math.min(...lows.slice(-9))) / 2;
+        v.ichiBase = (Math.max(...highs.slice(-26)) + Math.min(...lows.slice(-26))) / 2;
+        const e13 = ema(closes, 13);
+        v.bbp = e13 !== null ? highs[L - 1] - e13 + (lows[L - 1] - e13) : null;
+        // Pivots from the last COMPLETED day (last candle is the running day).
+        const pH = highs[L - 2], pL = lows[L - 2], pC = closes[L - 2];
+        const P = (pH + pL + pC) / 3;
+        v.pivP = P; v.pivR1 = 2 * P - pL; v.pivS1 = 2 * P - pH;
+        v.fibR1 = P + 0.382 * (pH - pL); v.fibS1 = P - 0.382 * (pH - pL);
+        // Sub-ratings: MAs only / oscillators only.
+        let mb = 0, ms = 0, mt = 0;
+        for (const m of [v.ema20, v.ema50, v.ema200, v.sma20, v.sma50, v.sma200]) {
+          if (m === null) continue;
+          mt++; if (price > m) mb++; else ms++;
+        }
+        v.maRating = scoreLabel(mb, ms, mt);
+        let ob = 0, os = 0, ot = 0;
+        if (rsi !== null) { ot++; if (rsi < 30) ob++; else if (rsi > 70) os++; }
+        if (kNow !== null) { ot++; if (kNow < 20) ob++; else if (kNow > 80) os++; }
+        if (v.cci !== null) { ot++; if (v.cci < -100) ob++; else if (v.cci > 100) os++; }
+        if (v.willR !== null) { ot++; if (v.willR < -80) ob++; else if (v.willR > -20) os++; }
+        if (v.mom !== null) { ot++; if (v.mom > 0) ob++; else os++; }
+        if (line !== null && signal !== null) { ot++; if (line > signal) ob++; else os++; }
+        v.oscRating = scoreLabel(ob, os, ot);
+        // Candle pattern on the latest candle.
+        const o = opens[L - 1], h = highs[L - 1], lo = lows[L - 1], c = closes[L - 1];
+        const body = Math.abs(c - o), range = h - lo || 1;
+        const upSh = h - Math.max(o, c), dnSh = Math.min(o, c) - lo;
+        const pO = opens[L - 2], pCl = closes[L - 2];
+        v.candle =
+          body <= 0.1 * range ? 'Doji'
+          : dnSh >= 2 * body && upSh <= body ? 'Hammer'
+          : c > o && pCl < pO && c >= pO && o <= pCl ? 'Bull Engulfing'
+          : c < o && pCl > pO && c <= pO && o >= pCl ? 'Bear Engulfing'
+          : null;
+        // Volume change % — completed day vs prior completed day (last candle is partial).
+        v.volChangePct = L > 2 && vols[L - 3] > 0 ? (vols[L - 2] / vols[L - 3] - 1) * 100 : null;
       }
     }
   } catch { /* non-Binance symbol or transient error → nulls */ }
