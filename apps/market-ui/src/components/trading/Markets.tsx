@@ -482,7 +482,8 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     const need = pageSymbols.split(',').filter((s) => s && !(s in metas)).slice(0, 100);
     if (need.length === 0) return;
     let alive = true;
-    fetch(`/api/crypto/markets?view=meta&symbols=${need.join(',')}`)
+    // CT-3: positional ids= — server joins categories/trending/protocol-TVL by CG id.
+    fetch(`/api/crypto/markets?view=meta&symbols=${need.join(',')}&ids=${need.map((s) => paginatedMarkets.find((m) => m.symbol === s)?.id || '').join(',')}`)
       .then((r) => r.json())
       .then((rows) => {
         if (!alive || !Array.isArray(rows)) return;

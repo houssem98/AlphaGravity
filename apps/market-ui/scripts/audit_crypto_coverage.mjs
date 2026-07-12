@@ -67,10 +67,11 @@ async function main() {
     const batch = coins.slice(i, i + BATCH);
     const syms = batch.map((c) => c.symbol).join(',');
     const px = batch.map((c) => `${c.symbol}:${c.priceUsd}`).join(',');
+    const ids = batch.map((c) => c.id).join(','); // meta joins by CG id (CT-3)
     for (const view of VIEWS) {
       let rows = [];
       try {
-        rows = await getJson(`${BASE}/api/crypto/markets?view=${view}&symbols=${syms}&px=${encodeURIComponent(px)}`);
+        rows = await getJson(`${BASE}/api/crypto/markets?view=${view}&symbols=${syms}&px=${encodeURIComponent(px)}&ids=${encodeURIComponent(ids)}`);
       } catch (e) {
         console.error(`  ${view} batch ${i / BATCH + 1}: ${e.message}`);
       }

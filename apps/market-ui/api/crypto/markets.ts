@@ -335,7 +335,15 @@ async function techFor(sym: string) {
 // ---- CX-6: meta — TVL (DeFiLlama) + categories/trending (CoinGecko), 1h cache ----
 
 const HOUR = 60 * 60 * 1000;
-let metaCache: { at: number; tvl: Record<string, number>; cats: Record<string, string[]>; trend: Record<string, number> } | null = null;
+let metaCache: {
+  at: number;
+  tvl: Record<string, number>;          // chain TVL by tokenSymbol (unchanged)
+  tvlById: Record<string, number>;      // CT-3: protocol-family TVL by CG id
+  cats: Record<string, string[]>;       // legacy symbol map (no-ids callers)
+  catsById: Record<string, string[]>;   // CT-3: categories by CG id
+  trend: Record<string, number>;
+  trendById: Record<string, number>;    // CT-3: trending by CG id
+} | null = null;
 
 // Slugs curl-verified 2026-07-12 (CG free tier 429s on bursts — fetch sequentially, tolerate partials).
 const CG_CATS: [string, string][] = [
@@ -347,29 +355,56 @@ const CG_CATS: [string, string][] = [
 async function buildMeta() {
   if (metaCache && Date.now() - metaCache.at < HOUR) return metaCache;
   const tvl: Record<string, number> = {};
+  const tvlById: Record<string, number> = {};
   const cats: Record<string, string[]> = {};
+  const catsById: Record<string, string[]> = {};
   const trend: Record<string, number> = {};
-  // Chains first (ETH/SOL/... = chain TVL), then protocols only for symbols not chain-set.
+  const trendById: Record<string, number> = {};
+  // Chains first (ETH/SOL/... = chain TVL) — tokenSymbol map, unchanged.
   try {
     const ch = await (await fetch('https://api.llama.fi/v2/chains')).json();
     if (Array.isArray(ch)) for (const c of ch) {
       if (c.tokenSymbol && c.tvl > 0) { const s = String(c.tokenSymbol).toUpperCase(); tvl[s] = Math.max(tvl[s] || 0, c.tvl); }
     }
   } catch { /* partial ok */ }
+  // CT-3: protocol TVL joined by CG id, never symbol. Families (parentProtocol
+  // or own slug) are attributed to a CG id only when the family carries that
+  // gecko_id — on a member row or on the parent entry (/lite/protocols2;
+  // /protocols rows have gecko_id on ~1 version only, e.g. Aave V2 but not V3).
+  // llama mcap is null on all 7830 rows (curl-verified 2026-07-12) so the
+  // mcap-agreement rule is unenforceable; the id-join is strictly stronger.
+  // CEX rows are excluded: exchange reserves are not protocol TVL.
   try {
-    const pr = await (await fetch('https://api.llama.fi/protocols')).json();
+    const [pr, lite] = await Promise.all([
+      (await fetch('https://api.llama.fi/protocols')).json(),
+      (await fetch('https://api.llama.fi/lite/protocols2')).json().catch(() => null),
+    ]);
     if (Array.isArray(pr)) {
-      const sums: Record<string, number> = {};
-      for (const p of pr) if (p.symbol && p.symbol !== '-' && p.tvl > 0) {
-        const s = String(p.symbol).toUpperCase();
-        sums[s] = (sums[s] || 0) + p.tvl; // sum protocol versions (Aave V2+V3…)
+      const parentGecko: Record<string, string> = {};
+      if (Array.isArray(lite?.parentProtocols)) {
+        for (const pp of lite.parentProtocols) if (pp.id && pp.gecko_id) parentGecko[pp.id] = pp.gecko_id;
       }
-      for (const s of Object.keys(sums)) if (!(s in tvl)) tvl[s] = sums[s];
+      const famTvl: Record<string, number> = {};
+      const famIds: Record<string, Set<string>> = {};
+      for (const p of pr) {
+        if (p.category === 'CEX') continue;
+        const fam = p.parentProtocol || p.slug;
+        if (!fam) continue;
+        if (p.tvl > 0) famTvl[fam] = (famTvl[fam] || 0) + p.tvl;
+        if (p.gecko_id) (famIds[fam] = famIds[fam] || new Set()).add(String(p.gecko_id));
+        if (parentGecko[fam]) (famIds[fam] = famIds[fam] || new Set()).add(parentGecko[fam]);
+      }
+      for (const fam of Object.keys(famIds)) {
+        for (const id of famIds[fam]) tvlById[id] = (tvlById[id] || 0) + (famTvl[fam] || 0);
+      }
     }
   } catch { /* partial ok */ }
   try {
     const t = await (await fetch('https://api.coingecko.com/api/v3/search/trending')).json();
-    if (Array.isArray(t?.coins)) t.coins.forEach((c: any, i: number) => { trend[(c.item?.symbol || '').toUpperCase()] = i + 1; });
+    if (Array.isArray(t?.coins)) t.coins.forEach((c: any, i: number) => {
+      trend[(c.item?.symbol || '').toUpperCase()] = i + 1;
+      if (c.item?.id) trendById[c.item.id] = i + 1;
+    });
   } catch { /* partial ok */ }
   for (const [slug, label] of CG_CATS) {
     try {
@@ -378,10 +413,11 @@ async function buildMeta() {
       if (Array.isArray(arr)) for (const c of arr) {
         const s = (c.symbol || '').toUpperCase();
         (cats[s] = cats[s] || []).push(label);
+        if (c.id) (catsById[c.id] = catsById[c.id] || []).push(label);
       }
     } catch { /* 429 → skip this category this hour */ }
   }
-  metaCache = { at: Date.now(), tvl, cats, trend };
+  metaCache = { at: Date.now(), tvl, tvlById, cats, catsById, trend, trendById };
   return metaCache;
 }
 
@@ -500,10 +536,21 @@ export default async function handler(req: any, res: any) {
   if (req.query?.view === 'meta') {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 100);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
+    // CT-3: ids= is positional with symbols=. With an id: categories/trending/
+    // protocol-TVL join by CG id. Without (legacy callers): chain TVL + symbol
+    // categories only — never symbol-summed protocols, trending id-only.
+    const ids = String(req.query.ids || '').split(',').map((s: string) => s.trim());
     const m = await buildMeta();
-    return res.json(syms.map((s) => ({
-      symbol: s, tvl: m.tvl[s] ?? null, categories: m.cats[s] || [], trending: m.trend[s] ?? null,
-    })));
+    return res.json(syms.map((s, i) => {
+      const id = ids[i] || null;
+      let tvl = m.tvl[s] ?? (id ? m.tvlById[id] ?? null : null);
+      if (tvl !== null && tvl < 1e6) tvl = null; // dust, not signal
+      return {
+        symbol: s, tvl,
+        categories: id ? (m.catsById[id] || []) : (m.cats[s] || []),
+        trending: id ? (m.trendById[id] ?? null) : null,
+      };
+    }));
   }
   if (req.query?.view === 'spot') {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 100);
