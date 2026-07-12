@@ -65,7 +65,7 @@ Final groups in the `+` menu: **Coin info (1) · Market data (6) · Technicals (
 - [x] CS-6 **UI technicals**: fetch `view=technicals` for visible page only,
   merge into rows, 12 cols off by default; rating = colored pill (`up`/`down`/
   neutral token colors). No fetch when whole group hidden.
-- [ ] CS-7 **Derivatives**: server `?view=derivatives` — premiumIndex once
+- [x] CS-7 **Derivatives**: server `?view=derivatives` — premiumIndex once
   (all funding rates) + OI for requested symbols; UI group w/ funding %, OI USD,
   OI/vol24. Off by default, page-only fetch, nulls for spot-only coins.
 - [ ] CS-8 **QA sweep**: prod curl all 3 views; toggle every group live;
@@ -76,6 +76,7 @@ Final groups in the `+` menu: **Coin info (1) · Market data (6) · Technicals (
 
 (loop appends one line per completed task — real numbers only)
 
+- 2026-07-12 CS-7: server ?view=derivatives — premiumIndex 1-call funding+mark map (5-min cache) + per-symbol OI (cache, skip spot-only); UI Derivatives group (Flame, 3 cols off-default): funding ±colored, OI USD, OI/Vol24 client-computed; page-only lazy fetch. Prod: BTC funding 0.0079% OI $6.47B, ETH 0.0028% $4.21B, USDT nulls ✓. typecheck 0.
 - 2026-07-12 CS-6 UI: Technicals group (Gauge icon, 12 cols off-default) — rating pill (up/down/neutral tokens), RSI colored <30/>70, MACD line+sig stacked cell, EMA/SMA/BB/ATR via fmtTech; fetch view=technicals only when a tech col on, page-only, 25-batch chained via tech dep. typecheck 0, deployed; prod BTC rsi 53.7 rating Sell, SOL rsi 52.9 rating Buy.
 - 2026-07-12 CS-5 server: ?view=technicals&symbols= (≤25) — RSI14/EMA/SMA 20-50-200/MACD+signal/BB±2σ/ATR14/compound rating, per-symbol 5-min cache, nulls for non-Binance. GOTCHA FOUND+FIXED: Binance 451-blocks Vercel iad1 (US) — pinned fns to fra1 in vercel.json ("regions"); TN routes + coingecko verified healthy after move (tn/board 200, markets 100 rows src=coingecko). Prod: BTC rsi 53.7 ema50 65304 sma200 73912 atr 1940.5 rating Sell; ETH rsi 59.7 rating Buy; FAKECOIN → nulls ✓.
 - 2026-07-12 CS-4 UI: drill-in `+` menu — level 1 group list (icon+count) w/ cross-group flat search; level 2 `< Group` back-header + per-group search + checkboxes; close resets nav state. Prefs persisted: localStorage nexus_crypto_cols {tf, cols} lazy-init + save effect. typecheck 0, deployed market-ui-self.vercel.app.

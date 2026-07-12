@@ -160,8 +160,57 @@ async function techFor(sym: string) {
   return v;
 }
 
+// ---- CS-7: derivatives from Binance fapi (funding = 1 call for all symbols) ----
+
+let fundingCache: { at: number; map: Record<string, { fr: number; mark: number }> } | null = null;
+const oiCache: Record<string, { at: number; v: number | null }> = {};
+
+async function fundingMap() {
+  if (fundingCache && Date.now() - fundingCache.at < TTL) return fundingCache.map;
+  const r = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex');
+  const arr = await r.json();
+  const map: Record<string, { fr: number; mark: number }> = {};
+  if (Array.isArray(arr)) {
+    for (const x of arr) {
+      if (typeof x.symbol === 'string' && x.symbol.endsWith('USDT')) {
+        map[x.symbol.slice(0, -4)] = { fr: parseFloat(x.lastFundingRate), mark: parseFloat(x.markPrice) };
+      }
+    }
+  }
+  fundingCache = { at: Date.now(), map };
+  return map;
+}
+
+async function oiFor(sym: string) {
+  const hit = oiCache[sym];
+  if (hit && Date.now() - hit.at < TTL) return hit.v;
+  let v: number | null = null;
+  try {
+    const r = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${sym}USDT`);
+    if (r.ok) {
+      const j = await r.json();
+      const n = parseFloat(j.openInterest);
+      if (isFinite(n)) v = n;
+    }
+  } catch { /* no perp for this symbol */ }
+  oiCache[sym] = { at: Date.now(), v };
+  return v;
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.query?.view === 'derivatives') {
+    const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 25);
+    if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
+    const fm = await fundingMap().catch(() => ({} as Record<string, { fr: number; mark: number }>));
+    const rows = await Promise.all(syms.map(async (s) => {
+      const f = fm[s];
+      if (!f) return { symbol: s, fundingRate: null, oiUsd: null }; // spot-only coin — skip OI call
+      const oi = await oiFor(s);
+      return { symbol: s, fundingRate: f.fr, oiUsd: oi !== null ? oi * f.mark : null };
+    }));
+    return res.json(rows);
+  }
   if (req.query?.view === 'technicals') {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 25);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });

@@ -41,7 +41,13 @@ const formatCurrency = (num: string | number) => {
 
 type ColKey = 'rank' | 'change' | 'p14d' | 'p30d' | 'p1y' | 'athVal' | 'athPct' | 'volume'
   | 'marketCap' | 'fdv' | 'volMcap' | 'circulating' | 'tsupply' | 'msupply' | 'spark'
-  | 'rating' | 'rsi' | 'ema20' | 'ema50' | 'ema200' | 'sma20' | 'sma50' | 'sma200' | 'macd' | 'bbU' | 'bbL' | 'atr';
+  | 'rating' | 'rsi' | 'ema20' | 'ema50' | 'ema200' | 'sma20' | 'sma50' | 'sma200' | 'macd' | 'bbU' | 'bbL' | 'atr'
+  | 'funding' | 'oi' | 'oiVol';
+
+// ?view=derivatives row shape (CS-7 server).
+interface DerivData { symbol: string; fundingRate: number | null; oiUsd: number | null }
+
+const DERIV_KEYS: ColKey[] = ['funding', 'oi', 'oiVol'];
 
 // ?view=technicals row shape (CS-5 server).
 interface TechData {
@@ -94,6 +100,13 @@ const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }
       { k: 'atr', label: 'ATR (14)' },
     ],
   },
+  {
+    label: 'Derivatives', icon: Flame, cols: [
+      { k: 'funding', label: 'Funding Rate' },
+      { k: 'oi', label: 'Open Interest' },
+      { k: 'oiVol', label: 'OI / Vol (24h)' },
+    ],
+  },
   { label: 'Chart', icon: Activity, cols: [{ k: 'spark', label: 'Last 7 Days' }] },
 ];
 
@@ -103,6 +116,7 @@ const DEFAULT_COLS: Record<ColKey, boolean> = {
   volMcap: false, circulating: true, tsupply: false, msupply: false, spark: true,
   rating: false, rsi: false, ema20: false, ema50: false, ema200: false,
   sma20: false, sma50: false, sma200: false, macd: false, bbU: false, bbL: false, atr: false,
+  funding: false, oi: false, oiVol: false,
 };
 
 // Column prefs survive reloads (CS-4).
@@ -331,6 +345,24 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     return () => { alive = false; };
   }, [techWanted, pageSymbols, tech]);
 
+  // Derivatives: same page-only lazy pattern as technicals.
+  const [derivs, setDerivs] = useState<Record<string, DerivData>>({});
+  const derivWanted = DERIV_KEYS.some((k) => cols[k]);
+  useEffect(() => {
+    if (!derivWanted || !pageSymbols) return;
+    const need = pageSymbols.split(',').filter((s) => s && !(s in derivs)).slice(0, 25);
+    if (need.length === 0) return;
+    let alive = true;
+    fetch(`/api/crypto/markets?view=derivatives&symbols=${need.join(',')}`)
+      .then((r) => r.json())
+      .then((rows) => {
+        if (!alive || !Array.isArray(rows)) return;
+        setDerivs((p) => { const n = { ...p }; rows.forEach((d: DerivData) => { n[d.symbol] = d; }); return n; });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [derivWanted, pageSymbols, derivs]);
+
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, activeTab]);
@@ -556,6 +588,9 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                     {cols.bbU && <th className="py-2 px-4 label text-right hidden xl:table-cell">BB Upper</th>}
                     {cols.bbL && <th className="py-2 px-4 label text-right hidden xl:table-cell">BB Lower</th>}
                     {cols.atr && <th className="py-2 px-4 label text-right hidden xl:table-cell">ATR (14)</th>}
+                    {cols.funding && <th className="py-2 px-4 label text-right hidden md:table-cell">Funding</th>}
+                    {cols.oi && <th className="py-2 px-4 label text-right hidden md:table-cell">Open Interest</th>}
+                    {cols.oiVol && <th className="py-2 px-4 label text-right hidden xl:table-cell">OI/Vol</th>}
                     {cols.spark && <th className="py-2 px-4 label text-right hidden md:table-cell">Last 7 Days</th>}
                     <th className="py-2 px-4 w-10 relative">
                       <button onClick={() => setColMenu((v) => !v)} title="Edit columns" className="flex items-center justify-center w-6 h-6 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)] transition-colors ml-auto">
@@ -802,6 +837,32 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                   {cols.bbU && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbUpper)}</td>}
                                   {cols.bbL && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbLower)}</td>}
                                   {cols.atr && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.atr)}</td>}
+                                </>
+                              );
+                            })()}
+                            {(() => {
+                              const dv = derivs[market.symbol];
+                              const dash = <span className="text-[color:var(--text-3)]">—</span>;
+                              const vol = parseFloat(market.volumeUsd24Hr || '0');
+                              return (
+                                <>
+                                  {cols.funding && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
+                                      {dv?.fundingRate != null ? (
+                                        <span className={dv.fundingRate >= 0 ? 'up' : 'down'}>{(dv.fundingRate * 100).toFixed(4)}%</span>
+                                      ) : dash}
+                                    </td>
+                                  )}
+                                  {cols.oi && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden md:table-cell">
+                                      {dv?.oiUsd != null ? '$' + formatNumber(dv.oiUsd) : dash}
+                                    </td>
+                                  )}
+                                  {cols.oiVol && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                      {dv?.oiUsd != null && vol > 0 ? (dv.oiUsd / vol).toFixed(2) : dash}
+                                    </td>
+                                  )}
                                 </>
                               );
                             })()}
