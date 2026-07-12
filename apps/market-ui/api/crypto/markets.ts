@@ -160,6 +160,24 @@ async function techFor(sym: string) {
   return v;
 }
 
+// ---- CX-2: spot 24h ticker map (1 call for ALL symbols, 5-min cache) ----
+
+let tickerCache: { at: number; map: Record<string, any> } | null = null;
+
+async function tickerMap() {
+  if (tickerCache && Date.now() - tickerCache.at < TTL) return tickerCache.map;
+  const r = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+  const arr = await r.json();
+  const map: Record<string, any> = {};
+  if (Array.isArray(arr)) {
+    for (const t of arr) {
+      if (typeof t.symbol === 'string' && t.symbol.endsWith('USDT')) map[t.symbol.slice(0, -4)] = t;
+    }
+  }
+  tickerCache = { at: Date.now(), map };
+  return map;
+}
+
 // ---- CS-7: derivatives from Binance fapi (funding = 1 call for all symbols) ----
 
 let fundingCache: { at: number; map: Record<string, { fr: number; mark: number }> } | null = null;
@@ -199,6 +217,23 @@ async function oiFor(sym: string) {
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.query?.view === 'spot') {
+    const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 100);
+    if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
+    const tm = await tickerMap().catch(() => ({} as Record<string, any>));
+    return res.json(syms.map((s) => {
+      const t = tm[s];
+      if (!t) return { symbol: s, open: null, high: null, low: null, prevClose: null, chgAbs: null, changeFromOpenPct: null, gapPct: null, volatilityPct: null };
+      const open = parseFloat(t.openPrice), high = parseFloat(t.highPrice), low = parseFloat(t.lowPrice);
+      const last = parseFloat(t.lastPrice), prev = parseFloat(t.prevClosePrice), chg = parseFloat(t.priceChange);
+      return {
+        symbol: s, open, high, low, prevClose: prev, chgAbs: chg,
+        changeFromOpenPct: open > 0 ? ((last - open) / open) * 100 : null,
+        gapPct: prev > 0 ? ((open - prev) / prev) * 100 : null,
+        volatilityPct: low > 0 ? ((high - low) / low) * 100 : null,
+      };
+    }));
+  }
   if (req.query?.view === 'derivatives') {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 25);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
