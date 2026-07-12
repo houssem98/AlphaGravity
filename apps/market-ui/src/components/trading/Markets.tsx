@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Plus, Check, Info, Database } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown, Plus, Check, Info, Database } from 'lucide-react';
 import { Sparkline } from './Sparkline';
 import { motion, AnimatePresence } from 'motion/react';
 import { CategoriesTab, ExchangesTab, NFTsTab, ConverterTab } from './MarketsTabs';
@@ -68,6 +68,17 @@ const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }
   { label: 'Chart', icon: Activity, cols: [{ k: 'spark', label: 'Last 7 Days' }] },
 ];
 
+const DEFAULT_COLS: Record<ColKey, boolean> = {
+  rank: true, change: true, p14d: false, p30d: false, p1y: false, athVal: false, athPct: false,
+  marketCap: true, fdv: false, volume: true,
+  volMcap: false, circulating: true, tsupply: false, msupply: false, spark: true,
+};
+
+// Column prefs survive reloads (CS-4).
+const loadPrefs = (): { tf?: '1h' | '24h' | '7d'; cols?: Partial<Record<ColKey, boolean>> } => {
+  try { return JSON.parse(localStorage.getItem('nexus_crypto_cols') || '{}'); } catch { return {}; }
+};
+
 // Colored ±% cell for optional string fields ('—' when the fallback source lacks the metric).
 const PctVal = ({ v }: { v?: string }) => {
   const n = v === undefined || v === '' ? NaN : parseFloat(v);
@@ -135,16 +146,15 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     const saved = localStorage.getItem('nexus_watchlist');
     return saved ? JSON.parse(saved) : [];
   });
-  const [changeTf, setChangeTf] = useState<'1h' | '24h' | '7d'>('24h');
+  const [changeTf, setChangeTf] = useState<'1h' | '24h' | '7d'>(() => loadPrefs().tf || '24h');
   const [changeMenu, setChangeMenu] = useState(false);
   const [colMenu, setColMenu] = useState(false);
   const [colSearch, setColSearch] = useState('');
   const [openGroup, setOpenGroup] = useState<string | null>(null);
-  const [cols, setCols] = useState<Record<ColKey, boolean>>({
-    rank: true, change: true, p14d: false, p30d: false, p1y: false, athVal: false, athPct: false,
-    marketCap: true, fdv: false, volume: true,
-    volMcap: false, circulating: true, tsupply: false, msupply: false, spark: true,
-  });
+  const [cols, setCols] = useState<Record<ColKey, boolean>>(() => ({ ...DEFAULT_COLS, ...(loadPrefs().cols || {}) }));
+  useEffect(() => {
+    localStorage.setItem('nexus_crypto_cols', JSON.stringify({ tf: changeTf, cols }));
+  }, [changeTf, cols]);
 
   useEffect(() => {
     localStorage.setItem('nexus_watchlist', JSON.stringify(watchlist));
@@ -488,52 +498,76 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                       <button onClick={() => setColMenu((v) => !v)} title="Edit columns" className="flex items-center justify-center w-6 h-6 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)] transition-colors ml-auto">
                         <Plus className="w-3.5 h-3.5" />
                       </button>
-                      {colMenu && (
-                        <>
-                          <div className="fixed inset-0 z-40" onClick={() => setColMenu(false)} />
-                          <div className="absolute right-4 top-full mt-1 z-50 w-56 max-h-80 overflow-y-auto bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case">
-                            <div className="label px-3 py-1.5 text-[color:var(--text-3)]">Columns</div>
-                            <div className="px-2 pb-1.5">
-                              <input
-                                value={colSearch}
-                                onChange={(e) => setColSearch(e.target.value)}
-                                placeholder="Search"
-                                className="w-full bg-[color:var(--bg)] border border-[color:var(--line)] text-[color:var(--text)] placeholder:text-[color:var(--text-3)] text-body font-normal px-2 py-1 rounded-sm focus:outline-none focus:border-[color:var(--line-strong)]"
-                              />
-                            </div>
-                            {COL_GROUPS.map((g) => {
-                              const GIcon = g.icon;
-                              const items = g.cols.filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase()));
-                              if (items.length === 0) return null;
-                              const open = !!colSearch || openGroup === g.label;
-                              return (
-                                <div key={g.label}>
-                                  <button
-                                    onClick={() => setOpenGroup(open && !colSearch ? null : g.label)}
-                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-body text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"
-                                  >
-                                    <GIcon className="w-3.5 h-3.5 text-[color:var(--text-3)]" />
-                                    <span className="flex-1 text-left">{g.label}</span>
-                                    <span className="font-mono text-label text-[color:var(--text-3)]">{g.cols.length}</span>
-                                  </button>
-                                  {open && items.map((c) => (
-                                    <button
-                                      key={c.k}
-                                      onClick={() => setCols((p) => ({ ...p, [c.k]: !p[c.k] }))}
-                                      className="w-full flex items-center gap-2 pl-8 pr-3 py-1.5 text-body text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"
-                                    >
-                                      <span className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 ${cols[c.k] ? 'bg-[color:var(--accent)] border-[color:var(--accent)]' : 'border-[color:var(--line-strong)]'}`}>
-                                        {cols[c.k] && <Check className="w-2.5 h-2.5 text-[color:var(--accent-ink)]" />}
-                                      </span>
-                                      {c.label}
-                                    </button>
-                                  ))}
-                                </div>
-                              );
-                            })}
+                      {colMenu && (() => {
+                        const closeMenu = () => { setColMenu(false); setOpenGroup(null); setColSearch(''); };
+                        const colRow = (c: { k: ColKey; label: string }) => (
+                          <button
+                            key={c.k}
+                            onClick={() => setCols((p) => ({ ...p, [c.k]: !p[c.k] }))}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"
+                          >
+                            <span className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 ${cols[c.k] ? 'bg-[color:var(--accent)] border-[color:var(--accent)]' : 'border-[color:var(--line-strong)]'}`}>
+                              {cols[c.k] && <Check className="w-2.5 h-2.5 text-[color:var(--accent-ink)]" />}
+                            </span>
+                            {c.label}
+                          </button>
+                        );
+                        const searchBox = (
+                          <div className="px-2 pb-1.5">
+                            <input
+                              value={colSearch}
+                              onChange={(e) => setColSearch(e.target.value)}
+                              placeholder="Search"
+                              className="w-full bg-[color:var(--bg)] border border-[color:var(--line)] text-[color:var(--text)] placeholder:text-[color:var(--text-3)] text-body font-normal px-2 py-1 rounded-sm focus:outline-none focus:border-[color:var(--line-strong)]"
+                            />
                           </div>
-                        </>
-                      )}
+                        );
+                        const grp = openGroup ? COL_GROUPS.find((g) => g.label === openGroup) : null;
+                        return (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={closeMenu} />
+                            <div className="absolute right-4 top-full mt-1 z-50 w-56 max-h-80 overflow-y-auto bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case">
+                              {grp ? (
+                                <>
+                                  {/* Level 2: back header + group columns */}
+                                  <button
+                                    onClick={() => { setOpenGroup(null); setColSearch(''); }}
+                                    className="w-full flex items-center gap-1.5 px-3 py-1.5 text-body font-semibold text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
+                                  >
+                                    <ChevronLeft className="w-3.5 h-3.5" /> {grp.label}
+                                  </button>
+                                  {searchBox}
+                                  {grp.cols.filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase())).map(colRow)}
+                                </>
+                              ) : (
+                                <>
+                                  {/* Level 1: group list (or flat cross-group results while searching) */}
+                                  <div className="label px-3 py-1.5 text-[color:var(--text-3)]">Columns</div>
+                                  {searchBox}
+                                  {colSearch
+                                    ? COL_GROUPS.flatMap((g) => g.cols)
+                                        .filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase()))
+                                        .map(colRow)
+                                    : COL_GROUPS.map((g) => {
+                                        const GIcon = g.icon;
+                                        return (
+                                          <button
+                                            key={g.label}
+                                            onClick={() => { setOpenGroup(g.label); setColSearch(''); }}
+                                            className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"
+                                          >
+                                            <GIcon className="w-3.5 h-3.5 text-[color:var(--text-3)]" />
+                                            <span className="flex-1 text-left">{g.label}</span>
+                                            <span className="font-mono text-label text-[color:var(--text-3)]">{g.cols.length}</span>
+                                          </button>
+                                        );
+                                      })}
+                                </>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </th>
                   </tr>
                 </thead>
