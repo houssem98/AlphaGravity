@@ -58,7 +58,7 @@ Final groups in the `+` menu: **Coin info (1) · Market data (6) · Technicals (
   icon + count; level 2: `< Group` header + search + checkbox list (screenshots
   in chat 2026-07-12). Persist `cols` + `changeTf` to localStorage
   (`nexus_crypto_cols`). Global search still filters across groups.
-- [ ] CS-5 **Server technicals**: `markets.ts?view=technicals&symbols=BTC,ETH,…`
+- [x] CS-5 **Server technicals**: `markets.ts?view=technicals&symbols=BTC,ETH,…`
   (≤25 per call) → Binance 1d klines (parallel), compute RSI14, EMA/SMA 20/50/200,
   MACD line/signal, BB up/low, ATR14, rating (MA consensus + RSI zones →
   Strong Buy…Strong Sell). 5-min cache keyed by symbol. Non-Binance symbols → nulls.
@@ -76,6 +76,7 @@ Final groups in the `+` menu: **Coin info (1) · Market data (6) · Technicals (
 
 (loop appends one line per completed task — real numbers only)
 
+- 2026-07-12 CS-5 server: ?view=technicals&symbols= (≤25) — RSI14/EMA/SMA 20-50-200/MACD+signal/BB±2σ/ATR14/compound rating, per-symbol 5-min cache, nulls for non-Binance. GOTCHA FOUND+FIXED: Binance 451-blocks Vercel iad1 (US) — pinned fns to fra1 in vercel.json ("regions"); TN routes + coingecko verified healthy after move (tn/board 200, markets 100 rows src=coingecko). Prod: BTC rsi 53.7 ema50 65304 sma200 73912 atr 1940.5 rating Sell; ETH rsi 59.7 rating Buy; FAKECOIN → nulls ✓.
 - 2026-07-12 CS-4 UI: drill-in `+` menu — level 1 group list (icon+count) w/ cross-group flat search; level 2 `< Group` back-header + per-group search + checkboxes; close resets nav state. Prefs persisted: localStorage nexus_crypto_cols {tf, cols} lazy-init + save effect. typecheck 0, deployed market-ui-self.vercel.app.
 - 2026-07-12 CS-3 UI: MarketData +7 optional fields; 5 new cols p14d/p30d/p1y/ATH/ATH% (off by default, sortable, PctVal '—' on fallback sources); FDV cell prefers exact fdvUsd; logos = CoinGecko image w/ coincap fallback (row+expanded+highlight); groups regrouped → Coin info(1)/Market data(7)/Valuation(6)/Chart(1). typecheck 0, deployed market-ui-self.vercel.app.
 - 2026-07-12 CS-2 server: markets.ts → CoinGecko primary + 5-min module cache, coinlore/okx fallbacks untouched. Prod curl: 100 rows src=coingecko, BTC price 64100, p14d 6.845, p30d 1.577, p1y -45.44, ath 126080 (athPct -49.16), fdv 1.2856T, image URL ✓. typecheck 0, deploy market-fte8y1k08.

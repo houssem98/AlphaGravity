@@ -68,8 +68,105 @@ async function fetchOkxFallback() {
   return out;
 }
 
+// ---- CS-5: technicals from Binance 1d klines, hand-rolled math (no deps) ----
+
+const sma = (a: number[], n: number) => (a.length >= n ? a.slice(-n).reduce((s, v) => s + v, 0) / n : null);
+
+const emaSeries = (a: number[], n: number): number[] => {
+  const k = 2 / (n + 1);
+  let e = a[0];
+  return a.map((v, i) => (e = i === 0 ? v : v * k + e * (1 - k)));
+};
+const ema = (a: number[], n: number) => (a.length >= n ? emaSeries(a, n)[a.length - 1] : null);
+
+const rsiCalc = (a: number[], n = 14) => {
+  if (a.length < n + 1) return null;
+  let g = 0, l = 0;
+  for (let i = 1; i <= n; i++) { const d = a[i] - a[i - 1]; if (d >= 0) g += d; else l -= d; }
+  let ag = g / n, al = l / n;
+  for (let i = n + 1; i < a.length; i++) {
+    const d = a[i] - a[i - 1];
+    ag = (ag * (n - 1) + Math.max(d, 0)) / n;
+    al = (al * (n - 1) + Math.max(-d, 0)) / n;
+  }
+  return al === 0 ? 100 : 100 - 100 / (1 + ag / al);
+};
+
+const macdCalc = (a: number[]) => {
+  if (a.length < 35) return { line: null as number | null, signal: null as number | null };
+  const e12 = emaSeries(a, 12), e26 = emaSeries(a, 26);
+  const m = a.map((_, i) => e12[i] - e26[i]);
+  const sig = emaSeries(m.slice(25), 9);
+  return { line: m[m.length - 1], signal: sig[sig.length - 1] };
+};
+
+const atrCalc = (h: number[], l: number[], c: number[], n = 14) => {
+  if (c.length < n + 1) return null;
+  const tr: number[] = [];
+  for (let i = 1; i < c.length; i++) tr.push(Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1])));
+  let a = tr.slice(0, n).reduce((s, v) => s + v, 0) / n;
+  for (let i = n; i < tr.length; i++) a = (a * (n - 1) + tr[i]) / n;
+  return a;
+};
+
+const techCache: Record<string, { at: number; v: any }> = {};
+
+async function techFor(sym: string) {
+  const hit = techCache[sym];
+  if (hit && Date.now() - hit.at < TTL) return hit.v;
+  let v: any = {
+    symbol: sym, rsi: null, ema20: null, ema50: null, ema200: null, sma20: null, sma50: null,
+    sma200: null, macd: null, macdSignal: null, bbUpper: null, bbLower: null, atr: null, rating: null,
+  };
+  try {
+    const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}USDT&interval=1d&limit=250`);
+    if (r.ok) {
+      const k = await r.json();
+      if (Array.isArray(k) && k.length >= 30) {
+        const highs = k.map((x: any) => parseFloat(x[2]));
+        const lows = k.map((x: any) => parseFloat(x[3]));
+        const closes = k.map((x: any) => parseFloat(x[4]));
+        const price = closes[closes.length - 1];
+        const s20 = sma(closes, 20);
+        const sd = s20 === null ? null : Math.sqrt(closes.slice(-20).reduce((s, c) => s + (c - s20) ** 2, 0) / 20);
+        const { line, signal } = macdCalc(closes);
+        const rsi = rsiCalc(closes);
+        v = {
+          symbol: sym, rsi,
+          ema20: ema(closes, 20), ema50: ema(closes, 50), ema200: ema(closes, 200),
+          sma20: s20, sma50: sma(closes, 50), sma200: sma(closes, 200),
+          macd: line, macdSignal: signal,
+          bbUpper: s20 !== null && sd !== null ? s20 + 2 * sd : null,
+          bbLower: s20 !== null && sd !== null ? s20 - 2 * sd : null,
+          atr: atrCalc(highs, lows, closes),
+          rating: null as string | null,
+        };
+        // Compound rating: MA consensus (price above/below each available MA) + RSI zones + MACD cross.
+        let buys = 0, sells = 0, total = 0;
+        for (const m of [v.ema20, v.ema50, v.ema200, v.sma20, v.sma50, v.sma200]) {
+          if (m === null) continue;
+          total++; if (price > m) buys++; else sells++;
+        }
+        if (rsi !== null) { total++; if (rsi < 30) buys++; else if (rsi > 70) sells++; }
+        if (line !== null && signal !== null) { total++; if (line > signal) buys++; else sells++; }
+        if (total > 0) {
+          const score = (buys - sells) / total;
+          v.rating = score > 0.5 ? 'Strong Buy' : score > 0.1 ? 'Buy' : score >= -0.1 ? 'Neutral' : score >= -0.5 ? 'Sell' : 'Strong Sell';
+        }
+      }
+    }
+  } catch { /* non-Binance symbol or transient error → nulls */ }
+  techCache[sym] = { at: Date.now(), v };
+  return v;
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.query?.view === 'technicals') {
+    const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 25);
+    if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
+    return res.json(await Promise.all(syms.map(techFor)));
+  }
   if (cache && Date.now() - cache.at < TTL) return res.json(cache.rows);
   try {
     const rows = await fetchCoinGecko();
