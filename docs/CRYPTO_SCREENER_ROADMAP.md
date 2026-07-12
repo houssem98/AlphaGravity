@@ -62,7 +62,7 @@ Final groups in the `+` menu: **Coin info (1) · Market data (6) · Technicals (
   (≤25 per call) → Binance 1d klines (parallel), compute RSI14, EMA/SMA 20/50/200,
   MACD line/signal, BB up/low, ATR14, rating (MA consensus + RSI zones →
   Strong Buy…Strong Sell). 5-min cache keyed by symbol. Non-Binance symbols → nulls.
-- [ ] CS-6 **UI technicals**: fetch `view=technicals` for visible page only,
+- [x] CS-6 **UI technicals**: fetch `view=technicals` for visible page only,
   merge into rows, 12 cols off by default; rating = colored pill (`up`/`down`/
   neutral token colors). No fetch when whole group hidden.
 - [ ] CS-7 **Derivatives**: server `?view=derivatives` — premiumIndex once
@@ -76,6 +76,7 @@ Final groups in the `+` menu: **Coin info (1) · Market data (6) · Technicals (
 
 (loop appends one line per completed task — real numbers only)
 
+- 2026-07-12 CS-6 UI: Technicals group (Gauge icon, 12 cols off-default) — rating pill (up/down/neutral tokens), RSI colored <30/>70, MACD line+sig stacked cell, EMA/SMA/BB/ATR via fmtTech; fetch view=technicals only when a tech col on, page-only, 25-batch chained via tech dep. typecheck 0, deployed; prod BTC rsi 53.7 rating Sell, SOL rsi 52.9 rating Buy.
 - 2026-07-12 CS-5 server: ?view=technicals&symbols= (≤25) — RSI14/EMA/SMA 20-50-200/MACD+signal/BB±2σ/ATR14/compound rating, per-symbol 5-min cache, nulls for non-Binance. GOTCHA FOUND+FIXED: Binance 451-blocks Vercel iad1 (US) — pinned fns to fra1 in vercel.json ("regions"); TN routes + coingecko verified healthy after move (tn/board 200, markets 100 rows src=coingecko). Prod: BTC rsi 53.7 ema50 65304 sma200 73912 atr 1940.5 rating Sell; ETH rsi 59.7 rating Buy; FAKECOIN → nulls ✓.
 - 2026-07-12 CS-4 UI: drill-in `+` menu — level 1 group list (icon+count) w/ cross-group flat search; level 2 `< Group` back-header + per-group search + checkboxes; close resets nav state. Prefs persisted: localStorage nexus_crypto_cols {tf, cols} lazy-init + save effect. typecheck 0, deployed market-ui-self.vercel.app.
 - 2026-07-12 CS-3 UI: MarketData +7 optional fields; 5 new cols p14d/p30d/p1y/ATH/ATH% (off by default, sortable, PctVal '—' on fallback sources); FDV cell prefers exact fdvUsd; logos = CoinGecko image w/ coincap fallback (row+expanded+highlight); groups regrouped → Coin info(1)/Market data(7)/Valuation(6)/Chart(1). typecheck 0, deployed market-ui-self.vercel.app.

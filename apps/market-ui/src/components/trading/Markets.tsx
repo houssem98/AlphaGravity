@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown, Plus, Check, Info, Database } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown, Plus, Check, Info, Database, Gauge } from 'lucide-react';
 import { Sparkline } from './Sparkline';
 import { motion, AnimatePresence } from 'motion/react';
 import { CategoriesTab, ExchangesTab, NFTsTab, ConverterTab } from './MarketsTabs';
@@ -40,7 +40,20 @@ const formatCurrency = (num: string | number) => {
 };
 
 type ColKey = 'rank' | 'change' | 'p14d' | 'p30d' | 'p1y' | 'athVal' | 'athPct' | 'volume'
-  | 'marketCap' | 'fdv' | 'volMcap' | 'circulating' | 'tsupply' | 'msupply' | 'spark';
+  | 'marketCap' | 'fdv' | 'volMcap' | 'circulating' | 'tsupply' | 'msupply' | 'spark'
+  | 'rating' | 'rsi' | 'ema20' | 'ema50' | 'ema200' | 'sma20' | 'sma50' | 'sma200' | 'macd' | 'bbU' | 'bbL' | 'atr';
+
+// ?view=technicals row shape (CS-5 server).
+interface TechData {
+  symbol: string; rsi: number | null; ema20: number | null; ema50: number | null; ema200: number | null;
+  sma20: number | null; sma50: number | null; sma200: number | null; macd: number | null; macdSignal: number | null;
+  bbUpper: number | null; bbLower: number | null; atr: number | null; rating: string | null;
+}
+
+const TECH_KEYS: ColKey[] = ['rating', 'rsi', 'ema20', 'ema50', 'ema200', 'sma20', 'sma50', 'sma200', 'macd', 'bbU', 'bbL', 'atr'];
+
+const fmtTech = (n: number | null | undefined) =>
+  n == null ? '—' : Math.abs(n) >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : Math.abs(n) >= 1 ? n.toFixed(2) : n.toFixed(6);
 
 const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }[] }[] = [
   { label: 'Coin info', icon: Info, cols: [{ k: 'rank', label: 'Rank #' }] },
@@ -65,6 +78,22 @@ const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }
       { k: 'msupply', label: 'Max Supply' },
     ],
   },
+  {
+    label: 'Technicals', icon: Gauge, cols: [
+      { k: 'rating', label: 'Tech Rating' },
+      { k: 'rsi', label: 'RSI (14)' },
+      { k: 'ema20', label: 'EMA (20)' },
+      { k: 'ema50', label: 'EMA (50)' },
+      { k: 'ema200', label: 'EMA (200)' },
+      { k: 'sma20', label: 'SMA (20)' },
+      { k: 'sma50', label: 'SMA (50)' },
+      { k: 'sma200', label: 'SMA (200)' },
+      { k: 'macd', label: 'MACD' },
+      { k: 'bbU', label: 'BB Upper' },
+      { k: 'bbL', label: 'BB Lower' },
+      { k: 'atr', label: 'ATR (14)' },
+    ],
+  },
   { label: 'Chart', icon: Activity, cols: [{ k: 'spark', label: 'Last 7 Days' }] },
 ];
 
@@ -72,6 +101,8 @@ const DEFAULT_COLS: Record<ColKey, boolean> = {
   rank: true, change: true, p14d: false, p30d: false, p1y: false, athVal: false, athPct: false,
   marketCap: true, fdv: false, volume: true,
   volMcap: false, circulating: true, tsupply: false, msupply: false, spark: true,
+  rating: false, rsi: false, ema20: false, ema50: false, ema200: false,
+  sma20: false, sma50: false, sma200: false, macd: false, bbU: false, bbL: false, atr: false,
 };
 
 // Column prefs survive reloads (CS-4).
@@ -279,6 +310,26 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // Technicals: fetch for the visible page only, and only when a Technicals
+  // column is on. Batches of 25 (server cap) chain via the `tech` dep.
+  const [tech, setTech] = useState<Record<string, TechData>>({});
+  const techWanted = TECH_KEYS.some((k) => cols[k]);
+  const pageSymbols = paginatedMarkets.map((m) => m.symbol).join(',');
+  useEffect(() => {
+    if (!techWanted || !pageSymbols) return;
+    const need = pageSymbols.split(',').filter((s) => s && !(s in tech)).slice(0, 25);
+    if (need.length === 0) return;
+    let alive = true;
+    fetch(`/api/crypto/markets?view=technicals&symbols=${need.join(',')}`)
+      .then((r) => r.json())
+      .then((rows) => {
+        if (!alive || !Array.isArray(rows)) return;
+        setTech((p) => { const n = { ...p }; rows.forEach((t: TechData) => { n[t.symbol] = t; }); return n; });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [techWanted, pageSymbols, tech]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -493,6 +544,18 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                     {cols.p1y && sortTh('changePercent1y', '1y %', 'text-right hidden xl:table-cell')}
                     {cols.athVal && sortTh('ath', 'ATH', 'text-right hidden xl:table-cell')}
                     {cols.athPct && sortTh('athChangePct', 'ATH %', 'text-right hidden xl:table-cell')}
+                    {cols.rating && <th className="py-2 px-4 label text-right hidden md:table-cell">Tech Rating</th>}
+                    {cols.rsi && <th className="py-2 px-4 label text-right hidden md:table-cell">RSI (14)</th>}
+                    {cols.ema20 && <th className="py-2 px-4 label text-right hidden xl:table-cell">EMA (20)</th>}
+                    {cols.ema50 && <th className="py-2 px-4 label text-right hidden xl:table-cell">EMA (50)</th>}
+                    {cols.ema200 && <th className="py-2 px-4 label text-right hidden xl:table-cell">EMA (200)</th>}
+                    {cols.sma20 && <th className="py-2 px-4 label text-right hidden xl:table-cell">SMA (20)</th>}
+                    {cols.sma50 && <th className="py-2 px-4 label text-right hidden xl:table-cell">SMA (50)</th>}
+                    {cols.sma200 && <th className="py-2 px-4 label text-right hidden xl:table-cell">SMA (200)</th>}
+                    {cols.macd && <th className="py-2 px-4 label text-right hidden xl:table-cell">MACD</th>}
+                    {cols.bbU && <th className="py-2 px-4 label text-right hidden xl:table-cell">BB Upper</th>}
+                    {cols.bbL && <th className="py-2 px-4 label text-right hidden xl:table-cell">BB Lower</th>}
+                    {cols.atr && <th className="py-2 px-4 label text-right hidden xl:table-cell">ATR (14)</th>}
                     {cols.spark && <th className="py-2 px-4 label text-right hidden md:table-cell">Last 7 Days</th>}
                     <th className="py-2 px-4 w-10 relative">
                       <button onClick={() => setColMenu((v) => !v)} title="Edit columns" className="flex items-center justify-center w-6 h-6 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)] transition-colors ml-auto">
@@ -697,6 +760,51 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             {cols.athPct && (
                               <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.athChangePct} /></td>
                             )}
+                            {(() => {
+                              const t = tech[market.symbol];
+                              const num = (v: number | null | undefined, cls = 'text-[color:var(--text-2)]') => (
+                                <span className={v == null ? 'text-[color:var(--text-3)]' : cls}>{fmtTech(v)}</span>
+                              );
+                              return (
+                                <>
+                                  {cols.rating && (
+                                    <td className="py-2.5 px-4 text-right hidden md:table-cell">
+                                      {t?.rating ? (
+                                        <span className={`text-label font-semibold px-1.5 py-0.5 rounded-sm border border-[color:var(--line)] bg-[color:var(--bg)] ${t.rating.includes('Buy') ? 'up' : t.rating.includes('Sell') ? 'down' : 'text-[color:var(--text-3)]'}`} style={{ letterSpacing: '0.04em' }}>
+                                          {t.rating.toUpperCase()}
+                                        </span>
+                                      ) : <span className="text-[color:var(--text-3)]">—</span>}
+                                    </td>
+                                  )}
+                                  {cols.rsi && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
+                                      {t?.rsi != null ? (
+                                        <span className={t.rsi > 70 ? 'down' : t.rsi < 30 ? 'up' : 'text-[color:var(--text-2)]'}>{t.rsi.toFixed(1)}</span>
+                                      ) : <span className="text-[color:var(--text-3)]">—</span>}
+                                    </td>
+                                  )}
+                                  {cols.ema20 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema20)}</td>}
+                                  {cols.ema50 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema50)}</td>}
+                                  {cols.ema200 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema200)}</td>}
+                                  {cols.sma20 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma20)}</td>}
+                                  {cols.sma50 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma50)}</td>}
+                                  {cols.sma200 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma200)}</td>}
+                                  {cols.macd && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                      {t?.macd != null ? (
+                                        <div className="flex flex-col items-end leading-tight">
+                                          <span className={t.macdSignal != null && t.macd > t.macdSignal ? 'up' : 'down'}>{fmtTech(t.macd)}</span>
+                                          <span className="text-label text-[color:var(--text-3)]">sig {fmtTech(t.macdSignal)}</span>
+                                        </div>
+                                      ) : <span className="text-[color:var(--text-3)]">—</span>}
+                                    </td>
+                                  )}
+                                  {cols.bbU && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbUpper)}</td>}
+                                  {cols.bbL && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbLower)}</td>}
+                                  {cols.atr && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.atr)}</td>}
+                                </>
+                              );
+                            })()}
                             {cols.spark && (
                               <td className="py-2.5 px-4 text-right hidden md:table-cell">
                                 <div className="flex items-center justify-end gap-3 relative">
