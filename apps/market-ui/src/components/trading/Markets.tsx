@@ -42,7 +42,16 @@ const formatCurrency = (num: string | number) => {
 type ColKey = 'rank' | 'change' | 'p14d' | 'p30d' | 'p1y' | 'athVal' | 'athPct' | 'volume'
   | 'marketCap' | 'fdv' | 'volMcap' | 'circulating' | 'tsupply' | 'msupply' | 'spark'
   | 'rating' | 'rsi' | 'ema20' | 'ema50' | 'ema200' | 'sma20' | 'sma50' | 'sma200' | 'macd' | 'bbU' | 'bbL' | 'atr'
-  | 'funding' | 'oi' | 'oiVol';
+  | 'funding' | 'oi' | 'oiVol'
+  | 'openC' | 'highC' | 'lowC' | 'cfoPct' | 'gapPct' | 'volaPct' | 'chgAbs' | 'volD';
+
+// ?view=spot row shape (CX-2 server).
+interface SpotData {
+  symbol: string; open: number | null; high: number | null; low: number | null; prevClose: number | null;
+  chgAbs: number | null; changeFromOpenPct: number | null; gapPct: number | null; volatilityPct: number | null;
+}
+
+const SPOT_KEYS: ColKey[] = ['openC', 'highC', 'lowC', 'cfoPct', 'gapPct', 'volaPct', 'chgAbs'];
 
 // ?view=derivatives row shape (CS-7 server).
 interface DerivData { symbol: string; fundingRate: number | null; oiUsd: number | null }
@@ -54,9 +63,10 @@ interface TechData {
   symbol: string; rsi: number | null; ema20: number | null; ema50: number | null; ema200: number | null;
   sma20: number | null; sma50: number | null; sma200: number | null; macd: number | null; macdSignal: number | null;
   bbUpper: number | null; bbLower: number | null; atr: number | null; rating: string | null;
+  volChangePct?: number | null; // arrives with CX-4 server technicals v2
 }
 
-const TECH_KEYS: ColKey[] = ['rating', 'rsi', 'ema20', 'ema50', 'ema200', 'sma20', 'sma50', 'sma200', 'macd', 'bbU', 'bbL', 'atr'];
+const TECH_KEYS: ColKey[] = ['rating', 'rsi', 'ema20', 'ema50', 'ema200', 'sma20', 'sma50', 'sma200', 'macd', 'bbU', 'bbL', 'atr', 'volD'];
 
 const fmtTech = (n: number | null | undefined) =>
   n == null ? '—' : Math.abs(n) >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : Math.abs(n) >= 1 ? n.toFixed(2) : n.toFixed(6);
@@ -72,6 +82,14 @@ const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }
       { k: 'athVal', label: 'All-Time High' },
       { k: 'athPct', label: 'ATH %' },
       { k: 'volume', label: 'Volume (24h)' },
+      { k: 'openC', label: 'Open (24h)' },
+      { k: 'highC', label: 'High (24h)' },
+      { k: 'lowC', label: 'Low (24h)' },
+      { k: 'cfoPct', label: 'Chg from Open %' },
+      { k: 'gapPct', label: 'Gap %' },
+      { k: 'volaPct', label: 'Volatility %' },
+      { k: 'chgAbs', label: 'Price Δ 24h $' },
+      { k: 'volD', label: 'Volume Δ %' },
     ],
   },
   {
@@ -117,10 +135,20 @@ const DEFAULT_COLS: Record<ColKey, boolean> = {
   rating: false, rsi: false, ema20: false, ema50: false, ema200: false,
   sma20: false, sma50: false, sma200: false, macd: false, bbU: false, bbL: false, atr: false,
   funding: false, oi: false, oiVol: false,
+  openC: false, highC: false, lowC: false, cfoPct: false, gapPct: false, volaPct: false, chgAbs: false, volD: false,
+};
+
+type ChangeTf = '1h' | '24h' | '7d' | '14d' | '30d' | '1y';
+const TF_KEY: Record<ChangeTf, keyof MarketData> = {
+  '1h': 'changePercent1Hr', '24h': 'changePercent24Hr', '7d': 'changePercent7d',
+  '14d': 'changePercent14d', '30d': 'changePercent30d', '1y': 'changePercent1y',
+};
+const TF_LONG: Record<ChangeTf, string> = {
+  '1h': '1 hour', '24h': '24 hours', '7d': '7 days', '14d': '14 days', '30d': '30 days', '1y': '1 year',
 };
 
 // Column prefs survive reloads (CS-4).
-const loadPrefs = (): { tf?: '1h' | '24h' | '7d'; cols?: Partial<Record<ColKey, boolean>> } => {
+const loadPrefs = (): { tf?: ChangeTf; cols?: Partial<Record<ColKey, boolean>> } => {
   try { return JSON.parse(localStorage.getItem('nexus_crypto_cols') || '{}'); } catch { return {}; }
 };
 
@@ -191,7 +219,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     const saved = localStorage.getItem('nexus_watchlist');
     return saved ? JSON.parse(saved) : [];
   });
-  const [changeTf, setChangeTf] = useState<'1h' | '24h' | '7d'>(() => loadPrefs().tf || '24h');
+  const [changeTf, setChangeTf] = useState<ChangeTf>(() => loadPrefs().tf || '24h');
   const [changeMenu, setChangeMenu] = useState(false);
   const [colMenu, setColMenu] = useState(false);
   const [colSearch, setColSearch] = useState('');
@@ -345,6 +373,24 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     return () => { alive = false; };
   }, [techWanted, pageSymbols, tech]);
 
+  // Spot OHL extras: same page-only lazy pattern as technicals (CX-3).
+  const [spot, setSpot] = useState<Record<string, SpotData>>({});
+  const spotWanted = SPOT_KEYS.some((k) => cols[k]);
+  useEffect(() => {
+    if (!spotWanted || !pageSymbols) return;
+    const need = pageSymbols.split(',').filter((s) => s && !(s in spot)).slice(0, 100);
+    if (need.length === 0) return;
+    let alive = true;
+    fetch(`/api/crypto/markets?view=spot&symbols=${need.join(',')}`)
+      .then((r) => r.json())
+      .then((rows) => {
+        if (!alive || !Array.isArray(rows)) return;
+        setSpot((p) => { const n = { ...p }; rows.forEach((s: SpotData) => { n[s.symbol] = s; }); return n; });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [spotWanted, pageSymbols, spot]);
+
   // Derivatives: same page-only lazy pattern as technicals.
   const [derivs, setDerivs] = useState<Record<string, DerivData>>({});
   const derivWanted = DERIV_KEYS.some((k) => cols[k]);
@@ -393,9 +439,9 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     </div>
   );
 
-  const tfKey = ({ '1h': 'changePercent1Hr', '24h': 'changePercent24Hr', '7d': 'changePercent7d' } as const)[changeTf] as keyof MarketData;
-  const tfLabel = { '1h': '1h %', '24h': '24h %', '7d': '7d %' }[changeTf];
-  const tfLong = { '1h': '1 hour', '24h': '24 hours', '7d': '7 days' } as const;
+  const tfKey = TF_KEY[changeTf];
+  const tfLabel = `${changeTf} %`;
+  const tfLong = TF_LONG;
   const colCount = 4 + Object.values(cols).filter(Boolean).length;
   const sortTh = (k: keyof MarketData, label: string, cls: string) => (
     <th className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group ${cls}`} onClick={() => handleSort(k)}>
@@ -550,7 +596,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             <div className="fixed inset-0 z-40" onClick={() => setChangeMenu(false)} />
                             <div className="absolute right-4 top-full mt-1 z-50 w-40 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case">
                               <div className="label px-3 py-1 text-[color:var(--text-3)]">Price change %</div>
-                              {(['1h', '24h', '7d'] as const).map((tf) => (
+                              {(['1h', '24h', '7d', '14d', '30d', '1y'] as const).map((tf) => (
                                 <button key={tf} onClick={() => { setChangeTf(tf); setChangeMenu(false); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-body hover:bg-[color:var(--surface-2)] transition-colors ${changeTf === tf ? 'text-[color:var(--accent)]' : 'text-[color:var(--text-2)]'}`}>
                                   <span className={`w-1.5 h-1.5 rounded-full ${changeTf === tf ? 'bg-[color:var(--accent)]' : 'border border-[color:var(--line-strong)]'}`} />
                                   {tfLong[tf]}
@@ -576,6 +622,14 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                     {cols.p1y && sortTh('changePercent1y', '1y %', 'text-right hidden xl:table-cell')}
                     {cols.athVal && sortTh('ath', 'ATH', 'text-right hidden xl:table-cell')}
                     {cols.athPct && sortTh('athChangePct', 'ATH %', 'text-right hidden xl:table-cell')}
+                    {cols.openC && <th className="py-2 px-4 label text-right hidden xl:table-cell">Open (24h)</th>}
+                    {cols.highC && <th className="py-2 px-4 label text-right hidden xl:table-cell">High (24h)</th>}
+                    {cols.lowC && <th className="py-2 px-4 label text-right hidden xl:table-cell">Low (24h)</th>}
+                    {cols.cfoPct && <th className="py-2 px-4 label text-right hidden xl:table-cell">Chg Open %</th>}
+                    {cols.gapPct && <th className="py-2 px-4 label text-right hidden xl:table-cell">Gap %</th>}
+                    {cols.volaPct && <th className="py-2 px-4 label text-right hidden xl:table-cell">Volatility</th>}
+                    {cols.chgAbs && <th className="py-2 px-4 label text-right hidden xl:table-cell">24h Δ $</th>}
+                    {cols.volD && <th className="py-2 px-4 label text-right hidden xl:table-cell">Vol Δ %</th>}
                     {cols.rating && <th className="py-2 px-4 label text-right hidden md:table-cell">Tech Rating</th>}
                     {cols.rsi && <th className="py-2 px-4 label text-right hidden md:table-cell">RSI (14)</th>}
                     {cols.ema20 && <th className="py-2 px-4 label text-right hidden xl:table-cell">EMA (20)</th>}
@@ -795,6 +849,35 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             {cols.athPct && (
                               <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.athChangePct} /></td>
                             )}
+                            {(() => {
+                              const sp = spot[market.symbol];
+                              const t0 = tech[market.symbol];
+                              const dash = <span className="text-[color:var(--text-3)]">—</span>;
+                              const px = (v: number | null | undefined) => (v != null ? '$' + formatCurrency(v) : dash);
+                              const pct = (v: number | null | undefined) => (v != null ? <PctVal v={String(v)} /> : dash);
+                              return (
+                                <>
+                                  {cols.openC && <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.open)}</td>}
+                                  {cols.highC && <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.high)}</td>}
+                                  {cols.lowC && <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.low)}</td>}
+                                  {cols.cfoPct && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(sp?.changeFromOpenPct)}</td>}
+                                  {cols.gapPct && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(sp?.gapPct)}</td>}
+                                  {cols.volaPct && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                      {sp?.volatilityPct != null ? sp.volatilityPct.toFixed(2) + '%' : dash}
+                                    </td>
+                                  )}
+                                  {cols.chgAbs && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                      {sp?.chgAbs != null ? (
+                                        <span className={sp.chgAbs >= 0 ? 'up' : 'down'}>{(sp.chgAbs >= 0 ? '+$' : '-$') + formatCurrency(Math.abs(sp.chgAbs))}</span>
+                                      ) : dash}
+                                    </td>
+                                  )}
+                                  {cols.volD && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(t0?.volChangePct)}</td>}
+                                </>
+                              );
+                            })()}
                             {(() => {
                               const t = tech[market.symbol];
                               const num = (v: number | null | undefined, cls = 'text-[color:var(--text-2)]') => (
