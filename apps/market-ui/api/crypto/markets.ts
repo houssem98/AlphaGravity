@@ -1,3 +1,42 @@
+// Crypto markets for the /trading tab. Primary: CoinGecko /coins/markets
+// (keyless free tier — richest payload: logo image, ATH, perf 14d/30d/1y,
+// exact FDV/supplies in ONE call). Fallbacks: coinlore (previous primary,
+// shape preserved) then OKX. New fields are additive-only so the UI's base
+// MarketData shape keeps working across all three sources (CS-2).
+
+let cache: { at: number; rows: any[] } | null = null;
+const TTL = 5 * 60 * 1000;
+
+async function fetchCoinGecko() {
+  const r = await fetch(
+    'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=1h,24h,7d,14d,30d,1y',
+  );
+  if (!r.ok) throw new Error(`coingecko ${r.status}`);
+  const data = await r.json();
+  if (!Array.isArray(data) || data.length === 0) throw new Error('empty coingecko');
+  return data.map((c: any, i: number) => ({
+    id: c.id, symbol: (c.symbol || '').toUpperCase(), name: c.name, rank: c.market_cap_rank ?? i + 1,
+    priceUsd: String(c.current_price ?? 0),
+    changePercent1Hr: String(c.price_change_percentage_1h_in_currency ?? 0),
+    changePercent24Hr: String(c.price_change_percentage_24h_in_currency ?? 0),
+    changePercent7d: String(c.price_change_percentage_7d_in_currency ?? 0),
+    marketCapUsd: String(c.market_cap ?? 0),
+    volumeUsd24Hr: String(c.total_volume ?? 0),
+    csupply: String(c.circulating_supply ?? 0),
+    tsupply: String(c.total_supply ?? 0),
+    msupply: String(c.max_supply ?? 0),
+    // additive (CS-2)
+    image: c.image || '',
+    ath: String(c.ath ?? 0),
+    athChangePct: String(c.ath_change_percentage ?? 0),
+    changePercent14d: String(c.price_change_percentage_14d_in_currency ?? 0),
+    changePercent30d: String(c.price_change_percentage_30d_in_currency ?? 0),
+    changePercent1y: String(c.price_change_percentage_1y_in_currency ?? 0),
+    fdvUsd: String(c.fully_diluted_valuation ?? 0),
+    source: 'coingecko',
+  }));
+}
+
 // OKX public spot tickers (keyless, no auth) - V1.4 fallback when coinlore
 // is down/empty. No supply/marketcap/1h/7d data on this endpoint so those
 // fields default to '0' (fetchCrypto in marketsHub.ts already renders
@@ -31,6 +70,12 @@ async function fetchOkxFallback() {
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  if (cache && Date.now() - cache.at < TTL) return res.json(cache.rows);
+  try {
+    const rows = await fetchCoinGecko();
+    cache = { at: Date.now(), rows };
+    return res.json(rows);
+  } catch { /* fall through to coinlore */ }
   try {
     const r = await fetch('https://api.coinlore.net/api/tickers/?start=0&limit=100');
     const data = await r.json();
