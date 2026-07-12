@@ -332,6 +332,59 @@ async function techFor(sym: string) {
   return v;
 }
 
+// ---- CX-6: meta — TVL (DeFiLlama) + categories/trending (CoinGecko), 1h cache ----
+
+const HOUR = 60 * 60 * 1000;
+let metaCache: { at: number; tvl: Record<string, number>; cats: Record<string, string[]>; trend: Record<string, number> } | null = null;
+
+// Slugs curl-verified 2026-07-12 (CG free tier 429s on bursts — fetch sequentially, tolerate partials).
+const CG_CATS: [string, string][] = [
+  ['layer-1', 'Layer 1'], ['layer-2', 'Layer 2'], ['decentralized-finance-defi', 'DeFi'],
+  ['stablecoins', 'Stablecoins'], ['meme-token', 'Meme'], ['artificial-intelligence', 'AI'],
+  ['gaming', 'Gaming'], ['centralized-exchange-token-cex', 'Exchange'],
+];
+
+async function buildMeta() {
+  if (metaCache && Date.now() - metaCache.at < HOUR) return metaCache;
+  const tvl: Record<string, number> = {};
+  const cats: Record<string, string[]> = {};
+  const trend: Record<string, number> = {};
+  // Chains first (ETH/SOL/... = chain TVL), then protocols only for symbols not chain-set.
+  try {
+    const ch = await (await fetch('https://api.llama.fi/v2/chains')).json();
+    if (Array.isArray(ch)) for (const c of ch) {
+      if (c.tokenSymbol && c.tvl > 0) { const s = String(c.tokenSymbol).toUpperCase(); tvl[s] = Math.max(tvl[s] || 0, c.tvl); }
+    }
+  } catch { /* partial ok */ }
+  try {
+    const pr = await (await fetch('https://api.llama.fi/protocols')).json();
+    if (Array.isArray(pr)) {
+      const sums: Record<string, number> = {};
+      for (const p of pr) if (p.symbol && p.symbol !== '-' && p.tvl > 0) {
+        const s = String(p.symbol).toUpperCase();
+        sums[s] = (sums[s] || 0) + p.tvl; // sum protocol versions (Aave V2+V3…)
+      }
+      for (const s of Object.keys(sums)) if (!(s in tvl)) tvl[s] = sums[s];
+    }
+  } catch { /* partial ok */ }
+  try {
+    const t = await (await fetch('https://api.coingecko.com/api/v3/search/trending')).json();
+    if (Array.isArray(t?.coins)) t.coins.forEach((c: any, i: number) => { trend[(c.item?.symbol || '').toUpperCase()] = i + 1; });
+  } catch { /* partial ok */ }
+  for (const [slug, label] of CG_CATS) {
+    try {
+      const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=${slug}&per_page=100&page=1`);
+      const arr = await r.json();
+      if (Array.isArray(arr)) for (const c of arr) {
+        const s = (c.symbol || '').toUpperCase();
+        (cats[s] = cats[s] || []).push(label);
+      }
+    } catch { /* 429 → skip this category this hour */ }
+  }
+  metaCache = { at: Date.now(), tvl, cats, trend };
+  return metaCache;
+}
+
 // ---- CX-2: spot 24h ticker map (1 call for ALL symbols, 5-min cache) ----
 
 let tickerCache: { at: number; map: Record<string, any> } | null = null;
@@ -389,6 +442,14 @@ async function oiFor(sym: string) {
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.query?.view === 'meta') {
+    const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 100);
+    if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
+    const m = await buildMeta();
+    return res.json(syms.map((s) => ({
+      symbol: s, tvl: m.tvl[s] ?? null, categories: m.cats[s] || [], trending: m.trend[s] ?? null,
+    })));
+  }
   if (req.query?.view === 'spot') {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 100);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });

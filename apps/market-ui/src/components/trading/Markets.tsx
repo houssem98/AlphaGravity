@@ -45,7 +45,13 @@ type ColKey = 'rank' | 'change' | 'p14d' | 'p30d' | 'p1y' | 'athVal' | 'athPct' 
   | 'funding' | 'oi' | 'oiVol'
   | 'openC' | 'highC' | 'lowC' | 'cfoPct' | 'gapPct' | 'volaPct' | 'chgAbs' | 'volD'
   | 'maR' | 'oscR' | 'stoch' | 'stochRsi' | 'willR' | 'cci' | 'adxK' | 'roc' | 'mom' | 'ao'
-  | 'psarK' | 'aroon' | 'hmaK' | 'ichi' | 'donch' | 'kelt' | 'bbp' | 'candle' | 'piv' | 'fib' | 'atrPct';
+  | 'psarK' | 'aroon' | 'hmaK' | 'ichi' | 'donch' | 'kelt' | 'bbp' | 'candle' | 'piv' | 'fib' | 'atrPct'
+  | 'catCol' | 'trendCol' | 'tvlCol' | 'mcapTvl';
+
+// ?view=meta row shape (CX-6 server).
+interface MetaData { symbol: string; tvl: number | null; categories: string[]; trending: number | null }
+
+const META_KEYS: ColKey[] = ['catCol', 'trendCol', 'tvlCol', 'mcapTvl'];
 
 // ?view=spot row shape (CX-2 server).
 interface SpotData {
@@ -84,7 +90,13 @@ const fmtTech = (n: number | null | undefined) =>
   n == null ? '—' : Math.abs(n) >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : Math.abs(n) >= 1 ? n.toFixed(2) : n.toFixed(6);
 
 const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }[] }[] = [
-  { label: 'Coin info', icon: Info, cols: [{ k: 'rank', label: 'Rank #' }] },
+  {
+    label: 'Coin info', icon: Info, cols: [
+      { k: 'rank', label: 'Rank #' },
+      { k: 'catCol', label: 'Category' },
+      { k: 'trendCol', label: 'Trending' },
+    ],
+  },
   {
     label: 'Market data', icon: BarChart2, cols: [
       { k: 'change', label: 'Price change %' },
@@ -112,6 +124,8 @@ const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }
       { k: 'circulating', label: 'Circulating Supply' },
       { k: 'tsupply', label: 'Total Supply' },
       { k: 'msupply', label: 'Max Supply' },
+      { k: 'tvlCol', label: 'Total Value Locked' },
+      { k: 'mcapTvl', label: 'Mcap / TVL' },
     ],
   },
   {
@@ -176,6 +190,7 @@ const DEFAULT_COLS: Record<ColKey, boolean> = {
   maR: false, oscR: false, stoch: false, stochRsi: false, willR: false, cci: false, adxK: false, roc: false,
   mom: false, ao: false, psarK: false, aroon: false, hmaK: false, ichi: false, donch: false, kelt: false,
   bbp: false, candle: false, piv: false, fib: false, atrPct: false,
+  catCol: false, trendCol: false, tvlCol: false, mcapTvl: false,
 };
 
 type ChangeTf = '1h' | '24h' | '7d' | '14d' | '30d' | '1y';
@@ -360,6 +375,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   const [tech, setTech] = useState<Record<string, TechData>>({});
   const [derivs, setDerivs] = useState<Record<string, DerivData>>({});
   const [spot, setSpot] = useState<Record<string, SpotData>>({});
+  const [metas, setMetas] = useState<Record<string, MetaData>>({});
   const [techSort, setTechSort] = useState<{ field: string; dir: 'asc' | 'desc' } | null>(null);
 
   const handleSort = (key: keyof MarketData) => {
@@ -444,6 +460,23 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
       .catch(() => {});
     return () => { alive = false; };
   }, [spotWanted, pageSymbols, spot]);
+
+  // Meta (TVL/categories/trending): page-only lazy, server holds the 1h cache.
+  const metaWanted = META_KEYS.some((k) => cols[k]);
+  useEffect(() => {
+    if (!metaWanted || !pageSymbols) return;
+    const need = pageSymbols.split(',').filter((s) => s && !(s in metas)).slice(0, 100);
+    if (need.length === 0) return;
+    let alive = true;
+    fetch(`/api/crypto/markets?view=meta&symbols=${need.join(',')}`)
+      .then((r) => r.json())
+      .then((rows) => {
+        if (!alive || !Array.isArray(rows)) return;
+        setMetas((p) => { const n = { ...p }; rows.forEach((m: MetaData) => { n[m.symbol] = m; }); return n; });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [metaWanted, pageSymbols, metas]);
 
   // Derivatives: same page-only lazy pattern as technicals.
   const derivWanted = DERIV_KEYS.some((k) => cols[k]);
@@ -692,6 +725,10 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                     {cols.volaPct && <th className="py-2 px-4 label text-right hidden xl:table-cell">Volatility</th>}
                     {cols.chgAbs && <th className="py-2 px-4 label text-right hidden xl:table-cell">24h Δ $</th>}
                     {cols.volD && <th className="py-2 px-4 label text-right hidden xl:table-cell">Vol Δ %</th>}
+                    {cols.catCol && <th className="py-2 px-4 label text-right hidden md:table-cell">Category</th>}
+                    {cols.trendCol && <th className="py-2 px-4 label text-right hidden md:table-cell">Trending</th>}
+                    {cols.tvlCol && <th className="py-2 px-4 label text-right hidden md:table-cell">TVL</th>}
+                    {cols.mcapTvl && <th className="py-2 px-4 label text-right hidden xl:table-cell">Mcap/TVL</th>}
                     {cols.rating && <th className="py-2 px-4 label text-right hidden md:table-cell">Tech Rating</th>}
                     {cols.rsi && techTh('rsi', 'RSI (14)', 'text-right hidden md:table-cell')}
                     {cols.ema20 && techTh('ema20', 'EMA (20)')}
@@ -969,6 +1006,42 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                     </td>
                                   )}
                                   {cols.volD && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(t0?.volChangePct)}</td>}
+                                </>
+                              );
+                            })()}
+                            {(() => {
+                              const me = metas[market.symbol];
+                              const dash = <span className="text-[color:var(--text-3)]">—</span>;
+                              const mcapN = parseFloat(market.marketCapUsd || '0');
+                              return (
+                                <>
+                                  {cols.catCol && (
+                                    <td className="py-2.5 px-4 text-right hidden md:table-cell">
+                                      {me?.categories?.length ? (
+                                        <div className="flex flex-wrap gap-1 justify-end">
+                                          {me.categories.slice(0, 2).map((c) => (
+                                            <span key={c} className="text-label font-semibold text-[color:var(--text-2)] bg-[color:var(--bg)] border border-[color:var(--line)] px-1.5 py-0.5 rounded-sm">{c.toUpperCase()}</span>
+                                          ))}
+                                          {me.categories.length > 2 && <span className="text-label text-[color:var(--text-3)]">+{me.categories.length - 2}</span>}
+                                        </div>
+                                      ) : dash}
+                                    </td>
+                                  )}
+                                  {cols.trendCol && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
+                                      {me?.trending != null ? <span className="text-[color:var(--accent)]">🔥 #{me.trending}</span> : dash}
+                                    </td>
+                                  )}
+                                  {cols.tvlCol && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden md:table-cell">
+                                      {me?.tvl != null ? '$' + formatNumber(me.tvl) : dash}
+                                    </td>
+                                  )}
+                                  {cols.mcapTvl && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                      {me?.tvl != null && me.tvl > 0 && mcapN > 0 ? (mcapN / me.tvl).toFixed(2) : dash}
+                                    </td>
+                                  )}
                                 </>
                               );
                             })()}
