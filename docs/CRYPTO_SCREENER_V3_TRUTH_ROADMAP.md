@@ -46,7 +46,7 @@ technicals/derivatives/spot/meta groups, (b) some coins show WRONG data
   price-scale fields — ema20 etc. — differ from base price by >3× or <⅓ ⇒ wrong
   asset). Write docs/CRYPTO_COVERAGE_AUDIT.md (table + totals). Paste totals
   into Progress log. This is the ruthless baseline.
-- [ ] CT-2 **Verified-pair gate (server)**: in markets.ts add `verifiedPair(sym,
+- [x] CT-2 **Verified-pair gate (server)**: in markets.ts add `verifiedPair(sym,
   cgPrice)` — Binance ticker24hr map lookup + price cross-check per doctrine;
   cache verdict (5-min). technicals/spot/derivatives branches accept
   `&px=sym:price,...` hints from the UI (rows already hold priceUsd) and return
@@ -78,4 +78,5 @@ technicals/derivatives/spot/meta groups, (b) some coins show WRONG data
 
 ## Progress log
 
-- CT-1 baseline: spot 0/100 OK, technicals 0/100 OK, derivatives 0/100 OK, meta 0/100 OK (all views absent, 400 NULL)
+- 2026-07-12 CT-1 baseline (CORRECTED in CT-2 — original run hit localhost Express, wrong target; script rewritten against real prod w/ symbols= batching + px hints): spot 57/100 OK 1 MISMATCH, technicals 55/100 OK 1 MISMATCH, derivatives 54/100 OK 0, meta 60/100 OK 0. The MISMATCH = LIT (CG Lighter $2.66 wearing Binance Litentry $0.71 candles) — the hallucination, reproduced and pinned.
+- 2026-07-12 CT-2 verified-pair gate: parsePx + verifiedPair (3%/1% stables, 5-min verdict cache) gating spot/technicals/derivatives; UI sends px hints (pxOf, page rows' priceUsd). Prod-curled: LIT+hint → all nulls, BTC+hint → open 64387.5 / rsi 53.73 / oi 6.48B pass. Audit after: MISMATCH 0/100 on ALL views (was 1+1); gate also caught XMR (CG 330.73 vs stale delisted-Binance 113.3 — under the 3× audit radar, killed by the 3% gate) and DAI (Binance lastPrice 0, fake-zero row → nulls). Coverage now honest: spot 55/100, tech 54/100, deriv 52/100, meta 60/100. typecheck 0. NOTE: found prod clobbered by a 20:16 auto-deploy of main (old markets.ts, no views, iad1) — redeployed roadmap/world-class; any main push re-clobbers market-ui prod.

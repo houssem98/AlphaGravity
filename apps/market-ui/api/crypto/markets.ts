@@ -385,6 +385,37 @@ async function buildMeta() {
   return metaCache;
 }
 
+// ---- CT-2: verified-pair gate. A Binance/fapi row only counts for a coin if
+// the source's own price agrees with the coin's CG/base price (px= hints from
+// the UI, "SYM:price,..."). Disagreement > 3% (stables 1%) = symbol collision
+// (e.g. CG LIT=Lighter vs Binance LIT=Litentry) -> serve nulls, cache verdict.
+// No hint for a symbol -> legacy ungated behavior (additive).
+
+const STABLE_SYMS = new Set(['USDT', 'USDC', 'DAI', 'FDUSD', 'USDE', 'TUSD', 'PYUSD', 'USDP', 'USDD', 'FRAX', 'BUSD', 'GUSD']);
+const pairVerdict: Record<string, { at: number; ok: boolean }> = {};
+
+function parsePx(q: any): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const part of String(q?.px || '').split(',')) {
+    const i = part.indexOf(':');
+    if (i <= 0) continue;
+    const sym = part.slice(0, i).trim().toUpperCase();
+    const p = parseFloat(part.slice(i + 1));
+    if (sym && isFinite(p) && p > 0) out[sym] = p;
+  }
+  return out;
+}
+
+function verifiedPair(sym: string, cgPrice: number | undefined, srcPrice: number): boolean {
+  if (cgPrice === undefined) return true; // no hint -> cannot judge, legacy path
+  const hit = pairVerdict[sym];
+  if (hit && Date.now() - hit.at < TTL) return hit.ok;
+  const tol = STABLE_SYMS.has(sym) ? 0.01 : 0.03;
+  const ok = srcPrice > 0 && Math.abs(srcPrice / cgPrice - 1) <= tol;
+  pairVerdict[sym] = { at: Date.now(), ok };
+  return ok;
+}
+
 // ---- CX-2: spot 24h ticker map (1 call for ALL symbols, 5-min cache) ----
 
 let tickerCache: { at: number; map: Record<string, any> } | null = null;
@@ -478,9 +509,10 @@ export default async function handler(req: any, res: any) {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 100);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
     const tm = await tickerMap().catch(() => ({} as Record<string, any>));
+    const px = parsePx(req.query);
     return res.json(syms.map((s) => {
       const t = tm[s];
-      if (!t) return { symbol: s, open: null, high: null, low: null, prevClose: null, chgAbs: null, changeFromOpenPct: null, gapPct: null, volatilityPct: null };
+      if (!t || !verifiedPair(s, px[s], parseFloat(t.lastPrice))) return { symbol: s, open: null, high: null, low: null, prevClose: null, chgAbs: null, changeFromOpenPct: null, gapPct: null, volatilityPct: null };
       const open = parseFloat(t.openPrice), high = parseFloat(t.highPrice), low = parseFloat(t.lowPrice);
       const last = parseFloat(t.lastPrice), prev = parseFloat(t.prevClosePrice), chg = parseFloat(t.priceChange);
       return {
@@ -495,9 +527,10 @@ export default async function handler(req: any, res: any) {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 25);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
     const fm = await fundingMap().catch(() => ({} as Record<string, { fr: number; mark: number }>));
+    const pxd = parsePx(req.query);
     const rows = await Promise.all(syms.map(async (s) => {
       const f = fm[s];
-      if (!f) return { symbol: s, fundingRate: null, oiUsd: null, oiChangePct: null, lsRatio: null, takerRatio: null }; // spot-only coin
+      if (!f || !verifiedPair(s, pxd[s], f.mark)) return { symbol: s, fundingRate: null, oiUsd: null, oiChangePct: null, lsRatio: null, takerRatio: null }; // spot-only coin or unverified pair
       const [oi, x] = await Promise.all([oiFor(s), derivExtras(s)]);
       return { symbol: s, fundingRate: f.fr, oiUsd: oi !== null ? oi * f.mark : null, ...x };
     }));
@@ -506,7 +539,18 @@ export default async function handler(req: any, res: any) {
   if (req.query?.view === 'technicals') {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 25);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
-    return res.json(await Promise.all(syms.map(techFor)));
+    const pxt = parsePx(req.query);
+    const tmt = await tickerMap().catch(() => ({} as Record<string, any>));
+    return res.json(await Promise.all(syms.map((s) => {
+      const t = tmt[s];
+      if (pxt[s] !== undefined && (!t || !verifiedPair(s, pxt[s], parseFloat(t.lastPrice)))) {
+        return {
+          symbol: s, rsi: null, ema20: null, ema50: null, ema200: null, sma20: null, sma50: null,
+          sma200: null, macd: null, macdSignal: null, bbUpper: null, bbLower: null, atr: null, rating: null,
+        };
+      }
+      return techFor(s);
+    })));
   }
   if (cache && Date.now() - cache.at < TTL) return res.json(cache.rows);
   try {

@@ -437,12 +437,18 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   // column is on. Batches of 25 (server cap) chain via the `tech` dep.
   const techWanted = TECH_KEYS.some((k) => cols[k]);
   const pageSymbols = paginatedMarkets.map((m) => m.symbol).join(',');
+  // CT-2: px hints — server cross-checks each Binance/fapi match against the
+  // coin's own price and nulls collisions (CG LIT=Lighter vs Binance Litentry).
+  const pagePrice: Record<string, string> = {};
+  paginatedMarkets.forEach((m) => { pagePrice[m.symbol] = m.priceUsd; });
+  const pxOf = (need: string[]) =>
+    encodeURIComponent(need.filter((s) => pagePrice[s]).map((s) => `${s}:${pagePrice[s]}`).join(','));
   useEffect(() => {
     if (!techWanted || !pageSymbols) return;
     const need = pageSymbols.split(',').filter((s) => s && !(s in tech)).slice(0, 25);
     if (need.length === 0) return;
     let alive = true;
-    fetch(`/api/crypto/markets?view=technicals&symbols=${need.join(',')}`)
+    fetch(`/api/crypto/markets?view=technicals&symbols=${need.join(',')}&px=${pxOf(need)}`)
       .then((r) => r.json())
       .then((rows) => {
         if (!alive || !Array.isArray(rows)) return;
@@ -459,7 +465,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     const need = pageSymbols.split(',').filter((s) => s && !(s in spot)).slice(0, 100);
     if (need.length === 0) return;
     let alive = true;
-    fetch(`/api/crypto/markets?view=spot&symbols=${need.join(',')}`)
+    fetch(`/api/crypto/markets?view=spot&symbols=${need.join(',')}&px=${pxOf(need)}`)
       .then((r) => r.json())
       .then((rows) => {
         if (!alive || !Array.isArray(rows)) return;
@@ -493,7 +499,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     const need = pageSymbols.split(',').filter((s) => s && !(s in derivs)).slice(0, 25);
     if (need.length === 0) return;
     let alive = true;
-    fetch(`/api/crypto/markets?view=derivatives&symbols=${need.join(',')}`)
+    fetch(`/api/crypto/markets?view=derivatives&symbols=${need.join(',')}&px=${pxOf(need)}`)
       .then((r) => r.json())
       .then((rows) => {
         if (!alive || !Array.isArray(rows)) return;

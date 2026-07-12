@@ -1,192 +1,114 @@
 #!/usr/bin/env node
 
-/**
- * Crypto Screener V3 Ground-Truth Audit
- * Pulls prod /api/crypto/markets (100 coins) and audits each view (spot/technicals/derivatives/meta)
- * Detects: OK (data present) / NULL (all fields null) / MISMATCH (price inconsistencies)
- * Outputs: docs/CRYPTO_COVERAGE_AUDIT.md
- */
+// Crypto Screener V3 ground-truth audit (CT-1, corrected in CT-2).
+// Pulls prod /api/crypto/markets (100 coins), then each view for all 100
+// (batched <=25, symbols= as the UI sends), and classifies per coin per group:
+//   OK       - data present and price-scale sane
+//   NULL     - all view fields null (honest miss)
+//   MISMATCH - price-scale fields differ from the coin's base price by >3x or <1/3
+//              => the row is another asset's data (symbol collision)
+// px= hints are always sent (server ignores them pre-CT-2; post-CT-2 they arm
+// the verified-pair gate, so the audit measures the gated pipeline).
+// Writes <repo>/docs/CRYPTO_COVERAGE_AUDIT.md.
 
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const PROD_URL = process.env.MARKET_SERVER_URL || 'http://localhost:3002'; // local dev
-const BATCH_SIZE = 25;
+const BASE = process.env.AUDIT_URL || 'https://market-ui-self.vercel.app';
+const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const OUT = path.join(REPO_ROOT, 'docs', 'CRYPTO_COVERAGE_AUDIT.md');
+const BATCH = 25;
+const VIEWS = ['spot', 'technicals', 'derivatives', 'meta'];
 
-// Price mismatch threshold: 3% for regular coins, 1% for stables
-const PRICE_MISMATCH_PCT = 3;
-const STABLES = new Set(['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'FRAX']);
+// Price-scale fields per view (roadmap CT-1: spot open..high..low bracket,
+// technicals ema20-class fields). Ratio vs base price >3 or <1/3 = wrong asset.
+const SCALE_FIELDS = {
+  spot: ['open', 'high', 'low', 'prevClose'],
+  technicals: ['ema20', 'sma20', 'bbUpper', 'pivP', 'ema50'],
+  derivatives: [], // oiUsd/funding are not per-unit price-scaled
+  meta: [],
+};
 
-async function fetchCoins() {
-  try {
-    const res = await fetch(`${PROD_URL}/api/crypto/markets`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const coins = await res.json();
-    return Array.isArray(coins) ? coins.slice(0, 100) : coins.slice(0, 100);
-  } catch (err) {
-    console.error('Failed to fetch base coins:', err.message);
-    process.exit(1);
+const ratioBad = (v, base) => {
+  if (typeof v !== 'number' || !isFinite(v) || v <= 0 || !(base > 0)) return false;
+  const r = v / base;
+  return r > 3 || r < 1 / 3;
+};
+
+function classify(view, row, basePrice) {
+  if (!row) return 'NULL';
+  const vals = Object.entries(row).filter(([k]) => k !== 'symbol').map(([, v]) => v);
+  const present = vals.some((v) => v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0));
+  if (!present) return 'NULL';
+  for (const f of SCALE_FIELDS[view]) {
+    if (ratioBad(row[f], basePrice)) return 'MISMATCH';
   }
+  return 'OK';
 }
 
-function isStable(symbol) {
-  return STABLES.has(symbol.toUpperCase());
-}
-
-function priceMatch(sourcePrice, cgPrice, symbol) {
-  if (!sourcePrice || !cgPrice) return null; // missing prices
-  const srcNum = parseFloat(sourcePrice);
-  const cgNum = parseFloat(cgPrice);
-  if (isNaN(srcNum) || isNaN(cgNum)) return null;
-  const pct = Math.abs((srcNum - cgNum) / cgNum) * 100;
-  const threshold = isStable(symbol) ? 1 : PRICE_MISMATCH_PCT;
-  return pct <= threshold ? 'OK' : 'MISMATCH';
-}
-
-async function fetchView(coinId, symbol, cgPrice, view) {
-  const viewFields = {
-    spot: ['open', 'high', 'low', 'close', 'lastPrice', 'volume'],
-    technicals: ['ema20', 'ema50', 'rsi', 'macd', 'ema200'],
-    derivatives: ['openInterest', 'fundingRate', 'longShortRatio', 'oiChange'],
-    meta: ['categories', 'trending', 'tvl', 'percentChange14d', 'percentChange30d'],
-  };
-
-  try {
-    const params = new URLSearchParams({ view });
-    const res = await fetch(`${PROD_URL}/api/crypto/markets?${params}`, {
-      timeout: 5000,
-    });
-    if (!res.ok) {
-      if (res.status === 404) return { status: 'NULL', reason: 'not-found' };
-      return { status: 'NULL', reason: `http-${res.status}` };
-    }
-    const data = await res.json();
-    const coinData = Array.isArray(data) ? data.find(c => c.id === coinId || c.symbol === symbol) : data?.[coinId];
-    if (!coinData) return { status: 'NULL', reason: 'coin-not-in-response' };
-
-    // Check for view-specific fields
-    const expectedFields = viewFields[view] || [];
-    const hasViewFields = expectedFields.some(f => coinData[f] !== null && coinData[f] !== '' && coinData[f] !== undefined);
-
-    if (!hasViewFields) {
-      return { status: 'NULL', reason: `missing-${view}-fields` };
-    }
-
-    // For spot/technicals/derivatives: check price consistency
-    if (['spot', 'technicals', 'derivatives'].includes(view)) {
-      const sourcePrice = coinData.lastPrice || coinData.price || coinData.priceUsd;
-      if (sourcePrice) {
-        const match = priceMatch(sourcePrice, cgPrice, symbol);
-        if (match === 'MISMATCH') {
-          return { status: 'MISMATCH', reason: 'price-out-of-range', sourcePrice, cgPrice };
-        }
-      }
-    }
-
-    return { status: 'OK', data: coinData };
-  } catch (err) {
-    return { status: 'NULL', reason: err.message };
-  }
-}
-
-async function auditCoin(coin, index) {
-  const { id, symbol, priceUsd } = coin;
-  const results = { OK: 0, NULL: 0, MISMATCH: 0, details: {} };
-
-  for (const view of ['spot', 'technicals', 'derivatives', 'meta']) {
-    const result = await fetchView(id, symbol, priceUsd, view);
-    results[result.status]++;
-    results.details[view] = result;
-  }
-
-  if ((index + 1) % 10 === 0) console.log(`  Progress: ${index + 1}/100`);
-  return { coin: `${symbol} (${id})`, ...results };
+async function getJson(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${r.status} ${url}`);
+  return r.json();
 }
 
 async function main() {
-  console.log('🔍 Crypto Screener V3 Ground-Truth Audit');
-  console.log(`📍 Target: ${PROD_URL}`);
-  console.log('Fetching 100 coins...\n');
+  console.log(`audit target: ${BASE}`);
+  const coins = (await getJson(`${BASE}/api/crypto/markets`)).slice(0, 100);
+  if (!coins.length) throw new Error('empty base list');
+  console.log(`base list: ${coins.length} coins, source=${coins[0].source || 'unknown'}`);
 
-  const coins = await fetchCoins();
-  console.log(`✓ Got ${coins.length} coins`);
-  console.log('Auditing each coin × 4 views (batched ≤25)...\n');
+  // status[symbol][view]
+  const status = {};
+  for (const c of coins) status[c.symbol] = {};
 
-  const auditResults = [];
-  for (let i = 0; i < coins.length; i++) {
-    const result = await auditCoin(coins[i], i);
-    auditResults.push(result);
-
-    // Batch limit: pause after batches to avoid overwhelming the server
-    if ((i + 1) % BATCH_SIZE === 0) {
-      await new Promise(r => setTimeout(r, 500));
+  for (let i = 0; i < coins.length; i += BATCH) {
+    const batch = coins.slice(i, i + BATCH);
+    const syms = batch.map((c) => c.symbol).join(',');
+    const px = batch.map((c) => `${c.symbol}:${c.priceUsd}`).join(',');
+    for (const view of VIEWS) {
+      let rows = [];
+      try {
+        rows = await getJson(`${BASE}/api/crypto/markets?view=${view}&symbols=${syms}&px=${encodeURIComponent(px)}`);
+      } catch (e) {
+        console.error(`  ${view} batch ${i / BATCH + 1}: ${e.message}`);
+      }
+      const bySym = {};
+      if (Array.isArray(rows)) for (const r of rows) bySym[r.symbol] = r;
+      for (const c of batch) {
+        status[c.symbol][view] = classify(view, bySym[c.symbol], parseFloat(c.priceUsd));
+      }
     }
+    console.log(`  batch ${i / BATCH + 1}/${Math.ceil(coins.length / BATCH)} done`);
   }
 
-  // Aggregate stats
-  let totals = { OK: 0, NULL: 0, MISMATCH: 0 };
-  const byView = {
-    spot: { OK: 0, NULL: 0, MISMATCH: 0 },
-    technicals: { OK: 0, NULL: 0, MISMATCH: 0 },
-    derivatives: { OK: 0, NULL: 0, MISMATCH: 0 },
-    meta: { OK: 0, NULL: 0, MISMATCH: 0 },
-  };
+  const totals = {};
+  for (const view of VIEWS) {
+    totals[view] = { OK: 0, NULL: 0, MISMATCH: 0 };
+    for (const c of coins) totals[view][status[c.symbol][view]]++;
+  }
 
-  auditResults.forEach(({ OK, NULL, MISMATCH, details }) => {
-    totals.OK += OK;
-    totals.NULL += NULL;
-    totals.MISMATCH += MISMATCH;
-    Object.entries(details).forEach(([view, result]) => {
-      byView[view][result.status]++;
-    });
-  });
-
-  // Generate markdown report
-  const now = new Date().toISOString();
   let md = `# Crypto Screener V3 Coverage Audit\n\n`;
-  md += `**Generated**: ${now}\n`;
-  md += `**Coins audited**: ${coins.length}\n`;
-  md += `**Target**: ${PROD_URL}\n\n`;
-
-  md += `## Summary\n\n`;
-  md += `| Status | Count | %age |\n`;
-  md += `|--------|-------|-----|\n`;
-  md += `| OK | ${totals.OK} | ${((totals.OK / (coins.length * 4)) * 100).toFixed(1)}% |\n`;
-  md += `| NULL | ${totals.NULL} | ${((totals.NULL / (coins.length * 4)) * 100).toFixed(1)}% |\n`;
-  md += `| MISMATCH | ${totals.MISMATCH} | ${((totals.MISMATCH / (coins.length * 4)) * 100).toFixed(1)}% |\n\n`;
-
-  md += `## By View\n\n`;
-  Object.entries(byView).forEach(([view, counts]) => {
-    md += `### ${view}\n\n`;
-    md += `| Status | Count |\n`;
-    md += `|--------|-------|\n`;
-    md += `| OK | ${counts.OK}/100 |\n`;
-    md += `| NULL | ${counts.NULL}/100 |\n`;
-    md += `| MISMATCH | ${counts.MISMATCH}/100 |\n\n`;
+  md += `Generated: ${new Date().toISOString()} | Target: ${BASE} | Coins: ${coins.length}\n\n`;
+  md += `## Totals\n\n| View | OK | NULL | MISMATCH |\n|------|----|------|----------|\n`;
+  for (const view of VIEWS) {
+    const t = totals[view];
+    md += `| ${view} | ${t.OK}/${coins.length} | ${t.NULL} | ${t.MISMATCH} |\n`;
+  }
+  md += `\n## Per coin\n\n| # | Coin | spot | technicals | derivatives | meta |\n|---|------|------|-----------|-------------|------|\n`;
+  coins.forEach((c, i) => {
+    const s = status[c.symbol];
+    const cell = (v) => (v === 'OK' ? 'OK' : v === 'MISMATCH' ? '**MISMATCH**' : '·');
+    md += `| ${i + 1} | ${c.symbol} (${c.id}) | ${cell(s.spot)} | ${cell(s.technicals)} | ${cell(s.derivatives)} | ${cell(s.meta)} |\n`;
   });
 
-  md += `## Coin Details\n\n`;
-  md += `| Coin | OK | NULL | MISMATCH |\n`;
-  md += `|------|----|----|----------|\n`;
-  auditResults.forEach(({ coin, OK, NULL, MISMATCH }) => {
-    md += `| ${coin} | ${OK} | ${NULL} | ${MISMATCH} |\n`;
-  });
-
-  // Write report
-  const reportPath = path.join(process.cwd(), 'docs', 'CRYPTO_COVERAGE_AUDIT.md');
-  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-  fs.writeFileSync(reportPath, md);
-
-  console.log(`\n✅ Audit complete. Report written to ${reportPath}\n`);
-  console.log('## Summary\n');
-  console.log(`Total: ${totals.OK} OK, ${totals.NULL} NULL, ${totals.MISMATCH} MISMATCH`);
-  console.log(`By view:`);
-  Object.entries(byView).forEach(([view, counts]) => {
-    console.log(`  ${view}: ${counts.OK}/100 OK, ${counts.NULL}/100 NULL, ${counts.MISMATCH}/100 MISMATCH`);
-  });
+  fs.writeFileSync(OUT, md);
+  console.log(`\nwrote ${OUT}`);
+  for (const view of VIEWS) {
+    const t = totals[view];
+    console.log(`${view}: ${t.OK}/${coins.length} OK, ${t.NULL} NULL, ${t.MISMATCH} MISMATCH`);
+  }
 }
 
-main().catch(err => {
-  console.error('Fatal error:', err);
-  process.exit(1);
-});
+main().catch((e) => { console.error(e); process.exit(1); });
