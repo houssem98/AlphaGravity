@@ -78,7 +78,7 @@ columns client-sortable; "Reset columns" button in the `+` menu.
   exchange-token) + trending set, 1h cache, one response for all 100 syms.
   UI: Category chips col, TVL col, Mcap/TVL col (Valuation), Trending badge
   (🔥 rank) col.
-- [ ] CX-7 **Derivatives v2**: server — oiChangePct (openInterestHist d/d),
+- [x] CX-7 **Derivatives v2**: server — oiChangePct (openInterestHist d/d),
   longShortRatio, takerRatio added to view=derivatives (per-symbol, cached,
   skip when no perp). UI: 3 new cols in Derivatives group.
 - [ ] CX-8 **QA sweep**: prod curl all views (spot/technicals/derivatives/meta)
@@ -89,6 +89,7 @@ columns client-sortable; "Reset columns" button in the `+` menu.
 
 (loop appends one line per completed task — real numbers only)
 
+- 2026-07-12 CX-7: server derivExtras (oiHist d/d on sumOpenInterestValue, globalLongShortAccountRatio, takerlongshortRatio — 3 parallel fapi calls per perp, 5-min cache) folded into view=derivatives; UI 3 cols (OI Δ % ±colored, Long/Short ≥1 up, Taker B/S). Prod: BTC oiΔ -2.97% ls 1.2573 taker 0.8899; SOL ls 2.2648; USDT all nulls ✓. typecheck 0.
 - 2026-07-12 CX-6: server ?view=meta (llama chains-then-protocols TVL map, CG trending, 8 category reverse-maps sequential + 429-tolerant, 1h cache; 7/8 slugs curl-verified, AI slug rate-limited twice but tolerated); UI 4 cols — Category chips (2+n), Trending 🔥#n accent, TVL $, Mcap/TVL. Prod: ETH tvl 40.47B cats [Layer 1] trend #7; AAVE 13.73B; UNI trend #3; USDT nulls ✓ (cats partial on cold hour — refreshes). typecheck 0.
 - 2026-07-12 CX-5 UI: +21 tech cols; menu split → Technicals—Trend (18) + Technicals—Oscillators (15); MAs/Osc rating pills; candle badge (bull/bear colored); stacked pair cells (Stoch, Aroon ↑/↓, ADX±DI, Ichimoku, Donchian, Keltner, Pivot P·R1·S1, Fib); tech cols client-sortable (techSort on tech map, -Infinity for unfetched, regular sort click clears); Reset-columns button. 1 TS error fixed (pair() f param narrowing). typecheck 0, deployed.
 - 2026-07-12 CX-4 server: +25 indicator fields in techFor (same klines, 0 new calls) — stochK/D, stochRsi, willR, cci20, adx/±DI, roc12, mom10, AO, PSAR, aroonUp/Down, atrPct, donchU/L, keltU/L, hma20, ichiConv/Base, BBP, classic+fib pivots (from last COMPLETED candle), maRating/oscRating (scoreLabel), candle pattern (doji/hammer/engulfing), volChangePct (completed d/d). Prod BTC: stochK 91.8 willR -8.2 adx 24.5 psar 60928 pivP 64047 maR Sell oscR Neutral volD -48.0%; ETH candle=Bull Engulfing ✓.

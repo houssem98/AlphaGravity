@@ -424,6 +424,30 @@ async function fundingMap() {
   return map;
 }
 
+// CX-7: OI d/d change + long/short + taker ratios (fapi futures/data, keyless).
+const derivXCache: Record<string, { at: number; v: { oiChangePct: number | null; lsRatio: number | null; takerRatio: number | null } }> = {};
+
+async function derivExtras(sym: string) {
+  const hit = derivXCache[sym];
+  if (hit && Date.now() - hit.at < TTL) return hit.v;
+  const v = { oiChangePct: null as number | null, lsRatio: null as number | null, takerRatio: null as number | null };
+  try {
+    const [oiH, ls, tk] = await Promise.all([
+      fetch(`https://fapi.binance.com/futures/data/openInterestHist?symbol=${sym}USDT&period=1d&limit=2`).then((r) => (r.ok ? r.json() : null)),
+      fetch(`https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=${sym}USDT&period=1d&limit=1`).then((r) => (r.ok ? r.json() : null)),
+      fetch(`https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=${sym}USDT&period=1d&limit=1`).then((r) => (r.ok ? r.json() : null)),
+    ]);
+    if (Array.isArray(oiH) && oiH.length === 2) {
+      const a = parseFloat(oiH[0].sumOpenInterestValue), b = parseFloat(oiH[1].sumOpenInterestValue);
+      if (a > 0 && isFinite(b)) v.oiChangePct = (b / a - 1) * 100;
+    }
+    if (Array.isArray(ls) && ls[0]?.longShortRatio) v.lsRatio = parseFloat(ls[0].longShortRatio);
+    if (Array.isArray(tk) && tk[0]?.buySellRatio) v.takerRatio = parseFloat(tk[0].buySellRatio);
+  } catch { /* nulls */ }
+  derivXCache[sym] = { at: Date.now(), v };
+  return v;
+}
+
 async function oiFor(sym: string) {
   const hit = oiCache[sym];
   if (hit && Date.now() - hit.at < TTL) return hit.v;
@@ -473,9 +497,9 @@ export default async function handler(req: any, res: any) {
     const fm = await fundingMap().catch(() => ({} as Record<string, { fr: number; mark: number }>));
     const rows = await Promise.all(syms.map(async (s) => {
       const f = fm[s];
-      if (!f) return { symbol: s, fundingRate: null, oiUsd: null }; // spot-only coin — skip OI call
-      const oi = await oiFor(s);
-      return { symbol: s, fundingRate: f.fr, oiUsd: oi !== null ? oi * f.mark : null };
+      if (!f) return { symbol: s, fundingRate: null, oiUsd: null, oiChangePct: null, lsRatio: null, takerRatio: null }; // spot-only coin
+      const [oi, x] = await Promise.all([oiFor(s), derivExtras(s)]);
+      return { symbol: s, fundingRate: f.fr, oiUsd: oi !== null ? oi * f.mark : null, ...x };
     }));
     return res.json(rows);
   }

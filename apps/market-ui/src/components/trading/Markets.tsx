@@ -46,7 +46,8 @@ type ColKey = 'rank' | 'change' | 'p14d' | 'p30d' | 'p1y' | 'athVal' | 'athPct' 
   | 'openC' | 'highC' | 'lowC' | 'cfoPct' | 'gapPct' | 'volaPct' | 'chgAbs' | 'volD'
   | 'maR' | 'oscR' | 'stoch' | 'stochRsi' | 'willR' | 'cci' | 'adxK' | 'roc' | 'mom' | 'ao'
   | 'psarK' | 'aroon' | 'hmaK' | 'ichi' | 'donch' | 'kelt' | 'bbp' | 'candle' | 'piv' | 'fib' | 'atrPct'
-  | 'catCol' | 'trendCol' | 'tvlCol' | 'mcapTvl';
+  | 'catCol' | 'trendCol' | 'tvlCol' | 'mcapTvl'
+  | 'oiChg' | 'lsRatio' | 'takerR';
 
 // ?view=meta row shape (CX-6 server).
 interface MetaData { symbol: string; tvl: number | null; categories: string[]; trending: number | null }
@@ -61,10 +62,13 @@ interface SpotData {
 
 const SPOT_KEYS: ColKey[] = ['openC', 'highC', 'lowC', 'cfoPct', 'gapPct', 'volaPct', 'chgAbs'];
 
-// ?view=derivatives row shape (CS-7 server).
-interface DerivData { symbol: string; fundingRate: number | null; oiUsd: number | null }
+// ?view=derivatives row shape (CS-7 + CX-7 server).
+interface DerivData {
+  symbol: string; fundingRate: number | null; oiUsd: number | null;
+  oiChangePct?: number | null; lsRatio?: number | null; takerRatio?: number | null;
+}
 
-const DERIV_KEYS: ColKey[] = ['funding', 'oi', 'oiVol'];
+const DERIV_KEYS: ColKey[] = ['funding', 'oi', 'oiVol', 'oiChg', 'lsRatio', 'takerR'];
 
 // ?view=technicals row shape (CS-5 server).
 interface TechData {
@@ -174,6 +178,9 @@ const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }
       { k: 'funding', label: 'Funding Rate' },
       { k: 'oi', label: 'Open Interest' },
       { k: 'oiVol', label: 'OI / Vol (24h)' },
+      { k: 'oiChg', label: 'OI Change %' },
+      { k: 'lsRatio', label: 'Long/Short Ratio' },
+      { k: 'takerR', label: 'Taker Buy/Sell' },
     ],
   },
   { label: 'Chart', icon: Activity, cols: [{ k: 'spark', label: 'Last 7 Days' }] },
@@ -191,6 +198,7 @@ const DEFAULT_COLS: Record<ColKey, boolean> = {
   mom: false, ao: false, psarK: false, aroon: false, hmaK: false, ichi: false, donch: false, kelt: false,
   bbp: false, candle: false, piv: false, fib: false, atrPct: false,
   catCol: false, trendCol: false, tvlCol: false, mcapTvl: false,
+  oiChg: false, lsRatio: false, takerR: false,
 };
 
 type ChangeTf = '1h' | '24h' | '7d' | '14d' | '30d' | '1y';
@@ -765,6 +773,9 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                     {cols.funding && <th className="py-2 px-4 label text-right hidden md:table-cell">Funding</th>}
                     {cols.oi && <th className="py-2 px-4 label text-right hidden md:table-cell">Open Interest</th>}
                     {cols.oiVol && <th className="py-2 px-4 label text-right hidden xl:table-cell">OI/Vol</th>}
+                    {cols.oiChg && <th className="py-2 px-4 label text-right hidden xl:table-cell">OI Δ %</th>}
+                    {cols.lsRatio && <th className="py-2 px-4 label text-right hidden xl:table-cell">Long/Short</th>}
+                    {cols.takerR && <th className="py-2 px-4 label text-right hidden xl:table-cell">Taker B/S</th>}
                     {cols.spark && <th className="py-2 px-4 label text-right hidden md:table-cell">Last 7 Days</th>}
                     <th className="py-2 px-4 w-10 relative">
                       <button onClick={() => setColMenu((v) => !v)} title="Edit columns" className="flex items-center justify-center w-6 h-6 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)] transition-colors ml-auto">
@@ -1169,6 +1180,21 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                   {cols.oiVol && (
                                     <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
                                       {dv?.oiUsd != null && vol > 0 ? (dv.oiUsd / vol).toFixed(2) : dash}
+                                    </td>
+                                  )}
+                                  {cols.oiChg && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                      {dv?.oiChangePct != null ? <PctVal v={String(dv.oiChangePct)} /> : dash}
+                                    </td>
+                                  )}
+                                  {cols.lsRatio && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                      {dv?.lsRatio != null ? <span className={dv.lsRatio >= 1 ? 'up' : 'down'}>{dv.lsRatio.toFixed(2)}</span> : dash}
+                                    </td>
+                                  )}
+                                  {cols.takerR && (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                      {dv?.takerRatio != null ? <span className={dv.takerRatio >= 1 ? 'up' : 'down'}>{dv.takerRatio.toFixed(2)}</span> : dash}
                                     </td>
                                   )}
                                 </>
