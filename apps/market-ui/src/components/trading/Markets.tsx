@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ArrowUp, ArrowDown, Plus, Check, Info, Database } from 'lucide-react';
 import { Sparkline } from './Sparkline';
 import { motion, AnimatePresence } from 'motion/react';
 import { CategoriesTab, ExchangesTab, NFTsTab, ConverterTab } from './MarketsTabs';
@@ -30,6 +30,29 @@ const formatCurrency = (num: string | number) => {
   if (n < 1) return n.toFixed(4);
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+type ColKey = 'rank' | 'change' | 'marketCap' | 'fdv' | 'volume' | 'volMcap' | 'circulating' | 'tsupply' | 'msupply' | 'spark';
+
+const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }[] }[] = [
+  { label: 'Coin info', icon: Info, cols: [{ k: 'rank', label: 'Rank #' }] },
+  {
+    label: 'Market data', icon: BarChart2, cols: [
+      { k: 'change', label: 'Price change %' },
+      { k: 'marketCap', label: 'Market Cap' },
+      { k: 'fdv', label: 'Fully Diluted Mcap' },
+      { k: 'volume', label: 'Volume (24h)' },
+      { k: 'volMcap', label: 'Vol / Mkt Cap' },
+    ],
+  },
+  {
+    label: 'Supply', icon: Database, cols: [
+      { k: 'circulating', label: 'Circulating Supply' },
+      { k: 'tsupply', label: 'Total Supply' },
+      { k: 'msupply', label: 'Max Supply' },
+    ],
+  },
+  { label: 'Chart', icon: Activity, cols: [{ k: 'spark', label: 'Last 7 Days' }] },
+];
 
 const HighlightCard = ({ title, icon: Icon, data, onSelect }: { title: string, icon: any, data: MarketData[], type: 'gainer' | 'loser' | 'trending', onSelect: (s: string) => void }) => {
   return (
@@ -90,6 +113,15 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   const [watchlist, setWatchlist] = useState<string[]>(() => {
     const saved = localStorage.getItem('nexus_watchlist');
     return saved ? JSON.parse(saved) : [];
+  });
+  const [changeTf, setChangeTf] = useState<'1h' | '24h' | '7d'>('24h');
+  const [changeMenu, setChangeMenu] = useState(false);
+  const [colMenu, setColMenu] = useState(false);
+  const [colSearch, setColSearch] = useState('');
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [cols, setCols] = useState<Record<ColKey, boolean>>({
+    rank: true, change: true, marketCap: true, fdv: false, volume: true,
+    volMcap: false, circulating: true, tsupply: false, msupply: false, spark: true,
   });
 
   useEffect(() => {
@@ -246,6 +278,19 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     </div>
   );
 
+  const tfKey = ({ '1h': 'changePercent1Hr', '24h': 'changePercent24Hr', '7d': 'changePercent7d' } as const)[changeTf] as keyof MarketData;
+  const tfLabel = { '1h': '1h %', '24h': '24h %', '7d': '7d %' }[changeTf];
+  const tfLong = { '1h': '1 hour', '24h': '24 hours', '7d': '7 days' } as const;
+  const colCount = 4 + Object.values(cols).filter(Boolean).length;
+  const sortTh = (k: keyof MarketData, label: string, cls: string) => (
+    <th className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group ${cls}`} onClick={() => handleSort(k)}>
+      <div className={`flex items-center gap-1 ${cls.includes('text-right') ? 'justify-end' : ''}`}>
+        {label}
+        <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+    </th>
+  );
+
   return (
     <div className="flex-1 bg-[color:var(--bg)] overflow-y-auto">
       {/* Global market stats bar */}
@@ -375,46 +420,110 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
               <table className="w-full text-left border-collapse whitespace-nowrap">
                 <thead>
                   <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
-                    {[
-                      { key: null, label: '', cls: 'w-8' },
-                      { key: 'rank', label: '#', cls: 'w-10 hidden sm:table-cell' },
-                      { key: 'name', label: 'Name', cls: '' },
-                      { key: 'priceUsd', label: 'Price', cls: 'text-right' },
-                      { key: 'changePercent1Hr', label: '1h %', cls: 'text-right hidden md:table-cell' },
-                      { key: 'changePercent24Hr', label: '24h %', cls: 'text-right' },
-                      { key: 'changePercent7d', label: '7d %', cls: 'text-right hidden lg:table-cell' },
-                      { key: 'marketCapUsd', label: 'Market Cap', cls: 'text-right hidden sm:table-cell' },
-                      { key: 'volumeUsd24Hr', label: 'Volume (24h)', cls: 'text-right hidden lg:table-cell' },
-                      { key: 'csupply', label: 'Circulating', cls: 'text-right hidden xl:table-cell' },
-                      { key: null, label: 'Last 7 Days', cls: 'text-right hidden md:table-cell' },
-                    ].map((h, i) => (
-                      <th
-                        key={i}
-                        className={`py-2 px-4 label ${h.cls} ${h.key ? 'cursor-pointer hover:text-[color:var(--text)] transition-colors group' : ''}`}
-                        onClick={() => h.key && handleSort(h.key as keyof MarketData)}
-                      >
-                        <div className={`flex items-center gap-1 ${h.cls.includes('text-right') ? 'justify-end' : ''}`}>
-                          {h.label}
-                          {h.key && <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />}
-                        </div>
+                    <th className="py-2 px-4 label w-8" />
+                    {cols.rank && sortTh('rank', '#', 'w-10 hidden sm:table-cell')}
+                    {sortTh('name', 'Name', '')}
+                    {sortTh('priceUsd', 'Price', 'text-right')}
+                    {cols.change && (
+                      <th className="py-2 px-4 label text-right relative">
+                        <button onClick={() => setChangeMenu((v) => !v)} className="inline-flex items-center gap-1 hover:text-[color:var(--text)] transition-colors ml-auto">
+                          {tfLabel}
+                          <ChevronDown className="w-2.5 h-2.5" />
+                        </button>
+                        {changeMenu && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setChangeMenu(false)} />
+                            <div className="absolute right-4 top-full mt-1 z-50 w-40 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case">
+                              <div className="label px-3 py-1 text-[color:var(--text-3)]">Price change %</div>
+                              {(['1h', '24h', '7d'] as const).map((tf) => (
+                                <button key={tf} onClick={() => { setChangeTf(tf); setChangeMenu(false); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-body hover:bg-[color:var(--surface-2)] transition-colors ${changeTf === tf ? 'text-[color:var(--accent)]' : 'text-[color:var(--text-2)]'}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${changeTf === tf ? 'bg-[color:var(--accent)]' : 'border border-[color:var(--line-strong)]'}`} />
+                                  {tfLong[tf]}
+                                </button>
+                              ))}
+                              <div className="h-px bg-[color:var(--line)] my-1" />
+                              <button onClick={() => { setSortConfig({ key: tfKey, direction: 'asc' }); setChangeMenu(false); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowUp className="w-3 h-3" /> Sort ascending</button>
+                              <button onClick={() => { setSortConfig({ key: tfKey, direction: 'desc' }); setChangeMenu(false); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowDown className="w-3 h-3" /> Sort descending</button>
+                            </div>
+                          </>
+                        )}
                       </th>
-                    ))}
+                    )}
+                    {cols.marketCap && sortTh('marketCapUsd', 'Market Cap', 'text-right hidden sm:table-cell')}
+                    {cols.fdv && <th className="py-2 px-4 label text-right hidden xl:table-cell">Fully Diluted</th>}
+                    {cols.volume && sortTh('volumeUsd24Hr', 'Volume (24h)', 'text-right hidden lg:table-cell')}
+                    {cols.volMcap && <th className="py-2 px-4 label text-right hidden xl:table-cell">Vol/Mkt Cap</th>}
+                    {cols.circulating && sortTh('csupply', 'Circulating', 'text-right hidden xl:table-cell')}
+                    {cols.tsupply && sortTh('tsupply', 'Total Supply', 'text-right hidden xl:table-cell')}
+                    {cols.msupply && sortTh('msupply', 'Max Supply', 'text-right hidden xl:table-cell')}
+                    {cols.spark && <th className="py-2 px-4 label text-right hidden md:table-cell">Last 7 Days</th>}
+                    <th className="py-2 px-4 w-10 relative">
+                      <button onClick={() => setColMenu((v) => !v)} title="Edit columns" className="flex items-center justify-center w-6 h-6 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)] transition-colors ml-auto">
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                      {colMenu && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setColMenu(false)} />
+                          <div className="absolute right-4 top-full mt-1 z-50 w-56 max-h-80 overflow-y-auto bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case">
+                            <div className="label px-3 py-1.5 text-[color:var(--text-3)]">Columns</div>
+                            <div className="px-2 pb-1.5">
+                              <input
+                                value={colSearch}
+                                onChange={(e) => setColSearch(e.target.value)}
+                                placeholder="Search"
+                                className="w-full bg-[color:var(--bg)] border border-[color:var(--line)] text-[color:var(--text)] placeholder:text-[color:var(--text-3)] text-body font-normal px-2 py-1 rounded-sm focus:outline-none focus:border-[color:var(--line-strong)]"
+                              />
+                            </div>
+                            {COL_GROUPS.map((g) => {
+                              const GIcon = g.icon;
+                              const items = g.cols.filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase()));
+                              if (items.length === 0) return null;
+                              const open = !!colSearch || openGroup === g.label;
+                              return (
+                                <div key={g.label}>
+                                  <button
+                                    onClick={() => setOpenGroup(open && !colSearch ? null : g.label)}
+                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-body text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"
+                                  >
+                                    <GIcon className="w-3.5 h-3.5 text-[color:var(--text-3)]" />
+                                    <span className="flex-1 text-left">{g.label}</span>
+                                    <span className="font-mono text-label text-[color:var(--text-3)]">{g.cols.length}</span>
+                                  </button>
+                                  {open && items.map((c) => (
+                                    <button
+                                      key={c.k}
+                                      onClick={() => setCols((p) => ({ ...p, [c.k]: !p[c.k] }))}
+                                      className="w-full flex items-center gap-2 pl-8 pr-3 py-1.5 text-body text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"
+                                    >
+                                      <span className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 ${cols[c.k] ? 'bg-[color:var(--accent)] border-[color:var(--accent)]' : 'border-[color:var(--line-strong)]'}`}>
+                                        {cols[c.k] && <Check className="w-2.5 h-2.5 text-[color:var(--accent-ink)]" />}
+                                      </span>
+                                      {c.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedMarkets.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="py-10 text-center text-body text-[color:var(--text-3)]">
+                      <td colSpan={colCount} className="py-10 text-center text-body text-[color:var(--text-3)]">
                         {activeTab === 'watchlist' ? 'Your watchlist is empty. Star assets to add them.' : 'No markets found.'}
                       </td>
                     </tr>
                   ) : (
                     paginatedMarkets.map((market, index) => {
-                      const change1h = parseFloat(market.changePercent1Hr || '0');
-                      const change24h = parseFloat(market.changePercent24Hr || '0');
+                      const chg = parseFloat((market[tfKey] as string) || '0');
+                      const chgPos = chg >= 0;
+                      const fdvSupply = parseFloat(market.msupply || '0') || parseFloat(market.tsupply || '0');
+                      const mcapNum = parseFloat(market.marketCapUsd || '0');
                       const change7d = parseFloat(market.changePercent7d || '0');
-                      const isPositive1h = change1h >= 0;
-                      const isPositive24h = change24h >= 0;
                       const isPositive7d = change7d >= 0;
                       const isStarred = watchlist.includes(market.symbol);
                       const isExpanded = expandedCoin === market.id;
@@ -431,9 +540,11 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             }}>
                               <Star className={`w-3.5 h-3.5 transition-colors ${isStarred ? 'text-[color:var(--accent)] fill-[color:var(--accent)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text)]'}`} />
                             </td>
-                            <td className="py-2.5 px-4 font-mono text-data text-[color:var(--text-3)] hidden sm:table-cell">
-                              {market.rank}
-                            </td>
+                            {cols.rank && (
+                              <td className="py-2.5 px-4 font-mono text-data text-[color:var(--text-3)] hidden sm:table-cell">
+                                {market.rank}
+                              </td>
+                            )}
                             <td className="py-2.5 px-4">
                               <div className="flex items-center gap-2.5">
                                 <img
@@ -453,56 +564,81 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text)]">
                               ${parseFloat(market.priceUsd || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                             </td>
-                            <td className={`py-2.5 px-4 text-right font-mono text-data hidden md:table-cell ${isPositive1h ? 'up' : 'down'}`}>
-                              {isPositive1h ? '+' : '-'}{Math.abs(change1h).toFixed(2)}%
-                            </td>
-                            <td className={`py-2.5 px-4 text-right font-mono text-data ${isPositive24h ? 'up' : 'down'}`}>
-                              {isPositive24h ? '+' : '-'}{Math.abs(change24h).toFixed(2)}%
-                            </td>
-                            <td className={`py-2.5 px-4 text-right font-mono text-data hidden lg:table-cell ${isPositive7d ? 'up' : 'down'}`}>
-                              {isPositive7d ? '+' : '-'}{Math.abs(change7d).toFixed(2)}%
-                            </td>
-                            <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden sm:table-cell">
-                              ${formatNumber(market.marketCapUsd || '0')}
-                            </td>
-                            <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
-                              <div className="flex flex-col items-end leading-tight">
-                                <span>${formatNumber(market.volumeUsd24Hr || '0')}</span>
-                                <span className="text-label text-[color:var(--text-3)]">{formatNumber(parseFloat(market.volumeUsd24Hr || '0') / parseFloat(market.priceUsd || '1'))} {market.symbol}</span>
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                              <div className="flex flex-col items-end leading-tight">
-                                <span>{formatNumber(market.csupply || '0')} {market.symbol}</span>
-                                {market.msupply && market.msupply !== '0' && (
-                                  <div className="w-24 h-0.5 bg-[color:var(--line)] mt-1 overflow-hidden">
-                                    <div
-                                      className="h-full bg-[color:var(--text-3)]"
-                                      style={{ width: `${Math.min(100, (parseFloat(market.csupply) / parseFloat(market.msupply)) * 100)}%` }}
-                                    />
+                            {cols.change && (
+                              <td className={`py-2.5 px-4 text-right font-mono text-data ${chgPos ? 'up' : 'down'}`}>
+                                {chgPos ? '+' : '-'}{Math.abs(chg).toFixed(2)}%
+                              </td>
+                            )}
+                            {cols.marketCap && (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden sm:table-cell">
+                                ${formatNumber(market.marketCapUsd || '0')}
+                              </td>
+                            )}
+                            {cols.fdv && (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                {fdvSupply > 0 ? '$' + formatNumber(fdvSupply * parseFloat(market.priceUsd || '0')) : '—'}
+                              </td>
+                            )}
+                            {cols.volume && (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
+                                <div className="flex flex-col items-end leading-tight">
+                                  <span>${formatNumber(market.volumeUsd24Hr || '0')}</span>
+                                  <span className="text-label text-[color:var(--text-3)]">{formatNumber(parseFloat(market.volumeUsd24Hr || '0') / parseFloat(market.priceUsd || '1'))} {market.symbol}</span>
+                                </div>
+                              </td>
+                            )}
+                            {cols.volMcap && (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                {mcapNum > 0 ? (parseFloat(market.volumeUsd24Hr || '0') / mcapNum).toFixed(4) : '—'}
+                              </td>
+                            )}
+                            {cols.circulating && (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                <div className="flex flex-col items-end leading-tight">
+                                  <span>{formatNumber(market.csupply || '0')} {market.symbol}</span>
+                                  {market.msupply && market.msupply !== '0' && (
+                                    <div className="w-24 h-0.5 bg-[color:var(--line)] mt-1 overflow-hidden">
+                                      <div
+                                        className="h-full bg-[color:var(--text-3)]"
+                                        style={{ width: `${Math.min(100, (parseFloat(market.csupply) / parseFloat(market.msupply)) * 100)}%` }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            )}
+                            {cols.tsupply && (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                {formatNumber(market.tsupply || '0')} {market.symbol}
+                              </td>
+                            )}
+                            {cols.msupply && (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                {market.msupply && market.msupply !== '0' ? `${formatNumber(market.msupply)} ${market.symbol}` : '∞'}
+                              </td>
+                            )}
+                            {cols.spark && (
+                              <td className="py-2.5 px-4 text-right hidden md:table-cell">
+                                <div className="flex items-center justify-end gap-3 relative">
+                                  <div className="w-24 h-10 transition-opacity group-hover:opacity-0">
+                                    <Sparkline id={market.symbol} color={isPositive7d ? 'var(--up)' : 'var(--down)'} />
                                   </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-4 text-right hidden md:table-cell">
-                              <div className="flex items-center justify-end gap-3 relative">
-                                <div className="w-24 h-10 transition-opacity group-hover:opacity-0">
-                                  <Sparkline id={market.symbol} color={isPositive7d ? 'var(--up)' : 'var(--down)'} />
+                                  <div className="absolute inset-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onAssetSelect(market.symbol);
+                                      }}
+                                      className="bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 px-3 py-1 rounded-sm text-label font-semibold transition-colors shiny chrome cta-glow press"
+                                      style={{ letterSpacing: '0.06em' }}
+                                    >
+                                      TRADE
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="absolute inset-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onAssetSelect(market.symbol);
-                                    }}
-                                    className="bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 px-3 py-1 rounded-sm text-label font-semibold transition-colors shiny chrome cta-glow press"
-                                    style={{ letterSpacing: '0.06em' }}
-                                  >
-                                    TRADE
-                                  </button>
-                                </div>
-                              </div>
-                            </td>
+                              </td>
+                            )}
+                            <td className="py-2.5 px-4" />
                           </tr>
 
                           <AnimatePresence>
@@ -513,7 +649,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                 exit={{ opacity: 0, height: 0 }}
                                 className="bg-[color:var(--bg)] border-b border-[color:var(--line)] overflow-hidden"
                               >
-                                <td colSpan={11} className="p-0">
+                                <td colSpan={colCount} className="p-0">
                                   <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <div className="space-y-3">
                                       <div className="flex items-center gap-2.5">
