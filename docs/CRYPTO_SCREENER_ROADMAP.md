@@ -50,7 +50,7 @@ Final groups in the `+` menu: **Coin info (1) · Market data (6) · Technicals (
 - [x] CS-2 **Server market data**: markets.ts → CoinGecko primary (adds
   `image`, `ath`, `athChangePct`, `changePercent14d/30d/1y`, exact fdv/supplies),
   coinlore fallback unchanged shape, okx last. Module-level 5-min cache. Curl prod after deploy.
-- [ ] CS-3 **UI market data + coin info**: extend `MarketData` iface + both
+- [x] CS-3 **UI market data + coin info**: extend `MarketData` iface + both
   normalizers; new cols perf 14d/30d/1y, ATH, ATH % (off by default); logo =
   API image w/ coincap fallback; regroup existing valuation cols under the
   rectified groups.
@@ -76,5 +76,6 @@ Final groups in the `+` menu: **Coin info (1) · Market data (6) · Technicals (
 
 (loop appends one line per completed task — real numbers only)
 
+- 2026-07-12 CS-3 UI: MarketData +7 optional fields; 5 new cols p14d/p30d/p1y/ATH/ATH% (off by default, sortable, PctVal '—' on fallback sources); FDV cell prefers exact fdvUsd; logos = CoinGecko image w/ coincap fallback (row+expanded+highlight); groups regrouped → Coin info(1)/Market data(7)/Valuation(6)/Chart(1). typecheck 0, deployed market-ui-self.vercel.app.
 - 2026-07-12 CS-2 server: markets.ts → CoinGecko primary + 5-min module cache, coinlore/okx fallbacks untouched. Prod curl: 100 rows src=coingecko, BTC price 64100, p14d 6.845, p30d 1.577, p1y -45.44, ath 126080 (athPct -49.16), fdv 1.2856T, image URL ✓. typecheck 0, deploy market-fte8y1k08.
 - 2026-07-12 CS-1 audit: 11/12 Vercel fns deployed (1 slot free, rule stays no-new-files). prod /api/crypto/markets HTTP 200, 100 rows, src=coinlore, BTC $64,208. CoinGecko coins/markets HTTP 200, 100 rows, ALL needed fields present (p1h 0.115/p24h -0.025/p7d 2.17/p14d 6.84/p30d 1.57/p1y -45.4, ath 126080, athPct -49.16, fdv 1.286T, image ✓). Binance spot klines BTCUSDT 1d HTTP 200, 200 candles, close 64117.98. fapi premiumIndex HTTP 200, 835 symbols, BTCUSDT funding 0.00007763; openInterest BTCUSDT 101232.36 HTTP 200. klines.ts = thin Binance proxy, ?view= extendable. All CS-2..CS-7 sources confirmed live.

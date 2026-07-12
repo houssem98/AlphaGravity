@@ -18,6 +18,14 @@ interface MarketData {
   csupply: string;
   tsupply: string;
   msupply: string;
+  // additive fields, present only when the server used CoinGecko (CS-2)
+  image?: string;
+  ath?: string;
+  athChangePct?: string;
+  changePercent14d?: string;
+  changePercent30d?: string;
+  changePercent1y?: string;
+  fdvUsd?: string;
 }
 
 interface MarketsProps {
@@ -31,21 +39,27 @@ const formatCurrency = (num: string | number) => {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-type ColKey = 'rank' | 'change' | 'marketCap' | 'fdv' | 'volume' | 'volMcap' | 'circulating' | 'tsupply' | 'msupply' | 'spark';
+type ColKey = 'rank' | 'change' | 'p14d' | 'p30d' | 'p1y' | 'athVal' | 'athPct' | 'volume'
+  | 'marketCap' | 'fdv' | 'volMcap' | 'circulating' | 'tsupply' | 'msupply' | 'spark';
 
 const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }[] }[] = [
   { label: 'Coin info', icon: Info, cols: [{ k: 'rank', label: 'Rank #' }] },
   {
     label: 'Market data', icon: BarChart2, cols: [
       { k: 'change', label: 'Price change %' },
-      { k: 'marketCap', label: 'Market Cap' },
-      { k: 'fdv', label: 'Fully Diluted Mcap' },
+      { k: 'p14d', label: 'Perf % 14d' },
+      { k: 'p30d', label: 'Perf % 30d' },
+      { k: 'p1y', label: 'Perf % 1y' },
+      { k: 'athVal', label: 'All-Time High' },
+      { k: 'athPct', label: 'ATH %' },
       { k: 'volume', label: 'Volume (24h)' },
-      { k: 'volMcap', label: 'Vol / Mkt Cap' },
     ],
   },
   {
-    label: 'Supply', icon: Database, cols: [
+    label: 'Valuation', icon: Database, cols: [
+      { k: 'marketCap', label: 'Market Cap' },
+      { k: 'fdv', label: 'Fully Diluted Mcap' },
+      { k: 'volMcap', label: 'Vol / Mkt Cap' },
       { k: 'circulating', label: 'Circulating Supply' },
       { k: 'tsupply', label: 'Total Supply' },
       { k: 'msupply', label: 'Max Supply' },
@@ -53,6 +67,13 @@ const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }
   },
   { label: 'Chart', icon: Activity, cols: [{ k: 'spark', label: 'Last 7 Days' }] },
 ];
+
+// Colored ±% cell for optional string fields ('—' when the fallback source lacks the metric).
+const PctVal = ({ v }: { v?: string }) => {
+  const n = v === undefined || v === '' ? NaN : parseFloat(v);
+  if (!isFinite(n)) return <span className="text-[color:var(--text-3)]">—</span>;
+  return <span className={n >= 0 ? 'up' : 'down'}>{n >= 0 ? '+' : '-'}{Math.abs(n).toFixed(2)}%</span>;
+};
 
 const HighlightCard = ({ title, icon: Icon, data, onSelect }: { title: string, icon: any, data: MarketData[], type: 'gainer' | 'loser' | 'trending', onSelect: (s: string) => void }) => {
   return (
@@ -79,7 +100,7 @@ const HighlightCard = ({ title, icon: Icon, data, onSelect }: { title: string, i
             >
               <div className="flex items-center gap-2.5">
                 <span className="font-mono text-data text-[color:var(--text-3)] w-3">{idx + 1}</span>
-                <img src={`https://assets.coincap.io/assets/icons/${coin.symbol.toLowerCase()}@2x.png`} alt={coin.symbol} className="w-5 h-5 rounded-full" onError={(e) => { (e.target as HTMLImageElement).src = 'https://assets.coincap.io/assets/icons/btc@2x.png' }} />
+                <img src={coin.image || `https://assets.coincap.io/assets/icons/${coin.symbol.toLowerCase()}@2x.png`} alt={coin.symbol} className="w-5 h-5 rounded-full" onError={(e) => { (e.target as HTMLImageElement).src = 'https://assets.coincap.io/assets/icons/btc@2x.png' }} />
                 <div className="flex flex-col leading-tight">
                   <span className="text-data font-semibold text-[color:var(--text)]">{coin.symbol}</span>
                   <span className="text-label text-[color:var(--text-3)] truncate w-20">{coin.name}</span>
@@ -120,7 +141,8 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   const [colSearch, setColSearch] = useState('');
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [cols, setCols] = useState<Record<ColKey, boolean>>({
-    rank: true, change: true, marketCap: true, fdv: false, volume: true,
+    rank: true, change: true, p14d: false, p30d: false, p1y: false, athVal: false, athPct: false,
+    marketCap: true, fdv: false, volume: true,
     volMcap: false, circulating: true, tsupply: false, msupply: false, spark: true,
   });
 
@@ -456,6 +478,11 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                     {cols.circulating && sortTh('csupply', 'Circulating', 'text-right hidden xl:table-cell')}
                     {cols.tsupply && sortTh('tsupply', 'Total Supply', 'text-right hidden xl:table-cell')}
                     {cols.msupply && sortTh('msupply', 'Max Supply', 'text-right hidden xl:table-cell')}
+                    {cols.p14d && sortTh('changePercent14d', '14d %', 'text-right hidden xl:table-cell')}
+                    {cols.p30d && sortTh('changePercent30d', '30d %', 'text-right hidden xl:table-cell')}
+                    {cols.p1y && sortTh('changePercent1y', '1y %', 'text-right hidden xl:table-cell')}
+                    {cols.athVal && sortTh('ath', 'ATH', 'text-right hidden xl:table-cell')}
+                    {cols.athPct && sortTh('athChangePct', 'ATH %', 'text-right hidden xl:table-cell')}
                     {cols.spark && <th className="py-2 px-4 label text-right hidden md:table-cell">Last 7 Days</th>}
                     <th className="py-2 px-4 w-10 relative">
                       <button onClick={() => setColMenu((v) => !v)} title="Edit columns" className="flex items-center justify-center w-6 h-6 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)] transition-colors ml-auto">
@@ -548,7 +575,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             <td className="py-2.5 px-4">
                               <div className="flex items-center gap-2.5">
                                 <img
-                                  src={`https://assets.coincap.io/assets/icons/${(market.symbol || 'btc').toLowerCase()}@2x.png`}
+                                  src={market.image || `https://assets.coincap.io/assets/icons/${(market.symbol || 'btc').toLowerCase()}@2x.png`}
                                   alt={market.name}
                                   className="w-6 h-6 rounded-full border border-[color:var(--line)]"
                                   onError={(e) => {
@@ -576,7 +603,9 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             )}
                             {cols.fdv && (
                               <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                {fdvSupply > 0 ? '$' + formatNumber(fdvSupply * parseFloat(market.priceUsd || '0')) : '—'}
+                                {market.fdvUsd && parseFloat(market.fdvUsd) > 0
+                                  ? '$' + formatNumber(market.fdvUsd)
+                                  : fdvSupply > 0 ? '$' + formatNumber(fdvSupply * parseFloat(market.priceUsd || '0')) : '—'}
                               </td>
                             )}
                             {cols.volume && (
@@ -617,6 +646,23 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                 {market.msupply && market.msupply !== '0' ? `${formatNumber(market.msupply)} ${market.symbol}` : '∞'}
                               </td>
                             )}
+                            {cols.p14d && (
+                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent14d} /></td>
+                            )}
+                            {cols.p30d && (
+                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent30d} /></td>
+                            )}
+                            {cols.p1y && (
+                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent1y} /></td>
+                            )}
+                            {cols.athVal && (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                {market.ath && parseFloat(market.ath) > 0 ? '$' + formatCurrency(market.ath) : '—'}
+                              </td>
+                            )}
+                            {cols.athPct && (
+                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.athChangePct} /></td>
+                            )}
                             {cols.spark && (
                               <td className="py-2.5 px-4 text-right hidden md:table-cell">
                                 <div className="flex items-center justify-end gap-3 relative">
@@ -654,7 +700,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                     <div className="space-y-3">
                                       <div className="flex items-center gap-2.5">
                                         <img
-                                          src={`https://assets.coincap.io/assets/icons/${(market.symbol || 'btc').toLowerCase()}@2x.png`}
+                                          src={market.image || `https://assets.coincap.io/assets/icons/${(market.symbol || 'btc').toLowerCase()}@2x.png`}
                                           alt={market.name}
                                           className="w-8 h-8 rounded-full"
                                           onError={(e) => {
