@@ -205,130 +205,177 @@ const psarCalc = (h: number[], l: number[]) => {
 
 const techCache: Record<string, { at: number; v: any }> = {};
 
+const NULL_TECH = (sym: string): any => ({
+  symbol: sym, rsi: null, ema20: null, ema50: null, ema200: null, sma20: null, sma50: null,
+  sma200: null, macd: null, macdSignal: null, bbUpper: null, bbLower: null, atr: null, rating: null,
+});
+
+// CT-4: indicator math extracted from techFor so Binance and OKX candle
+// sources share it verbatim (arrays must be oldest-first).
+function computeTech(sym: string, opens: number[], highs: number[], lows: number[], closes: number[], vols: number[]) {
+  const price = closes[closes.length - 1];
+  const s20 = sma(closes, 20);
+  const sd = s20 === null ? null : Math.sqrt(closes.slice(-20).reduce((s, c) => s + (c - s20) ** 2, 0) / 20);
+  const { line, signal } = macdCalc(closes);
+  const rsi = rsiCalc(closes);
+  const v: any = {
+    symbol: sym, rsi,
+    ema20: ema(closes, 20), ema50: ema(closes, 50), ema200: ema(closes, 200),
+    sma20: s20, sma50: sma(closes, 50), sma200: sma(closes, 200),
+    macd: line, macdSignal: signal,
+    bbUpper: s20 !== null && sd !== null ? s20 + 2 * sd : null,
+    bbLower: s20 !== null && sd !== null ? s20 - 2 * sd : null,
+    atr: atrCalc(highs, lows, closes),
+    rating: null as string | null,
+  };
+  // Compound rating: MA consensus (price above/below each available MA) + RSI zones + MACD cross.
+  let buys = 0, sells = 0, total = 0;
+  for (const m of [v.ema20, v.ema50, v.ema200, v.sma20, v.sma50, v.sma200]) {
+    if (m === null) continue;
+    total++; if (price > m) buys++; else sells++;
+  }
+  if (rsi !== null) { total++; if (rsi < 30) buys++; else if (rsi > 70) sells++; }
+  if (line !== null && signal !== null) { total++; if (line > signal) buys++; else sells++; }
+  if (total > 0) {
+    const score = (buys - sells) / total;
+    v.rating = score > 0.5 ? 'Strong Buy' : score > 0.1 ? 'Buy' : score >= -0.1 ? 'Neutral' : score >= -0.5 ? 'Sell' : 'Strong Sell';
+  }
+
+  // ---- CX-4 extended indicators (all from the same candles) ----
+  const L = closes.length;
+  const kNow = stochKAt(highs, lows, closes, L - 1);
+  const k1 = stochKAt(highs, lows, closes, L - 2);
+  const k2 = stochKAt(highs, lows, closes, L - 3);
+  v.stochK = kNow;
+  v.stochD = kNow !== null && k1 !== null && k2 !== null ? (kNow + k1 + k2) / 3 : null;
+  const rsis = rsiSeries(closes);
+  if (rsis.length >= 14) {
+    const win = rsis.slice(-14);
+    const mn = Math.min(...win), mx = Math.max(...win);
+    v.stochRsi = mx === mn ? 50 : ((rsis[rsis.length - 1] - mn) / (mx - mn)) * 100;
+  } else v.stochRsi = null;
+  const hh14 = Math.max(...highs.slice(-14)), ll14 = Math.min(...lows.slice(-14));
+  v.willR = hh14 === ll14 ? null : (-100 * (hh14 - price)) / (hh14 - ll14);
+  const tps = closes.map((c, i) => (highs[i] + lows[i] + c) / 3);
+  const tpS = sma(tps, 20);
+  if (tpS !== null) {
+    const dev = tps.slice(-20).reduce((s, t) => s + Math.abs(t - tpS), 0) / 20;
+    v.cci = dev === 0 ? null : (tps[tps.length - 1] - tpS) / (0.015 * dev);
+  } else v.cci = null;
+  const { adx, diPlus, diMinus } = adxCalc(highs, lows, closes);
+  v.adx = adx; v.diPlus = diPlus; v.diMinus = diMinus;
+  v.roc = L > 12 ? (closes[L - 1] / closes[L - 13] - 1) * 100 : null;
+  v.mom = L > 10 ? closes[L - 1] - closes[L - 11] : null;
+  const hl2 = highs.map((h, i) => (h + lows[i]) / 2);
+  const s5 = sma(hl2, 5), s34 = sma(hl2, 34);
+  v.ao = s5 !== null && s34 !== null ? s5 - s34 : null;
+  v.psar = psarCalc(highs, lows);
+  const hi25 = highs.slice(-25), lo25 = lows.slice(-25);
+  v.aroonUp = ((25 - (24 - hi25.indexOf(Math.max(...hi25)))) / 25) * 100;
+  v.aroonDown = ((25 - (24 - lo25.indexOf(Math.min(...lo25)))) / 25) * 100;
+  v.atrPct = v.atr !== null && price > 0 ? (v.atr / price) * 100 : null;
+  v.donchU = Math.max(...highs.slice(-20));
+  v.donchL = Math.min(...lows.slice(-20));
+  v.keltU = v.ema20 !== null && v.atr !== null ? v.ema20 + 2 * v.atr : null;
+  v.keltL = v.ema20 !== null && v.atr !== null ? v.ema20 - 2 * v.atr : null;
+  v.hma = hmaCalc(closes);
+  v.ichiConv = (Math.max(...highs.slice(-9)) + Math.min(...lows.slice(-9))) / 2;
+  v.ichiBase = (Math.max(...highs.slice(-26)) + Math.min(...lows.slice(-26))) / 2;
+  const e13 = ema(closes, 13);
+  v.bbp = e13 !== null ? highs[L - 1] - e13 + (lows[L - 1] - e13) : null;
+  // Pivots from the last COMPLETED day (last candle is the running day).
+  const pH = highs[L - 2], pL = lows[L - 2], pC = closes[L - 2];
+  const P = (pH + pL + pC) / 3;
+  v.pivP = P; v.pivR1 = 2 * P - pL; v.pivS1 = 2 * P - pH;
+  v.fibR1 = P + 0.382 * (pH - pL); v.fibS1 = P - 0.382 * (pH - pL);
+  // Sub-ratings: MAs only / oscillators only.
+  let mb = 0, ms = 0, mt = 0;
+  for (const m of [v.ema20, v.ema50, v.ema200, v.sma20, v.sma50, v.sma200]) {
+    if (m === null) continue;
+    mt++; if (price > m) mb++; else ms++;
+  }
+  v.maRating = scoreLabel(mb, ms, mt);
+  let ob = 0, os = 0, ot = 0;
+  if (rsi !== null) { ot++; if (rsi < 30) ob++; else if (rsi > 70) os++; }
+  if (kNow !== null) { ot++; if (kNow < 20) ob++; else if (kNow > 80) os++; }
+  if (v.cci !== null) { ot++; if (v.cci < -100) ob++; else if (v.cci > 100) os++; }
+  if (v.willR !== null) { ot++; if (v.willR < -80) ob++; else if (v.willR > -20) os++; }
+  if (v.mom !== null) { ot++; if (v.mom > 0) ob++; else os++; }
+  if (line !== null && signal !== null) { ot++; if (line > signal) ob++; else os++; }
+  v.oscRating = scoreLabel(ob, os, ot);
+  // Candle pattern on the latest candle.
+  const o = opens[L - 1], h = highs[L - 1], lo = lows[L - 1], c = closes[L - 1];
+  const body = Math.abs(c - o), range = h - lo || 1;
+  const upSh = h - Math.max(o, c), dnSh = Math.min(o, c) - lo;
+  const pO = opens[L - 2], pCl = closes[L - 2];
+  v.candle =
+    body <= 0.1 * range ? 'Doji'
+    : dnSh >= 2 * body && upSh <= body ? 'Hammer'
+    : c > o && pCl < pO && c >= pO && o <= pCl ? 'Bull Engulfing'
+    : c < o && pCl > pO && c <= pO && o >= pCl ? 'Bear Engulfing'
+    : null;
+  // Volume change % — completed day vs prior completed day (last candle is partial).
+  v.volChangePct = L > 2 && vols[L - 3] > 0 ? (vols[L - 2] / vols[L - 3] - 1) * 100 : null;
+  return v;
+}
+
 async function techFor(sym: string) {
   const hit = techCache[sym];
   if (hit && Date.now() - hit.at < TTL) return hit.v;
-  let v: any = {
-    symbol: sym, rsi: null, ema20: null, ema50: null, ema200: null, sma20: null, sma50: null,
-    sma200: null, macd: null, macdSignal: null, bbUpper: null, bbLower: null, atr: null, rating: null,
-  };
+  let v: any = NULL_TECH(sym);
   try {
     const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}USDT&interval=1d&limit=250`);
     if (r.ok) {
       const k = await r.json();
       if (Array.isArray(k) && k.length >= 30) {
-        const opens = k.map((x: any) => parseFloat(x[1]));
-        const highs = k.map((x: any) => parseFloat(x[2]));
-        const lows = k.map((x: any) => parseFloat(x[3]));
-        const closes = k.map((x: any) => parseFloat(x[4]));
-        const vols = k.map((x: any) => parseFloat(x[5]));
-        const price = closes[closes.length - 1];
-        const s20 = sma(closes, 20);
-        const sd = s20 === null ? null : Math.sqrt(closes.slice(-20).reduce((s, c) => s + (c - s20) ** 2, 0) / 20);
-        const { line, signal } = macdCalc(closes);
-        const rsi = rsiCalc(closes);
-        v = {
-          symbol: sym, rsi,
-          ema20: ema(closes, 20), ema50: ema(closes, 50), ema200: ema(closes, 200),
-          sma20: s20, sma50: sma(closes, 50), sma200: sma(closes, 200),
-          macd: line, macdSignal: signal,
-          bbUpper: s20 !== null && sd !== null ? s20 + 2 * sd : null,
-          bbLower: s20 !== null && sd !== null ? s20 - 2 * sd : null,
-          atr: atrCalc(highs, lows, closes),
-          rating: null as string | null,
-        };
-        // Compound rating: MA consensus (price above/below each available MA) + RSI zones + MACD cross.
-        let buys = 0, sells = 0, total = 0;
-        for (const m of [v.ema20, v.ema50, v.ema200, v.sma20, v.sma50, v.sma200]) {
-          if (m === null) continue;
-          total++; if (price > m) buys++; else sells++;
-        }
-        if (rsi !== null) { total++; if (rsi < 30) buys++; else if (rsi > 70) sells++; }
-        if (line !== null && signal !== null) { total++; if (line > signal) buys++; else sells++; }
-        if (total > 0) {
-          const score = (buys - sells) / total;
-          v.rating = score > 0.5 ? 'Strong Buy' : score > 0.1 ? 'Buy' : score >= -0.1 ? 'Neutral' : score >= -0.5 ? 'Sell' : 'Strong Sell';
-        }
-
-        // ---- CX-4 extended indicators (all from the same candles) ----
-        const L = closes.length;
-        const kNow = stochKAt(highs, lows, closes, L - 1);
-        const k1 = stochKAt(highs, lows, closes, L - 2);
-        const k2 = stochKAt(highs, lows, closes, L - 3);
-        v.stochK = kNow;
-        v.stochD = kNow !== null && k1 !== null && k2 !== null ? (kNow + k1 + k2) / 3 : null;
-        const rsis = rsiSeries(closes);
-        if (rsis.length >= 14) {
-          const win = rsis.slice(-14);
-          const mn = Math.min(...win), mx = Math.max(...win);
-          v.stochRsi = mx === mn ? 50 : ((rsis[rsis.length - 1] - mn) / (mx - mn)) * 100;
-        } else v.stochRsi = null;
-        const hh14 = Math.max(...highs.slice(-14)), ll14 = Math.min(...lows.slice(-14));
-        v.willR = hh14 === ll14 ? null : (-100 * (hh14 - price)) / (hh14 - ll14);
-        const tps = closes.map((c, i) => (highs[i] + lows[i] + c) / 3);
-        const tpS = sma(tps, 20);
-        if (tpS !== null) {
-          const dev = tps.slice(-20).reduce((s, t) => s + Math.abs(t - tpS), 0) / 20;
-          v.cci = dev === 0 ? null : (tps[tps.length - 1] - tpS) / (0.015 * dev);
-        } else v.cci = null;
-        const { adx, diPlus, diMinus } = adxCalc(highs, lows, closes);
-        v.adx = adx; v.diPlus = diPlus; v.diMinus = diMinus;
-        v.roc = L > 12 ? (closes[L - 1] / closes[L - 13] - 1) * 100 : null;
-        v.mom = L > 10 ? closes[L - 1] - closes[L - 11] : null;
-        const hl2 = highs.map((h, i) => (h + lows[i]) / 2);
-        const s5 = sma(hl2, 5), s34 = sma(hl2, 34);
-        v.ao = s5 !== null && s34 !== null ? s5 - s34 : null;
-        v.psar = psarCalc(highs, lows);
-        const hi25 = highs.slice(-25), lo25 = lows.slice(-25);
-        v.aroonUp = ((25 - (24 - hi25.indexOf(Math.max(...hi25)))) / 25) * 100;
-        v.aroonDown = ((25 - (24 - lo25.indexOf(Math.min(...lo25)))) / 25) * 100;
-        v.atrPct = v.atr !== null && price > 0 ? (v.atr / price) * 100 : null;
-        v.donchU = Math.max(...highs.slice(-20));
-        v.donchL = Math.min(...lows.slice(-20));
-        v.keltU = v.ema20 !== null && v.atr !== null ? v.ema20 + 2 * v.atr : null;
-        v.keltL = v.ema20 !== null && v.atr !== null ? v.ema20 - 2 * v.atr : null;
-        v.hma = hmaCalc(closes);
-        v.ichiConv = (Math.max(...highs.slice(-9)) + Math.min(...lows.slice(-9))) / 2;
-        v.ichiBase = (Math.max(...highs.slice(-26)) + Math.min(...lows.slice(-26))) / 2;
-        const e13 = ema(closes, 13);
-        v.bbp = e13 !== null ? highs[L - 1] - e13 + (lows[L - 1] - e13) : null;
-        // Pivots from the last COMPLETED day (last candle is the running day).
-        const pH = highs[L - 2], pL = lows[L - 2], pC = closes[L - 2];
-        const P = (pH + pL + pC) / 3;
-        v.pivP = P; v.pivR1 = 2 * P - pL; v.pivS1 = 2 * P - pH;
-        v.fibR1 = P + 0.382 * (pH - pL); v.fibS1 = P - 0.382 * (pH - pL);
-        // Sub-ratings: MAs only / oscillators only.
-        let mb = 0, ms = 0, mt = 0;
-        for (const m of [v.ema20, v.ema50, v.ema200, v.sma20, v.sma50, v.sma200]) {
-          if (m === null) continue;
-          mt++; if (price > m) mb++; else ms++;
-        }
-        v.maRating = scoreLabel(mb, ms, mt);
-        let ob = 0, os = 0, ot = 0;
-        if (rsi !== null) { ot++; if (rsi < 30) ob++; else if (rsi > 70) os++; }
-        if (kNow !== null) { ot++; if (kNow < 20) ob++; else if (kNow > 80) os++; }
-        if (v.cci !== null) { ot++; if (v.cci < -100) ob++; else if (v.cci > 100) os++; }
-        if (v.willR !== null) { ot++; if (v.willR < -80) ob++; else if (v.willR > -20) os++; }
-        if (v.mom !== null) { ot++; if (v.mom > 0) ob++; else os++; }
-        if (line !== null && signal !== null) { ot++; if (line > signal) ob++; else os++; }
-        v.oscRating = scoreLabel(ob, os, ot);
-        // Candle pattern on the latest candle.
-        const o = opens[L - 1], h = highs[L - 1], lo = lows[L - 1], c = closes[L - 1];
-        const body = Math.abs(c - o), range = h - lo || 1;
-        const upSh = h - Math.max(o, c), dnSh = Math.min(o, c) - lo;
-        const pO = opens[L - 2], pCl = closes[L - 2];
-        v.candle =
-          body <= 0.1 * range ? 'Doji'
-          : dnSh >= 2 * body && upSh <= body ? 'Hammer'
-          : c > o && pCl < pO && c >= pO && o <= pCl ? 'Bull Engulfing'
-          : c < o && pCl > pO && c <= pO && o >= pCl ? 'Bear Engulfing'
-          : null;
-        // Volume change % — completed day vs prior completed day (last candle is partial).
-        v.volChangePct = L > 2 && vols[L - 3] > 0 ? (vols[L - 2] / vols[L - 3] - 1) * 100 : null;
+        v = computeTech(
+          sym,
+          k.map((x: any) => parseFloat(x[1])),
+          k.map((x: any) => parseFloat(x[2])),
+          k.map((x: any) => parseFloat(x[3])),
+          k.map((x: any) => parseFloat(x[4])),
+          k.map((x: any) => parseFloat(x[5])),
+        );
       }
     }
   } catch { /* non-Binance symbol or transient error → nulls */ }
   techCache[sym] = { at: Date.now(), v };
+  return v;
+}
+
+// CT-4: OKX 1D candles, taker of last resort for coins with no verified
+// Binance pair (HYPE/LEO/OKB class). Symbol-matched source, so the price
+// cross-check gate is mandatory: latest OKX close must agree with the coin's
+// CG price (3%, stables 1%) or everything stays null. OKX rows come newest
+// first (ts,o,h,l,c,vol,...) — reversed before math.
+async function techForOkx(sym: string, cgPrice: number) {
+  const key = 'okx:' + sym;
+  const hit = techCache[key];
+  if (hit && Date.now() - hit.at < TTL) return hit.v;
+  let v: any = NULL_TECH(sym);
+  try {
+    const r = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT&bar=1D&limit=250`);
+    if (r.ok) {
+      const j = await r.json();
+      const rows: any[] = Array.isArray(j?.data) ? [...j.data].reverse() : [];
+      if (rows.length >= 30) {
+        const closes = rows.map((x) => parseFloat(x[4]));
+        const last = closes[closes.length - 1];
+        const tol = STABLE_SYMS.has(sym) ? 0.01 : 0.03;
+        if (last > 0 && cgPrice > 0 && Math.abs(last / cgPrice - 1) <= tol) {
+          v = computeTech(
+            sym,
+            rows.map((x) => parseFloat(x[1])),
+            rows.map((x) => parseFloat(x[2])),
+            rows.map((x) => parseFloat(x[3])),
+            closes,
+            rows.map((x) => parseFloat(x[5])),
+          );
+        }
+      }
+    }
+  } catch { /* unreachable or unlisted → nulls */ }
+  techCache[key] = { at: Date.now(), v };
   return v;
 }
 
@@ -589,14 +636,12 @@ export default async function handler(req: any, res: any) {
     const pxt = parsePx(req.query);
     const tmt = await tickerMap().catch(() => ({} as Record<string, any>));
     return res.json(await Promise.all(syms.map((s) => {
+      const hint = pxt[s];
+      if (hint === undefined) return techFor(s); // legacy ungated path
       const t = tmt[s];
-      if (pxt[s] !== undefined && (!t || !verifiedPair(s, pxt[s], parseFloat(t.lastPrice)))) {
-        return {
-          symbol: s, rsi: null, ema20: null, ema50: null, ema200: null, sma20: null, sma50: null,
-          sma200: null, macd: null, macdSignal: null, bbUpper: null, bbLower: null, atr: null, rating: null,
-        };
-      }
-      return techFor(s);
+      if (t && verifiedPair(s, hint, parseFloat(t.lastPrice))) return techFor(s);
+      // no verified Binance pair — OKX taker of last resort, same gate (CT-4)
+      return techForOkx(s, hint);
     })));
   }
   if (cache && Date.now() - cache.at < TTL) return res.json(cache.rows);
