@@ -43,7 +43,7 @@ backfill from CG ranks 101+ that ARE Binance/OKX-listed, keep 100 rows.
 
 ## Ledger
 
-- [ ] CW-1 **Universe audit (no app code changes)**: extend/clone the audit
+- [x] CW-1 **Universe audit (no app code changes)**: extend/clone the audit
   script into `apps/market-ui/scripts/build_crypto_universe.mjs` — pull CG
   `/coins/markets` top 250 by mcap (3 pages, sequential, 429-tolerant), pull
   Binance `ticker/24hr` full map + OKX `market/tickers?instType=SPOT` full map
@@ -86,3 +86,5 @@ backfill from CG ranks 101+ that ARE Binance/OKX-listed, keep 100 rows.
 ## Progress log
 
 (append one line per completed task, real numbers only)
+
+- 2026-07-13 CW-1: build_crypto_universe.mjs + docs/CRYPTO_UNIVERSE.md — CG top-100 dropped 35 (no venue 33, gate-fail 2), backfilled 35 from ranks 101–250 (APT, INJ, CAKE, VET, TIA, FET, SEI, CRV, LDO, PENDLE…), curated 100 = binance 87 + okx 13; typecheck 0, no app code changed.
