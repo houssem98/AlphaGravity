@@ -1,6 +1,6 @@
 # Crypto Screener V3 Coverage Audit
 
-Generated: 2026-07-13T18:22:56.437Z | Target: https://market-ui-self.vercel.app | Coins: 100
+Generated: 2026-07-13T18:30:25.973Z | Target: https://market-ui-self.vercel.app | Coins: 100
 
 ## Totals
 
@@ -90,10 +90,10 @@ Generated: 2026-07-13T18:22:56.437Z | Target: https://market-ui-self.vercel.app 
 | 73 | TIA (celestia) | OK | OK | OK | OK |
 | 74 | PYTH (pyth-network) | OK | OK | OK | · |
 | 75 | PENGU (pudgy-penguins) | OK | OK | OK | OK |
-| 76 | VIRTUAL (virtual-protocol) | OK | OK | OK | · |
-| 77 | TRUMP (official-trump) | OK | OK | OK | · |
-| 78 | ETHFI (ether-fi) | OK | OK | OK | OK |
-| 79 | FET (fetch-ai) | OK | OK | OK | · |
+| 76 | TRUMP (official-trump) | OK | OK | OK | · |
+| 77 | VIRTUAL (virtual-protocol) | OK | OK | OK | · |
+| 78 | FET (fetch-ai) | OK | OK | OK | · |
+| 79 | ETHFI (ether-fi) | OK | OK | OK | OK |
 | 80 | SUN (sun-token) | OK | OK | OK | OK |
 | 81 | FDUSD (first-digital-usd) | OK | OK | · | · |
 | 82 | BONK (bonk) | OK | OK | OK | · |

@@ -3,7 +3,7 @@ import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarC
 import { Sparkline } from './Sparkline';
 import { motion, AnimatePresence } from 'motion/react';
 import { CategoriesTab, ExchangesTab, NFTsTab, ConverterTab } from './MarketsTabs';
-import { useCryptoStore, ensureCryptoFeed } from '../../stores/cryptoStore';
+import { useCryptoStore, ensureCryptoFeed, livePrice } from '../../stores/cryptoStore';
 
 interface MarketData {
   id: string;
@@ -874,7 +874,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                               </div>
                             </td>
                             <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text)]">
-                              ${(spot[market.symbol]?.last ?? parseFloat(market.priceUsd || '0')).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                              ${(livePrice(market, spot[market.symbol]) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                             </td>
                             {cols.change && (
                               <td className={`py-2.5 px-4 text-right font-mono text-data ${!isFinite(chg) ? '' : chgPos ? 'up' : 'down'}`}>

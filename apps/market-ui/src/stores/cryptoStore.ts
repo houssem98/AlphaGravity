@@ -11,6 +11,14 @@ export interface SpotData {
   gapPct: number | null; volatilityPct: number | null;
 }
 
+// CV-6: THE price. Every render of a coin's price goes through this one
+// function — the list cell and the panel cannot disagree by construction.
+export const livePrice = (row: any, spotRow?: SpotData): number | null => {
+  if (spotRow?.last != null) return spotRow.last;
+  const p = parseFloat(row?.priceUsd);
+  return isFinite(p) && p > 0 ? p : null;
+};
+
 interface CryptoState {
   base: any[];
   spot: Record<string, SpotData>;

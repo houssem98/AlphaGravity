@@ -75,7 +75,7 @@ happen to be close.
 - [x] CV-5 **OKX WS live tick**: same store, `wss://ws.okx.com:8443/ws/v5/
   public` tickers channel for venue=okx coins (13). Same gate, same
   reconnect/visibility rules. Verify OKB/HYPE/LEO tick live.
-- [ ] CV-6 **One-tick proof + sweep**: list cell and panel price render from
+- [x] CV-6 **One-tick proof + sweep**: list cell and panel price render from
   the identical store value by construction — add a dev-only console.assert
   (or unit test) that both read the same field; screenshot-level check: click
   BTC/OKB/LUNC, panel price == row price char-for-char at the same moment;
@@ -94,3 +94,4 @@ happen to be close.
 - 2026-07-13 CV-3: panel's direct Binance REST + coinlore + 12s crypto timer DELETED; crypto branch reads store (price = spot.last ?? CG — byte-identical to list source; 24h% = CG def; volume/mcap/supply = CG global; high/low = gated venue). Feed moved into store (ensureCryptoFeed: base 10s w/ coinlore fallback, spot all-100 30s + visibility) — chart view keeps ticking with Markets unmounted; Markets' own fetchMarkets + 2 spot effects deleted (no dup fetches). OKX-venue coins (OKB/HYPE/LEO) populate in panel for the first time. Prod /trading 200 0.69s; audit spot 100/100 tech 99 deriv 84 meta 68 MISMATCH 0; typecheck 0, vercel --prod. Browser side-by-side glance = user smoke.
 - 2026-07-13 CV-4: combined miniTicker WS in cryptoStore (venue=binance syms, native WebSocket) — stream curl-verified (14 msgs/6s for 3 syms, BTC 61934.01 live); per-tick client gate 3%/1%, 500ms flush batching, hidden-tab close + backoff reconnect (1s→30s cap), 30s REST poll stays as fallback; prod /trading 200; audit spot 100/100 tech 99 deriv 84 meta 68 MISMATCH 0; typecheck 0, vercel --prod.
 - 2026-07-13 CV-5: OKX public tickers WS for venue=okx coins — stream curl-verified (74 msgs/8s: OKB 79.82, HYPE 63.35, LEO 9.528 live); same gate/flush/visibility/backoff as Binance WS + 25s ping keepalive (OKX 30s idle drop); prod /trading 200; audit spot 100/100 tech 99 deriv 84 meta 68 MISMATCH 0; typecheck 0, vercel --prod.
+- 2026-07-13 CV-6 FINAL: shared livePrice(row, spotRow) in cryptoStore — list cell and panel both call it (disagreement now a type error, not a runtime hope); isCryptoAsset left as-is (old not-stock/not-forex heuristic already true for every universe symbol — no dead path, YAGNI). Sweep: /trading 200 0.67s, 100 rows 0 dash Price/24h%, venues binance 87/okx 13; TN board 200 0.81s + intraday 200 1.56s; audit spot 100/100 tech 99/100 (GRAM) deriv 84 meta 68 MISMATCH 0; typecheck 0, vercel --prod. V5 ONE TICK COMPLETE 6/6 — click any coin: same store, same tick, same price.

@@ -4,7 +4,7 @@ import { isCryptoAsset, CRYPTO_ASSETS, STOCK_ASSETS } from '../../constants/trad
 import { getMarket, type MarketId, type Unit } from '../../lib/markets';
 import { fetchMarket, fmtPrice } from '../../services/marketsHub';
 import { safeUrl } from '../../lib/safeUrl';
-import { useCryptoStore, ensureCryptoFeed } from '../../stores/cryptoStore';
+import { useCryptoStore, ensureCryptoFeed, livePrice } from '../../stores/cryptoStore';
 import {
   Info, Star, Globe, FileText, Copy, Check, ChevronDown, ChevronRight,
   Edit2, Unlock, CheckCircle2, ExternalLink, Play, ArrowLeftRight, Shield, ArrowLeft,
@@ -666,7 +666,7 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
     ensureCryptoFeed();
     if (!cryptoRow) return;
     const num = (v: any) => { const n = parseFloat(v); return isFinite(n) && n !== 0 ? n : null; };
-    setPrice(cryptoSpot?.last ?? num(cryptoRow.priceUsd));
+    setPrice(livePrice(cryptoRow, cryptoSpot));
     setChange(cryptoRow.changePercent24Hr === '' ? null : num(cryptoRow.changePercent24Hr) ?? 0);
     setVolume(num(cryptoRow.volumeUsd24Hr));
     setMarketCap(num(cryptoRow.marketCapUsd));
