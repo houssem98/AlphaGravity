@@ -448,7 +448,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   const pxOf = (need: string[]) =>
     encodeURIComponent(need.filter((s) => pagePrice[s]).map((s) => `${s}:${pagePrice[s]}`).join(','));
   useEffect(() => {
-    if (!techWanted || !pageSymbols) return;
+    if (!pageSymbols) return;
     const need = pageSymbols.split(',').filter((s) => s && !(s in tech)).slice(0, 25);
     if (need.length === 0) return;
     let alive = true;
@@ -465,7 +465,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   // Spot OHL extras: same page-only lazy pattern as technicals (CX-3).
   const spotWanted = SPOT_KEYS.some((k) => cols[k]);
   useEffect(() => {
-    if (!spotWanted || !pageSymbols) return;
+    if (!pageSymbols) return;
     const need = pageSymbols.split(',').filter((s) => s && !(s in spot)).slice(0, 100);
     if (need.length === 0) return;
     let alive = true;
@@ -482,7 +482,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   // Meta (TVL/categories/trending): page-only lazy, server holds the 1h cache.
   const metaWanted = META_KEYS.some((k) => cols[k]);
   useEffect(() => {
-    if (!metaWanted || !pageSymbols) return;
+    if (!pageSymbols) return;
     const need = pageSymbols.split(',').filter((s) => s && !(s in metas)).slice(0, 100);
     if (need.length === 0) return;
     let alive = true;
@@ -500,7 +500,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   // Derivatives: same page-only lazy pattern as technicals.
   const derivWanted = DERIV_KEYS.some((k) => cols[k]);
   useEffect(() => {
-    if (!derivWanted || !pageSymbols) return;
+    if (!pageSymbols) return;
     const need = pageSymbols.split(',').filter((s) => s && !(s in derivs)).slice(0, 25);
     if (need.length === 0) return;
     let alive = true;

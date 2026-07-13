@@ -7,6 +7,59 @@
 let cache: { at: number; rows: any[] } | null = null;
 const TTL = 5 * 60 * 1000;
 
+// ── Blob SWR layer (same pattern as api/tn/[fn].ts — the "TN freeze" fix). ──
+// View payloads for the whole top-100 are precomputed and stale-served from
+// Supabase Storage (~100ms) with a background refresh, so the crypto tab gets
+// instant columns instead of waiting on 100 klines / 3×25 fapi calls / the
+// 7.9MB llama map on every cold serverless instance.
+function blobStore(file: string) {
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const h = { apikey: key!, Authorization: `Bearer ${key}` };
+  return {
+    async get() {
+      const r = await fetch(`${url}/storage/v1/object/market-data/${file}`, { headers: h });
+      return r.ok ? r.json() : null;
+    },
+    async put(body: any) {
+      await fetch(`${url}/storage/v1/object/market-data/${file}`, {
+        method: 'POST',
+        headers: { ...h, 'Content-Type': 'application/json', 'x-upsert': 'true', 'cache-control': 'max-age=0' },
+        body: JSON.stringify(body),
+      });
+    },
+  };
+}
+function waitUntil(p: Promise<any>) {
+  const ctx = (globalThis as any)[Symbol.for('@vercel/request-context')]?.get?.();
+  const q = p.catch(() => {});
+  if (ctx?.waitUntil) ctx.waitUntil(q);
+}
+async function cachedBlob<T>(file: string, ttlSec: number, compute: () => Promise<T>, usable: (d: T) => boolean): Promise<T> {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return compute();
+  const s = blobStore(file);
+  const refresh = async () => {
+    const d = await compute();
+    if (usable(d)) await s.put({ _t: Date.now(), d }); // never cache an empty/bad payload
+    return d;
+  };
+  const blob: any = await s.get().catch(() => null);
+  if (blob?._t && usable(blob.d)) {
+    if (Date.now() - blob._t > ttlSec * 1000) waitUntil(refresh());
+    return blob.d;
+  }
+  return refresh();
+}
+
+// Bounded-concurrency map for the 100-coin precompute passes.
+async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) { const j = i++; out[j] = await fn(items[j]); }
+  }));
+  return out;
+}
+
 async function fetchCoinGecko() {
   const r = await fetch(
     'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=1h,24h,7d,14d,30d,1y',
@@ -579,11 +632,94 @@ async function oiFor(sym: string) {
   return v;
 }
 
+// ── All-100 precompute passes (blob SWR payloads). The server holds the CG
+// base list itself, so every row is price-gated against the coin's own CG
+// price server-side — no px hints needed for the tab's coins.
+
+const gateOk = (sym: string, cgPrice: number, srcPrice: number) =>
+  srcPrice > 0 && cgPrice > 0 && Math.abs(srcPrice / cgPrice - 1) <= (STABLE_SYMS.has(sym) ? 0.01 : 0.03);
+
+async function baseRows(): Promise<any[]> {
+  if (cache && Date.now() - cache.at < TTL) return cache.rows;
+  const rows = await fetchCoinGecko();
+  cache = { at: Date.now(), rows };
+  return rows;
+}
+
+const NULL_SPOT = (s: string) => ({ symbol: s, open: null, high: null, low: null, prevClose: null, chgAbs: null, changeFromOpenPct: null, gapPct: null, volatilityPct: null });
+const NULL_DERIV = (s: string) => ({ symbol: s, fundingRate: null, oiUsd: null, oiChangePct: null, lsRatio: null, takerRatio: null });
+
+function spotRow(s: string, t: any) {
+  const open = parseFloat(t.openPrice), high = parseFloat(t.highPrice), low = parseFloat(t.lowPrice);
+  const last = parseFloat(t.lastPrice), prev = parseFloat(t.prevClosePrice), chg = parseFloat(t.priceChange);
+  return {
+    symbol: s, open, high, low, prevClose: prev, chgAbs: chg,
+    changeFromOpenPct: open > 0 ? ((last - open) / open) * 100 : null,
+    gapPct: prev > 0 ? ((open - prev) / prev) * 100 : null,
+    volatilityPct: low > 0 ? ((high - low) / low) * 100 : null,
+  };
+}
+
+async function spotAll() {
+  const base = await baseRows();
+  const tm = await tickerMap().catch(() => ({} as Record<string, any>));
+  return base.map((c) => {
+    const t = tm[c.symbol];
+    return t && gateOk(c.symbol, parseFloat(c.priceUsd), parseFloat(t.lastPrice)) ? spotRow(c.symbol, t) : NULL_SPOT(c.symbol);
+  });
+}
+
+async function techAll() {
+  const base = await baseRows();
+  const tm = await tickerMap().catch(() => ({} as Record<string, any>));
+  return pool(base, 8, async (c) => {
+    const t = tm[c.symbol];
+    const p = parseFloat(c.priceUsd);
+    if (t && gateOk(c.symbol, p, parseFloat(t.lastPrice))) return techFor(c.symbol);
+    return techForOkx(c.symbol, p);
+  });
+}
+
+async function derivAll() {
+  const base = await baseRows();
+  const fm = await fundingMap().catch(() => ({} as Record<string, { fr: number; mark: number }>));
+  return pool(base, 8, async (c) => {
+    const f = fm[c.symbol];
+    if (!f || !gateOk(c.symbol, parseFloat(c.priceUsd), f.mark)) return NULL_DERIV(c.symbol);
+    const [oi, x] = await Promise.all([oiFor(c.symbol), derivExtras(c.symbol)]);
+    return { symbol: c.symbol, fundingRate: f.fr, oiUsd: oi !== null ? oi * f.mark : null, ...x };
+  });
+}
+
+async function metaAll() {
+  const base = await baseRows();
+  const m = await buildMeta();
+  return base.map((c) => {
+    let tvl = m.tvl[c.symbol] ?? m.tvlById[c.id] ?? null;
+    if (tvl !== null && tvl < 1e6) tvl = null;
+    return { symbol: c.symbol, tvl, categories: m.catsById[c.id] || [], trending: m.trendById[c.id] ?? null };
+  });
+}
+
+// Serve requested symbols from a blob payload; null = some symbol missing
+// (top-100 churn) so the caller falls through to the live path.
+function fromBlob(all: any[] | null, syms: string[]) {
+  if (!Array.isArray(all)) return null;
+  const bySym: Record<string, any> = {};
+  for (const r of all) bySym[r.symbol] = r;
+  const rows = syms.map((s) => bySym[s]);
+  return rows.every(Boolean) ? rows : null;
+}
+
+const manyRows = (d: any[]) => Array.isArray(d) && d.length >= 50;
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.query?.view === 'meta') {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 100);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
+    const metaBlob = fromBlob(await cachedBlob('crypto_meta.json', 3600, metaAll, manyRows).catch(() => null), syms);
+    if (metaBlob) return res.json(metaBlob);
     // CT-3: ids= is positional with symbols=. With an id: categories/trending/
     // protocol-TVL join by CG id. Without (legacy callers): chain TVL + symbol
     // categories only — never symbol-summed protocols, trending id-only.
@@ -603,29 +739,26 @@ export default async function handler(req: any, res: any) {
   if (req.query?.view === 'spot') {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 100);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
+    const spotBlob = fromBlob(await cachedBlob('crypto_spot.json', 120, spotAll, manyRows).catch(() => null), syms);
+    if (spotBlob) return res.json(spotBlob);
     const tm = await tickerMap().catch(() => ({} as Record<string, any>));
     const px = parsePx(req.query);
     return res.json(syms.map((s) => {
       const t = tm[s];
-      if (!t || !verifiedPair(s, px[s], parseFloat(t.lastPrice))) return { symbol: s, open: null, high: null, low: null, prevClose: null, chgAbs: null, changeFromOpenPct: null, gapPct: null, volatilityPct: null };
-      const open = parseFloat(t.openPrice), high = parseFloat(t.highPrice), low = parseFloat(t.lowPrice);
-      const last = parseFloat(t.lastPrice), prev = parseFloat(t.prevClosePrice), chg = parseFloat(t.priceChange);
-      return {
-        symbol: s, open, high, low, prevClose: prev, chgAbs: chg,
-        changeFromOpenPct: open > 0 ? ((last - open) / open) * 100 : null,
-        gapPct: prev > 0 ? ((open - prev) / prev) * 100 : null,
-        volatilityPct: low > 0 ? ((high - low) / low) * 100 : null,
-      };
+      if (!t || !verifiedPair(s, px[s], parseFloat(t.lastPrice))) return NULL_SPOT(s);
+      return spotRow(s, t);
     }));
   }
   if (req.query?.view === 'derivatives') {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 25);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
+    const derivBlob = fromBlob(await cachedBlob('crypto_deriv.json', 300, derivAll, manyRows).catch(() => null), syms);
+    if (derivBlob) return res.json(derivBlob);
     const fm = await fundingMap().catch(() => ({} as Record<string, { fr: number; mark: number }>));
     const pxd = parsePx(req.query);
     const rows = await Promise.all(syms.map(async (s) => {
       const f = fm[s];
-      if (!f || !verifiedPair(s, pxd[s], f.mark)) return { symbol: s, fundingRate: null, oiUsd: null, oiChangePct: null, lsRatio: null, takerRatio: null }; // spot-only coin or unverified pair
+      if (!f || !verifiedPair(s, pxd[s], f.mark)) return NULL_DERIV(s); // spot-only coin or unverified pair
       const [oi, x] = await Promise.all([oiFor(s), derivExtras(s)]);
       return { symbol: s, fundingRate: f.fr, oiUsd: oi !== null ? oi * f.mark : null, ...x };
     }));
@@ -634,6 +767,8 @@ export default async function handler(req: any, res: any) {
   if (req.query?.view === 'technicals') {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 25);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
+    const techBlob = fromBlob(await cachedBlob('crypto_tech.json', 600, techAll, manyRows).catch(() => null), syms);
+    if (techBlob) return res.json(techBlob);
     const pxt = parsePx(req.query);
     const tmt = await tickerMap().catch(() => ({} as Record<string, any>));
     return res.json(await Promise.all(syms.map((s) => {
@@ -647,8 +782,7 @@ export default async function handler(req: any, res: any) {
   }
   if (cache && Date.now() - cache.at < TTL) return res.json(cache.rows);
   try {
-    const rows = await fetchCoinGecko();
-    cache = { at: Date.now(), rows };
+    const rows = await cachedBlob('crypto_base.json', 120, baseRows, manyRows);
     return res.json(rows);
   } catch { /* fall through to coinlore */ }
   try {
