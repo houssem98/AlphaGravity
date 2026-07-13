@@ -69,7 +69,7 @@ backfill from CG ranks 101+ that ARE Binance/OKX-listed, keep 100 rows.
   lastPrice (fresher than CG) and falls back to CG when no venue. 24h% stays
   CG (definition parity). Verify: two curls 60s apart show price movement;
   UI network tab shows 30s polling; typecheck 0.
-- [ ] CW-4 **Residual field fill (curated set only)**: prevClose/gap for
+- [x] CW-4 **Residual field fill (curated set only)**: prevClose/gap for
   OKX-covered coins derived from OKX 1D candles already cached for technicals
   (prev candle close = prevClose — honest derivation, same gate); deriv: keep
   '—' where no perp exists anywhere (Binance parity), but check fapi + OKX
@@ -90,3 +90,4 @@ backfill from CG ranks 101+ that ARE Binance/OKX-listed, keep 100 rows.
 - 2026-07-13 CW-1: build_crypto_universe.mjs + docs/CRYPTO_UNIVERSE.md — CG top-100 dropped 35 (no venue 33, gate-fail 2), backfilled 35 from ranks 101–250 (APT, INJ, CAKE, VET, TIA, FET, SEI, CRV, LDO, PENDLE…), curated 100 = binance 87 + okx 13; typecheck 0, no app code changed.
 - 2026-07-13 CW-2: CURATED_IDS + CG ids= in fetchCoinGecko (ids= curl-verified: 5 req → 5 mcap-ordered) — prod curl: 100 rows, USDT/USDD/XMR/DAI/HTX gone, APT/INJ/CAKE/VET/TIA in; audit spot 100/100, technicals 99/100 (1 NULL: GRAM/the-open-network — CG ticker renamed, Binance=TONUSDT, CW-4 candidate), deriv 83, meta 69, MISMATCH 0 everywhere; typecheck 0, vercel --prod aliased.
 - 2026-07-13 CW-3: spot blob TTL 30s + venue `last` in spot rows (gate-verified, additive) + tickerMap/okxSpotMap 25s window + UI 30s visible-tab re-poll, price cell prefers spot.last ?? CG — prod curls 75s apart: BTC 62568.88→62280.01, ETH 1771.01→1770.04, SOL 75.67→75.40; 24h% untouched (CG); typecheck 0, vercel --prod. UI polling = setInterval 30s + visibilityState guard (code-verified; browser network-tab glance = user smoke).
+- 2026-07-13 CW-4: okxDayCandle (1D, 5-min cache) → prevClose/gap on OKX spot rows (prod: OKB prevClose 79.97 gap 0, HYPE 63.933 gap 0.05, LEO 9.541 gap 0) + Binance 1000-prefix perp join (gate mark/1000) fills LUNC deriv (funding 0.0001, OI $4.36M, ratios live); perp-existence curl: FLR/NEXO/GNO/DCR/NFT/LEO + stables have NO perp on fapi/OKX → 16 deriv-nulls ARE parity. Audit: spot 100/100, tech 99/100 (GRAM), deriv 83→84, meta 70, MISMATCH 0; typecheck 0, vercel --prod.

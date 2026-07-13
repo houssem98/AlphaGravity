@@ -683,15 +683,37 @@ async function okxFundingFor(sym: string): Promise<number | null> {
   } catch { return null; }
 }
 
-// OKX ticker → spot row. No prevClose on OKX tickers, so prevClose/gap stay
-// null (honest) — open/high/low/chg are the real 24h-window numbers.
-function spotRowOkx(s: string, t: any) {
+// CW-4: OKX 1D candles (newest first) → prevClose = last completed candle
+// close, dayOpen = current candle open. Same instId as the gated ticker, so
+// the row's price gate already vouches for the asset. 5-min cache — the
+// values change once a day.
+const okxDayCache: Record<string, { at: number; prevClose: number | null; dayOpen: number | null }> = {};
+async function okxDayCandle(sym: string) {
+  const hit = okxDayCache[sym];
+  if (hit && Date.now() - hit.at < TTL) return hit;
+  const v = { at: Date.now(), prevClose: null as number | null, dayOpen: null as number | null };
+  try {
+    const j = await (await fetch(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT&bar=1D&limit=2`)).json();
+    const d: any[] = Array.isArray(j?.data) ? j.data : [];
+    if (d.length === 2) {
+      const prev = parseFloat(d[1][4]), open = parseFloat(d[0][1]);
+      if (prev > 0) v.prevClose = prev;
+      if (open > 0) v.dayOpen = open;
+    }
+  } catch { /* nulls */ }
+  okxDayCache[sym] = v;
+  return v;
+}
+
+// OKX ticker → spot row. OKX tickers carry no prevClose; CW-4 derives it from
+// the 1D candles (prev candle close) — gap = day open vs prev close.
+function spotRowOkx(s: string, t: any, day?: { prevClose: number | null; dayOpen: number | null }) {
   const open = parseFloat(t.open24h), high = parseFloat(t.high24h), low = parseFloat(t.low24h), last = parseFloat(t.last);
   if (!(open > 0)) return NULL_SPOT(s);
   return {
-    symbol: s, last: last > 0 ? last : null, open, high, low, prevClose: null, chgAbs: last - open,
+    symbol: s, last: last > 0 ? last : null, open, high, low, prevClose: day?.prevClose ?? null, chgAbs: last - open,
     changeFromOpenPct: ((last - open) / open) * 100,
-    gapPct: null,
+    gapPct: day?.prevClose && day?.dayOpen ? ((day.dayOpen - day.prevClose) / day.prevClose) * 100 : null,
     volatilityPct: low > 0 ? ((high - low) / low) * 100 : null,
   };
 }
@@ -722,12 +744,12 @@ async function spotAll() {
   const base = await baseRows();
   const tm = await tickerMap().catch(() => ({} as Record<string, any>));
   const om = await okxSpotMap().catch(() => ({} as Record<string, any>));
-  return base.map((c) => {
+  return pool(base, 8, async (c) => {
     const p = parseFloat(c.priceUsd);
     const t = tm[c.symbol];
     if (t && gateOk(c.symbol, p, parseFloat(t.lastPrice))) return spotRow(c.symbol, t);
     const o = om[c.symbol];
-    if (o && gateOk(c.symbol, p, parseFloat(o.last))) return spotRowOkx(c.symbol, o);
+    if (o && gateOk(c.symbol, p, parseFloat(o.last))) return spotRowOkx(c.symbol, o, await okxDayCandle(c.symbol));
     return NULL_SPOT(c.symbol);
   });
 }
@@ -756,6 +778,13 @@ async function derivAll() {
     if (f && gateOk(c.symbol, p, f.mark)) {
       const [oi, x] = await Promise.all([oiFor(c.symbol), derivExtras(c.symbol)]);
       return { symbol: c.symbol, fundingRate: f.fr, oiUsd: oi !== null ? oi * f.mark : null, ...x };
+    }
+    // CW-4: Binance 1000-prefixed perps (1000LUNCUSDT class) — mark/funding
+    // are per-1000 units, so gate against mark/1000; oi(contracts)*mark is USD.
+    const k = fm['1000' + c.symbol];
+    if (k && gateOk(c.symbol, p, k.mark / 1000)) {
+      const [oi, x] = await Promise.all([oiFor('1000' + c.symbol), derivExtras('1000' + c.symbol)]);
+      return { symbol: c.symbol, fundingRate: k.fr, oiUsd: oi !== null ? oi * k.mark : null, ...x };
     }
     // OKX swap fallback (funding + OI USD; ratio stats stay null — honest).
     const o = om[c.symbol];
