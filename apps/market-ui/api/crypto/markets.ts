@@ -564,7 +564,9 @@ function verifiedPair(sym: string, cgPrice: number | undefined, srcPrice: number
 let tickerCache: { at: number; map: Record<string, any> } | null = null;
 
 async function tickerMap() {
-  if (tickerCache && Date.now() - tickerCache.at < TTL) return tickerCache.map;
+  // CW-3: 25s window (was TTL) — spot blob refreshes every 30s and must see
+  // fresh venue prices, not a 5-min-old map. Still 1 keyless call per refresh.
+  if (tickerCache && Date.now() - tickerCache.at < 25_000) return tickerCache.map;
   const r = await fetch('https://api.binance.com/api/v3/ticker/24hr');
   const arr = await r.json();
   const map: Record<string, any> = {};
@@ -650,7 +652,7 @@ const gateOk = (sym: string, cgPrice: number, srcPrice: number) =>
 // (OKB/HYPE/LEO/RLUSD class). curl-verified 2026-07-13.
 let okxSpotCache: { at: number; map: Record<string, any> } | null = null;
 async function okxSpotMap() {
-  if (okxSpotCache && Date.now() - okxSpotCache.at < TTL) return okxSpotCache.map;
+  if (okxSpotCache && Date.now() - okxSpotCache.at < 25_000) return okxSpotCache.map; // CW-3: same 25s window as tickerMap
   const j = await (await fetch('https://www.okx.com/api/v5/market/tickers?instType=SPOT')).json();
   const map: Record<string, any> = {};
   if (Array.isArray(j?.data)) for (const t of j.data) {
@@ -687,7 +689,7 @@ function spotRowOkx(s: string, t: any) {
   const open = parseFloat(t.open24h), high = parseFloat(t.high24h), low = parseFloat(t.low24h), last = parseFloat(t.last);
   if (!(open > 0)) return NULL_SPOT(s);
   return {
-    symbol: s, open, high, low, prevClose: null, chgAbs: last - open,
+    symbol: s, last: last > 0 ? last : null, open, high, low, prevClose: null, chgAbs: last - open,
     changeFromOpenPct: ((last - open) / open) * 100,
     gapPct: null,
     volatilityPct: low > 0 ? ((high - low) / low) * 100 : null,
@@ -701,14 +703,15 @@ async function baseRows(): Promise<any[]> {
   return rows;
 }
 
-const NULL_SPOT = (s: string) => ({ symbol: s, open: null, high: null, low: null, prevClose: null, chgAbs: null, changeFromOpenPct: null, gapPct: null, volatilityPct: null });
+const NULL_SPOT = (s: string) => ({ symbol: s, last: null, open: null, high: null, low: null, prevClose: null, chgAbs: null, changeFromOpenPct: null, gapPct: null, volatilityPct: null });
 const NULL_DERIV = (s: string) => ({ symbol: s, fundingRate: null, oiUsd: null, oiChangePct: null, lsRatio: null, takerRatio: null });
 
 function spotRow(s: string, t: any) {
   const open = parseFloat(t.openPrice), high = parseFloat(t.highPrice), low = parseFloat(t.lowPrice);
   const last = parseFloat(t.lastPrice), prev = parseFloat(t.prevClosePrice), chg = parseFloat(t.priceChange);
   return {
-    symbol: s, open, high, low, prevClose: prev, chgAbs: chg,
+    // CW-3: last = gate-verified venue price, fresher than CG base
+    symbol: s, last: last > 0 ? last : null, open, high, low, prevClose: prev, chgAbs: chg,
     changeFromOpenPct: open > 0 ? ((last - open) / open) * 100 : null,
     gapPct: prev > 0 ? ((open - prev) / prev) * 100 : null,
     volatilityPct: low > 0 ? ((high - low) / low) * 100 : null,
@@ -814,7 +817,7 @@ export default async function handler(req: any, res: any) {
   if (req.query?.view === 'spot') {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 100);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
-    const spotBlob = fromBlob(await cachedBlob('crypto_spot.json', 120, spotAll, manyRows).catch(() => null), syms);
+    const spotBlob = fromBlob(await cachedBlob('crypto_spot.json', 30, spotAll, manyRows).catch(() => null), syms);
     if (spotBlob) return res.json(spotBlob);
     const tm = await tickerMap().catch(() => ({} as Record<string, any>));
     const px = parsePx(req.query);

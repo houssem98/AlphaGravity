@@ -56,7 +56,7 @@ const META_KEYS: ColKey[] = ['catCol', 'trendCol', 'tvlCol', 'mcapTvl'];
 
 // ?view=spot row shape (CX-2 server).
 interface SpotData {
-  symbol: string; open: number | null; high: number | null; low: number | null; prevClose: number | null;
+  symbol: string; last?: number | null; open: number | null; high: number | null; low: number | null; prevClose: number | null;
   chgAbs: number | null; changeFromOpenPct: number | null; gapPct: number | null; volatilityPct: number | null;
 }
 
@@ -478,6 +478,24 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
       .catch(() => {});
     return () => { alive = false; };
   }, [spotWanted, pageSymbols, spot]);
+
+  // CW-3: 30s spot re-poll while the tab is visible — price column prefers the
+  // gate-verified venue last (fresher than CG base); numbers update in place.
+  useEffect(() => {
+    if (!pageSymbols) return;
+    const t = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      const syms = pageSymbols.split(',').filter(Boolean).slice(0, 100);
+      fetch(`/api/crypto/markets?view=spot&symbols=${syms.join(',')}&px=${pxOf(syms)}`)
+        .then((r) => r.json())
+        .then((rows) => {
+          if (!Array.isArray(rows)) return;
+          setSpot((p) => { const n = { ...p }; rows.forEach((s: SpotData) => { n[s.symbol] = s; }); return n; });
+        })
+        .catch(() => {});
+    }, 30000);
+    return () => clearInterval(t);
+  }, [pageSymbols]);
 
   // Meta (TVL/categories/trending): page-only lazy, server holds the 1h cache.
   const metaWanted = META_KEYS.some((k) => cols[k]);
@@ -930,7 +948,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                               </div>
                             </td>
                             <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text)]">
-                              ${parseFloat(market.priceUsd || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                              ${(spot[market.symbol]?.last ?? parseFloat(market.priceUsd || '0')).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                             </td>
                             {cols.change && (
                               <td className={`py-2.5 px-4 text-right font-mono text-data ${!isFinite(chg) ? '' : chgPos ? 'up' : 'down'}`}>

@@ -62,7 +62,7 @@ backfill from CG ranks 101+ that ARE Binance/OKX-listed, keep 100 rows.
   UI unchanged (it renders whatever base returns — same design). Deploy,
   force-refresh blobs, re-run audit: REQUIRE spot ≥ 98/100 and technicals
   ≥ 98/100 (allow ≤2 transient gate-fails), MISMATCH 0. Paste real numbers.
-- [ ] CW-3 **Fresh prices (Binance-live feel, same design)**: spot blob TTL
+- [x] CW-3 **Fresh prices (Binance-live feel, same design)**: spot blob TTL
   → 30s (base stays CG-cadence); UI polls `view=spot` every 30s while the
   crypto tab is visible (setInterval + document.visibilityState — no design
   change, numbers just update); price column prefers the gate-verified venue
@@ -89,3 +89,4 @@ backfill from CG ranks 101+ that ARE Binance/OKX-listed, keep 100 rows.
 
 - 2026-07-13 CW-1: build_crypto_universe.mjs + docs/CRYPTO_UNIVERSE.md — CG top-100 dropped 35 (no venue 33, gate-fail 2), backfilled 35 from ranks 101–250 (APT, INJ, CAKE, VET, TIA, FET, SEI, CRV, LDO, PENDLE…), curated 100 = binance 87 + okx 13; typecheck 0, no app code changed.
 - 2026-07-13 CW-2: CURATED_IDS + CG ids= in fetchCoinGecko (ids= curl-verified: 5 req → 5 mcap-ordered) — prod curl: 100 rows, USDT/USDD/XMR/DAI/HTX gone, APT/INJ/CAKE/VET/TIA in; audit spot 100/100, technicals 99/100 (1 NULL: GRAM/the-open-network — CG ticker renamed, Binance=TONUSDT, CW-4 candidate), deriv 83, meta 69, MISMATCH 0 everywhere; typecheck 0, vercel --prod aliased.
+- 2026-07-13 CW-3: spot blob TTL 30s + venue `last` in spot rows (gate-verified, additive) + tickerMap/okxSpotMap 25s window + UI 30s visible-tab re-poll, price cell prefers spot.last ?? CG — prod curls 75s apart: BTC 62568.88→62280.01, ETH 1771.01→1770.04, SOL 75.67→75.40; 24h% untouched (CG); typecheck 0, vercel --prod. UI polling = setInterval 30s + visibilityState guard (code-verified; browser network-tab glance = user smoke).
