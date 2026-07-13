@@ -71,16 +71,21 @@ export function ensureCryptoFeed() {
   };
 
   // CW-3 cadence: 30s spot for the whole universe while the tab is visible.
+  // CU-3: 200 coins → two 100-symbol calls (same blob server-side; keeps the
+  // symbols+px query string well under URL limits).
   const loadSpot = async () => {
     if (document.visibilityState !== 'visible') return;
-    const base = useCryptoStore.getState().base.slice(0, 100);
+    const base = useCryptoStore.getState().base.slice(0, 200);
     if (!base.length) return;
-    const syms = base.map((c: any) => c.symbol).join(',');
-    const px = encodeURIComponent(base.filter((c: any) => c.priceUsd).map((c: any) => `${c.symbol}:${c.priceUsd}`).join(','));
-    try {
-      const rows = await (await fetch(`/api/crypto/markets?view=spot&symbols=${syms}&px=${px}`)).json();
-      if (Array.isArray(rows)) useCryptoStore.getState().mergeSpot(rows);
-    } catch { /* keep last values */ }
+    for (let i = 0; i < base.length; i += 100) {
+      const chunk = base.slice(i, i + 100);
+      const syms = chunk.map((c: any) => c.symbol).join(',');
+      const px = encodeURIComponent(chunk.filter((c: any) => c.priceUsd).map((c: any) => `${c.symbol}:${c.priceUsd}`).join(','));
+      try {
+        const rows = await (await fetch(`/api/crypto/markets?view=spot&symbols=${syms}&px=${px}`)).json();
+        if (Array.isArray(rows)) useCryptoStore.getState().mergeSpot(rows);
+      } catch { /* keep last values */ }
+    }
   };
 
   loadBase().then(() => { loadSpot(); openBinanceWs(); openOkxWs(); });

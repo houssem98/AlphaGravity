@@ -61,7 +61,7 @@ identical everywhere on the page.
   view unchanged). Force-refresh blobs. Prod curl: base = 200 rows, spot
   blob = 200 rows, venue split printed. Audit (still at 100-coin scope) must
   stay green.
-- [ ] CU-3 **Client to 200**: loadSpot covers 200 (chunk symbols/px into
+- [x] CU-3 **Client to 200**: loadSpot covers 200 (chunk symbols/px into
   2×100 calls if the URL nears limits — still owned by the store feed);
   Binance WS stream list = all venue=binance syms (one socket); OKX WS = all
   venue=okx syms; pagination/rows-per-page untouched (design freeze).
@@ -81,3 +81,4 @@ identical everywhere on the page.
 
 - 2026-07-13 CU-1: build_crypto_universe.mjs → CG top 500 scan, curated 200 = binance 176 + okx 24, deepest CG rank 426; CG top-200 dropped 79 (stables/no-venue/XMR-class), backfilled 79 from ranks 201–500 (THETA, RUNE, MANA, NEO, SAND, DYDX, 1INCH, GALA, EGLD, YFI…); NEW: symbol-collision rule (venue maps symbol-keyed — higher-mcap id owns ticker), 1 excluded: safecoin vs safe (both "SAFE" on OKX); 200 unique ids verified; typecheck 0, no app code.
 - 2026-07-13 CU-2: CG ids= curl-verified with 200 ids (URL 2211 chars, 200 rows, mcap-ordered, per_page=250 — was silently truncating at 100); CURATED_IDS → 200; symbols caps 100→200 on spot+meta views (tech/deriv stay 25 page-lazy); prod after blob refresh: base 200 rows (binance 176/okx 24, last=HOME), spot blob 200 rows, 178 with venue last (rest warmup); audit (100-scope until CU-4): spot 100/100 tech 99 deriv 84 meta 69 MISMATCH 0; typecheck 0, vercel --prod.
+- 2026-07-13 CU-3: loadSpot 200 coins via 2×100-symbol chunks (URL safe, same blob); WS lists were already uncapped venue-filters over base → 176 binance streams on one socket + 24 okx auto-subscribed; pagination untouched; prod technicals for backfill coins verified: THETA rsi 48.0, MANA 48.7, GALA 31.6, NEO 34.9, YFI 54.5 (all rated); audit spot 100/100 tech 99 deriv 84 meta 69 MISMATCH 0; typecheck 0, vercel --prod.
