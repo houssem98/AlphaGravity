@@ -721,6 +721,17 @@ function spotRowOkx(s: string, t: any, day?: { prevClose: number | null; dayOpen
 async function baseRows(): Promise<any[]> {
   if (cache && Date.now() - cache.at < TTL) return cache.rows;
   const rows = await fetchCoinGecko();
+  // CV-1: venue = the coin's gate-verified live-price source (same verdict
+  // spotAll uses) — additive; null when no venue passes the gate.
+  const [tm, om] = await Promise.all([
+    tickerMap().catch(() => ({} as Record<string, any>)),
+    okxSpotMap().catch(() => ({} as Record<string, any>)),
+  ]);
+  for (const c of rows) {
+    const p = parseFloat(c.priceUsd);
+    c.venue = tm[c.symbol] && gateOk(c.symbol, p, parseFloat(tm[c.symbol].lastPrice)) ? 'binance'
+      : om[c.symbol] && gateOk(c.symbol, p, parseFloat(om[c.symbol].last)) ? 'okx' : null;
+  }
   cache = { at: Date.now(), rows };
   return rows;
 }

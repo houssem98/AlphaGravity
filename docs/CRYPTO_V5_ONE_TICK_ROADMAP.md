@@ -48,7 +48,7 @@ happen to be close.
 
 ## Ledger
 
-- [ ] CV-1 **Venue in the base payload (server, additive)**: markets.ts base
+- [x] CV-1 **Venue in the base payload (server, additive)**: markets.ts base
   rows gain `venue: 'binance' | 'okx' | null` (the same gate verdict spotAll
   uses — compute once, reuse). Curl prod: BTC→binance, OKB→okx, and count
   (expect 87/13/0 ±transients). No UI change yet. Audit stays green.
@@ -88,3 +88,5 @@ happen to be close.
 ## Progress log
 
 (append one line per completed task, real numbers only)
+
+- 2026-07-13 CV-1: baseRows() annotates venue via same gateOk verdict (tickerMap→okxSpotMap) — prod curl: binance 87, okx 13, null 0, missing 0; BTC=binance OKB=okx HYPE=okx LUNC=binance; audit spot 100/100 tech 99 deriv 84 meta 70 MISMATCH 0; typecheck 0, vercel --prod.
