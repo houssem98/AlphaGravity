@@ -124,11 +124,21 @@ function gatePass(sym: string, px: number, cg: number) {
   return px > 0 && cg > 0 && Math.abs(px / cg - 1) <= (STABLE_SYMS.has(sym) ? 0.01 : 0.03);
 }
 
+// Re-subscribe guard: the socket may have opened off a stale (shorter) base
+// blob — when the venue membership changes (e.g. universe 100→200), close it
+// and let the reconnect path reopen with the full stream list.
+let bnSubscribed = '';
 function openBinanceWs() {
-  if (binanceWs || document.visibilityState !== 'visible') return;
+  if (document.visibilityState !== 'visible') return;
   const syms: string[] = useCryptoStore.getState().base
     .filter((c: any) => c.venue === 'binance').map((c: any) => c.symbol);
   if (!syms.length) return;
+  const key = syms.join(',');
+  if (binanceWs) {
+    if (key !== bnSubscribed) binanceWs.close(); // onclose reopens with fresh list
+    return;
+  }
+  bnSubscribed = key;
   const sock = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${syms.map((s) => s.toLowerCase() + 'usdt@miniTicker').join('/')}`);
   binanceWs = sock;
   sock.onmessage = (ev) => {
@@ -158,11 +168,18 @@ function openBinanceWs() {
 let okxWs: WebSocket | null = null;
 let okxBackoff = 1000;
 
+let okxSubscribed = '';
 function openOkxWs() {
-  if (okxWs || document.visibilityState !== 'visible') return;
+  if (document.visibilityState !== 'visible') return;
   const syms: string[] = useCryptoStore.getState().base
     .filter((c: any) => c.venue === 'okx').map((c: any) => c.symbol);
   if (!syms.length) return;
+  const key = syms.join(',');
+  if (okxWs) {
+    if (key !== okxSubscribed) okxWs.close(); // onclose reopens with fresh list
+    return;
+  }
+  okxSubscribed = key;
   const sock = new WebSocket('wss://ws.okx.com:8443/ws/v5/public');
   okxWs = sock;
   let ping: ReturnType<typeof setInterval> | null = null;
