@@ -75,13 +75,13 @@ export function ensureCryptoFeed() {
     } catch { /* keep last values */ }
   };
 
-  loadBase().then(() => { loadSpot(); openBinanceWs(); });
-  setInterval(() => loadBase().then(openBinanceWs), 10000);
+  loadBase().then(() => { loadSpot(); openBinanceWs(); openOkxWs(); });
+  setInterval(() => loadBase().then(() => { openBinanceWs(); openOkxWs(); }), 10000);
   setInterval(loadSpot, 30000);
   setInterval(flushTicks, 500);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') { loadSpot(); openBinanceWs(); }
-    else binanceWs?.close();
+    if (document.visibilityState === 'visible') { loadSpot(); openBinanceWs(); openOkxWs(); }
+    else { binanceWs?.close(); okxWs?.close(); }
   });
 }
 
@@ -135,6 +135,47 @@ function openBinanceWs() {
     if (document.visibilityState === 'visible') {
       setTimeout(openBinanceWs, wsBackoff);
       wsBackoff = Math.min(wsBackoff * 2, 30000);
+    }
+  };
+}
+
+// ── CV-5: OKX WS live ticks — the 13 venue=okx coins (OKB/HYPE/LEO class).
+// Same gate, same flush buffer, same visibility/backoff rules. OKX drops
+// idle sockets after 30s → 'ping' keepalive every 25s.
+let okxWs: WebSocket | null = null;
+let okxBackoff = 1000;
+
+function openOkxWs() {
+  if (okxWs || document.visibilityState !== 'visible') return;
+  const syms: string[] = useCryptoStore.getState().base
+    .filter((c: any) => c.venue === 'okx').map((c: any) => c.symbol);
+  if (!syms.length) return;
+  const sock = new WebSocket('wss://ws.okx.com:8443/ws/v5/public');
+  okxWs = sock;
+  let ping: ReturnType<typeof setInterval> | null = null;
+  sock.onopen = () => {
+    okxBackoff = 1000;
+    sock.send(JSON.stringify({ op: 'subscribe', args: syms.map((s) => ({ channel: 'tickers', instId: `${s}-USDT` })) }));
+    ping = setInterval(() => sock.send('ping'), 25000);
+  };
+  sock.onmessage = (ev) => {
+    try {
+      const j = JSON.parse(ev.data);
+      const instId: string = j?.arg?.instId || '';
+      const px = parseFloat(j?.data?.[0]?.last);
+      if (!instId.endsWith('-USDT')) return;
+      const sym = instId.slice(0, -5);
+      const row = useCryptoStore.getState().base.find((c: any) => c.symbol === sym);
+      if (row && gatePass(sym, px, parseFloat(row.priceUsd))) pendingLast[sym] = px;
+    } catch { /* 'pong' frames and malformed data land here */ }
+  };
+  sock.onerror = () => sock.close();
+  sock.onclose = () => {
+    if (ping) clearInterval(ping);
+    if (okxWs === sock) okxWs = null;
+    if (document.visibilityState === 'visible') {
+      setTimeout(openOkxWs, okxBackoff);
+      okxBackoff = Math.min(okxBackoff * 2, 30000);
     }
   };
 }

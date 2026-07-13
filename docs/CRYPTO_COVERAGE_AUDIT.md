@@ -1,6 +1,6 @@
 # Crypto Screener V3 Coverage Audit
 
-Generated: 2026-07-13T18:16:18.433Z | Target: https://market-ui-self.vercel.app | Coins: 100
+Generated: 2026-07-13T18:22:56.437Z | Target: https://market-ui-self.vercel.app | Coins: 100
 
 ## Totals
 
@@ -28,8 +28,8 @@ Generated: 2026-07-13T18:16:18.433Z | Target: https://market-ui-self.vercel.app 
 | 11 | LEO (leo-token) | OK | OK | · | · |
 | 12 | ZEC (zcash) | OK | OK | OK | OK |
 | 13 | XLM (stellar) | OK | OK | OK | OK |
-| 14 | LINK (chainlink) | OK | OK | OK | OK |
-| 15 | ADA (cardano) | OK | OK | OK | OK |
+| 14 | ADA (cardano) | OK | OK | OK | OK |
+| 15 | LINK (chainlink) | OK | OK | OK | OK |
 | 16 | CC (canton-network) | OK | OK | OK | OK |
 | 17 | BCH (bitcoin-cash) | OK | OK | OK | OK |
 | 18 | USD1 (usd1-wlfi) | OK | OK | · | · |
