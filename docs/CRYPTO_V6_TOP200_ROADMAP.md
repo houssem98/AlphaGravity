@@ -47,7 +47,7 @@ identical everywhere on the page.
 
 ## Ledger
 
-- [ ] CU-1 **Universe 200 (script only)**: build_crypto_universe.mjs — pull
+- [x] CU-1 **Universe 200 (script only)**: build_crypto_universe.mjs — pull
   CG top 500 (5 pages, sequential, 2.5s spacing, 429 backoff), venue-test
   everything, emit curated **top-200** + full exclusions + JSON ids into
   docs/CRYPTO_UNIVERSE.md. Paste: deepest CG rank needed, venue split
@@ -78,3 +78,5 @@ identical everywhere on the page.
 ## Progress log
 
 (append one line per completed task, real numbers only)
+
+- 2026-07-13 CU-1: build_crypto_universe.mjs → CG top 500 scan, curated 200 = binance 176 + okx 24, deepest CG rank 426; CG top-200 dropped 79 (stables/no-venue/XMR-class), backfilled 79 from ranks 201–500 (THETA, RUNE, MANA, NEO, SAND, DYDX, 1INCH, GALA, EGLD, YFI…); NEW: symbol-collision rule (venue maps symbol-keyed — higher-mcap id owns ticker), 1 excluded: safecoin vs safe (both "SAFE" on OKX); 200 unique ids verified; typecheck 0, no app code.
