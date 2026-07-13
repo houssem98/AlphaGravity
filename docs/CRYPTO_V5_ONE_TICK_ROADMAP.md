@@ -57,7 +57,7 @@ happen to be close.
   spot rows, owned by the existing Markets fetch + 30s re-poll (CW-3 code
   moves in, not duplicated). Markets.tsx reads the store (rendered output
   identical). Typecheck 0, visual smoke: list unchanged.
-- [ ] CV-3 **Panel reads the store — kill rogue fetches**: AssetInfoPanel
+- [x] CV-3 **Panel reads the store — kill rogue fetches**: AssetInfoPanel
   crypto branch drops its direct Binance REST + coinlore calls and the 12s
   timer; price/Δ/24h%/mcap/volume/supply/high/low all come from the store row
   (CG base + venue spot — global volume, CG 24h% definition, gated venue
@@ -91,3 +91,4 @@ happen to be close.
 
 - 2026-07-13 CV-1: baseRows() annotates venue via same gateOk verdict (tickerMap→okxSpotMap) — prod curl: binance 87, okx 13, null 0, missing 0; BTC=binance OKB=okx HYPE=okx LUNC=binance; audit spot 100/100 tech 99 deriv 84 meta 70 MISMATCH 0; typecheck 0, vercel --prod.
 - 2026-07-13 CV-2: stores/cryptoStore.ts (zustand — existing dep, researchStore idiom): base+spot moved out of Markets.tsx local state (setBase/mergeSpot, SpotData exported); Markets keeps fetch cadence (10s base, 30s spot re-poll), reads via useCryptoStore — rendered output identical (design freeze). Prod: /trading 200 1.14s, markets api 200; audit spot 100/100 tech 99 deriv 84 meta 68 MISMATCH 0; typecheck 0, vercel --prod.
+- 2026-07-13 CV-3: panel's direct Binance REST + coinlore + 12s crypto timer DELETED; crypto branch reads store (price = spot.last ?? CG — byte-identical to list source; 24h% = CG def; volume/mcap/supply = CG global; high/low = gated venue). Feed moved into store (ensureCryptoFeed: base 10s w/ coinlore fallback, spot all-100 30s + visibility) — chart view keeps ticking with Markets unmounted; Markets' own fetchMarkets + 2 spot effects deleted (no dup fetches). OKX-venue coins (OKB/HYPE/LEO) populate in panel for the first time. Prod /trading 200 0.69s; audit spot 100/100 tech 99 deriv 84 meta 68 MISMATCH 0; typecheck 0, vercel --prod. Browser side-by-side glance = user smoke.

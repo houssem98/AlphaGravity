@@ -4,6 +4,7 @@ import { isCryptoAsset, CRYPTO_ASSETS, STOCK_ASSETS } from '../../constants/trad
 import { getMarket, type MarketId, type Unit } from '../../lib/markets';
 import { fetchMarket, fmtPrice } from '../../services/marketsHub';
 import { safeUrl } from '../../lib/safeUrl';
+import { useCryptoStore, ensureCryptoFeed } from '../../stores/cryptoStore';
 import {
   Info, Star, Globe, FileText, Copy, Check, ChevronDown, ChevronRight,
   Edit2, Unlock, CheckCircle2, ExternalLink, Play, ArrowLeftRight, Shield, ArrowLeft,
@@ -630,26 +631,11 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
           return;
         }
         if (isCrypto) {
-          const [b, c] = await Promise.allSettled([
-            fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${asset}USDT`).then(r => r.json()),
-            fetch('https://api.coinlore.net/api/tickers/').then(r => r.json()),
-          ]);
-          if (b.status === 'fulfilled' && live) {
-            setPrice(parseFloat(b.value.lastPrice));
-            setChange(parseFloat(b.value.priceChangePercent));
-            setVolume(parseFloat(b.value.quoteVolume));
-            setLow24h(parseFloat(b.value.lowPrice));
-            setHigh24h(parseFloat(b.value.highPrice));
-          }
-          if (c.status === 'fulfilled' && live) {
-            const coin = c.value.data?.find((x: any) => x.symbol === asset);
-            if (coin) {
-              setMarketCap(parseFloat(coin.market_cap_usd));
-              setSupply(parseFloat(coin.csupply));
-              setMaxSupply(parseFloat(coin.tsupply));
-            }
-          }
-        } else {
+          // CV-3: crypto numbers come from the shared store (see the store
+          // effect below) — never a private fetch. ONE SOURCE RULE.
+          return;
+        }
+        {
           const r = await fetch(`/api/quote?symbols=${asset}`);
           const d = await r.json();
           const q = d.quoteResponse?.result?.[0];
@@ -668,6 +654,27 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
     const iv = setInterval(load, 12000);
     return () => { live = false; clearInterval(iv); };
   }, [asset, isCrypto, isTN]);
+
+  // ── CV-3: crypto numbers from the shared store — the exact fields the list
+  // renders (price = gated venue last ?? CG, 24h% = CG definition, volume =
+  // CG global, high/low = gated venue). Feed keeps ticking even with the
+  // Markets list unmounted (chart view).
+  const cryptoRow = useCryptoStore((s) => (isCrypto ? s.base.find((b: any) => b.symbol === asset) : undefined));
+  const cryptoSpot = useCryptoStore((s) => (isCrypto ? s.spot[asset] : undefined));
+  useEffect(() => {
+    if (!isCrypto) return;
+    ensureCryptoFeed();
+    if (!cryptoRow) return;
+    const num = (v: any) => { const n = parseFloat(v); return isFinite(n) && n !== 0 ? n : null; };
+    setPrice(cryptoSpot?.last ?? num(cryptoRow.priceUsd));
+    setChange(cryptoRow.changePercent24Hr === '' ? null : num(cryptoRow.changePercent24Hr) ?? 0);
+    setVolume(num(cryptoRow.volumeUsd24Hr));
+    setMarketCap(num(cryptoRow.marketCapUsd));
+    setSupply(num(cryptoRow.csupply));
+    setMaxSupply(num(cryptoRow.msupply) ?? num(cryptoRow.tsupply));
+    setLow24h(cryptoSpot?.low ?? null);
+    setHigh24h(cryptoSpot?.high ?? null);
+  }, [isCrypto, asset, cryptoRow, cryptoSpot]);
 
   // ── Converter sync ───────────────────────────────────────────────────────
   useEffect(() => {

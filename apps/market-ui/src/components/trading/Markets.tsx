@@ -3,7 +3,7 @@ import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarC
 import { Sparkline } from './Sparkline';
 import { motion, AnimatePresence } from 'motion/react';
 import { CategoriesTab, ExchangesTab, NFTsTab, ConverterTab } from './MarketsTabs';
-import { useCryptoStore } from '../../stores/cryptoStore';
+import { useCryptoStore, ensureCryptoFeed } from '../../stores/cryptoStore';
 
 interface MarketData {
   id: string;
@@ -274,8 +274,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   // this component still owns the fetch cadence, but reads/writes go through
   // the store so AssetInfoPanel renders the identical values.
   const markets = useCryptoStore((s) => s.base) as MarketData[];
-  const setMarkets = useCryptoStore((s) => s.setBase);
-  const [loading, setLoading] = useState(true);
+  const loading = markets.length === 0;
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof MarketData, direction: 'asc' | 'desc' }>({ key: 'rank', direction: 'asc' });
   const [activeTab, setActiveTab] = useState<'all' | 'watchlist' | 'categories' | 'portfolio' | 'exchanges' | 'nfts' | 'converter'>('all');
@@ -311,47 +310,9 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   };
 
   useEffect(() => {
-    const normalizeCoinlore = (coin: any) => ({
-      id: coin.nameid,
-      symbol: coin.symbol,
-      name: coin.name,
-      rank: coin.rank,
-      priceUsd: coin.price_usd,
-      changePercent1Hr: coin.percent_change_1h || '0',
-      changePercent24Hr: coin.percent_change_24h || '0',
-      changePercent7d: coin.percent_change_7d || '0',
-      marketCapUsd: coin.market_cap_usd || '0',
-      volumeUsd24Hr: coin.volume24?.toString() || '0',
-      csupply: coin.csupply || '0',
-      tsupply: coin.tsupply || '0',
-      msupply: coin.msupply || '0',
-    });
-
-    const fetchMarkets = async () => {
-      try {
-        const res = await fetch('/api/crypto/markets');
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setMarkets(data);
-            setLoading(false);
-            return;
-          }
-        }
-      } catch { /* fall through */ }
-
-      try {
-        const res = await fetch('https://api.coinlore.net/api/tickers/?start=0&limit=100');
-        const data = await res.json();
-        if (data?.data && Array.isArray(data.data)) {
-          setMarkets(data.data.map(normalizeCoinlore));
-        }
-      } catch (error) {
-        console.error('Failed to fetch markets:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // CV-3: base+spot polling lives in the store feed (survives this
+    // component unmounting when the chart view opens).
+    ensureCryptoFeed();
 
     const fetchFearAndGreed = async () => {
       try {
@@ -368,11 +329,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
       }
     };
 
-    fetchMarkets();
     fetchFearAndGreed();
-
-    const interval = setInterval(fetchMarkets, 10000);
-    return () => clearInterval(interval);
   }, []);
 
   const formatNumber = (num: string | number) => {
@@ -388,7 +345,6 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   const [tech, setTech] = useState<Record<string, TechData>>({});
   const [derivs, setDerivs] = useState<Record<string, DerivData>>({});
   const spot = useCryptoStore((s) => s.spot);
-  const mergeSpot = useCryptoStore((s) => s.mergeSpot);
   const [metas, setMetas] = useState<Record<string, MetaData>>({});
   const [techSort, setTechSort] = useState<{ field: string; dir: 'asc' | 'desc' } | null>(null);
 
@@ -464,40 +420,8 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     return () => { alive = false; };
   }, [techWanted, pageSymbols, tech]);
 
-  // Spot OHL extras: same page-only lazy pattern as technicals (CX-3).
-  const spotWanted = SPOT_KEYS.some((k) => cols[k]);
-  useEffect(() => {
-    if (!pageSymbols) return;
-    const need = pageSymbols.split(',').filter((s) => s && !(s in spot)).slice(0, 100);
-    if (need.length === 0) return;
-    let alive = true;
-    fetch(`/api/crypto/markets?view=spot&symbols=${need.join(',')}&px=${pxOf(need)}`)
-      .then((r) => r.json())
-      .then((rows) => {
-        if (!alive || !Array.isArray(rows)) return;
-        mergeSpot(rows);
-      })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, [spotWanted, pageSymbols, spot]);
-
-  // CW-3: 30s spot re-poll while the tab is visible — price column prefers the
-  // gate-verified venue last (fresher than CG base); numbers update in place.
-  useEffect(() => {
-    if (!pageSymbols) return;
-    const t = setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-      const syms = pageSymbols.split(',').filter(Boolean).slice(0, 100);
-      fetch(`/api/crypto/markets?view=spot&symbols=${syms.join(',')}&px=${pxOf(syms)}`)
-        .then((r) => r.json())
-        .then((rows) => {
-          if (!Array.isArray(rows)) return;
-          mergeSpot(rows);
-        })
-        .catch(() => {});
-    }, 30000);
-    return () => clearInterval(t);
-  }, [pageSymbols]);
+  // Spot: the store feed polls the whole universe every 30s (CV-3) — no
+  // per-page fetch needed here anymore.
 
   // Meta (TVL/categories/trending): page-only lazy, server holds the 1h cache.
   const metaWanted = META_KEYS.some((k) => cols[k]);
