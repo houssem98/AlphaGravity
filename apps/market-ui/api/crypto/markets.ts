@@ -60,9 +60,15 @@ async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Prom
   return out;
 }
 
+// CW-2: curated universe — highest-mcap CG coins with a gate-verified
+// Binance/OKX spot venue (built by scripts/build_crypto_universe.mjs,
+// evidence + exclusions in docs/CRYPTO_UNIVERSE.md). Order still comes from
+// CG's live mcap sort; ids= only pins membership.
+const CURATED_IDS = ['bitcoin', 'ethereum', 'binancecoin', 'usd-coin', 'ripple', 'solana', 'tron', 'hyperliquid', 'dogecoin', 'usds', 'leo-token', 'zcash', 'stellar', 'chainlink', 'cardano', 'canton-network', 'bitcoin-cash', 'usd1-wlfi', 'the-open-network', 'ethena-usde', 'litecoin', 'global-dollar', 'sui', 'hedera-hashgraph', 'avalanche-2', 'paypal-usd', 'crypto-com-chain', 'tether-gold', 'shiba-inu', 'near', 'uniswap', 'dexe', 'bittensor', 'world-liberty-financial', 'pax-gold', 'okb', 'aster-2', 'ripple-usd', 'ondo-finance', 'worldcoin-wld', 'aave', 'polkadot', 'sky', 'bfusd', 'morpho', 'internet-computer', 'pepe', 'ethereum-classic', 'united-stables', 'quant-network', 'pi-network', 'polygon-ecosystem-token', 'just', 'cosmos', 'render-token', 'ethena', 'algorand', 'nexo', 'bianrensheng', 'jupiter-exchange-solana', 'filecoin', 'pump-fun', 'lighter', 'arbitrum', 'flare-networks', 'aptos', 'midnight-3', 'true-usd', 'injective-protocol', 'pancakeswap-token', 'dash', 'vechain', 'pyth-network', 'celestia', 'ether-fi', 'pudgy-penguins', 'virtual-protocol', 'official-trump', 'fetch-ai', 'sun-token', 'first-digital-usd', 'bonk', 'kite-2', 'terra-luna', 'sei-network', 'jito-governance-token', 'curve-dao-token', 'blockstack', 'layerzero', 'gnosis', 'apenft', 'monad', 'lido-dao', 'pendle', 'doublezero', 'tezos', 'grass', 'decred', 'plasma', 'conflux-token'];
+
 async function fetchCoinGecko() {
   const r = await fetch(
-    'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=1h,24h,7d,14d,30d,1y',
+    `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=1h,24h,7d,14d,30d,1y&ids=${CURATED_IDS.join(',')}`,
   );
   if (!r.ok) throw new Error(`coingecko ${r.status}`);
   const data = await r.json();

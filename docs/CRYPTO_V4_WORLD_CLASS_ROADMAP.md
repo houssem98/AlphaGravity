@@ -54,7 +54,7 @@ backfill from CG ranks 101+ that ARE Binance/OKX-listed, keep 100 rows.
   reasons. Also emit the curated list as a JSON array of CG ids in the doc
   (copy-paste source for CW-2). Paste counts into Progress log: how many of
   CG top-100 dropped, what backfilled from 101–250.
-- [ ] CW-2 **Curated universe server-side**: markets.ts — hardcode
+- [x] CW-2 **Curated universe server-side**: markets.ts — hardcode
   `CURATED_IDS` (the CW-1 list, CG ids, ordered by nothing — order comes from
   live mcap sort) and fetch base rows via CG `/coins/markets?ids=...` (100 ids,
   1 call — curl-verify ids= param first). baseRows()/all four blob precomputes
@@ -88,3 +88,4 @@ backfill from CG ranks 101+ that ARE Binance/OKX-listed, keep 100 rows.
 (append one line per completed task, real numbers only)
 
 - 2026-07-13 CW-1: build_crypto_universe.mjs + docs/CRYPTO_UNIVERSE.md — CG top-100 dropped 35 (no venue 33, gate-fail 2), backfilled 35 from ranks 101–250 (APT, INJ, CAKE, VET, TIA, FET, SEI, CRV, LDO, PENDLE…), curated 100 = binance 87 + okx 13; typecheck 0, no app code changed.
+- 2026-07-13 CW-2: CURATED_IDS + CG ids= in fetchCoinGecko (ids= curl-verified: 5 req → 5 mcap-ordered) — prod curl: 100 rows, USDT/USDD/XMR/DAI/HTX gone, APT/INJ/CAKE/VET/TIA in; audit spot 100/100, technicals 99/100 (1 NULL: GRAM/the-open-network — CG ticker renamed, Binance=TONUSDT, CW-4 candidate), deriv 83, meta 69, MISMATCH 0 everywhere; typecheck 0, vercel --prod aliased.
