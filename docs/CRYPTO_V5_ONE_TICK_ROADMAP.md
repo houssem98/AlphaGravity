@@ -52,7 +52,7 @@ happen to be close.
   rows gain `venue: 'binance' | 'okx' | null` (the same gate verdict spotAll
   uses — compute once, reuse). Curl prod: BTC→binance, OKB→okx, and count
   (expect 87/13/0 ±transients). No UI change yet. Audit stays green.
-- [ ] CV-2 **Shared crypto store (client)**: one module store (plain
+- [x] CV-2 **Shared crypto store (client)**: one module store (plain
   subscribable map or existing state lib — no new deps) holding base rows +
   spot rows, owned by the existing Markets fetch + 30s re-poll (CW-3 code
   moves in, not duplicated). Markets.tsx reads the store (rendered output
@@ -90,3 +90,4 @@ happen to be close.
 (append one line per completed task, real numbers only)
 
 - 2026-07-13 CV-1: baseRows() annotates venue via same gateOk verdict (tickerMap→okxSpotMap) — prod curl: binance 87, okx 13, null 0, missing 0; BTC=binance OKB=okx HYPE=okx LUNC=binance; audit spot 100/100 tech 99 deriv 84 meta 70 MISMATCH 0; typecheck 0, vercel --prod.
+- 2026-07-13 CV-2: stores/cryptoStore.ts (zustand — existing dep, researchStore idiom): base+spot moved out of Markets.tsx local state (setBase/mergeSpot, SpotData exported); Markets keeps fetch cadence (10s base, 30s spot re-poll), reads via useCryptoStore — rendered output identical (design freeze). Prod: /trading 200 1.14s, markets api 200; audit spot 100/100 tech 99 deriv 84 meta 68 MISMATCH 0; typecheck 0, vercel --prod.

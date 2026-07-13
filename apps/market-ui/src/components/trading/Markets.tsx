@@ -3,6 +3,7 @@ import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarC
 import { Sparkline } from './Sparkline';
 import { motion, AnimatePresence } from 'motion/react';
 import { CategoriesTab, ExchangesTab, NFTsTab, ConverterTab } from './MarketsTabs';
+import { useCryptoStore } from '../../stores/cryptoStore';
 
 interface MarketData {
   id: string;
@@ -54,11 +55,7 @@ interface MetaData { symbol: string; tvl: number | null; categories: string[]; t
 
 const META_KEYS: ColKey[] = ['catCol', 'trendCol', 'tvlCol', 'mcapTvl'];
 
-// ?view=spot row shape (CX-2 server).
-interface SpotData {
-  symbol: string; last?: number | null; open: number | null; high: number | null; low: number | null; prevClose: number | null;
-  chgAbs: number | null; changeFromOpenPct: number | null; gapPct: number | null; volatilityPct: number | null;
-}
+// ?view=spot row shape lives in the shared store (CV-2).
 
 const SPOT_KEYS: ColKey[] = ['openC', 'highC', 'lowC', 'cfoPct', 'gapPct', 'volaPct', 'chgAbs'];
 
@@ -273,7 +270,11 @@ const HighlightCard = ({ title, icon: Icon, data, onSelect }: { title: string, i
 };
 
 export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
-  const [markets, setMarkets] = useState<MarketData[]>([]);
+  // CV-2: base + spot live in the shared crypto store (ONE SOURCE RULE) —
+  // this component still owns the fetch cadence, but reads/writes go through
+  // the store so AssetInfoPanel renders the identical values.
+  const markets = useCryptoStore((s) => s.base) as MarketData[];
+  const setMarkets = useCryptoStore((s) => s.setBase);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof MarketData, direction: 'asc' | 'desc' }>({ key: 'rank', direction: 'asc' });
@@ -386,7 +387,8 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   // Lazy per-page data maps (declared before sorting so tech sort can read them).
   const [tech, setTech] = useState<Record<string, TechData>>({});
   const [derivs, setDerivs] = useState<Record<string, DerivData>>({});
-  const [spot, setSpot] = useState<Record<string, SpotData>>({});
+  const spot = useCryptoStore((s) => s.spot);
+  const mergeSpot = useCryptoStore((s) => s.mergeSpot);
   const [metas, setMetas] = useState<Record<string, MetaData>>({});
   const [techSort, setTechSort] = useState<{ field: string; dir: 'asc' | 'desc' } | null>(null);
 
@@ -473,7 +475,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
       .then((r) => r.json())
       .then((rows) => {
         if (!alive || !Array.isArray(rows)) return;
-        setSpot((p) => { const n = { ...p }; rows.forEach((s: SpotData) => { n[s.symbol] = s; }); return n; });
+        mergeSpot(rows);
       })
       .catch(() => {});
     return () => { alive = false; };
@@ -490,7 +492,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
         .then((r) => r.json())
         .then((rows) => {
           if (!Array.isArray(rows)) return;
-          setSpot((p) => { const n = { ...p }; rows.forEach((s: SpotData) => { n[s.symbol] = s; }); return n; });
+          mergeSpot(rows);
         })
         .catch(() => {});
     }, 30000);
