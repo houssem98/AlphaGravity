@@ -52,7 +52,7 @@ identical everywhere on the page.
   everything, emit curated **top-200** + full exclusions + JSON ids into
   docs/CRYPTO_UNIVERSE.md. Paste: deepest CG rank needed, venue split
   (binance/okx), how many of ranks 101–500 dropped and why. No app code.
-- [ ] CU-2 **Server to 200**: curl-verify CG `ids=` with the full 200-id list
+- [x] CU-2 **Server to 200**: curl-verify CG `ids=` with the full 200-id list
   from prod (row count + mcap order). Then markets.ts: CURATED_IDS → 200;
   hunt every 100-cap (symbols `.slice(0, 100)`, manyRows/usable threshold,
   any precompute slice) → 200; verify blob refresh completes for all four
@@ -80,3 +80,4 @@ identical everywhere on the page.
 (append one line per completed task, real numbers only)
 
 - 2026-07-13 CU-1: build_crypto_universe.mjs → CG top 500 scan, curated 200 = binance 176 + okx 24, deepest CG rank 426; CG top-200 dropped 79 (stables/no-venue/XMR-class), backfilled 79 from ranks 201–500 (THETA, RUNE, MANA, NEO, SAND, DYDX, 1INCH, GALA, EGLD, YFI…); NEW: symbol-collision rule (venue maps symbol-keyed — higher-mcap id owns ticker), 1 excluded: safecoin vs safe (both "SAFE" on OKX); 200 unique ids verified; typecheck 0, no app code.
+- 2026-07-13 CU-2: CG ids= curl-verified with 200 ids (URL 2211 chars, 200 rows, mcap-ordered, per_page=250 — was silently truncating at 100); CURATED_IDS → 200; symbols caps 100→200 on spot+meta views (tech/deriv stay 25 page-lazy); prod after blob refresh: base 200 rows (binance 176/okx 24, last=HOME), spot blob 200 rows, 178 with venue last (rest warmup); audit (100-scope until CU-4): spot 100/100 tech 99 deriv 84 meta 69 MISMATCH 0; typecheck 0, vercel --prod.

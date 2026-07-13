@@ -1,6 +1,6 @@
 # Crypto Screener V3 Coverage Audit
 
-Generated: 2026-07-13T18:30:25.973Z | Target: https://market-ui-self.vercel.app | Coins: 100
+Generated: 2026-07-13T19:35:18.002Z | Target: https://market-ui-self.vercel.app | Coins: 100
 
 ## Totals
 
@@ -9,7 +9,7 @@ Generated: 2026-07-13T18:30:25.973Z | Target: https://market-ui-self.vercel.app 
 | spot | 100/100 | 0 | 0 |
 | technicals | 99/100 | 1 | 0 |
 | derivatives | 84/100 | 16 | 0 |
-| meta | 68/100 | 32 | 0 |
+| meta | 69/100 | 31 | 0 |
 
 ## Per coin
 
@@ -28,8 +28,8 @@ Generated: 2026-07-13T18:30:25.973Z | Target: https://market-ui-self.vercel.app 
 | 11 | LEO (leo-token) | OK | OK | · | · |
 | 12 | ZEC (zcash) | OK | OK | OK | OK |
 | 13 | XLM (stellar) | OK | OK | OK | OK |
-| 14 | ADA (cardano) | OK | OK | OK | OK |
-| 15 | LINK (chainlink) | OK | OK | OK | OK |
+| 14 | LINK (chainlink) | OK | OK | OK | OK |
+| 15 | ADA (cardano) | OK | OK | OK | OK |
 | 16 | CC (canton-network) | OK | OK | OK | OK |
 | 17 | BCH (bitcoin-cash) | OK | OK | OK | OK |
 | 18 | USD1 (usd1-wlfi) | OK | OK | · | · |
@@ -46,8 +46,8 @@ Generated: 2026-07-13T18:30:25.973Z | Target: https://market-ui-self.vercel.app 
 | 29 | XAUT (tether-gold) | OK | OK | OK | OK |
 | 30 | SHIB (shiba-inu) | OK | OK | OK | · |
 | 31 | UNI (uniswap) | OK | OK | OK | OK |
-| 32 | TAO (bittensor) | OK | OK | OK | OK |
-| 33 | DEXE (dexe) | OK | OK | OK | · |
+| 32 | DEXE (dexe) | OK | OK | OK | · |
+| 33 | TAO (bittensor) | OK | OK | OK | OK |
 | 34 | WLFI (world-liberty-financial) | OK | OK | OK | · |
 | 35 | PAXG (pax-gold) | OK | OK | OK | · |
 | 36 | OKB (okb) | OK | OK | OK | · |
@@ -55,7 +55,7 @@ Generated: 2026-07-13T18:30:25.973Z | Target: https://market-ui-self.vercel.app 
 | 38 | RLUSD (ripple-usd) | OK | OK | · | · |
 | 39 | ONDO (ondo-finance) | OK | OK | OK | OK |
 | 40 | AAVE (aave) | OK | OK | OK | OK |
-| 41 | DOT (polkadot) | OK | OK | OK | · |
+| 41 | DOT (polkadot) | OK | OK | OK | OK |
 | 42 | WLD (worldcoin-wld) | OK | OK | OK | OK |
 | 43 | SKY (sky) | OK | OK | OK | OK |
 | 44 | BFUSD (bfusd) | OK | OK | · | · |
@@ -73,8 +73,8 @@ Generated: 2026-07-13T18:30:25.973Z | Target: https://market-ui-self.vercel.app 
 | 56 | ENA (ethena) | OK | OK | OK | OK |
 | 57 | ALGO (algorand) | OK | OK | OK | OK |
 | 58 | NEXO (nexo) | OK | OK | · | · |
-| 59 | JUP (jupiter-exchange-solana) | OK | OK | OK | OK |
-| 60 | 币安人生 (bianrensheng) | OK | OK | OK | · |
+| 59 | 币安人生 (bianrensheng) | OK | OK | OK | · |
+| 60 | JUP (jupiter-exchange-solana) | OK | OK | OK | OK |
 | 61 | FIL (filecoin) | OK | OK | OK | OK |
 | 62 | PUMP (pump-fun) | OK | OK | OK | OK |
 | 63 | LIT (lighter) | OK | OK | OK | OK |
@@ -92,22 +92,22 @@ Generated: 2026-07-13T18:30:25.973Z | Target: https://market-ui-self.vercel.app 
 | 75 | PENGU (pudgy-penguins) | OK | OK | OK | OK |
 | 76 | TRUMP (official-trump) | OK | OK | OK | · |
 | 77 | VIRTUAL (virtual-protocol) | OK | OK | OK | · |
-| 78 | FET (fetch-ai) | OK | OK | OK | · |
-| 79 | ETHFI (ether-fi) | OK | OK | OK | OK |
+| 78 | ETHFI (ether-fi) | OK | OK | OK | OK |
+| 79 | FET (fetch-ai) | OK | OK | OK | · |
 | 80 | SUN (sun-token) | OK | OK | OK | OK |
 | 81 | FDUSD (first-digital-usd) | OK | OK | · | · |
-| 82 | BONK (bonk) | OK | OK | OK | · |
-| 83 | CRV (curve-dao-token) | OK | OK | OK | OK |
+| 82 | CRV (curve-dao-token) | OK | OK | OK | OK |
+| 83 | BONK (bonk) | OK | OK | OK | · |
 | 84 | LUNC (terra-luna) | OK | OK | OK | · |
 | 85 | SEI (sei-network) | OK | OK | OK | OK |
 | 86 | JTO (jito-governance-token) | OK | OK | OK | OK |
-| 87 | KITE (kite-2) | OK | OK | OK | OK |
-| 88 | STX (blockstack) | OK | OK | OK | OK |
-| 89 | ZRO (layerzero) | OK | OK | OK | OK |
+| 87 | STX (blockstack) | OK | OK | OK | OK |
+| 88 | ZRO (layerzero) | OK | OK | OK | OK |
+| 89 | KITE (kite-2) | OK | OK | OK | OK |
 | 90 | GNO (gnosis) | OK | OK | · | OK |
 | 91 | NFT (apenft) | OK | OK | · | · |
-| 92 | MON (monad) | OK | OK | OK | OK |
-| 93 | LDO (lido-dao) | OK | OK | OK | OK |
+| 92 | LDO (lido-dao) | OK | OK | OK | OK |
+| 93 | MON (monad) | OK | OK | OK | OK |
 | 94 | PENDLE (pendle) | OK | OK | OK | OK |
 | 95 | 2Z (doublezero) | OK | OK | OK | OK |
 | 96 | XTZ (tezos) | OK | OK | OK | OK |

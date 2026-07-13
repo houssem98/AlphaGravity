@@ -64,11 +64,11 @@ async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Prom
 // Binance/OKX spot venue (built by scripts/build_crypto_universe.mjs,
 // evidence + exclusions in docs/CRYPTO_UNIVERSE.md). Order still comes from
 // CG's live mcap sort; ids= only pins membership.
-const CURATED_IDS = ['bitcoin', 'ethereum', 'binancecoin', 'usd-coin', 'ripple', 'solana', 'tron', 'hyperliquid', 'dogecoin', 'usds', 'leo-token', 'zcash', 'stellar', 'chainlink', 'cardano', 'canton-network', 'bitcoin-cash', 'usd1-wlfi', 'the-open-network', 'ethena-usde', 'litecoin', 'global-dollar', 'sui', 'hedera-hashgraph', 'avalanche-2', 'paypal-usd', 'crypto-com-chain', 'tether-gold', 'shiba-inu', 'near', 'uniswap', 'dexe', 'bittensor', 'world-liberty-financial', 'pax-gold', 'okb', 'aster-2', 'ripple-usd', 'ondo-finance', 'worldcoin-wld', 'aave', 'polkadot', 'sky', 'bfusd', 'morpho', 'internet-computer', 'pepe', 'ethereum-classic', 'united-stables', 'quant-network', 'pi-network', 'polygon-ecosystem-token', 'just', 'cosmos', 'render-token', 'ethena', 'algorand', 'nexo', 'bianrensheng', 'jupiter-exchange-solana', 'filecoin', 'pump-fun', 'lighter', 'arbitrum', 'flare-networks', 'aptos', 'midnight-3', 'true-usd', 'injective-protocol', 'pancakeswap-token', 'dash', 'vechain', 'pyth-network', 'celestia', 'ether-fi', 'pudgy-penguins', 'virtual-protocol', 'official-trump', 'fetch-ai', 'sun-token', 'first-digital-usd', 'bonk', 'kite-2', 'terra-luna', 'sei-network', 'jito-governance-token', 'curve-dao-token', 'blockstack', 'layerzero', 'gnosis', 'apenft', 'monad', 'lido-dao', 'pendle', 'doublezero', 'tezos', 'grass', 'decred', 'plasma', 'conflux-token'];
+const CURATED_IDS = ['bitcoin', 'ethereum', 'binancecoin', 'usd-coin', 'ripple', 'solana', 'tron', 'hyperliquid', 'dogecoin', 'usds', 'leo-token', 'zcash', 'stellar', 'chainlink', 'cardano', 'canton-network', 'bitcoin-cash', 'usd1-wlfi', 'the-open-network', 'ethena-usde', 'litecoin', 'global-dollar', 'sui', 'hedera-hashgraph', 'paypal-usd', 'avalanche-2', 'crypto-com-chain', 'near', 'tether-gold', 'shiba-inu', 'uniswap', 'dexe', 'bittensor', 'world-liberty-financial', 'pax-gold', 'okb', 'aster-2', 'ripple-usd', 'ondo-finance', 'aave', 'polkadot', 'worldcoin-wld', 'sky', 'bfusd', 'morpho', 'internet-computer', 'pepe', 'ethereum-classic', 'united-stables', 'quant-network', 'pi-network', 'polygon-ecosystem-token', 'just', 'cosmos', 'render-token', 'ethena', 'algorand', 'nexo', 'bianrensheng', 'jupiter-exchange-solana', 'filecoin', 'pump-fun', 'lighter', 'arbitrum', 'flare-networks', 'aptos', 'true-usd', 'midnight-3', 'injective-protocol', 'pancakeswap-token', 'dash', 'vechain', 'celestia', 'pyth-network', 'pudgy-penguins', 'official-trump', 'virtual-protocol', 'fetch-ai', 'ether-fi', 'sun-token', 'first-digital-usd', 'curve-dao-token', 'bonk', 'terra-luna', 'sei-network', 'jito-governance-token', 'blockstack', 'kite-2', 'layerzero', 'gnosis', 'lido-dao', 'apenft', 'monad', 'pendle', 'doublezero', 'tezos', 'plasma', 'grass', 'conflux-token', 'decred', 'syrup', 'floki', 'optimism', 'zebec-network', 'jasmycoin', 'kaia', 'starknet', 'usa', 'the-graph', 'falcon-finance-ff', 'raydium', 'eigenlayer', 'chiliz', 'axie-infinity', 'iota', 'kaito', 'ethereum-name-service', 'compound-governance-token', 'dogwifcoin', 'edgex', 'apecoin', 'trust-wallet-token', 'theta-token', 'thorchain', 'decentraland', 'neo', 'havven', 'rif-token', 'ecash', 'arweave', 'the-sandbox', 'allora', 'stp-network', 'vaulta', 'basic-attention-token', 'convex-finance', 'genius-3', 'immutable-x', 'safepal', 'sentient', 'dydx-chain', 'zksync', '1inch', 'golem', 'gala', 'kamino', 'sonic-3', 'story-2', 'elrond-erd-2', 'spacex-bstocks-tokenized-stock', 'aethir', 'safe', 're', 'meteora', 'cow-protocol', 'instadapp', 'yearn-finance', 'micron-technology-bstock', 'four', 'reserve-rights-token', 'livepeer', 'walrus-2', 'banana-for-scale-2', 'zencash', 'ordinals', 'nexpace', '0x', 'zama', 'arkham', 'qtum', 'orca', 'centrifuge-2', 'gas', 'numeraire', 'holotoken', 'ravencoin', 'chip-2', 'kusama', 'bio-protocol', 'linea', 'gmx', 'wormhole', 'plume', 'zilliqa', 'turbo', 'theta-fuel', 'io', 'baby-doge-coin', 'mina-protocol', 'berachain-bera', 'enjincoin', 'synapse-2', 'superfarm', 'spark-2', 'threshold-network-token', 'megaeth', 'pharos-network', 'zetachain', 'velo', 'home'];
 
 async function fetchCoinGecko() {
   const r = await fetch(
-    `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=1h,24h,7d,14d,30d,1y&ids=${CURATED_IDS.join(',')}`,
+    `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false&price_change_percentage=1h,24h,7d,14d,30d,1y&ids=${CURATED_IDS.join(',')}`,
   );
   if (!r.ok) throw new Error(`coingecko ${r.status}`);
   const data = await r.json();
@@ -834,7 +834,7 @@ const manyRows = (d: any[]) => Array.isArray(d) && d.length >= 50;
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.query?.view === 'meta') {
-    const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 100);
+    const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 200);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
     const metaBlob = fromBlob(await cachedBlob('crypto_meta.json', 3600, metaAll, manyRows).catch(() => null), syms);
     if (metaBlob) return res.json(metaBlob);
@@ -855,7 +855,7 @@ export default async function handler(req: any, res: any) {
     }));
   }
   if (req.query?.view === 'spot') {
-    const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 100);
+    const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 200);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });
     const spotBlob = fromBlob(await cachedBlob('crypto_spot.json', 30, spotAll, manyRows).catch(() => null), syms);
     if (spotBlob) return res.json(spotBlob);
