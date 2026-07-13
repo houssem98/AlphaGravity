@@ -1,14 +1,14 @@
 # Crypto Screener V3 Coverage Audit
 
-Generated: 2026-07-13T01:21:54.125Z | Target: https://market-ui-self.vercel.app | Coins: 100
+Generated: 2026-07-13T01:32:58.408Z | Target: https://market-ui-self.vercel.app | Coins: 100
 
 ## Totals
 
 | View | OK | NULL | MISMATCH |
 |------|----|------|----------|
-| spot | 55/100 | 45 | 0 |
+| spot | 65/100 | 35 | 0 |
 | technicals | 64/100 | 36 | 0 |
-| derivatives | 54/100 | 46 | 0 |
+| derivatives | 59/100 | 41 | 0 |
 | meta | 54/100 | 46 | 0 |
 
 ## Per coin
@@ -24,33 +24,33 @@ Generated: 2026-07-13T01:21:54.125Z | Target: https://market-ui-self.vercel.app 
 | 7 | SOL (solana) | OK | OK | OK | OK |
 | 8 | TRX (tron) | OK | OK | OK | OK |
 | 9 | FIGR_HELOC (figure-heloc) | · | · | · | · |
-| 10 | HYPE (hyperliquid) | · | OK | OK | OK |
+| 10 | HYPE (hyperliquid) | OK | OK | OK | OK |
 | 11 | DOGE (dogecoin) | OK | OK | OK | OK |
 | 12 | USDS (usds) | OK | OK | · | · |
 | 13 | RAIN (rain) | · | · | · | OK |
 | 14 | ZEC (zcash) | OK | OK | OK | OK |
-| 15 | LEO (leo-token) | · | OK | · | · |
+| 15 | LEO (leo-token) | OK | OK | · | · |
 | 16 | WBT (whitebit) | · | · | · | · |
 | 17 | XLM (stellar) | OK | OK | OK | OK |
 | 18 | XMR (monero) | · | · | OK | OK |
 | 19 | LINK (chainlink) | OK | OK | OK | OK |
 | 20 | ADA (cardano) | OK | OK | OK | OK |
-| 21 | CC (canton-network) | · | OK | OK | OK |
+| 21 | CC (canton-network) | OK | OK | OK | OK |
 | 22 | BCH (bitcoin-cash) | OK | OK | OK | OK |
 | 23 | DAI (dai) | · | · | · | · |
 | 24 | USD1 (usd1-wlfi) | OK | OK | · | · |
 | 25 | GRAM (the-open-network) | OK | · | OK | OK |
 | 26 | USDE (ethena-usde) | OK | OK | · | OK |
 | 27 | LTC (litecoin) | OK | OK | OK | OK |
-| 28 | USDG (global-dollar) | · | OK | · | · |
+| 28 | USDG (global-dollar) | OK | OK | · | · |
 | 29 | USYC (hashnote-usyc) | · | · | · | · |
 | 30 | HBAR (hedera-hashgraph) | OK | OK | OK | OK |
 | 31 | SUI (sui) | OK | OK | OK | OK |
 | 32 | BUIDL (blackrock-usd-institutional-digital-liquidity-fund) | · | · | · | · |
-| 33 | PYUSD (paypal-usd) | · | OK | · | · |
+| 33 | PYUSD (paypal-usd) | OK | OK | · | · |
 | 34 | AVAX (avalanche-2) | OK | OK | OK | OK |
-| 35 | CRO (crypto-com-chain) | · | OK | · | OK |
-| 36 | SHIB (shiba-inu) | OK | OK | · | · |
+| 35 | CRO (crypto-com-chain) | OK | OK | OK | OK |
+| 36 | SHIB (shiba-inu) | OK | OK | OK | · |
 | 37 | XAUT (tether-gold) | OK | OK | OK | OK |
 | 38 | NEAR (near) | OK | OK | OK | OK |
 | 39 | DEXE (dexe) | OK | OK | OK | OK |
@@ -59,7 +59,7 @@ Generated: 2026-07-13T01:21:54.125Z | Target: https://market-ui-self.vercel.app 
 | 42 | TAO (bittensor) | OK | OK | OK | OK |
 | 43 | PAXG (pax-gold) | OK | OK | OK | · |
 | 44 | WLFI (world-liberty-financial) | OK | OK | OK | · |
-| 45 | OKB (okb) | · | OK | · | · |
+| 45 | OKB (okb) | OK | OK | OK | · |
 | 46 | HTX (htx-dao) | · | · | · | · |
 | 47 | ASTER (aster-2) | OK | OK | OK | OK |
 | 48 | M (memecore) | · | · | OK | OK |
@@ -68,19 +68,19 @@ Generated: 2026-07-13T01:21:54.125Z | Target: https://market-ui-self.vercel.app 
 | 51 | RLUSD (ripple-usd) | OK | OK | · | · |
 | 52 | WLD (worldcoin-wld) | OK | OK | OK | OK |
 | 53 | AAVE (aave) | OK | OK | OK | OK |
-| 54 | DOT (polkadot) | OK | OK | OK | · |
-| 55 | USDF (falcon-finance) | · | · | · | · |
+| 54 | USDF (falcon-finance) | · | · | · | · |
+| 55 | DOT (polkadot) | OK | OK | OK | · |
 | 56 | SKY (sky) | OK | OK | OK | OK |
 | 57 | MNT (mantle) | · | · | · | OK |
 | 58 | MORPHO (morpho) | OK | OK | OK | OK |
 | 59 | BFUSD (bfusd) | OK | OK | · | · |
 | 60 | ICP (internet-computer) | OK | OK | OK | OK |
-| 61 | PEPE (pepe) | OK | OK | · | · |
+| 61 | PEPE (pepe) | OK | OK | OK | · |
 | 62 | BGB (bitget-token) | · | · | · | · |
 | 63 | ETC (ethereum-classic) | OK | OK | OK | OK |
 | 64 | U (united-stables) | OK | OK | · | · |
 | 65 | EUTBL (eutbl) | · | · | · | · |
-| 66 | PI (pi-network) | · | OK | · | OK |
+| 66 | PI (pi-network) | OK | OK | OK | OK |
 | 67 | BCAP (blockchain-capital) | · | · | · | · |
 | 68 | KCS (kucoin-shares) | · | · | · | · |
 | 69 | QNT (quant-network) | OK | OK | OK | · |
@@ -91,10 +91,10 @@ Generated: 2026-07-13T01:21:54.125Z | Target: https://market-ui-self.vercel.app 
 | 74 | POL (polygon-ecosystem-token) | OK | OK | OK | OK |
 | 75 | JST (just) | OK | OK | OK | OK |
 | 76 | ATOM (cosmos) | OK | OK | OK | · |
-| 77 | BEAT (audiera) | · | · | OK | · |
-| 78 | RENDER (render-token) | OK | OK | OK | · |
-| 79 | KAS (kaspa) | · | · | OK | OK |
-| 80 | USTB (superstate-short-duration-us-government-securities-fund-ustb) | · | · | · | · |
+| 77 | RENDER (render-token) | OK | OK | OK | · |
+| 78 | BEAT (audiera) | · | · | OK | · |
+| 79 | USTB (superstate-short-duration-us-government-securities-fund-ustb) | · | · | · | · |
+| 80 | KAS (kaspa) | · | · | OK | OK |
 | 81 | EURSAFO (spiko-amundi-overnight-swap-fund-eur) | · | · | · | · |
 | 82 | ENA (ethena) | OK | OK | OK | OK |
 | 83 | ALGO (algorand) | OK | OK | OK | OK |
@@ -104,13 +104,13 @@ Generated: 2026-07-13T01:21:54.125Z | Target: https://market-ui-self.vercel.app 
 | 87 | 币安人生 (bianrensheng) | OK | OK | OK | · |
 | 88 | JAAA (janus-henderson-anemoy-aaa-clo-fund) | · | · | · | · |
 | 89 | JUP (jupiter-exchange-solana) | OK | OK | OK | OK |
-| 90 | LIT (lighter) | · | OK | OK | OK |
-| 91 | BDX (beldex) | · | · | · | OK |
+| 90 | BDX (beldex) | · | · | · | OK |
+| 91 | LIT (lighter) | OK | OK | OK | OK |
 | 92 | FIL (filecoin) | OK | OK | OK | OK |
 | 93 | PUMP (pump-fun) | OK | OK | OK | OK |
 | 94 | GHO (gho) | · | · | · | · |
 | 95 | ARB (arbitrum) | OK | OK | OK | OK |
-| 96 | FLR (flare-networks) | · | OK | · | OK |
+| 96 | FLR (flare-networks) | OK | OK | · | OK |
 | 97 | USD0 (usual-usd) | · | · | · | · |
 | 98 | XDC (xdce-crowd-sale) | · | · | · | OK |
 | 99 | YLDS (ylds) | · | · | · | · |

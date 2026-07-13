@@ -639,6 +639,55 @@ async function oiFor(sym: string) {
 const gateOk = (sym: string, cgPrice: number, srcPrice: number) =>
   srcPrice > 0 && cgPrice > 0 && Math.abs(srcPrice / cgPrice - 1) <= (STABLE_SYMS.has(sym) ? 0.01 : 0.03);
 
+// OKX spot tickers — one call for every instrument, 5-min cache. Backs the
+// spot + derivatives OKX fallbacks for coins with no verified Binance pair
+// (OKB/HYPE/LEO/RLUSD class). curl-verified 2026-07-13.
+let okxSpotCache: { at: number; map: Record<string, any> } | null = null;
+async function okxSpotMap() {
+  if (okxSpotCache && Date.now() - okxSpotCache.at < TTL) return okxSpotCache.map;
+  const j = await (await fetch('https://www.okx.com/api/v5/market/tickers?instType=SPOT')).json();
+  const map: Record<string, any> = {};
+  if (Array.isArray(j?.data)) for (const t of j.data) {
+    if (t.instId?.endsWith('-USDT')) map[t.instId.slice(0, -5)] = t;
+  }
+  okxSpotCache = { at: Date.now(), map };
+  return map;
+}
+
+// OKX swap open interest — one call, oiUsd directly on each row.
+let okxOiCache: { at: number; map: Record<string, number> } | null = null;
+async function okxOiMap() {
+  if (okxOiCache && Date.now() - okxOiCache.at < TTL) return okxOiCache.map;
+  const j = await (await fetch('https://www.okx.com/api/v5/public/open-interest?instType=SWAP')).json();
+  const map: Record<string, number> = {};
+  if (Array.isArray(j?.data)) for (const r of j.data) {
+    if (r.instId?.endsWith('-USDT-SWAP')) { const n = parseFloat(r.oiUsd); if (isFinite(n)) map[r.instId.slice(0, -10)] = n; }
+  }
+  okxOiCache = { at: Date.now(), map };
+  return map;
+}
+
+async function okxFundingFor(sym: string): Promise<number | null> {
+  try {
+    const j = await (await fetch(`https://www.okx.com/api/v5/public/funding-rate?instId=${sym}-USDT-SWAP`)).json();
+    const n = parseFloat(j?.data?.[0]?.fundingRate);
+    return isFinite(n) ? n : null;
+  } catch { return null; }
+}
+
+// OKX ticker → spot row. No prevClose on OKX tickers, so prevClose/gap stay
+// null (honest) — open/high/low/chg are the real 24h-window numbers.
+function spotRowOkx(s: string, t: any) {
+  const open = parseFloat(t.open24h), high = parseFloat(t.high24h), low = parseFloat(t.low24h), last = parseFloat(t.last);
+  if (!(open > 0)) return NULL_SPOT(s);
+  return {
+    symbol: s, open, high, low, prevClose: null, chgAbs: last - open,
+    changeFromOpenPct: ((last - open) / open) * 100,
+    gapPct: null,
+    volatilityPct: low > 0 ? ((high - low) / low) * 100 : null,
+  };
+}
+
 async function baseRows(): Promise<any[]> {
   if (cache && Date.now() - cache.at < TTL) return cache.rows;
   const rows = await fetchCoinGecko();
@@ -663,9 +712,14 @@ function spotRow(s: string, t: any) {
 async function spotAll() {
   const base = await baseRows();
   const tm = await tickerMap().catch(() => ({} as Record<string, any>));
+  const om = await okxSpotMap().catch(() => ({} as Record<string, any>));
   return base.map((c) => {
+    const p = parseFloat(c.priceUsd);
     const t = tm[c.symbol];
-    return t && gateOk(c.symbol, parseFloat(c.priceUsd), parseFloat(t.lastPrice)) ? spotRow(c.symbol, t) : NULL_SPOT(c.symbol);
+    if (t && gateOk(c.symbol, p, parseFloat(t.lastPrice))) return spotRow(c.symbol, t);
+    const o = om[c.symbol];
+    if (o && gateOk(c.symbol, p, parseFloat(o.last))) return spotRowOkx(c.symbol, o);
+    return NULL_SPOT(c.symbol);
   });
 }
 
@@ -683,11 +737,26 @@ async function techAll() {
 async function derivAll() {
   const base = await baseRows();
   const fm = await fundingMap().catch(() => ({} as Record<string, { fr: number; mark: number }>));
+  const [om, oiM] = await Promise.all([
+    okxSpotMap().catch(() => ({} as Record<string, any>)),
+    okxOiMap().catch(() => ({} as Record<string, number>)),
+  ]);
   return pool(base, 8, async (c) => {
+    const p = parseFloat(c.priceUsd);
     const f = fm[c.symbol];
-    if (!f || !gateOk(c.symbol, parseFloat(c.priceUsd), f.mark)) return NULL_DERIV(c.symbol);
-    const [oi, x] = await Promise.all([oiFor(c.symbol), derivExtras(c.symbol)]);
-    return { symbol: c.symbol, fundingRate: f.fr, oiUsd: oi !== null ? oi * f.mark : null, ...x };
+    if (f && gateOk(c.symbol, p, f.mark)) {
+      const [oi, x] = await Promise.all([oiFor(c.symbol), derivExtras(c.symbol)]);
+      return { symbol: c.symbol, fundingRate: f.fr, oiUsd: oi !== null ? oi * f.mark : null, ...x };
+    }
+    // OKX swap fallback (funding + OI USD; ratio stats stay null — honest).
+    const o = om[c.symbol];
+    if (oiM[c.symbol] !== undefined && o && gateOk(c.symbol, p, parseFloat(o.last))) {
+      return {
+        symbol: c.symbol, fundingRate: await okxFundingFor(c.symbol), oiUsd: oiM[c.symbol],
+        oiChangePct: null, lsRatio: null, takerRatio: null,
+      };
+    }
+    return NULL_DERIV(c.symbol);
   });
 }
 
