@@ -224,6 +224,7 @@ const PctVal = ({ v }: { v?: string }) => {
 };
 
 const HighlightCard = ({ title, icon: Icon, data, onSelect }: { title: string, icon: any, data: MarketData[], type: 'gainer' | 'loser' | 'trending', onSelect: (s: string) => void }) => {
+  const spot = useCryptoStore((s) => s.spot); // CV-6 ONE SOURCE: cards tick with the same livePrice as list+panel
   return (
     <div className="bg-[color:var(--surface)] border border-[color:var(--line)] hover:border-[color:var(--line-strong)] rounded-[4px] p-3 transition-colors lux-border">
       <div className="flex items-center justify-between mb-3">
@@ -255,7 +256,7 @@ const HighlightCard = ({ title, icon: Icon, data, onSelect }: { title: string, i
                 </div>
               </div>
               <div className="flex flex-col items-end leading-tight">
-                <span className="font-mono text-data text-[color:var(--text)]">${formatCurrency(coin.priceUsd)}</span>
+                <span className="font-mono text-data text-[color:var(--text)]">${formatCurrency(livePrice(coin, spot[coin.symbol]) ?? 0)}</span>
                 <span className={`font-mono text-label flex items-center ${isPositive ? 'up' : 'down'}`}>
                   {isPositive ? <TrendingUp className="w-2.5 h-2.5 mr-0.5" /> : <TrendingDown className="w-2.5 h-2.5 mr-0.5" />}
                   {Math.abs(change).toFixed(2)}%
