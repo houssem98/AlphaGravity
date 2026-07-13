@@ -64,7 +64,7 @@ happen to be close.
   last). OKX-venue coins now populate too. Verify: open BTC + OKB panels,
   every number equals the list cell at the same instant; label/layout pixels
   unchanged.
-- [ ] CV-4 **Binance WS live tick (browser)**: native WebSocket to
+- [x] CV-4 **Binance WS live tick (browser)**: native WebSocket to
   `wss://stream.binance.com:9443/stream?streams=<sym>usdt@miniTicker/...`
   for venue=binance coins (combined stream, chunk ≤100 streams); each tick
   updates store `last` after the client-side gate (|tick/CG−1| ≤ 3%, stables
@@ -92,3 +92,4 @@ happen to be close.
 - 2026-07-13 CV-1: baseRows() annotates venue via same gateOk verdict (tickerMap→okxSpotMap) — prod curl: binance 87, okx 13, null 0, missing 0; BTC=binance OKB=okx HYPE=okx LUNC=binance; audit spot 100/100 tech 99 deriv 84 meta 70 MISMATCH 0; typecheck 0, vercel --prod.
 - 2026-07-13 CV-2: stores/cryptoStore.ts (zustand — existing dep, researchStore idiom): base+spot moved out of Markets.tsx local state (setBase/mergeSpot, SpotData exported); Markets keeps fetch cadence (10s base, 30s spot re-poll), reads via useCryptoStore — rendered output identical (design freeze). Prod: /trading 200 1.14s, markets api 200; audit spot 100/100 tech 99 deriv 84 meta 68 MISMATCH 0; typecheck 0, vercel --prod.
 - 2026-07-13 CV-3: panel's direct Binance REST + coinlore + 12s crypto timer DELETED; crypto branch reads store (price = spot.last ?? CG — byte-identical to list source; 24h% = CG def; volume/mcap/supply = CG global; high/low = gated venue). Feed moved into store (ensureCryptoFeed: base 10s w/ coinlore fallback, spot all-100 30s + visibility) — chart view keeps ticking with Markets unmounted; Markets' own fetchMarkets + 2 spot effects deleted (no dup fetches). OKX-venue coins (OKB/HYPE/LEO) populate in panel for the first time. Prod /trading 200 0.69s; audit spot 100/100 tech 99 deriv 84 meta 68 MISMATCH 0; typecheck 0, vercel --prod. Browser side-by-side glance = user smoke.
+- 2026-07-13 CV-4: combined miniTicker WS in cryptoStore (venue=binance syms, native WebSocket) — stream curl-verified (14 msgs/6s for 3 syms, BTC 61934.01 live); per-tick client gate 3%/1%, 500ms flush batching, hidden-tab close + backoff reconnect (1s→30s cap), 30s REST poll stays as fallback; prod /trading 200; audit spot 100/100 tech 99 deriv 84 meta 68 MISMATCH 0; typecheck 0, vercel --prod.

@@ -75,7 +75,66 @@ export function ensureCryptoFeed() {
     } catch { /* keep last values */ }
   };
 
-  loadBase().then(loadSpot);
-  setInterval(loadBase, 10000);
+  loadBase().then(() => { loadSpot(); openBinanceWs(); });
+  setInterval(() => loadBase().then(openBinanceWs), 10000);
   setInterval(loadSpot, 30000);
+  setInterval(flushTicks, 500);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { loadSpot(); openBinanceWs(); }
+    else binanceWs?.close();
+  });
+}
+
+// ── CV-4: Binance WS live ticks (browser, keyless, native WebSocket) ────────
+// One combined miniTicker stream for every venue=binance coin. Each tick must
+// pass the same price gate as the server (|tick/CG−1| ≤ 3%, stables 1%) or it
+// is dropped. Ticks buffer and flush to the store every 500ms so 87 symbols
+// don't force 87 renders/s. Closed on hidden tab; reconnects with backoff —
+// the 30s REST poll stays as fallback and CG-base refresher.
+const STABLE_SYMS = new Set(['USDT', 'USDC', 'DAI', 'FDUSD', 'USDE', 'TUSD', 'PYUSD', 'USDP', 'USDD', 'FRAX', 'BUSD', 'GUSD']);
+const EMPTY_SPOT = (symbol: string): SpotData => ({ symbol, open: null, high: null, low: null, prevClose: null, chgAbs: null, changeFromOpenPct: null, gapPct: null, volatilityPct: null });
+
+let binanceWs: WebSocket | null = null;
+let wsBackoff = 1000;
+const pendingLast: Record<string, number> = {};
+
+function flushTicks() {
+  const syms = Object.keys(pendingLast);
+  if (!syms.length) return;
+  const spot = useCryptoStore.getState().spot;
+  const rows = syms.map((s) => ({ ...(spot[s] ?? EMPTY_SPOT(s)), last: pendingLast[s] }));
+  for (const s of syms) delete pendingLast[s];
+  useCryptoStore.getState().mergeSpot(rows);
+}
+
+function gatePass(sym: string, px: number, cg: number) {
+  return px > 0 && cg > 0 && Math.abs(px / cg - 1) <= (STABLE_SYMS.has(sym) ? 0.01 : 0.03);
+}
+
+function openBinanceWs() {
+  if (binanceWs || document.visibilityState !== 'visible') return;
+  const syms: string[] = useCryptoStore.getState().base
+    .filter((c: any) => c.venue === 'binance').map((c: any) => c.symbol);
+  if (!syms.length) return;
+  const sock = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${syms.map((s) => s.toLowerCase() + 'usdt@miniTicker').join('/')}`);
+  binanceWs = sock;
+  sock.onmessage = (ev) => {
+    try {
+      const d = JSON.parse(ev.data).data;
+      if (typeof d?.s !== 'string' || !d.s.endsWith('USDT')) return;
+      const sym = d.s.slice(0, -4);
+      const px = parseFloat(d.c);
+      const row = useCryptoStore.getState().base.find((c: any) => c.symbol === sym);
+      if (row && gatePass(sym, px, parseFloat(row.priceUsd))) pendingLast[sym] = px;
+    } catch { /* drop malformed frame */ }
+  };
+  sock.onopen = () => { wsBackoff = 1000; };
+  sock.onerror = () => sock.close();
+  sock.onclose = () => {
+    if (binanceWs === sock) binanceWs = null;
+    if (document.visibilityState === 'visible') {
+      setTimeout(openBinanceWs, wsBackoff);
+      wsBackoff = Math.min(wsBackoff * 2, 30000);
+    }
+  };
 }

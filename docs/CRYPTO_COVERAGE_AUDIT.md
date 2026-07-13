@@ -1,6 +1,6 @@
 # Crypto Screener V3 Coverage Audit
 
-Generated: 2026-07-13T18:07:07.445Z | Target: https://market-ui-self.vercel.app | Coins: 100
+Generated: 2026-07-13T18:16:18.433Z | Target: https://market-ui-self.vercel.app | Coins: 100
 
 ## Totals
 
@@ -41,8 +41,8 @@ Generated: 2026-07-13T18:07:07.445Z | Target: https://market-ui-self.vercel.app 
 | 24 | HBAR (hedera-hashgraph) | OK | OK | OK | OK |
 | 25 | PYUSD (paypal-usd) | OK | OK | · | · |
 | 26 | AVAX (avalanche-2) | OK | OK | OK | OK |
-| 27 | NEAR (near) | OK | OK | OK | OK |
-| 28 | CRO (crypto-com-chain) | OK | OK | OK | OK |
+| 27 | CRO (crypto-com-chain) | OK | OK | OK | OK |
+| 28 | NEAR (near) | OK | OK | OK | OK |
 | 29 | XAUT (tether-gold) | OK | OK | OK | OK |
 | 30 | SHIB (shiba-inu) | OK | OK | OK | · |
 | 31 | UNI (uniswap) | OK | OK | OK | OK |
@@ -90,8 +90,8 @@ Generated: 2026-07-13T18:07:07.445Z | Target: https://market-ui-self.vercel.app 
 | 73 | TIA (celestia) | OK | OK | OK | OK |
 | 74 | PYTH (pyth-network) | OK | OK | OK | · |
 | 75 | PENGU (pudgy-penguins) | OK | OK | OK | OK |
-| 76 | TRUMP (official-trump) | OK | OK | OK | · |
-| 77 | VIRTUAL (virtual-protocol) | OK | OK | OK | · |
+| 76 | VIRTUAL (virtual-protocol) | OK | OK | OK | · |
+| 77 | TRUMP (official-trump) | OK | OK | OK | · |
 | 78 | ETHFI (ether-fi) | OK | OK | OK | OK |
 | 79 | FET (fetch-ai) | OK | OK | OK | · |
 | 80 | SUN (sun-token) | OK | OK | OK | OK |
@@ -99,9 +99,9 @@ Generated: 2026-07-13T18:07:07.445Z | Target: https://market-ui-self.vercel.app 
 | 82 | BONK (bonk) | OK | OK | OK | · |
 | 83 | CRV (curve-dao-token) | OK | OK | OK | OK |
 | 84 | LUNC (terra-luna) | OK | OK | OK | · |
-| 85 | KITE (kite-2) | OK | OK | OK | OK |
-| 86 | SEI (sei-network) | OK | OK | OK | OK |
-| 87 | JTO (jito-governance-token) | OK | OK | OK | OK |
+| 85 | SEI (sei-network) | OK | OK | OK | OK |
+| 86 | JTO (jito-governance-token) | OK | OK | OK | OK |
+| 87 | KITE (kite-2) | OK | OK | OK | OK |
 | 88 | STX (blockstack) | OK | OK | OK | OK |
 | 89 | ZRO (layerzero) | OK | OK | OK | OK |
 | 90 | GNO (gnosis) | OK | OK | · | OK |
@@ -113,5 +113,5 @@ Generated: 2026-07-13T18:07:07.445Z | Target: https://market-ui-self.vercel.app 
 | 96 | XTZ (tezos) | OK | OK | OK | OK |
 | 97 | XPL (plasma) | OK | OK | OK | OK |
 | 98 | GRASS (grass) | OK | OK | OK | · |
-| 99 | DCR (decred) | OK | OK | · | OK |
-| 100 | CFX (conflux-token) | OK | OK | OK | OK |
+| 99 | CFX (conflux-token) | OK | OK | OK | OK |
+| 100 | DCR (decred) | OK | OK | · | OK |
