@@ -492,7 +492,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   const tfKey = TF_KEY[changeTf];
   const tfLabel = `${changeTf} %`;
   const tfLong = TF_LONG;
-  const colCount = 4 + Object.values(cols).filter(Boolean).length;
+  const colCount = 5 + Object.values(cols).filter(Boolean).length; // star, #, name, price, spark
   const techTh = (field: string, label: string, cls = 'text-right hidden xl:table-cell') => (
     <th className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group ${cls}`} onClick={() => handleTechSort(field)}>
       <div className="flex items-center gap-1 justify-end">
@@ -641,7 +641,8 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                 <thead>
                   <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
                     <th className="py-2 px-4 label w-8" />
-                    {cols.rank && sortTh('rank', '#', 'w-10 hidden sm:table-cell')}
+                    <th className="py-2 px-4 label w-10">#</th>
+                    {cols.rank && sortTh('rank', 'Rank', 'w-10 hidden sm:table-cell')}
                     {sortTh('name', 'Name', '')}
                     {sortTh('priceUsd', 'Price', 'text-right')}
                     {cols.change && (
@@ -852,6 +853,9 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                               if (market.symbol) toggleWatchlist(e, market.symbol);
                             }}>
                               <Star className={`w-3.5 h-3.5 transition-colors ${isStarred ? 'text-[color:var(--accent)] fill-[color:var(--accent)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text)]'}`} />
+                            </td>
+                            <td className="py-2.5 px-4 font-mono text-data text-[color:var(--text-3)]">
+                              {(currentPage - 1) * itemsPerPage + index + 1}
                             </td>
                             {cols.rank && (
                               <td className="py-2.5 px-4 font-mono text-data text-[color:var(--text-3)] hidden sm:table-cell">
