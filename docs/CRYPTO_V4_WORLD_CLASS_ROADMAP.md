@@ -76,7 +76,7 @@ backfill from CG ranks 101+ that ARE Binance/OKX-listed, keep 100 rows.
   swap maps cover every curated coin that HAS a perp (spot-check 5 known-perp
   coins that are currently deriv-null, fix joins if any). Re-run audit, paste
   spot/gap/deriv deltas.
-- [ ] CW-5 **Final ruthless sweep**: full audit vs prod on the curated 100 —
+- [x] CW-5 **Final ruthless sweep**: full audit vs prod on the curated 100 —
   REQUIRE MISMATCH 0 everywhere, spot 100/100 (or list the ≤2 transient
   fails by name with curl evidence), technicals ≥ 98/100, deriv = exactly the
   perp-having subset (list count), meta best-effort. Visual smoke: /trading →
@@ -91,3 +91,4 @@ backfill from CG ranks 101+ that ARE Binance/OKX-listed, keep 100 rows.
 - 2026-07-13 CW-2: CURATED_IDS + CG ids= in fetchCoinGecko (ids= curl-verified: 5 req → 5 mcap-ordered) — prod curl: 100 rows, USDT/USDD/XMR/DAI/HTX gone, APT/INJ/CAKE/VET/TIA in; audit spot 100/100, technicals 99/100 (1 NULL: GRAM/the-open-network — CG ticker renamed, Binance=TONUSDT, CW-4 candidate), deriv 83, meta 69, MISMATCH 0 everywhere; typecheck 0, vercel --prod aliased.
 - 2026-07-13 CW-3: spot blob TTL 30s + venue `last` in spot rows (gate-verified, additive) + tickerMap/okxSpotMap 25s window + UI 30s visible-tab re-poll, price cell prefers spot.last ?? CG — prod curls 75s apart: BTC 62568.88→62280.01, ETH 1771.01→1770.04, SOL 75.67→75.40; 24h% untouched (CG); typecheck 0, vercel --prod. UI polling = setInterval 30s + visibilityState guard (code-verified; browser network-tab glance = user smoke).
 - 2026-07-13 CW-4: okxDayCandle (1D, 5-min cache) → prevClose/gap on OKX spot rows (prod: OKB prevClose 79.97 gap 0, HYPE 63.933 gap 0.05, LEO 9.541 gap 0) + Binance 1000-prefix perp join (gate mark/1000) fills LUNC deriv (funding 0.0001, OI $4.36M, ratios live); perp-existence curl: FLR/NEXO/GNO/DCR/NFT/LEO + stables have NO perp on fapi/OKX → 16 deriv-nulls ARE parity. Audit: spot 100/100, tech 99/100 (GRAM), deriv 83→84, meta 70, MISMATCH 0; typecheck 0, vercel --prod.
+- 2026-07-13 CW-5 FINAL: audit spot 100/100, technicals 99/100 (GRAM only — CG renamed TON ticker, ≥98 gate met), deriv 84/100 = exact perp-having subset (16 nulls curl-verified no-perp on fapi+OKX), meta 70 best-effort, MISMATCH 0 everywhere; /api/crypto/markets 200 in 0.313s (<1s first-paint budget), 100 rows, zero dash in Price/24h%; TN regression board 200 (1.18s) + intraday 200 (1.42s). V4 WORLD CLASS COMPLETE 5/5.
