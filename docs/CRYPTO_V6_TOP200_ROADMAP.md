@@ -67,7 +67,7 @@ identical everywhere on the page.
   venue=okx syms; pagination/rows-per-page untouched (design freeze).
   Browser-visible check: page 2+ rows show live prices and populated
   technicals when toggled. Typecheck 0, deploy.
-- [ ] CU-4 **Audit to 200 + final sweep**: audit_crypto_coverage.mjs → 200
+- [x] CU-4 **Audit to 200 + final sweep**: audit_crypto_coverage.mjs → 200
   coins (batches stay ≤25 for technicals/deriv). REQUIRE: spot ≥ 196/200,
   technicals ≥ 190/200 (list every NULL by name+reason), MISMATCH 0
   everywhere, deriv = exact perp-having subset (count it), meta best-effort.
@@ -82,3 +82,4 @@ identical everywhere on the page.
 - 2026-07-13 CU-1: build_crypto_universe.mjs → CG top 500 scan, curated 200 = binance 176 + okx 24, deepest CG rank 426; CG top-200 dropped 79 (stables/no-venue/XMR-class), backfilled 79 from ranks 201–500 (THETA, RUNE, MANA, NEO, SAND, DYDX, 1INCH, GALA, EGLD, YFI…); NEW: symbol-collision rule (venue maps symbol-keyed — higher-mcap id owns ticker), 1 excluded: safecoin vs safe (both "SAFE" on OKX); 200 unique ids verified; typecheck 0, no app code.
 - 2026-07-13 CU-2: CG ids= curl-verified with 200 ids (URL 2211 chars, 200 rows, mcap-ordered, per_page=250 — was silently truncating at 100); CURATED_IDS → 200; symbols caps 100→200 on spot+meta views (tech/deriv stay 25 page-lazy); prod after blob refresh: base 200 rows (binance 176/okx 24, last=HOME), spot blob 200 rows, 178 with venue last (rest warmup); audit (100-scope until CU-4): spot 100/100 tech 99 deriv 84 meta 69 MISMATCH 0; typecheck 0, vercel --prod.
 - 2026-07-13 CU-3: loadSpot 200 coins via 2×100-symbol chunks (URL safe, same blob); WS lists were already uncapped venue-filters over base → 176 binance streams on one socket + 24 okx auto-subscribed; pagination untouched; prod technicals for backfill coins verified: THETA rsi 48.0, MANA 48.7, GALA 31.6, NEO 34.9, YFI 54.5 (all rated); audit spot 100/100 tech 99 deriv 84 meta 69 MISMATCH 0; typecheck 0, vercel --prod.
+- 2026-07-13 CU-4 FINAL: audit → 200 coins. spot **200/200**, technicals 197/200 (≥190 ✓; NULLs: GRAM/the-open-network CG-rename, DATA/story-2 Binance-Streamr collision gate-blocked, RE/re — all honest gate-protected misses), deriv 177/200 = perp-having subset (23 nulls: stables + LEO/NEXO/FLR/GNO/NFT/DCR/TFUEL/BABYDOGE class), meta 124/200 best-effort, **MISMATCH 0 everywhere**; /trading 200 in 0.348s (<1.5s bar), base blob 127KB, 200 rows 0 dash Price/24h%; TN regression board 200 0.73s + intraday 200 1.85s. V6 TOP 200 COMPLETE 4/4.

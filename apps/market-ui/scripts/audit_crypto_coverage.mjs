@@ -55,7 +55,7 @@ async function getJson(url) {
 
 async function main() {
   console.log(`audit target: ${BASE}`);
-  const coins = (await getJson(`${BASE}/api/crypto/markets`)).slice(0, 100);
+  const coins = (await getJson(`${BASE}/api/crypto/markets`)).slice(0, 200);
   if (!coins.length) throw new Error('empty base list');
   console.log(`base list: ${coins.length} coins, source=${coins[0].source || 'unknown'}`);
 

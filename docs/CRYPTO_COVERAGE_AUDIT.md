@@ -1,15 +1,15 @@
 # Crypto Screener V3 Coverage Audit
 
-Generated: 2026-07-13T19:41:33.750Z | Target: https://market-ui-self.vercel.app | Coins: 100
+Generated: 2026-07-13T19:44:50.645Z | Target: https://market-ui-self.vercel.app | Coins: 200
 
 ## Totals
 
 | View | OK | NULL | MISMATCH |
 |------|----|------|----------|
-| spot | 100/100 | 0 | 0 |
-| technicals | 99/100 | 1 | 0 |
-| derivatives | 84/100 | 16 | 0 |
-| meta | 69/100 | 31 | 0 |
+| spot | 200/200 | 0 | 0 |
+| technicals | 197/200 | 3 | 0 |
+| derivatives | 177/200 | 23 | 0 |
+| meta | 124/200 | 76 | 0 |
 
 ## Per coin
 
@@ -92,8 +92,8 @@ Generated: 2026-07-13T19:41:33.750Z | Target: https://market-ui-self.vercel.app 
 | 75 | PENGU (pudgy-penguins) | OK | OK | OK | OK |
 | 76 | TRUMP (official-trump) | OK | OK | OK | · |
 | 77 | VIRTUAL (virtual-protocol) | OK | OK | OK | · |
-| 78 | ETHFI (ether-fi) | OK | OK | OK | OK |
-| 79 | FET (fetch-ai) | OK | OK | OK | · |
+| 78 | FET (fetch-ai) | OK | OK | OK | · |
+| 79 | ETHFI (ether-fi) | OK | OK | OK | OK |
 | 80 | SUN (sun-token) | OK | OK | OK | OK |
 | 81 | FDUSD (first-digital-usd) | OK | OK | · | · |
 | 82 | CRV (curve-dao-token) | OK | OK | OK | OK |
@@ -114,4 +114,104 @@ Generated: 2026-07-13T19:41:33.750Z | Target: https://market-ui-self.vercel.app 
 | 97 | XPL (plasma) | OK | OK | OK | OK |
 | 98 | GRASS (grass) | OK | OK | OK | · |
 | 99 | CFX (conflux-token) | OK | OK | OK | OK |
-| 100 | DCR (decred) | OK | OK | · | OK |
+| 100 | SYRUP (syrup) | OK | OK | OK | OK |
+| 101 | DCR (decred) | OK | OK | · | OK |
+| 102 | FLOKI (floki) | OK | OK | OK | OK |
+| 103 | JASMY (jasmycoin) | OK | OK | OK | · |
+| 104 | OP (optimism) | OK | OK | OK | OK |
+| 105 | ZBCN (zebec-network) | OK | OK | · | · |
+| 106 | KAIA (kaia) | OK | OK | OK | OK |
+| 107 | STRK (starknet) | OK | OK | OK | OK |
+| 108 | USAT (usa) | OK | OK | · | · |
+| 109 | GRT (the-graph) | OK | OK | OK | · |
+| 110 | RAY (raydium) | OK | OK | OK | OK |
+| 111 | FF (falcon-finance-ff) | OK | OK | OK | OK |
+| 112 | EIGEN (eigenlayer) | OK | OK | OK | OK |
+| 113 | CHZ (chiliz) | OK | OK | OK | OK |
+| 114 | AXS (axie-infinity) | OK | OK | OK | · |
+| 115 | IOTA (iota) | OK | OK | OK | OK |
+| 116 | KAITO (kaito) | OK | OK | OK | · |
+| 117 | ENS (ethereum-name-service) | OK | OK | OK | · |
+| 118 | COMP (compound-governance-token) | OK | OK | OK | OK |
+| 119 | EDGE (edgex) | OK | OK | OK | OK |
+| 120 | WIF (dogwifcoin) | OK | OK | OK | · |
+| 121 | APE (apecoin) | OK | OK | OK | OK |
+| 122 | TWT (trust-wallet-token) | OK | OK | OK | · |
+| 123 | THETA (theta-token) | OK | OK | OK | OK |
+| 124 | RUNE (thorchain) | OK | OK | OK | OK |
+| 125 | MANA (decentraland) | OK | OK | OK | · |
+| 126 | NEO (neo) | OK | OK | OK | OK |
+| 127 | SNX (havven) | OK | OK | OK | OK |
+| 128 | RIF (rif-token) | OK | OK | OK | · |
+| 129 | XEC (ecash) | OK | OK | OK | OK |
+| 130 | AR (arweave) | OK | OK | OK | OK |
+| 131 | SAND (the-sandbox) | OK | OK | OK | · |
+| 132 | ALLO (allora) | OK | OK | OK | OK |
+| 133 | AWE (stp-network) | OK | OK | OK | · |
+| 134 | A (vaulta) | OK | OK | OK | OK |
+| 135 | BAT (basic-attention-token) | OK | OK | OK | · |
+| 136 | CVX (convex-finance) | OK | OK | OK | OK |
+| 137 | SENT (sentient) | OK | OK | OK | · |
+| 138 | GENIUS (genius-3) | OK | OK | OK | · |
+| 139 | IMX (immutable-x) | OK | OK | OK | OK |
+| 140 | SFP (safepal) | OK | OK | OK | · |
+| 141 | DYDX (dydx-chain) | OK | OK | OK | OK |
+| 142 | ZK (zksync) | OK | OK | OK | OK |
+| 143 | 1INCH (1inch) | OK | OK | OK | OK |
+| 144 | GLM (golem) | OK | OK | OK | · |
+| 145 | GALA (gala) | OK | OK | OK | OK |
+| 146 | S (sonic-3) | OK | OK | OK | OK |
+| 147 | KMNO (kamino) | OK | OK | OK | OK |
+| 148 | DATA (story-2) | OK | · | OK | OK |
+| 149 | EGLD (elrond-erd-2) | OK | OK | OK | OK |
+| 150 | SPCXB (spacex-bstocks-tokenized-stock) | OK | OK | · | · |
+| 151 | ATH (aethir) | OK | OK | OK | · |
+| 152 | SAFE (safe) | OK | OK | OK | · |
+| 153 | RE (re) | OK | · | OK | · |
+| 154 | MET (meteora) | OK | OK | OK | OK |
+| 155 | FLUID (instadapp) | OK | OK | OK | OK |
+| 156 | COW (cow-protocol) | OK | OK | OK | · |
+| 157 | YFI (yearn-finance) | OK | OK | OK | OK |
+| 158 | MUB (micron-technology-bstock) | OK | OK | · | · |
+| 159 | RSR (reserve-rights-token) | OK | OK | OK | OK |
+| 160 | FORM (four) | OK | OK | OK | · |
+| 161 | WAL (walrus-2) | OK | OK | OK | · |
+| 162 | LPT (livepeer) | OK | OK | OK | · |
+| 163 | BANANAS31 (banana-for-scale-2) | OK | OK | OK | · |
+| 164 | ZEN (zencash) | OK | OK | OK | · |
+| 165 | ORDI (ordinals) | OK | OK | OK | · |
+| 166 | NXPC (nexpace) | OK | OK | OK | OK |
+| 167 | ZRX (0x) | OK | OK | OK | · |
+| 168 | ZAMA (zama) | OK | OK | OK | OK |
+| 169 | ARKM (arkham) | OK | OK | OK | · |
+| 170 | QTUM (qtum) | OK | OK | OK | · |
+| 171 | ORCA (orca) | OK | OK | OK | OK |
+| 172 | NMR (numeraire) | OK | OK | OK | · |
+| 173 | CFG (centrifuge-2) | OK | OK | OK | OK |
+| 174 | GAS (gas) | OK | OK | OK | · |
+| 175 | HOT (holotoken) | OK | OK | OK | · |
+| 176 | CHIP (chip-2) | OK | OK | OK | OK |
+| 177 | RVN (ravencoin) | OK | OK | OK | · |
+| 178 | KSM (kusama) | OK | OK | OK | · |
+| 179 | LINEA (linea) | OK | OK | OK | OK |
+| 180 | BIO (bio-protocol) | OK | OK | OK | OK |
+| 181 | GMX (gmx) | OK | OK | OK | OK |
+| 182 | W (wormhole) | OK | OK | OK | OK |
+| 183 | PLUME (plume) | OK | OK | OK | OK |
+| 184 | ZIL (zilliqa) | OK | OK | OK | · |
+| 185 | TURBO (turbo) | OK | OK | OK | · |
+| 186 | TFUEL (theta-fuel) | OK | OK | · | · |
+| 187 | IO (io) | OK | OK | OK | · |
+| 188 | BABYDOGE (baby-doge-coin) | OK | OK | · | OK |
+| 189 | MINA (mina-protocol) | OK | OK | OK | OK |
+| 190 | BERA (berachain-bera) | OK | OK | OK | OK |
+| 191 | ENJ (enjincoin) | OK | OK | OK | OK |
+| 192 | SUPER (superfarm) | OK | OK | OK | · |
+| 193 | SYN (synapse-2) | OK | OK | OK | OK |
+| 194 | SPK (spark-2) | OK | OK | OK | OK |
+| 195 | MEGA (megaeth) | OK | OK | OK | OK |
+| 196 | T (threshold-network-token) | OK | OK | OK | OK |
+| 197 | PROS (pharos-network) | OK | OK | OK | OK |
+| 198 | ZETA (zetachain) | OK | OK | OK | OK |
+| 199 | VELO (velo) | OK | OK | · | · |
+| 200 | HOME (home) | OK | OK | OK | · |
