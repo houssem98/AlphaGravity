@@ -4,6 +4,7 @@ import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { motion, useReducedMotion } from 'motion/react';
 import { MARKETS, type MarketDef, type MarketId } from '../../lib/markets';
 import { fetchHeadline, fetchCloses, fetchTnIndexSeries, fmtPrice, fmtPct, type AssetRow } from '../../services/marketsHub';
+import { useCryptoStore, ensureCryptoFeed, livePrice } from '../../stores/cryptoStore';
 
 interface MarketHubProps {
   onSelectMarket: (id: MarketId) => void;
@@ -163,8 +164,19 @@ export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAs
     return () => { alive = false; clearInterval(t); };
   }, []);
 
+  // Crypto rows render the shared store's livePrice (ONE SOURCE RULE) — the
+  // hub card and tape tick with the same WS feed as the list and panel.
+  const cryptoBase = useCryptoStore((s) => s.base);
+  const cryptoSpot = useCryptoStore((s) => s.spot);
+  useEffect(() => { ensureCryptoFeed(); }, []);
+  const liveRows = (id: string, rows: AssetRow[]) => (id !== 'crypto' ? rows : rows.map((r) => {
+    const row = cryptoBase.find((c: any) => c.symbol === r.symbol);
+    const p = row ? livePrice(row, cryptoSpot[r.symbol]) : null;
+    return p != null ? { ...r, price: p } : r;
+  }));
+
   // Ticker tape across the top (headline instruments from every market).
-  const tape = MARKETS.flatMap((m) => (rowsByMarket[m.id] || []).slice(0, 3).map((r) => ({ ...r, currency: m.currency })));
+  const tape = MARKETS.flatMap((m) => liveRows(m.id, (rowsByMarket[m.id] || []).slice(0, 3)).map((r) => ({ ...r, currency: m.currency })));
 
   return (
     <div className="flex-1 bg-[color:var(--bg)] overflow-y-auto">
@@ -220,7 +232,7 @@ export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAs
             <motion.div key={def.id} variants={{ hidden: { opacity: reduce ? 1 : 0, y: reduce ? 0 : 12 }, show: { opacity: 1, y: 0 } }}>
               <MarketCard
                 def={def}
-                rows={rowsByMarket[def.id] || []}
+                rows={liveRows(def.id, rowsByMarket[def.id] || [])}
                 series={seriesByMarket[def.id] || []}
                 onSelectMarket={onSelectMarket}
                 onSelectAsset={onSelectAsset}
