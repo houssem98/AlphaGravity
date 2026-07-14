@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { createChart, CandlestickSeries, HistogramSeries, LineSeries, createSeriesMarkers } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, Time, CreatePriceLineOptions } from 'lightweight-charts';
 
@@ -39,8 +39,13 @@ interface ChartProps {
   onDrawComplete?: (type: string, p1: any, p2: any) => void;
 }
 
+// CP-4: same tolerance class as the server gate (stables 1%, rest 3%).
+const STABLE_SYMS = new Set(['USDT', 'USDC', 'DAI', 'FDUSD', 'USDE', 'TUSD', 'PYUSD', 'USDP', 'USDD', 'FRAX', 'BUSD', 'GUSD', 'USDS', 'USD1', 'RLUSD']);
+
 export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, colors, activeIndicators = ['SMA 20', 'SMA 50'], activeTool, drawingPoints, drawingConfig, onChartClick, onDrawComplete }, ref) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  // CP-4: honest empty chart state — no verified candle source / collision gate hit
+  const [emptyMsg, setEmptyMsg] = useState<string | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const linesRef = useRef<any[]>([]);
@@ -1323,6 +1328,7 @@ export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, color
     seriesRef.current = candlestickSeries;
 
     let ws: WebSocket | null = null;
+    let okxTimer: ReturnType<typeof setInterval> | null = null;
     let isMounted = true;
 
     const isCrypto = isCryptoAsset(asset);
@@ -1346,79 +1352,81 @@ export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, color
     };
     const yahooConfig = yahooIntervalMap[timeframe] || { interval: '1d', range: '2y' };
 
+    // CP-4: kline array (Binance shape from either venue) -> chart candles
+    const mapKlines = (data: any[]) => data.map((d: any) => ({
+      time: (d[0] / 1000) as Time,
+      open: parseFloat(d[1]),
+      high: parseFloat(d[2]),
+      low: parseFloat(d[3]),
+      close: parseFloat(d[4]),
+      volume: parseFloat(d[5]),
+    }));
+
+    // CP-4: venue from the coin's base row (gate-verified source), never bare symbol
+    let venue: 'binance' | 'okx' | null = null;
+
     const loadData = async () => {
       try {
+        setEmptyMsg(null);
         let formattedData: any[] = [];
 
         if (isCrypto) {
-          let binanceSuccess = false;
-
-          // 1. Try direct Binance (no backend needed)
+          let cgPrice = 0;
           try {
-            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${asset}USDT&interval=${binanceInterval}&limit=1000`);
-            if (res.ok) {
-              const data = await res.json();
-              if (!isMounted) return;
-              if (Array.isArray(data)) {
-                formattedData = data.map((d: any) => ({
-                  time: (d[0] / 1000) as Time,
-                  open: parseFloat(d[1]),
-                  high: parseFloat(d[2]),
-                  low: parseFloat(d[3]),
-                  close: parseFloat(d[4]),
-                  volume: parseFloat(d[5]),
-                }));
-                binanceSuccess = true;
-              }
-            }
-          } catch { /* fall through */ }
+            const base = await fetch('/api/crypto/markets').then((r) => r.json());
+            const row = Array.isArray(base) ? base.find((r: any) => r.symbol === asset) : null;
+            venue = row?.venue ?? null;
+            cgPrice = parseFloat(row?.priceUsd || '0');
+          } catch { /* no base row reachable -> no verified venue */ }
+          if (!isMounted) return;
 
-          // 2. Try backend proxy
-          if (!binanceSuccess) {
+          if (venue === 'binance') {
+            // 1. Direct Binance, 2. backend proxy
             try {
-              const res = await fetch(`/api/crypto/klines?symbol=${asset}USDT&interval=${binanceInterval}&limit=1000`);
+              const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${asset}USDT&interval=${binanceInterval}&limit=1000`);
               if (res.ok) {
                 const data = await res.json();
                 if (!isMounted) return;
-                if (Array.isArray(data)) {
-                  formattedData = data.map((d: any) => ({
-                    time: (d[0] / 1000) as Time,
-                    open: parseFloat(d[1]),
-                    high: parseFloat(d[2]),
-                    low: parseFloat(d[3]),
-                    close: parseFloat(d[4]),
-                    volume: parseFloat(d[5]),
-                  }));
-                  binanceSuccess = true;
-                }
+                if (Array.isArray(data)) formattedData = mapKlines(data);
               }
             } catch { /* fall through */ }
+            if (formattedData.length === 0) {
+              try {
+                const res = await fetch(`/api/crypto/klines?symbol=${asset}USDT&interval=${binanceInterval}&limit=1000`);
+                if (res.ok) {
+                  const data = await res.json();
+                  if (!isMounted) return;
+                  if (Array.isArray(data)) formattedData = mapKlines(data);
+                }
+              } catch { /* fall through */ }
+            }
+          } else if (venue === 'okx') {
+            // OKX candles via klines proxy (reversed server-side, max 300)
+            try {
+              const res = await fetch(`/api/crypto/klines?symbol=${asset}USDT&interval=${binanceInterval}&limit=300&venue=okx`);
+              if (res.ok) {
+                const data = await res.json();
+                if (!isMounted) return;
+                if (Array.isArray(data)) formattedData = mapKlines(data);
+              }
+            } catch { /* honest empty below */ }
+          }
+          // venue === null -> no fetch at all: honest empty, never Yahoo-guess
+
+          // Collision gate: last close must agree with the coin's CG price
+          // (kills GRAM-class wrong-coin candles even when a pair exists).
+          if (formattedData.length > 0 && cgPrice > 0) {
+            const lastClose = formattedData[formattedData.length - 1].close;
+            const tol = STABLE_SYMS.has(asset) ? 0.01 : 0.03;
+            if (!(lastClose > 0) || Math.abs(lastClose / cgPrice - 1) > tol) formattedData = [];
           }
 
-          if (!binanceSuccess) {
-            // 3. Yahoo Finance fallback
-            const res = await fetch(`/api/history?symbol=${asset}-USD&interval=${yahooConfig.interval}&range=${yahooConfig.range}`);
-            const json = await res.json();
-            if (!isMounted) return;
-
-            if (json.chart && json.chart.result && json.chart.result[0]) {
-              const result = json.chart.result[0];
-              const timestamps = result.timestamp;
-              const quote = result.indicators.quote[0];
-
-              for (let i = 0; i < timestamps.length; i++) {
-                if (quote.close[i] !== null) {
-                  formattedData.push({
-                    time: timestamps[i] as Time,
-                    open: quote.open[i],
-                    high: quote.high[i],
-                    low: quote.low[i],
-                    close: quote.close[i],
-                    volume: quote.volume[i] || 0,
-                  });
-                }
-              }
-            }
+          if (formattedData.length === 0) {
+            fullDataRef.current = [];
+            candlestickSeries.setData([]);
+            volumeSeries.setData([]);
+            if (isMounted) setEmptyMsg(`No verified candle source for ${asset}`);
+            return;
           }
         } else {
           // Fetch from backend proxy for Yahoo Finance
@@ -1494,8 +1502,9 @@ export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, color
 
         updateIndicators();
 
-        // Start WebSocket for live updates
-        if (isCrypto) {
+        // Start live updates: kline WS only for venue=binance; okx venue gets a
+        // 10s REST refresh of the last candle (CP-4). No venue -> nothing live.
+        if (isCrypto && venue === 'binance') {
           const fetchRestKlines = async () => {
             if (!isMounted) return;
             try {
@@ -1600,7 +1609,41 @@ export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, color
           };
 
           connectWebSocket(false);
-        } else {
+        } else if (isCrypto && venue === 'okx') {
+          // 10s REST refresh of the last candle from the same OKX proxy the
+          // series loaded from (gate already vouched for the pair).
+          okxTimer = setInterval(async () => {
+            if (!isMounted) return;
+            try {
+              const res = await fetch(`/api/crypto/klines?symbol=${asset}USDT&interval=${binanceInterval}&limit=2&venue=okx`);
+              if (!res.ok) return;
+              const data = await res.json();
+              if (!isMounted || !Array.isArray(data) || data.length === 0) return;
+              const k = data[data.length - 1];
+              const candle = {
+                time: (k[0] / 1000) as Time,
+                open: parseFloat(k[1]),
+                high: parseFloat(k[2]),
+                low: parseFloat(k[3]),
+                close: parseFloat(k[4]),
+                volume: parseFloat(k[5]),
+              };
+              candlestickSeries.update(candle);
+              volumeSeries.update({
+                time: candle.time,
+                value: candle.volume,
+                color: candle.close >= candle.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)',
+              });
+              const lastData = fullDataRef.current[fullDataRef.current.length - 1];
+              if (lastData && lastData.time === candle.time) {
+                fullDataRef.current[fullDataRef.current.length - 1] = candle;
+              } else {
+                fullDataRef.current.push(candle);
+              }
+              updateIndicators(true);
+            } catch { /* transient */ }
+          }, 10_000);
+        } else if (!isCrypto) {
           // Connect to our backend WebSocket for stocks
           const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
           ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
@@ -1674,6 +1717,7 @@ export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, color
     return () => {
       isMounted = false;
       if (ws) ws.close();
+      if (okxTimer) clearInterval(okxTimer);
       resizeObserver.disconnect();
       chart.remove();
       if (chartContainerRef.current) {
@@ -1708,6 +1752,15 @@ export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, color
       <div className="absolute top-4 left-4 z-10 text-white font-semibold text-xl bg-gray-900/50 px-3 py-1 rounded pointer-events-none">
         {asset} - {timeframe}
       </div>
+
+      {/* CP-4: honest empty state — no verified candle source or collision gate hit */}
+      {emptyMsg && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+          <div className="text-center bg-gray-900/70 px-6 py-4 rounded-xl border border-[#1F2937]">
+            <p className="text-gray-300 text-sm">{emptyMsg}</p>
+          </div>
+        </div>
+      )}
 
       {/* Zoom/Pan Controls */}
       <div className="absolute bottom-6 right-16 z-10 flex gap-1 bg-[#0B0E14]/80 backdrop-blur-md p-1.5 rounded-xl border border-[#1F2937] shadow-xl opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
