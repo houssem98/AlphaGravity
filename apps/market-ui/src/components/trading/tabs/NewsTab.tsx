@@ -28,8 +28,9 @@ export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
   const load = useCallback(async () => {
     setStatus('loading');
     try {
-      const q = isTN ? `${name || asset} Bourse Tunis` : (name ? `${name} (${asset})` : asset);
-      const r = await fetch(`/api/news?q=${encodeURIComponent(q)}&region=${isTN ? 'tn' : 'us'}`);
+      // CP-6: crypto queries by coin NAME + symbol, whitelisted sources only
+      const q = isTN ? `${name || asset} Bourse Tunis` : (name ? `${name} ${asset} crypto` : `${asset} crypto`);
+      const r = await fetch(`/api/news?q=${encodeURIComponent(q)}&region=${isTN ? 'tn' : 'us'}${isTN ? '' : '&wl=crypto'}`);
       const d = await r.json();
       const list: NewsItem[] = d.items || [];
       setItems(list);

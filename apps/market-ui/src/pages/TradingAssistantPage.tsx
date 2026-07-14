@@ -596,15 +596,17 @@ export default function TradingAssistantPage() {
                   </div>
                 </div>
               ) : activeTab === 'Markets' ? (
-                <MarketsTab asset={currentAsset} />
+                // CP-6: key={asset} remounts each tab on asset switch — no stale
+                // data flash from the previous coin, skeletons paint first frame.
+                <MarketsTab key={currentAsset} asset={currentAsset} />
               ) : activeTab === 'News' ? (
-                <NewsTab asset={currentAsset} name={assetName} market={activeMarket} />
+                <NewsTab key={currentAsset} asset={currentAsset} name={assetName} market={activeMarket} />
               ) : activeTab === 'Yield' ? (
-                <YieldTab asset={currentAsset} />
+                <YieldTab key={currentAsset} asset={currentAsset} name={assetName} />
               ) : activeTab === 'Holders' ? (
-                <HoldersTab asset={currentAsset} />
+                <HoldersTab key={currentAsset} asset={currentAsset} name={assetName} />
               ) : activeTab === 'About' ? (
-                <AboutTab asset={currentAsset} name={assetName} market={activeMarket} />
+                <AboutTab key={currentAsset} asset={currentAsset} name={assetName} market={activeMarket} />
               ) : (
                 <div className="flex-1 text-center text-[color:var(--text-3)] p-8">Unknown tab</div>
               )

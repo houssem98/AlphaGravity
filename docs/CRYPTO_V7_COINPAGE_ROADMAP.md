@@ -126,7 +126,7 @@ data under every asset.
   note in Progress log which are inert. Verify: BTC MCAP line ≈ $2.2T
   scale real numbers, RSI pane matches table technicals ±1 for same
   timeframe.
-- [ ] CP-6 **View cleansing + news whitelist**: every tab component
+- [x] CP-6 **View cleansing + news whitelist**: every tab component
   remounts on asset switch (`key={asset}` at MarketsTabs render or reset
   effect) — no stale data flash from the previous coin, skeletons render
   first frame. News: crypto assets query by coin NAME + symbol, add
@@ -148,3 +148,4 @@ data under every asset.
 - **CP-3 live** (2026-07-14): YIELD_DATA + HOLDERS_DATA deleted; ?view=yield&sym= via llama pools (10MB held in-memory 1h, only per-sym top-15 blobbed 1h) — ETH real (fluid-lite 5.19% APY $133M TVL, justlend $869M), BTC thin real (b14g 0.17%), GRM [] honest; Holders = honest indexer-key state + real explorer links from CP-1 profile blob (gram-2 → tonscan/tonviewer)
 - **CP-4 live** (2026-07-14): chart venue-keyed from base row (never bare symbol); Yahoo crypto guess deleted; klines.ts +venue=okx branch (reversed, Binance shape, max 300) — HYPE OKX candles ascending $63.9-67.5; GRAM=the-open-network venue=binance close $1.606 vs CG $1.60 gate 0.375% pass; collision gate 3%/1% wipes to honest empty "No verified candle source"; WS binance-only, okx=10s REST tick; asset-switch wipe inherent (chart torn down per asset in effect)
 - **CP-5 live** (2026-07-14): PRICE/MCAP segmented wired (was dead) — ?view=mcapchart&id= 1h blob, BTC real history $2.38T (2025-07) → $1.28T (today), $B/$T axis via custom formatter, no candles/WS/indicators in mcap mode; INDICATORS button wired with dropdown (Topbar + Sidebar share list); EMA 200 added to Chart series map + both lists; RSI/MACD panes already client-side from loaded candles (same Binance 1d as table technicals — consistent by construction). Toolbar audit inert-left-as-is: TRADINGVIEW button, candles/line chart-type toggle (local state unused), DEX MODE (visual only)
+- **CP-6 live** (2026-07-14): key={asset} on all 5 tabs — remount on switch, skeleton first frame, stale-flash structurally impossible (fresh mount = loading state); news.ts +wl=crypto whitelist (48 scanned → 24 served) — BTC news now 8×CoinDesk + The Block + Bloomberg only; crypto query = name+symbol+crypto; TN news path untouched (Ilboursa/African Manager/Tustex still serve)
