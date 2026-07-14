@@ -55,7 +55,7 @@ api/news.ts (V7 CP-6 added the wl=crypto source whitelist). Applies to ALL
   untouched. Verify: prod curl VELO (spec's example) and GRAM — zero titles
   without the coin's name/symbol; BTC panel still rich; a generic "crypto
   market" title absent from both.
-- [ ] NT-3 **Sweep**: prod pass for BTC, ETH, GRAM, HYPE, PEPE, VELO — News
+- [x] NT-3 **Sweep**: prod pass for BTC, ETH, GRAM, HYPE, PEPE, VELO — News
   tab ≤7d, newest-first, whitelisted sources, zero cross-asset titles,
   honest empty where filtered to zero; TN regression (BIAT news + board +
   intraday 200s); audit rerun green (spot 200/200 MISMATCH 0); ledger +
@@ -67,3 +67,4 @@ api/news.ts (V7 CP-6 added the wl=crypto source whitelist). Applies to ALL
 
 - **NT-1 live** (2026-07-14): days= param — when:Nd at fetch boundary + server drop >N days (invalid pubDate = out) + sort desc; curl-verified when:7d works AND raw RSS order is non-chronological (Jul 9 before Jul 14 in raw feed); prod BTC days=7 now strictly Jul 14 11:15 → Jul 10, all ≤7d; TN BIAT byte-identical (Ilboursa/African Manager/Tustex)
 - **NT-2 live** (2026-07-14): match=+sym= — clean-name word match (paren segment stripped: "Gram (prev. Toncoin)"→"Gram") OR all-caps symbol token exact-case; NewsTab passes days=7&match&sym for crypto, spec empty copy in; prod: VELO=0 rows honest empty (no generic-BTC backfill), GRAM 100% Gram-titled zero BTC, BTC rich (4/4 titles name bitcoin/BTC); TN untouched; audit spot 200/200 MISMATCH 0
+- **NT-3 sweep GREEN** (2026-07-14): 6-coin pass — BTC 16 items, ETH 8, GRAM 3, PEPE 3, HYPE 0 honest, VELO 0 honest; across all: old>7d=0, out-of-order=0, unmatched-title LEAKS=0; TN news 200 0.27s + board 200 1.4s + intraday 200 2.1s; audit spot 200/200 MISMATCH 0. V8 COMPLETE 3/3.
