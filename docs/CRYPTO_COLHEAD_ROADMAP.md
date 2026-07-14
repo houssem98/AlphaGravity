@@ -51,7 +51,7 @@ and must land with ZERO visual change before any menu work starts.
   maps, chg/tf values, helper fns). Verify: typecheck 0, deploy, visual
   smoke — table renders identical (spot-check 10 columns incl. merged-%
   dropdown, Dash tooltips, expanded row colSpan), audit green.
-- [ ] CH-2 **Generic header menu — sort + hide**: one `ColHeadMenu`
+- [x] CH-2 **Generic header menu — sort + hide**: one `ColHeadMenu`
   component instantiated by every registry th: click opens popover
   (reuse merged-% menu styling/backdrop pattern): trash row = hide
   (sets cols[key]=false), divider, ↑ Sort ascending, ↓ Sort descending
@@ -75,3 +75,4 @@ and must land with ZERO visual change before any menu work starts.
 (append one line per completed task, real numbers only)
 
 - 2026-07-14 CH-1: codemod moved 65 th + 65 td verbatim into headerFor/cellFor switches (IIFE locals hoisted into cellFor prelude; th/td key sequences asserted equal), rendered via orderedCols = colOrder.filter(visible); DEFAULT_ORDER 65 keys, order persisted in nexus_crypto_cols {tf,cols,order}, sanitized; pinned star/#/Rank/Name/Price untouched. Typecheck 0, vite build ok, /trading 200 0.91s, audit spot 200/200 tech 197 deriv 177 meta 122 MISMATCH 0.
+- 2026-07-14 CH-2: menuTh — 64 headers converted (codemod: sortTh→base, techTh→tech, plain th→none; merged-% col keeps its own dropdown); menu = Sort asc/desc (explicit setSortConfig/setTechSort, kind-dispatched) + divider + Trash2 Hide (cols toggle, chooser re-enables); popover = merged-% dropdown classes. Typecheck 0, build 57.5s, /trading 200 0.65s, audit spot 200/200 MISMATCH 0.

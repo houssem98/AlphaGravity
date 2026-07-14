@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown, Plus, Check, Info, Database, Gauge } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown, Plus, Check, Info, Database, Gauge, Trash2 } from 'lucide-react';
 import { Sparkline } from './Sparkline';
 import { motion, AnimatePresence } from 'motion/react';
 import { CategoriesTab, ExchangesTab, NFTsTab, ConverterTab } from './MarketsTabs';
@@ -298,6 +298,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   const [changeTf, setChangeTf] = useState<ChangeTf>(() => loadPrefs().tf || '24h');
   const [changeMenu, setChangeMenu] = useState(false);
   const [colMenu, setColMenu] = useState(false);
+  const [headMenu, setHeadMenu] = useState<ColKey | null>(null); // CH-2: which column's header menu is open
   const [colSearch, setColSearch] = useState('');
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [cols, setCols] = useState<Record<ColKey, boolean>>(() => ({ ...DEFAULT_COLS, ...(loadPrefs().cols || {}) }));
@@ -522,6 +523,37 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     </th>
   );
 
+  // CH-2: generic column header — click opens the per-column menu (sort by
+  // the column's own path, hide via the chooser's cols toggle). Popover
+  // reuses the merged-% dropdown styling. kind 'none' = no sortable field.
+  const sortColumn = (kind: 'base' | 'tech', field: string, dir: 'asc' | 'desc') => {
+    if (kind === 'base') { setTechSort(null); setSortConfig({ key: field as keyof MarketData, direction: dir }); }
+    else setTechSort({ field, dir });
+  };
+  const menuTh = (kk: ColKey, label: string, cls: string, kind: 'base' | 'tech' | 'none', field?: string) => (
+    <th className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group relative ${cls}`} onClick={() => setHeadMenu(headMenu === kk ? null : kk)}>
+      <div className={`flex items-center gap-1 ${cls.includes('text-right') ? 'justify-end' : ''}`}>
+        {label}
+        {kind !== 'none' && <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />}
+      </div>
+      {headMenu === kk && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setHeadMenu(null); }} />
+          <div className="absolute right-4 top-full mt-1 z-50 w-44 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case" onClick={(e) => e.stopPropagation()}>
+            {kind !== 'none' && (
+              <>
+                <button onClick={() => { sortColumn(kind, field!, 'asc'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowUp className="w-3 h-3" /> Sort ascending</button>
+                <button onClick={() => { sortColumn(kind, field!, 'desc'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowDown className="w-3 h-3" /> Sort descending</button>
+                <div className="h-px bg-[color:var(--line)] my-1" />
+              </>
+            )}
+            <button onClick={() => { setCols((p) => ({ ...p, [kk]: false })); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><Trash2 className="w-3 h-3" /> Hide column</button>
+          </div>
+        </>
+      )}
+    </th>
+  );
+
   // CH-1: registry — one header per movable data column, rendered from
   // colOrder. JSX moved verbatim from the inline sequence.
   const headerFor = (kk: ColKey) => {
@@ -551,70 +583,70 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                         )}
                       </th>
                     );
-      case 'marketCap': return sortTh('marketCapUsd', 'Market Cap', 'text-right hidden sm:table-cell');
-      case 'fdv': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Fully Diluted</th>;
-      case 'volume': return sortTh('volumeUsd24Hr', 'Volume (24h)', 'text-right hidden lg:table-cell');
-      case 'volMcap': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Vol/Mkt Cap</th>;
-      case 'circulating': return sortTh('csupply', 'Circulating', 'text-right hidden xl:table-cell');
-      case 'tsupply': return sortTh('tsupply', 'Total Supply', 'text-right hidden xl:table-cell');
-      case 'msupply': return sortTh('msupply', 'Max Supply', 'text-right hidden xl:table-cell');
-      case 'p14d': return sortTh('changePercent14d', '14d %', 'text-right hidden xl:table-cell');
-      case 'p30d': return sortTh('changePercent30d', '30d %', 'text-right hidden xl:table-cell');
-      case 'p1y': return sortTh('changePercent1y', '1y %', 'text-right hidden xl:table-cell');
-      case 'athVal': return sortTh('ath', 'ATH', 'text-right hidden xl:table-cell');
-      case 'athPct': return sortTh('athChangePct', 'ATH %', 'text-right hidden xl:table-cell');
-      case 'openC': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Open (24h)</th>;
-      case 'highC': return <th className="py-2 px-4 label text-right hidden xl:table-cell">High (24h)</th>;
-      case 'lowC': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Low (24h)</th>;
-      case 'cfoPct': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Chg Open %</th>;
-      case 'gapPct': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Gap %</th>;
-      case 'volaPct': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Volatility</th>;
-      case 'chgAbs': return <th className="py-2 px-4 label text-right hidden xl:table-cell">24h Δ $</th>;
-      case 'volD': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Vol Δ %</th>;
-      case 'catCol': return <th className="py-2 px-4 label text-right hidden md:table-cell">Category</th>;
-      case 'trendCol': return <th className="py-2 px-4 label text-right hidden md:table-cell">Trending</th>;
-      case 'tvlCol': return <th className="py-2 px-4 label text-right hidden md:table-cell">TVL</th>;
-      case 'mcapTvl': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Mcap/TVL</th>;
-      case 'rating': return <th className="py-2 px-4 label text-right hidden md:table-cell">Tech Rating</th>;
-      case 'rsi': return techTh('rsi', 'RSI (14)', 'text-right hidden md:table-cell');
-      case 'ema20': return techTh('ema20', 'EMA (20)');
-      case 'ema50': return techTh('ema50', 'EMA (50)');
-      case 'ema200': return techTh('ema200', 'EMA (200)');
-      case 'sma20': return techTh('sma20', 'SMA (20)');
-      case 'sma50': return techTh('sma50', 'SMA (50)');
-      case 'sma200': return techTh('sma200', 'SMA (200)');
-      case 'macd': return techTh('macd', 'MACD');
-      case 'bbU': return techTh('bbUpper', 'BB Upper');
-      case 'bbL': return techTh('bbLower', 'BB Lower');
-      case 'atr': return techTh('atr', 'ATR (14)');
-      case 'maR': return <th className="py-2 px-4 label text-right hidden md:table-cell">MAs Rating</th>;
-      case 'oscR': return <th className="py-2 px-4 label text-right hidden md:table-cell">Osc Rating</th>;
-      case 'stoch': return techTh('stochK', 'Stoch %K/%D');
-      case 'stochRsi': return techTh('stochRsi', 'Stoch RSI');
-      case 'willR': return techTh('willR', 'Williams %R');
-      case 'cci': return techTh('cci', 'CCI (20)');
-      case 'adxK': return techTh('adx', 'ADX ±DI');
-      case 'roc': return techTh('roc', 'ROC (12)');
-      case 'mom': return techTh('mom', 'Momentum');
-      case 'ao': return techTh('ao', 'Awesome Osc');
-      case 'psarK': return techTh('psar', 'PSAR');
-      case 'aroon': return techTh('aroonUp', 'Aroon ↑/↓');
-      case 'hmaK': return techTh('hma', 'HMA (20)');
-      case 'ichi': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Ichimoku C/B</th>;
-      case 'donch': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Donchian U/L</th>;
-      case 'kelt': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Keltner U/L</th>;
-      case 'bbp': return techTh('bbp', 'Bull Bear Pwr');
-      case 'candle': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Candle</th>;
-      case 'piv': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Pivot P·R1·S1</th>;
-      case 'fib': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Fib R1·S1</th>;
-      case 'atrPct': return techTh('atrPct', 'ATR %');
-      case 'funding': return <th className="py-2 px-4 label text-right hidden md:table-cell">Funding</th>;
-      case 'oi': return <th className="py-2 px-4 label text-right hidden md:table-cell">Open Interest</th>;
-      case 'oiVol': return <th className="py-2 px-4 label text-right hidden xl:table-cell">OI/Vol</th>;
-      case 'oiChg': return <th className="py-2 px-4 label text-right hidden xl:table-cell">OI Δ %</th>;
-      case 'lsRatio': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Long/Short</th>;
-      case 'takerR': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Taker B/S</th>;
-      case 'spark': return <th className="py-2 px-4 label text-right hidden md:table-cell">Last 7 Days</th>;
+      case 'marketCap': return menuTh('marketCap', 'Market Cap', 'text-right hidden sm:table-cell', 'base', 'marketCapUsd');
+      case 'fdv': return menuTh('fdv', 'Fully Diluted', 'text-right hidden xl:table-cell', 'none');
+      case 'volume': return menuTh('volume', 'Volume (24h)', 'text-right hidden lg:table-cell', 'base', 'volumeUsd24Hr');
+      case 'volMcap': return menuTh('volMcap', 'Vol/Mkt Cap', 'text-right hidden xl:table-cell', 'none');
+      case 'circulating': return menuTh('circulating', 'Circulating', 'text-right hidden xl:table-cell', 'base', 'csupply');
+      case 'tsupply': return menuTh('tsupply', 'Total Supply', 'text-right hidden xl:table-cell', 'base', 'tsupply');
+      case 'msupply': return menuTh('msupply', 'Max Supply', 'text-right hidden xl:table-cell', 'base', 'msupply');
+      case 'p14d': return menuTh('p14d', '14d %', 'text-right hidden xl:table-cell', 'base', 'changePercent14d');
+      case 'p30d': return menuTh('p30d', '30d %', 'text-right hidden xl:table-cell', 'base', 'changePercent30d');
+      case 'p1y': return menuTh('p1y', '1y %', 'text-right hidden xl:table-cell', 'base', 'changePercent1y');
+      case 'athVal': return menuTh('athVal', 'ATH', 'text-right hidden xl:table-cell', 'base', 'ath');
+      case 'athPct': return menuTh('athPct', 'ATH %', 'text-right hidden xl:table-cell', 'base', 'athChangePct');
+      case 'openC': return menuTh('openC', 'Open (24h)', 'text-right hidden xl:table-cell', 'none');
+      case 'highC': return menuTh('highC', 'High (24h)', 'text-right hidden xl:table-cell', 'none');
+      case 'lowC': return menuTh('lowC', 'Low (24h)', 'text-right hidden xl:table-cell', 'none');
+      case 'cfoPct': return menuTh('cfoPct', 'Chg Open %', 'text-right hidden xl:table-cell', 'none');
+      case 'gapPct': return menuTh('gapPct', 'Gap %', 'text-right hidden xl:table-cell', 'none');
+      case 'volaPct': return menuTh('volaPct', 'Volatility', 'text-right hidden xl:table-cell', 'none');
+      case 'chgAbs': return menuTh('chgAbs', '24h Δ $', 'text-right hidden xl:table-cell', 'none');
+      case 'volD': return menuTh('volD', 'Vol Δ %', 'text-right hidden xl:table-cell', 'none');
+      case 'catCol': return menuTh('catCol', 'Category', 'text-right hidden md:table-cell', 'none');
+      case 'trendCol': return menuTh('trendCol', 'Trending', 'text-right hidden md:table-cell', 'none');
+      case 'tvlCol': return menuTh('tvlCol', 'TVL', 'text-right hidden md:table-cell', 'none');
+      case 'mcapTvl': return menuTh('mcapTvl', 'Mcap/TVL', 'text-right hidden xl:table-cell', 'none');
+      case 'rating': return menuTh('rating', 'Tech Rating', 'text-right hidden md:table-cell', 'none');
+      case 'rsi': return menuTh('rsi', 'RSI (14)', 'text-right hidden md:table-cell', 'tech', 'rsi');
+      case 'ema20': return menuTh('ema20', 'EMA (20)', 'text-right hidden xl:table-cell', 'tech', 'ema20');
+      case 'ema50': return menuTh('ema50', 'EMA (50)', 'text-right hidden xl:table-cell', 'tech', 'ema50');
+      case 'ema200': return menuTh('ema200', 'EMA (200)', 'text-right hidden xl:table-cell', 'tech', 'ema200');
+      case 'sma20': return menuTh('sma20', 'SMA (20)', 'text-right hidden xl:table-cell', 'tech', 'sma20');
+      case 'sma50': return menuTh('sma50', 'SMA (50)', 'text-right hidden xl:table-cell', 'tech', 'sma50');
+      case 'sma200': return menuTh('sma200', 'SMA (200)', 'text-right hidden xl:table-cell', 'tech', 'sma200');
+      case 'macd': return menuTh('macd', 'MACD', 'text-right hidden xl:table-cell', 'tech', 'macd');
+      case 'bbU': return menuTh('bbU', 'BB Upper', 'text-right hidden xl:table-cell', 'tech', 'bbUpper');
+      case 'bbL': return menuTh('bbL', 'BB Lower', 'text-right hidden xl:table-cell', 'tech', 'bbLower');
+      case 'atr': return menuTh('atr', 'ATR (14)', 'text-right hidden xl:table-cell', 'tech', 'atr');
+      case 'maR': return menuTh('maR', 'MAs Rating', 'text-right hidden md:table-cell', 'none');
+      case 'oscR': return menuTh('oscR', 'Osc Rating', 'text-right hidden md:table-cell', 'none');
+      case 'stoch': return menuTh('stoch', 'Stoch %K/%D', 'text-right hidden xl:table-cell', 'tech', 'stochK');
+      case 'stochRsi': return menuTh('stochRsi', 'Stoch RSI', 'text-right hidden xl:table-cell', 'tech', 'stochRsi');
+      case 'willR': return menuTh('willR', 'Williams %R', 'text-right hidden xl:table-cell', 'tech', 'willR');
+      case 'cci': return menuTh('cci', 'CCI (20)', 'text-right hidden xl:table-cell', 'tech', 'cci');
+      case 'adxK': return menuTh('adxK', 'ADX ±DI', 'text-right hidden xl:table-cell', 'tech', 'adx');
+      case 'roc': return menuTh('roc', 'ROC (12)', 'text-right hidden xl:table-cell', 'tech', 'roc');
+      case 'mom': return menuTh('mom', 'Momentum', 'text-right hidden xl:table-cell', 'tech', 'mom');
+      case 'ao': return menuTh('ao', 'Awesome Osc', 'text-right hidden xl:table-cell', 'tech', 'ao');
+      case 'psarK': return menuTh('psarK', 'PSAR', 'text-right hidden xl:table-cell', 'tech', 'psar');
+      case 'aroon': return menuTh('aroon', 'Aroon ↑/↓', 'text-right hidden xl:table-cell', 'tech', 'aroonUp');
+      case 'hmaK': return menuTh('hmaK', 'HMA (20)', 'text-right hidden xl:table-cell', 'tech', 'hma');
+      case 'ichi': return menuTh('ichi', 'Ichimoku C/B', 'text-right hidden xl:table-cell', 'none');
+      case 'donch': return menuTh('donch', 'Donchian U/L', 'text-right hidden xl:table-cell', 'none');
+      case 'kelt': return menuTh('kelt', 'Keltner U/L', 'text-right hidden xl:table-cell', 'none');
+      case 'bbp': return menuTh('bbp', 'Bull Bear Pwr', 'text-right hidden xl:table-cell', 'tech', 'bbp');
+      case 'candle': return menuTh('candle', 'Candle', 'text-right hidden xl:table-cell', 'none');
+      case 'piv': return menuTh('piv', 'Pivot P·R1·S1', 'text-right hidden xl:table-cell', 'none');
+      case 'fib': return menuTh('fib', 'Fib R1·S1', 'text-right hidden xl:table-cell', 'none');
+      case 'atrPct': return menuTh('atrPct', 'ATR %', 'text-right hidden xl:table-cell', 'tech', 'atrPct');
+      case 'funding': return menuTh('funding', 'Funding', 'text-right hidden md:table-cell', 'none');
+      case 'oi': return menuTh('oi', 'Open Interest', 'text-right hidden md:table-cell', 'none');
+      case 'oiVol': return menuTh('oiVol', 'OI/Vol', 'text-right hidden xl:table-cell', 'none');
+      case 'oiChg': return menuTh('oiChg', 'OI Δ %', 'text-right hidden xl:table-cell', 'none');
+      case 'lsRatio': return menuTh('lsRatio', 'Long/Short', 'text-right hidden xl:table-cell', 'none');
+      case 'takerR': return menuTh('takerR', 'Taker B/S', 'text-right hidden xl:table-cell', 'none');
+      case 'spark': return menuTh('spark', 'Last 7 Days', 'text-right hidden md:table-cell', 'none');
       default: return null;
     }
   };
