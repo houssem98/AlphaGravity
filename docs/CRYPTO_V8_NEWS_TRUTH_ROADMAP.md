@@ -45,7 +45,7 @@ api/news.ts (V7 CP-6 added the wl=crypto source whitelist). Applies to ALL
   byte-identical behavior. Verify: prod curl BTC with days=7 — every
   pubDate within 7 days AND strictly newest-first; TN BIAT query unchanged
   (no days= sent).
-- [ ] NT-2 **Strict per-coin match (server) + UI copy**: api/news.ts — new
+- [x] NT-2 **Strict per-coin match (server) + UI copy**: api/news.ts — new
   param `match=` (crypto callers pass the coin name, symbol already in q):
   keep an item only if title contains the coin name (case-insensitive,
   full-name match) OR the symbol as a standalone ALL-CAPS token (regex
@@ -66,3 +66,4 @@ api/news.ts (V7 CP-6 added the wl=crypto source whitelist). Applies to ALL
 (append one line per completed task, real numbers only)
 
 - **NT-1 live** (2026-07-14): days= param — when:Nd at fetch boundary + server drop >N days (invalid pubDate = out) + sort desc; curl-verified when:7d works AND raw RSS order is non-chronological (Jul 9 before Jul 14 in raw feed); prod BTC days=7 now strictly Jul 14 11:15 → Jul 10, all ≤7d; TN BIAT byte-identical (Ilboursa/African Manager/Tustex)
+- **NT-2 live** (2026-07-14): match=+sym= — clean-name word match (paren segment stripped: "Gram (prev. Toncoin)"→"Gram") OR all-caps symbol token exact-case; NewsTab passes days=7&match&sym for crypto, spec empty copy in; prod: VELO=0 rows honest empty (no generic-BTC backfill), GRAM 100% Gram-titled zero BTC, BTC rich (4/4 titles name bitcoin/BTC); TN untouched; audit spot 200/200 MISMATCH 0

@@ -28,9 +28,12 @@ export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
   const load = useCallback(async () => {
     setStatus('loading');
     try {
-      // CP-6: crypto queries by coin NAME + symbol, whitelisted sources only
-      const q = isTN ? `${name || asset} Bourse Tunis` : (name ? `${name} ${asset} crypto` : `${asset} crypto`);
-      const r = await fetch(`/api/news?q=${encodeURIComponent(q)}&region=${isTN ? 'tn' : 'us'}${isTN ? '' : '&wl=crypto'}`);
+      // CP-6: crypto queries by coin NAME + symbol, whitelisted sources only.
+      // NT-1/NT-2: 7-day horizon + strict per-coin title match (TN untouched).
+      const cleanName = (name || '').split('(')[0].trim();
+      const q = isTN ? `${name || asset} Bourse Tunis` : (cleanName ? `${cleanName} ${asset} crypto` : `${asset} crypto`);
+      const extra = isTN ? '' : `&wl=crypto&days=7&match=${encodeURIComponent(cleanName || asset)}&sym=${encodeURIComponent(asset)}`;
+      const r = await fetch(`/api/news?q=${encodeURIComponent(q)}&region=${isTN ? 'tn' : 'us'}${extra}`);
       const d = await r.json();
       const list: NewsItem[] = d.items || [];
       setItems(list);
@@ -57,7 +60,7 @@ export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
         {status === 'empty' && (
           <div className="flex flex-col items-center justify-center h-full text-center gap-1 px-6">
             <span className="text-body font-semibold text-[color:var(--text-2)]">No recent news</span>
-            <span className="text-label text-[color:var(--text-3)]">Nothing published on {name || asset} lately.</span>
+            <span className="text-label text-[color:var(--text-3)]">{isTN ? `Nothing published on ${name || asset} lately.` : `No recent news articles found for ${name || asset} within the last week.`}</span>
           </div>
         )}
         {status === 'error' && (

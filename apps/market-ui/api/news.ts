@@ -27,6 +27,12 @@ export default async function handler(req: any, res: any) {
   // sorts newest-first (RSS order is approximate — curl-verified 2026-07-14).
   // Additive: legacy callers and the TN path never send days=.
   const days = parseInt(String(req.query.days || ''), 10) || 0;
+  // NT-2: match= — strict per-coin matrix. Title must contain the coin NAME
+  // (case-insensitive) or its SYMBOL as a standalone ALL-CAPS token (exact
+  // case, len>=2 — "US Gas Prices" has "Gas" not "GAS", so common-word
+  // symbols never leak). Generic market articles die here. Additive param.
+  const match = String(req.query.match || '').trim();
+  const matchSym = String(req.query.sym || '').trim().toUpperCase();
   if (!q) return res.status(400).json({ error: 'q required' });
   const [hl, gl] = region === 'tn' ? ['fr', 'TN'] : ['en', 'US'];
   try {
@@ -46,6 +52,14 @@ export default async function handler(req: any, res: any) {
         const s = i.source.toLowerCase();
         return CRYPTO_WL.some((w) => s.includes(w));
       });
+    }
+    if (match || matchSym.length >= 2) {
+      const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // "Gram (prev. Toncoin)" -> "Gram": match the clean display name only
+      const cleanName = match.split('(')[0].trim();
+      const nameRe = cleanName ? new RegExp(`\\b${esc(cleanName)}\\b`, 'i') : null;
+      const symRe = matchSym.length >= 2 ? new RegExp(`\\b${esc(matchSym)}\\b`) : null;
+      items = items.filter((i) => (nameRe && nameRe.test(i.title)) || (symRe && symRe.test(i.title)));
     }
     if (days > 0) {
       const cutoff = Date.now() - days * 86400_000;
