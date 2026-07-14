@@ -208,8 +208,16 @@ const TF_LONG: Record<ChangeTf, string> = {
 };
 
 // Column prefs survive reloads (CS-4).
-const loadPrefs = (): { tf?: ChangeTf; cols?: Partial<Record<ColKey, boolean>> } => {
+const loadPrefs = (): { tf?: ChangeTf; cols?: Partial<Record<ColKey, boolean>>; order?: string[] } => {
   try { return JSON.parse(localStorage.getItem('nexus_crypto_cols') || '{}'); } catch { return {}; }
+};
+
+// CH-1: movable data-column order (star/#/Rank/Name/Price stay pinned).
+const DEFAULT_ORDER: ColKey[] = ['change', 'marketCap', 'fdv', 'volume', 'volMcap', 'circulating', 'tsupply', 'msupply', 'p14d', 'p30d', 'p1y', 'athVal', 'athPct', 'openC', 'highC', 'lowC', 'cfoPct', 'gapPct', 'volaPct', 'chgAbs', 'volD', 'catCol', 'trendCol', 'tvlCol', 'mcapTvl', 'rating', 'rsi', 'ema20', 'ema50', 'ema200', 'sma20', 'sma50', 'sma200', 'macd', 'bbU', 'bbL', 'atr', 'maR', 'oscR', 'stoch', 'stochRsi', 'willR', 'cci', 'adxK', 'roc', 'mom', 'ao', 'psarK', 'aroon', 'hmaK', 'ichi', 'donch', 'kelt', 'bbp', 'candle', 'piv', 'fib', 'atrPct', 'funding', 'oi', 'oiVol', 'oiChg', 'lsRatio', 'takerR', 'spark'];
+const sanitizeOrder = (o?: string[]): ColKey[] => {
+  const known = (o || []).filter((k): k is ColKey => (DEFAULT_ORDER as string[]).includes(k));
+  const seen = new Set(known);
+  return [...known, ...DEFAULT_ORDER.filter((k) => !seen.has(k))];
 };
 
 // CT-5: every honest-null cell shares this dash + tooltip.
@@ -293,6 +301,9 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   const [colSearch, setColSearch] = useState('');
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [cols, setCols] = useState<Record<ColKey, boolean>>(() => ({ ...DEFAULT_COLS, ...(loadPrefs().cols || {}) }));
+  const [colOrder, setColOrder] = useState<ColKey[]>(() => sanitizeOrder(loadPrefs().order));
+  const orderedCols = colOrder.filter((k) => cols[k]);
+  void setColOrder; // wired to the header menu in CH-3
   useEffect(() => {
     localStorage.setItem('nexus_crypto_cols', JSON.stringify({ tf: changeTf, cols }));
   }, [changeTf, cols]);
@@ -511,6 +522,103 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     </th>
   );
 
+  // CH-1: registry — one header per movable data column, rendered from
+  // colOrder. JSX moved verbatim from the inline sequence.
+  const headerFor = (kk: ColKey) => {
+    switch (kk) {
+      case 'change': return (
+                      <th className="py-2 px-4 label text-right relative">
+                        <button onClick={() => setChangeMenu((v) => !v)} className="inline-flex items-center gap-1 hover:text-[color:var(--text)] transition-colors ml-auto">
+                          {tfLabel}
+                          <ChevronDown className="w-2.5 h-2.5" />
+                        </button>
+                        {changeMenu && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setChangeMenu(false)} />
+                            <div className="absolute right-4 top-full mt-1 z-50 w-40 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case">
+                              <div className="label px-3 py-1 text-[color:var(--text-3)]">Price change %</div>
+                              {(['1h', '24h', '7d', '14d', '30d', '1y'] as const).map((tf) => (
+                                <button key={tf} onClick={() => { setChangeTf(tf); setChangeMenu(false); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-body hover:bg-[color:var(--surface-2)] transition-colors ${changeTf === tf ? 'text-[color:var(--accent)]' : 'text-[color:var(--text-2)]'}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${changeTf === tf ? 'bg-[color:var(--accent)]' : 'border border-[color:var(--line-strong)]'}`} />
+                                  {tfLong[tf]}
+                                </button>
+                              ))}
+                              <div className="h-px bg-[color:var(--line)] my-1" />
+                              <button onClick={() => { setSortConfig({ key: tfKey, direction: 'asc' }); setChangeMenu(false); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowUp className="w-3 h-3" /> Sort ascending</button>
+                              <button onClick={() => { setSortConfig({ key: tfKey, direction: 'desc' }); setChangeMenu(false); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowDown className="w-3 h-3" /> Sort descending</button>
+                            </div>
+                          </>
+                        )}
+                      </th>
+                    );
+      case 'marketCap': return sortTh('marketCapUsd', 'Market Cap', 'text-right hidden sm:table-cell');
+      case 'fdv': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Fully Diluted</th>;
+      case 'volume': return sortTh('volumeUsd24Hr', 'Volume (24h)', 'text-right hidden lg:table-cell');
+      case 'volMcap': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Vol/Mkt Cap</th>;
+      case 'circulating': return sortTh('csupply', 'Circulating', 'text-right hidden xl:table-cell');
+      case 'tsupply': return sortTh('tsupply', 'Total Supply', 'text-right hidden xl:table-cell');
+      case 'msupply': return sortTh('msupply', 'Max Supply', 'text-right hidden xl:table-cell');
+      case 'p14d': return sortTh('changePercent14d', '14d %', 'text-right hidden xl:table-cell');
+      case 'p30d': return sortTh('changePercent30d', '30d %', 'text-right hidden xl:table-cell');
+      case 'p1y': return sortTh('changePercent1y', '1y %', 'text-right hidden xl:table-cell');
+      case 'athVal': return sortTh('ath', 'ATH', 'text-right hidden xl:table-cell');
+      case 'athPct': return sortTh('athChangePct', 'ATH %', 'text-right hidden xl:table-cell');
+      case 'openC': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Open (24h)</th>;
+      case 'highC': return <th className="py-2 px-4 label text-right hidden xl:table-cell">High (24h)</th>;
+      case 'lowC': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Low (24h)</th>;
+      case 'cfoPct': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Chg Open %</th>;
+      case 'gapPct': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Gap %</th>;
+      case 'volaPct': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Volatility</th>;
+      case 'chgAbs': return <th className="py-2 px-4 label text-right hidden xl:table-cell">24h Δ $</th>;
+      case 'volD': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Vol Δ %</th>;
+      case 'catCol': return <th className="py-2 px-4 label text-right hidden md:table-cell">Category</th>;
+      case 'trendCol': return <th className="py-2 px-4 label text-right hidden md:table-cell">Trending</th>;
+      case 'tvlCol': return <th className="py-2 px-4 label text-right hidden md:table-cell">TVL</th>;
+      case 'mcapTvl': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Mcap/TVL</th>;
+      case 'rating': return <th className="py-2 px-4 label text-right hidden md:table-cell">Tech Rating</th>;
+      case 'rsi': return techTh('rsi', 'RSI (14)', 'text-right hidden md:table-cell');
+      case 'ema20': return techTh('ema20', 'EMA (20)');
+      case 'ema50': return techTh('ema50', 'EMA (50)');
+      case 'ema200': return techTh('ema200', 'EMA (200)');
+      case 'sma20': return techTh('sma20', 'SMA (20)');
+      case 'sma50': return techTh('sma50', 'SMA (50)');
+      case 'sma200': return techTh('sma200', 'SMA (200)');
+      case 'macd': return techTh('macd', 'MACD');
+      case 'bbU': return techTh('bbUpper', 'BB Upper');
+      case 'bbL': return techTh('bbLower', 'BB Lower');
+      case 'atr': return techTh('atr', 'ATR (14)');
+      case 'maR': return <th className="py-2 px-4 label text-right hidden md:table-cell">MAs Rating</th>;
+      case 'oscR': return <th className="py-2 px-4 label text-right hidden md:table-cell">Osc Rating</th>;
+      case 'stoch': return techTh('stochK', 'Stoch %K/%D');
+      case 'stochRsi': return techTh('stochRsi', 'Stoch RSI');
+      case 'willR': return techTh('willR', 'Williams %R');
+      case 'cci': return techTh('cci', 'CCI (20)');
+      case 'adxK': return techTh('adx', 'ADX ±DI');
+      case 'roc': return techTh('roc', 'ROC (12)');
+      case 'mom': return techTh('mom', 'Momentum');
+      case 'ao': return techTh('ao', 'Awesome Osc');
+      case 'psarK': return techTh('psar', 'PSAR');
+      case 'aroon': return techTh('aroonUp', 'Aroon ↑/↓');
+      case 'hmaK': return techTh('hma', 'HMA (20)');
+      case 'ichi': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Ichimoku C/B</th>;
+      case 'donch': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Donchian U/L</th>;
+      case 'kelt': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Keltner U/L</th>;
+      case 'bbp': return techTh('bbp', 'Bull Bear Pwr');
+      case 'candle': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Candle</th>;
+      case 'piv': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Pivot P·R1·S1</th>;
+      case 'fib': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Fib R1·S1</th>;
+      case 'atrPct': return techTh('atrPct', 'ATR %');
+      case 'funding': return <th className="py-2 px-4 label text-right hidden md:table-cell">Funding</th>;
+      case 'oi': return <th className="py-2 px-4 label text-right hidden md:table-cell">Open Interest</th>;
+      case 'oiVol': return <th className="py-2 px-4 label text-right hidden xl:table-cell">OI/Vol</th>;
+      case 'oiChg': return <th className="py-2 px-4 label text-right hidden xl:table-cell">OI Δ %</th>;
+      case 'lsRatio': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Long/Short</th>;
+      case 'takerR': return <th className="py-2 px-4 label text-right hidden xl:table-cell">Taker B/S</th>;
+      case 'spark': return <th className="py-2 px-4 label text-right hidden md:table-cell">Last 7 Days</th>;
+      default: return null;
+    }
+  };
+
   return (
     <div className="flex-1 bg-[color:var(--bg)] overflow-y-auto">
       {/* Global market stats bar */}
@@ -645,95 +753,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                     {cols.rank && sortTh('rank', 'Rank', 'w-10 hidden sm:table-cell')}
                     {sortTh('name', 'Name', '')}
                     {sortTh('priceUsd', 'Price', 'text-right')}
-                    {cols.change && (
-                      <th className="py-2 px-4 label text-right relative">
-                        <button onClick={() => setChangeMenu((v) => !v)} className="inline-flex items-center gap-1 hover:text-[color:var(--text)] transition-colors ml-auto">
-                          {tfLabel}
-                          <ChevronDown className="w-2.5 h-2.5" />
-                        </button>
-                        {changeMenu && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setChangeMenu(false)} />
-                            <div className="absolute right-4 top-full mt-1 z-50 w-40 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case">
-                              <div className="label px-3 py-1 text-[color:var(--text-3)]">Price change %</div>
-                              {(['1h', '24h', '7d', '14d', '30d', '1y'] as const).map((tf) => (
-                                <button key={tf} onClick={() => { setChangeTf(tf); setChangeMenu(false); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-body hover:bg-[color:var(--surface-2)] transition-colors ${changeTf === tf ? 'text-[color:var(--accent)]' : 'text-[color:var(--text-2)]'}`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${changeTf === tf ? 'bg-[color:var(--accent)]' : 'border border-[color:var(--line-strong)]'}`} />
-                                  {tfLong[tf]}
-                                </button>
-                              ))}
-                              <div className="h-px bg-[color:var(--line)] my-1" />
-                              <button onClick={() => { setSortConfig({ key: tfKey, direction: 'asc' }); setChangeMenu(false); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowUp className="w-3 h-3" /> Sort ascending</button>
-                              <button onClick={() => { setSortConfig({ key: tfKey, direction: 'desc' }); setChangeMenu(false); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowDown className="w-3 h-3" /> Sort descending</button>
-                            </div>
-                          </>
-                        )}
-                      </th>
-                    )}
-                    {cols.marketCap && sortTh('marketCapUsd', 'Market Cap', 'text-right hidden sm:table-cell')}
-                    {cols.fdv && <th className="py-2 px-4 label text-right hidden xl:table-cell">Fully Diluted</th>}
-                    {cols.volume && sortTh('volumeUsd24Hr', 'Volume (24h)', 'text-right hidden lg:table-cell')}
-                    {cols.volMcap && <th className="py-2 px-4 label text-right hidden xl:table-cell">Vol/Mkt Cap</th>}
-                    {cols.circulating && sortTh('csupply', 'Circulating', 'text-right hidden xl:table-cell')}
-                    {cols.tsupply && sortTh('tsupply', 'Total Supply', 'text-right hidden xl:table-cell')}
-                    {cols.msupply && sortTh('msupply', 'Max Supply', 'text-right hidden xl:table-cell')}
-                    {cols.p14d && sortTh('changePercent14d', '14d %', 'text-right hidden xl:table-cell')}
-                    {cols.p30d && sortTh('changePercent30d', '30d %', 'text-right hidden xl:table-cell')}
-                    {cols.p1y && sortTh('changePercent1y', '1y %', 'text-right hidden xl:table-cell')}
-                    {cols.athVal && sortTh('ath', 'ATH', 'text-right hidden xl:table-cell')}
-                    {cols.athPct && sortTh('athChangePct', 'ATH %', 'text-right hidden xl:table-cell')}
-                    {cols.openC && <th className="py-2 px-4 label text-right hidden xl:table-cell">Open (24h)</th>}
-                    {cols.highC && <th className="py-2 px-4 label text-right hidden xl:table-cell">High (24h)</th>}
-                    {cols.lowC && <th className="py-2 px-4 label text-right hidden xl:table-cell">Low (24h)</th>}
-                    {cols.cfoPct && <th className="py-2 px-4 label text-right hidden xl:table-cell">Chg Open %</th>}
-                    {cols.gapPct && <th className="py-2 px-4 label text-right hidden xl:table-cell">Gap %</th>}
-                    {cols.volaPct && <th className="py-2 px-4 label text-right hidden xl:table-cell">Volatility</th>}
-                    {cols.chgAbs && <th className="py-2 px-4 label text-right hidden xl:table-cell">24h Δ $</th>}
-                    {cols.volD && <th className="py-2 px-4 label text-right hidden xl:table-cell">Vol Δ %</th>}
-                    {cols.catCol && <th className="py-2 px-4 label text-right hidden md:table-cell">Category</th>}
-                    {cols.trendCol && <th className="py-2 px-4 label text-right hidden md:table-cell">Trending</th>}
-                    {cols.tvlCol && <th className="py-2 px-4 label text-right hidden md:table-cell">TVL</th>}
-                    {cols.mcapTvl && <th className="py-2 px-4 label text-right hidden xl:table-cell">Mcap/TVL</th>}
-                    {cols.rating && <th className="py-2 px-4 label text-right hidden md:table-cell">Tech Rating</th>}
-                    {cols.rsi && techTh('rsi', 'RSI (14)', 'text-right hidden md:table-cell')}
-                    {cols.ema20 && techTh('ema20', 'EMA (20)')}
-                    {cols.ema50 && techTh('ema50', 'EMA (50)')}
-                    {cols.ema200 && techTh('ema200', 'EMA (200)')}
-                    {cols.sma20 && techTh('sma20', 'SMA (20)')}
-                    {cols.sma50 && techTh('sma50', 'SMA (50)')}
-                    {cols.sma200 && techTh('sma200', 'SMA (200)')}
-                    {cols.macd && techTh('macd', 'MACD')}
-                    {cols.bbU && techTh('bbUpper', 'BB Upper')}
-                    {cols.bbL && techTh('bbLower', 'BB Lower')}
-                    {cols.atr && techTh('atr', 'ATR (14)')}
-                    {cols.maR && <th className="py-2 px-4 label text-right hidden md:table-cell">MAs Rating</th>}
-                    {cols.oscR && <th className="py-2 px-4 label text-right hidden md:table-cell">Osc Rating</th>}
-                    {cols.stoch && techTh('stochK', 'Stoch %K/%D')}
-                    {cols.stochRsi && techTh('stochRsi', 'Stoch RSI')}
-                    {cols.willR && techTh('willR', 'Williams %R')}
-                    {cols.cci && techTh('cci', 'CCI (20)')}
-                    {cols.adxK && techTh('adx', 'ADX ±DI')}
-                    {cols.roc && techTh('roc', 'ROC (12)')}
-                    {cols.mom && techTh('mom', 'Momentum')}
-                    {cols.ao && techTh('ao', 'Awesome Osc')}
-                    {cols.psarK && techTh('psar', 'PSAR')}
-                    {cols.aroon && techTh('aroonUp', 'Aroon ↑/↓')}
-                    {cols.hmaK && techTh('hma', 'HMA (20)')}
-                    {cols.ichi && <th className="py-2 px-4 label text-right hidden xl:table-cell">Ichimoku C/B</th>}
-                    {cols.donch && <th className="py-2 px-4 label text-right hidden xl:table-cell">Donchian U/L</th>}
-                    {cols.kelt && <th className="py-2 px-4 label text-right hidden xl:table-cell">Keltner U/L</th>}
-                    {cols.bbp && techTh('bbp', 'Bull Bear Pwr')}
-                    {cols.candle && <th className="py-2 px-4 label text-right hidden xl:table-cell">Candle</th>}
-                    {cols.piv && <th className="py-2 px-4 label text-right hidden xl:table-cell">Pivot P·R1·S1</th>}
-                    {cols.fib && <th className="py-2 px-4 label text-right hidden xl:table-cell">Fib R1·S1</th>}
-                    {cols.atrPct && techTh('atrPct', 'ATR %')}
-                    {cols.funding && <th className="py-2 px-4 label text-right hidden md:table-cell">Funding</th>}
-                    {cols.oi && <th className="py-2 px-4 label text-right hidden md:table-cell">Open Interest</th>}
-                    {cols.oiVol && <th className="py-2 px-4 label text-right hidden xl:table-cell">OI/Vol</th>}
-                    {cols.oiChg && <th className="py-2 px-4 label text-right hidden xl:table-cell">OI Δ %</th>}
-                    {cols.lsRatio && <th className="py-2 px-4 label text-right hidden xl:table-cell">Long/Short</th>}
-                    {cols.takerR && <th className="py-2 px-4 label text-right hidden xl:table-cell">Taker B/S</th>}
-                    {cols.spark && <th className="py-2 px-4 label text-right hidden md:table-cell">Last 7 Days</th>}
+                    {orderedCols.map((k) => <React.Fragment key={k}>{headerFor(k)}</React.Fragment>)}
                     <th className="py-2 px-4 w-10 relative">
                       <button onClick={() => setColMenu((v) => !v)} title="Edit columns" className="flex items-center justify-center w-6 h-6 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)] transition-colors ml-auto">
                         <Plus className="w-3.5 h-3.5" />
@@ -842,6 +862,284 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                       const isStarred = watchlist.includes(market.symbol);
                       const isExpanded = expandedCoin === market.id;
 
+                      const cellFor = (kk: ColKey) => {
+
+                        const sp = spot[market.symbol];
+                        const t0 = tech[market.symbol];
+                        const t = tech[market.symbol];
+                        const me = metas[market.symbol];
+                        const dv = derivs[market.symbol];
+                        const dash = <Dash />;
+                        const dash2 = <Dash />;
+                        const mcapN = parseFloat(market.marketCapUsd || '0');
+                        const vol = parseFloat(market.volumeUsd24Hr || '0');
+                        const px = (v: number | null | undefined) => (v != null ? '$' + formatCurrency(v) : dash);
+                        const pct = (v: number | null | undefined) => (v != null ? <PctVal v={String(v)} /> : dash);
+                        const num = (v: number | null | undefined, cls = 'text-[color:var(--text-2)]') => (
+                          <span className={v == null ? 'text-[color:var(--text-3)]' : cls} title={v == null ? NO_SOURCE : undefined}>{fmtTech(v)}</span>
+                        );
+                        const pill = (r: string | null | undefined) => r ? (
+                          <span className={`text-label font-semibold px-1.5 py-0.5 rounded-sm border border-[color:var(--line)] bg-[color:var(--bg)] ${r.includes('Buy') ? 'up' : r.includes('Sell') ? 'down' : 'text-[color:var(--text-3)]'}`} style={{ letterSpacing: '0.04em' }}>
+                            {r.toUpperCase()}
+                          </span>
+                        ) : dash2;
+                        const pair = (a: number | null | undefined, b: number | null | undefined, ff: (n: number) => string = (n) => fmtTech(n)) => a != null ? (
+                          <div className="flex flex-col items-end leading-tight">
+                            <span className="text-[color:var(--text-2)]">{ff(a)}</span>
+                            <span className="text-label text-[color:var(--text-3)]">{b != null ? ff(b) : <Dash />}</span>
+                          </div>
+                        ) : dash2;
+                        const cell = (on: boolean, body: React.ReactNode, cls = 'hidden xl:table-cell') =>
+                          on ? <td className={`py-2.5 px-4 text-right font-mono text-data ${cls}`}>{body}</td> : null;
+                        void t0; void sp; void me; void dv; void dash; void dash2; void mcapN; void vol; void px; void pct; void num; void pill; void pair; void cell;
+                        switch (kk) {
+                          case 'change': return (
+                              <td className={`py-2.5 px-4 text-right font-mono text-data ${!isFinite(chg) ? '' : chgPos ? 'up' : 'down'}`}>
+                                {!isFinite(chg) ? <Dash /> : <>{chgPos ? '+' : '-'}{Math.abs(chg).toFixed(2)}%</>}
+                              </td>
+                            );
+                          case 'marketCap': return (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden sm:table-cell">
+                                {parseFloat(market.marketCapUsd || '0') > 0 ? '$' + formatNumber(market.marketCapUsd) : <Dash />}
+                              </td>
+                            );
+                          case 'fdv': return (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                {market.fdvUsd && parseFloat(market.fdvUsd) > 0
+                                  ? '$' + formatNumber(market.fdvUsd)
+                                  : fdvSupply > 0 ? '$' + formatNumber(fdvSupply * parseFloat(market.priceUsd || '0')) : <Dash />}
+                              </td>
+                            );
+                          case 'volume': return (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
+                                <div className="flex flex-col items-end leading-tight">
+                                  <span>${formatNumber(market.volumeUsd24Hr || '0')}</span>
+                                  <span className="text-label text-[color:var(--text-3)]">{formatNumber(parseFloat(market.volumeUsd24Hr || '0') / parseFloat(market.priceUsd || '1'))} {market.symbol}</span>
+                                </div>
+                              </td>
+                            );
+                          case 'volMcap': return (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                {mcapNum > 0 ? (parseFloat(market.volumeUsd24Hr || '0') / mcapNum).toFixed(4) : <Dash />}
+                              </td>
+                            );
+                          case 'circulating': return (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                <div className="flex flex-col items-end leading-tight">
+                                  <span>{parseFloat(market.csupply || '0') > 0 ? <>{formatNumber(market.csupply)} {market.symbol}</> : <Dash />}</span>
+                                  {parseFloat(market.csupply || '0') > 0 && market.msupply && market.msupply !== '0' && (
+                                    <div className="w-24 h-0.5 bg-[color:var(--line)] mt-1 overflow-hidden">
+                                      <div
+                                        className="h-full bg-[color:var(--text-3)]"
+                                        style={{ width: `${Math.min(100, (parseFloat(market.csupply) / parseFloat(market.msupply)) * 100)}%` }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          case 'tsupply': return (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                {parseFloat(market.tsupply || '0') > 0 ? <>{formatNumber(market.tsupply)} {market.symbol}</> : <Dash />}
+                              </td>
+                            );
+                          case 'msupply': return (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                {market.msupply && market.msupply !== '0' ? `${formatNumber(market.msupply)} ${market.symbol}` : '∞'}
+                              </td>
+                            );
+                          case 'p14d': return (
+                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent14d} /></td>
+                            );
+                          case 'p30d': return (
+                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent30d} /></td>
+                            );
+                          case 'p1y': return (
+                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent1y} /></td>
+                            );
+                          case 'athVal': return (
+                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                {market.ath && parseFloat(market.ath) > 0 ? '$' + formatCurrency(market.ath) : <Dash />}
+                              </td>
+                            );
+                          case 'athPct': return (
+                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.athChangePct} /></td>
+                            );
+                          case 'openC': return <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.open)}</td>;
+                          case 'highC': return <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.high)}</td>;
+                          case 'lowC': return <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.low)}</td>;
+                          case 'cfoPct': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(sp?.changeFromOpenPct)}</td>;
+                          case 'gapPct': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(sp?.gapPct)}</td>;
+                          case 'volaPct': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                      {sp?.volatilityPct != null ? sp.volatilityPct.toFixed(2) + '%' : dash}
+                                    </td>
+                                  );
+                          case 'chgAbs': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                      {sp?.chgAbs != null ? (
+                                        <span className={sp.chgAbs >= 0 ? 'up' : 'down'}>{(sp.chgAbs >= 0 ? '+$' : '-$') + formatCurrency(Math.abs(sp.chgAbs))}</span>
+                                      ) : dash}
+                                    </td>
+                                  );
+                          case 'volD': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(t0?.volChangePct)}</td>;
+                          case 'catCol': return (
+                                    <td className="py-2.5 px-4 text-right hidden md:table-cell">
+                                      {me?.categories?.length ? (
+                                        <div className="flex flex-wrap gap-1 justify-end">
+                                          {me.categories.slice(0, 2).map((c) => (
+                                            <span key={c} className="text-label font-semibold text-[color:var(--text-2)] bg-[color:var(--bg)] border border-[color:var(--line)] px-1.5 py-0.5 rounded-sm">{c.toUpperCase()}</span>
+                                          ))}
+                                          {me.categories.length > 2 && <span className="text-label text-[color:var(--text-3)]">+{me.categories.length - 2}</span>}
+                                        </div>
+                                      ) : dash}
+                                    </td>
+                                  );
+                          case 'trendCol': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
+                                      {me?.trending != null ? <span className="text-[color:var(--accent)]">🔥 #{me.trending}</span> : dash}
+                                    </td>
+                                  );
+                          case 'tvlCol': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden md:table-cell">
+                                      {me?.tvl != null ? '$' + formatNumber(me.tvl) : dash}
+                                    </td>
+                                  );
+                          case 'mcapTvl': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                      {me?.tvl != null && me.tvl > 0 && mcapN > 0 ? (mcapN / me.tvl).toFixed(2) : dash}
+                                    </td>
+                                  );
+                          case 'rating': return (
+                                    <td className="py-2.5 px-4 text-right hidden md:table-cell">
+                                      {t?.rating ? (
+                                        <span className={`text-label font-semibold px-1.5 py-0.5 rounded-sm border border-[color:var(--line)] bg-[color:var(--bg)] ${t.rating.includes('Buy') ? 'up' : t.rating.includes('Sell') ? 'down' : 'text-[color:var(--text-3)]'}`} style={{ letterSpacing: '0.04em' }}>
+                                          {t.rating.toUpperCase()}
+                                        </span>
+                                      ) : <Dash />}
+                                    </td>
+                                  );
+                          case 'rsi': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
+                                      {t?.rsi != null ? (
+                                        <span className={t.rsi > 70 ? 'down' : t.rsi < 30 ? 'up' : 'text-[color:var(--text-2)]'}>{t.rsi.toFixed(1)}</span>
+                                      ) : <Dash />}
+                                    </td>
+                                  );
+                          case 'ema20': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema20)}</td>;
+                          case 'ema50': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema50)}</td>;
+                          case 'ema200': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema200)}</td>;
+                          case 'sma20': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma20)}</td>;
+                          case 'sma50': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma50)}</td>;
+                          case 'sma200': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma200)}</td>;
+                          case 'macd': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                      {t?.macd != null ? (
+                                        <div className="flex flex-col items-end leading-tight">
+                                          <span className={t.macdSignal != null && t.macd > t.macdSignal ? 'up' : 'down'}>{fmtTech(t.macd)}</span>
+                                          <span className="text-label text-[color:var(--text-3)]">sig {fmtTech(t.macdSignal)}</span>
+                                        </div>
+                                      ) : <Dash />}
+                                    </td>
+                                  );
+                          case 'bbU': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbUpper)}</td>;
+                          case 'bbL': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbLower)}</td>;
+                          case 'atr': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.atr)}</td>;
+                          case 'maR': return cell(true, pill(t?.maRating), 'hidden md:table-cell');
+                          case 'oscR': return cell(true, pill(t?.oscRating), 'hidden md:table-cell');
+                          case 'stoch': return cell(true, pair(t?.stochK, t?.stochD, (n) => n.toFixed(1)));
+                          case 'stochRsi': return cell(true, num(t?.stochRsi));
+                          case 'willR': return cell(true, num(t?.willR));
+                          case 'cci': return cell(true, num(t?.cci));
+                          case 'adxK': return cell(true, t?.adx != null ? (
+                                          <div className="flex flex-col items-end leading-tight">
+                                            <span className="text-[color:var(--text-2)]">{t.adx.toFixed(1)}</span>
+                                            <span className="text-label"><span className="up">+{t.diPlus?.toFixed(0) ?? '—'}</span> <span className="down">−{t.diMinus?.toFixed(0) ?? '—'}</span></span>
+                                          </div>
+                                        ) : dash2);
+                          case 'roc': return cell(true, t?.roc != null ? <span className={t.roc >= 0 ? 'up' : 'down'}>{t.roc.toFixed(2)}%</span> : dash2);
+                          case 'mom': return cell(true, t?.mom != null ? <span className={t.mom >= 0 ? 'up' : 'down'}>{fmtTech(t.mom)}</span> : dash2);
+                          case 'ao': return cell(true, t?.ao != null ? <span className={t.ao >= 0 ? 'up' : 'down'}>{fmtTech(t.ao)}</span> : dash2);
+                          case 'psarK': return cell(true, num(t?.psar));
+                          case 'aroon': return cell(true, t?.aroonUp != null ? (
+                                          <div className="flex flex-col items-end leading-tight">
+                                            <span className="up">↑ {t.aroonUp.toFixed(0)}</span>
+                                            <span className="text-label down">↓ {t.aroonDown?.toFixed(0) ?? '—'}</span>
+                                          </div>
+                                        ) : dash2);
+                          case 'hmaK': return cell(true, num(t?.hma));
+                          case 'ichi': return cell(true, pair(t?.ichiConv, t?.ichiBase));
+                          case 'donch': return cell(true, pair(t?.donchU, t?.donchL));
+                          case 'kelt': return cell(true, pair(t?.keltU, t?.keltL));
+                          case 'bbp': return cell(true, t?.bbp != null ? <span className={t.bbp >= 0 ? 'up' : 'down'}>{fmtTech(t.bbp)}</span> : dash2);
+                          case 'candle': return cell(true, t?.candle ? (
+                                          <span className={`text-label font-semibold ${t.candle.includes('Bull') || t.candle === 'Hammer' ? 'up' : t.candle.includes('Bear') ? 'down' : 'text-[color:var(--text-2)]'}`}>{t.candle.toUpperCase()}</span>
+                                        ) : dash2);
+                          case 'piv': return cell(true, t?.pivP != null ? (
+                                          <div className="flex flex-col items-end leading-tight">
+                                            <span className="text-[color:var(--text-2)]">{fmtTech(t.pivP)}</span>
+                                            <span className="text-label text-[color:var(--text-3)]">R1 {fmtTech(t.pivR1)} · S1 {fmtTech(t.pivS1)}</span>
+                                          </div>
+                                        ) : dash2);
+                          case 'fib': return cell(true, pair(t?.fibR1, t?.fibS1));
+                          case 'atrPct': return cell(true, t?.atrPct != null ? t.atrPct.toFixed(2) + '%' : dash2);
+                          case 'funding': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
+                                      {dv?.fundingRate != null ? (
+                                        <span className={dv.fundingRate >= 0 ? 'up' : 'down'}>{(dv.fundingRate * 100).toFixed(4)}%</span>
+                                      ) : dash}
+                                    </td>
+                                  );
+                          case 'oi': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden md:table-cell">
+                                      {dv?.oiUsd != null ? '$' + formatNumber(dv.oiUsd) : dash}
+                                    </td>
+                                  );
+                          case 'oiVol': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                      {dv?.oiUsd != null && vol > 0 ? (dv.oiUsd / vol).toFixed(2) : dash}
+                                    </td>
+                                  );
+                          case 'oiChg': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                      {dv?.oiChangePct != null ? <PctVal v={String(dv.oiChangePct)} /> : dash}
+                                    </td>
+                                  );
+                          case 'lsRatio': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                      {dv?.lsRatio != null ? <span className={dv.lsRatio >= 1 ? 'up' : 'down'}>{dv.lsRatio.toFixed(2)}</span> : dash}
+                                    </td>
+                                  );
+                          case 'takerR': return (
+                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                      {dv?.takerRatio != null ? <span className={dv.takerRatio >= 1 ? 'up' : 'down'}>{dv.takerRatio.toFixed(2)}</span> : dash}
+                                    </td>
+                                  );
+                          case 'spark': return (
+                              <td className="py-2.5 px-4 text-right hidden md:table-cell">
+                                <div className="flex items-center justify-end gap-3 relative">
+                                  <div className="w-24 h-10 transition-opacity group-hover:opacity-0">
+                                    <Sparkline id={market.symbol} color={isPositive7d ? 'var(--up)' : 'var(--down)'} />
+                                  </div>
+                                  <div className="absolute inset-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onAssetSelect(market.symbol);
+                                      }}
+                                      className="bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 px-3 py-1 rounded-sm text-label font-semibold transition-colors shiny chrome cta-glow press"
+                                      style={{ letterSpacing: '0.06em' }}
+                                    >
+                                      TRADE
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                            );
+                          default: return null;
+                        }
+                      };
+
                       return (
                         <React.Fragment key={market.id || index}>
                           <tr
@@ -881,308 +1179,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text)]">
                               ${(livePrice(market, spot[market.symbol]) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                             </td>
-                            {cols.change && (
-                              <td className={`py-2.5 px-4 text-right font-mono text-data ${!isFinite(chg) ? '' : chgPos ? 'up' : 'down'}`}>
-                                {!isFinite(chg) ? <Dash /> : <>{chgPos ? '+' : '-'}{Math.abs(chg).toFixed(2)}%</>}
-                              </td>
-                            )}
-                            {cols.marketCap && (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden sm:table-cell">
-                                {parseFloat(market.marketCapUsd || '0') > 0 ? '$' + formatNumber(market.marketCapUsd) : <Dash />}
-                              </td>
-                            )}
-                            {cols.fdv && (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                {market.fdvUsd && parseFloat(market.fdvUsd) > 0
-                                  ? '$' + formatNumber(market.fdvUsd)
-                                  : fdvSupply > 0 ? '$' + formatNumber(fdvSupply * parseFloat(market.priceUsd || '0')) : <Dash />}
-                              </td>
-                            )}
-                            {cols.volume && (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
-                                <div className="flex flex-col items-end leading-tight">
-                                  <span>${formatNumber(market.volumeUsd24Hr || '0')}</span>
-                                  <span className="text-label text-[color:var(--text-3)]">{formatNumber(parseFloat(market.volumeUsd24Hr || '0') / parseFloat(market.priceUsd || '1'))} {market.symbol}</span>
-                                </div>
-                              </td>
-                            )}
-                            {cols.volMcap && (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                {mcapNum > 0 ? (parseFloat(market.volumeUsd24Hr || '0') / mcapNum).toFixed(4) : <Dash />}
-                              </td>
-                            )}
-                            {cols.circulating && (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                <div className="flex flex-col items-end leading-tight">
-                                  <span>{parseFloat(market.csupply || '0') > 0 ? <>{formatNumber(market.csupply)} {market.symbol}</> : <Dash />}</span>
-                                  {parseFloat(market.csupply || '0') > 0 && market.msupply && market.msupply !== '0' && (
-                                    <div className="w-24 h-0.5 bg-[color:var(--line)] mt-1 overflow-hidden">
-                                      <div
-                                        className="h-full bg-[color:var(--text-3)]"
-                                        style={{ width: `${Math.min(100, (parseFloat(market.csupply) / parseFloat(market.msupply)) * 100)}%` }}
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                            )}
-                            {cols.tsupply && (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                {parseFloat(market.tsupply || '0') > 0 ? <>{formatNumber(market.tsupply)} {market.symbol}</> : <Dash />}
-                              </td>
-                            )}
-                            {cols.msupply && (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                {market.msupply && market.msupply !== '0' ? `${formatNumber(market.msupply)} ${market.symbol}` : '∞'}
-                              </td>
-                            )}
-                            {cols.p14d && (
-                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent14d} /></td>
-                            )}
-                            {cols.p30d && (
-                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent30d} /></td>
-                            )}
-                            {cols.p1y && (
-                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent1y} /></td>
-                            )}
-                            {cols.athVal && (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                {market.ath && parseFloat(market.ath) > 0 ? '$' + formatCurrency(market.ath) : <Dash />}
-                              </td>
-                            )}
-                            {cols.athPct && (
-                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.athChangePct} /></td>
-                            )}
-                            {(() => {
-                              const sp = spot[market.symbol];
-                              const t0 = tech[market.symbol];
-                              const dash = <Dash />;
-                              const px = (v: number | null | undefined) => (v != null ? '$' + formatCurrency(v) : dash);
-                              const pct = (v: number | null | undefined) => (v != null ? <PctVal v={String(v)} /> : dash);
-                              return (
-                                <>
-                                  {cols.openC && <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.open)}</td>}
-                                  {cols.highC && <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.high)}</td>}
-                                  {cols.lowC && <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.low)}</td>}
-                                  {cols.cfoPct && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(sp?.changeFromOpenPct)}</td>}
-                                  {cols.gapPct && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(sp?.gapPct)}</td>}
-                                  {cols.volaPct && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                      {sp?.volatilityPct != null ? sp.volatilityPct.toFixed(2) + '%' : dash}
-                                    </td>
-                                  )}
-                                  {cols.chgAbs && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
-                                      {sp?.chgAbs != null ? (
-                                        <span className={sp.chgAbs >= 0 ? 'up' : 'down'}>{(sp.chgAbs >= 0 ? '+$' : '-$') + formatCurrency(Math.abs(sp.chgAbs))}</span>
-                                      ) : dash}
-                                    </td>
-                                  )}
-                                  {cols.volD && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(t0?.volChangePct)}</td>}
-                                </>
-                              );
-                            })()}
-                            {(() => {
-                              const me = metas[market.symbol];
-                              const dash = <Dash />;
-                              const mcapN = parseFloat(market.marketCapUsd || '0');
-                              return (
-                                <>
-                                  {cols.catCol && (
-                                    <td className="py-2.5 px-4 text-right hidden md:table-cell">
-                                      {me?.categories?.length ? (
-                                        <div className="flex flex-wrap gap-1 justify-end">
-                                          {me.categories.slice(0, 2).map((c) => (
-                                            <span key={c} className="text-label font-semibold text-[color:var(--text-2)] bg-[color:var(--bg)] border border-[color:var(--line)] px-1.5 py-0.5 rounded-sm">{c.toUpperCase()}</span>
-                                          ))}
-                                          {me.categories.length > 2 && <span className="text-label text-[color:var(--text-3)]">+{me.categories.length - 2}</span>}
-                                        </div>
-                                      ) : dash}
-                                    </td>
-                                  )}
-                                  {cols.trendCol && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
-                                      {me?.trending != null ? <span className="text-[color:var(--accent)]">🔥 #{me.trending}</span> : dash}
-                                    </td>
-                                  )}
-                                  {cols.tvlCol && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden md:table-cell">
-                                      {me?.tvl != null ? '$' + formatNumber(me.tvl) : dash}
-                                    </td>
-                                  )}
-                                  {cols.mcapTvl && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                      {me?.tvl != null && me.tvl > 0 && mcapN > 0 ? (mcapN / me.tvl).toFixed(2) : dash}
-                                    </td>
-                                  )}
-                                </>
-                              );
-                            })()}
-                            {(() => {
-                              const t = tech[market.symbol];
-                              const num = (v: number | null | undefined, cls = 'text-[color:var(--text-2)]') => (
-                                <span className={v == null ? 'text-[color:var(--text-3)]' : cls} title={v == null ? NO_SOURCE : undefined}>{fmtTech(v)}</span>
-                              );
-                              return (
-                                <>
-                                  {cols.rating && (
-                                    <td className="py-2.5 px-4 text-right hidden md:table-cell">
-                                      {t?.rating ? (
-                                        <span className={`text-label font-semibold px-1.5 py-0.5 rounded-sm border border-[color:var(--line)] bg-[color:var(--bg)] ${t.rating.includes('Buy') ? 'up' : t.rating.includes('Sell') ? 'down' : 'text-[color:var(--text-3)]'}`} style={{ letterSpacing: '0.04em' }}>
-                                          {t.rating.toUpperCase()}
-                                        </span>
-                                      ) : <Dash />}
-                                    </td>
-                                  )}
-                                  {cols.rsi && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
-                                      {t?.rsi != null ? (
-                                        <span className={t.rsi > 70 ? 'down' : t.rsi < 30 ? 'up' : 'text-[color:var(--text-2)]'}>{t.rsi.toFixed(1)}</span>
-                                      ) : <Dash />}
-                                    </td>
-                                  )}
-                                  {cols.ema20 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema20)}</td>}
-                                  {cols.ema50 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema50)}</td>}
-                                  {cols.ema200 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema200)}</td>}
-                                  {cols.sma20 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma20)}</td>}
-                                  {cols.sma50 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma50)}</td>}
-                                  {cols.sma200 && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma200)}</td>}
-                                  {cols.macd && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
-                                      {t?.macd != null ? (
-                                        <div className="flex flex-col items-end leading-tight">
-                                          <span className={t.macdSignal != null && t.macd > t.macdSignal ? 'up' : 'down'}>{fmtTech(t.macd)}</span>
-                                          <span className="text-label text-[color:var(--text-3)]">sig {fmtTech(t.macdSignal)}</span>
-                                        </div>
-                                      ) : <Dash />}
-                                    </td>
-                                  )}
-                                  {cols.bbU && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbUpper)}</td>}
-                                  {cols.bbL && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbLower)}</td>}
-                                  {cols.atr && <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.atr)}</td>}
-                                  {(() => {
-                                    const dash2 = <Dash />;
-                                    const pill = (r: string | null | undefined) => r ? (
-                                      <span className={`text-label font-semibold px-1.5 py-0.5 rounded-sm border border-[color:var(--line)] bg-[color:var(--bg)] ${r.includes('Buy') ? 'up' : r.includes('Sell') ? 'down' : 'text-[color:var(--text-3)]'}`} style={{ letterSpacing: '0.04em' }}>
-                                        {r.toUpperCase()}
-                                      </span>
-                                    ) : dash2;
-                                    const pair = (a: number | null | undefined, b: number | null | undefined, f: (n: number) => string = (n) => fmtTech(n)) => a != null ? (
-                                      <div className="flex flex-col items-end leading-tight">
-                                        <span className="text-[color:var(--text-2)]">{f(a)}</span>
-                                        <span className="text-label text-[color:var(--text-3)]">{b != null ? f(b) : <Dash />}</span>
-                                      </div>
-                                    ) : dash2;
-                                    const cell = (on: boolean, body: React.ReactNode, cls = 'hidden xl:table-cell') =>
-                                      on ? <td className={`py-2.5 px-4 text-right font-mono text-data ${cls}`}>{body}</td> : null;
-                                    return (
-                                      <>
-                                        {cell(cols.maR, pill(t?.maRating), 'hidden md:table-cell')}
-                                        {cell(cols.oscR, pill(t?.oscRating), 'hidden md:table-cell')}
-                                        {cell(cols.stoch, pair(t?.stochK, t?.stochD, (n) => n.toFixed(1)))}
-                                        {cell(cols.stochRsi, num(t?.stochRsi))}
-                                        {cell(cols.willR, num(t?.willR))}
-                                        {cell(cols.cci, num(t?.cci))}
-                                        {cell(cols.adxK, t?.adx != null ? (
-                                          <div className="flex flex-col items-end leading-tight">
-                                            <span className="text-[color:var(--text-2)]">{t.adx.toFixed(1)}</span>
-                                            <span className="text-label"><span className="up">+{t.diPlus?.toFixed(0) ?? '—'}</span> <span className="down">−{t.diMinus?.toFixed(0) ?? '—'}</span></span>
-                                          </div>
-                                        ) : dash2)}
-                                        {cell(cols.roc, t?.roc != null ? <span className={t.roc >= 0 ? 'up' : 'down'}>{t.roc.toFixed(2)}%</span> : dash2)}
-                                        {cell(cols.mom, t?.mom != null ? <span className={t.mom >= 0 ? 'up' : 'down'}>{fmtTech(t.mom)}</span> : dash2)}
-                                        {cell(cols.ao, t?.ao != null ? <span className={t.ao >= 0 ? 'up' : 'down'}>{fmtTech(t.ao)}</span> : dash2)}
-                                        {cell(cols.psarK, num(t?.psar))}
-                                        {cell(cols.aroon, t?.aroonUp != null ? (
-                                          <div className="flex flex-col items-end leading-tight">
-                                            <span className="up">↑ {t.aroonUp.toFixed(0)}</span>
-                                            <span className="text-label down">↓ {t.aroonDown?.toFixed(0) ?? '—'}</span>
-                                          </div>
-                                        ) : dash2)}
-                                        {cell(cols.hmaK, num(t?.hma))}
-                                        {cell(cols.ichi, pair(t?.ichiConv, t?.ichiBase))}
-                                        {cell(cols.donch, pair(t?.donchU, t?.donchL))}
-                                        {cell(cols.kelt, pair(t?.keltU, t?.keltL))}
-                                        {cell(cols.bbp, t?.bbp != null ? <span className={t.bbp >= 0 ? 'up' : 'down'}>{fmtTech(t.bbp)}</span> : dash2)}
-                                        {cell(cols.candle, t?.candle ? (
-                                          <span className={`text-label font-semibold ${t.candle.includes('Bull') || t.candle === 'Hammer' ? 'up' : t.candle.includes('Bear') ? 'down' : 'text-[color:var(--text-2)]'}`}>{t.candle.toUpperCase()}</span>
-                                        ) : dash2)}
-                                        {cell(cols.piv, t?.pivP != null ? (
-                                          <div className="flex flex-col items-end leading-tight">
-                                            <span className="text-[color:var(--text-2)]">{fmtTech(t.pivP)}</span>
-                                            <span className="text-label text-[color:var(--text-3)]">R1 {fmtTech(t.pivR1)} · S1 {fmtTech(t.pivS1)}</span>
-                                          </div>
-                                        ) : dash2)}
-                                        {cell(cols.fib, pair(t?.fibR1, t?.fibS1))}
-                                        {cell(cols.atrPct, t?.atrPct != null ? t.atrPct.toFixed(2) + '%' : dash2)}
-                                      </>
-                                    );
-                                  })()}
-                                </>
-                              );
-                            })()}
-                            {(() => {
-                              const dv = derivs[market.symbol];
-                              const dash = <Dash />;
-                              const vol = parseFloat(market.volumeUsd24Hr || '0');
-                              return (
-                                <>
-                                  {cols.funding && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
-                                      {dv?.fundingRate != null ? (
-                                        <span className={dv.fundingRate >= 0 ? 'up' : 'down'}>{(dv.fundingRate * 100).toFixed(4)}%</span>
-                                      ) : dash}
-                                    </td>
-                                  )}
-                                  {cols.oi && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden md:table-cell">
-                                      {dv?.oiUsd != null ? '$' + formatNumber(dv.oiUsd) : dash}
-                                    </td>
-                                  )}
-                                  {cols.oiVol && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
-                                      {dv?.oiUsd != null && vol > 0 ? (dv.oiUsd / vol).toFixed(2) : dash}
-                                    </td>
-                                  )}
-                                  {cols.oiChg && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
-                                      {dv?.oiChangePct != null ? <PctVal v={String(dv.oiChangePct)} /> : dash}
-                                    </td>
-                                  )}
-                                  {cols.lsRatio && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
-                                      {dv?.lsRatio != null ? <span className={dv.lsRatio >= 1 ? 'up' : 'down'}>{dv.lsRatio.toFixed(2)}</span> : dash}
-                                    </td>
-                                  )}
-                                  {cols.takerR && (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
-                                      {dv?.takerRatio != null ? <span className={dv.takerRatio >= 1 ? 'up' : 'down'}>{dv.takerRatio.toFixed(2)}</span> : dash}
-                                    </td>
-                                  )}
-                                </>
-                              );
-                            })()}
-                            {cols.spark && (
-                              <td className="py-2.5 px-4 text-right hidden md:table-cell">
-                                <div className="flex items-center justify-end gap-3 relative">
-                                  <div className="w-24 h-10 transition-opacity group-hover:opacity-0">
-                                    <Sparkline id={market.symbol} color={isPositive7d ? 'var(--up)' : 'var(--down)'} />
-                                  </div>
-                                  <div className="absolute inset-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onAssetSelect(market.symbol);
-                                      }}
-                                      className="bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 px-3 py-1 rounded-sm text-label font-semibold transition-colors shiny chrome cta-glow press"
-                                      style={{ letterSpacing: '0.06em' }}
-                                    >
-                                      TRADE
-                                    </button>
-                                  </div>
-                                </div>
-                              </td>
-                            )}
+                            {orderedCols.map((k) => <React.Fragment key={k}>{cellFor(k)}</React.Fragment>)}
                             <td className="py-2.5 px-4" />
                           </tr>
 

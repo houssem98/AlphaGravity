@@ -39,7 +39,7 @@ and must land with ZERO visual change before any menu work starts.
 
 ## Ledger
 
-- [ ] CH-1 **Column registry (zero visual change)**: define
+- [x] CH-1 **Column registry (zero visual change)**: define
   `COLUMN_DEFS: { key, label, group, sortField?, sortKind: 'base'|'tech'|'none', th(), td(market, ctx) }`
   for every data column by MOVING the existing JSX (th markup from the
   current header row, td markup from the current body row) into the
@@ -73,3 +73,5 @@ and must land with ZERO visual change before any menu work starts.
 ## Progress log
 
 (append one line per completed task, real numbers only)
+
+- 2026-07-14 CH-1: codemod moved 65 th + 65 td verbatim into headerFor/cellFor switches (IIFE locals hoisted into cellFor prelude; th/td key sequences asserted equal), rendered via orderedCols = colOrder.filter(visible); DEFAULT_ORDER 65 keys, order persisted in nexus_crypto_cols {tf,cols,order}, sanitized; pinned star/#/Rank/Name/Price untouched. Typecheck 0, vite build ok, /trading 200 0.91s, audit spot 200/200 tech 197 deriv 177 meta 122 MISMATCH 0.
