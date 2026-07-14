@@ -36,7 +36,7 @@ api/news.ts (V7 CP-6 added the wl=crypto source whitelist). Applies to ALL
 
 ## Ledger
 
-- [ ] NT-1 **Horizon + newest-first (server)**: api/news.ts — new param
+- [x] NT-1 **Horizon + newest-first (server)**: api/news.ts — new param
   `days=N` (crypto callers pass 7): append `when:{N}d` to the Google query,
   parse each item's pubDate, DROP anything older than N days (belt +
   suspenders vs Google's approximation), then sort remaining items by
@@ -64,3 +64,5 @@ api/news.ts (V7 CP-6 added the wl=crypto source whitelist). Applies to ALL
 ## Progress log
 
 (append one line per completed task, real numbers only)
+
+- **NT-1 live** (2026-07-14): days= param — when:Nd at fetch boundary + server drop >N days (invalid pubDate = out) + sort desc; curl-verified when:7d works AND raw RSS order is non-chronological (Jul 9 before Jul 14 in raw feed); prod BTC days=7 now strictly Jul 14 11:15 → Jul 10, all ≤7d; TN BIAT byte-identical (Ilboursa/African Manager/Tustex)

@@ -22,10 +22,16 @@ export default async function handler(req: any, res: any) {
   const q = String(req.query.q || '').trim();
   const region = String(req.query.region || 'us');
   const wl = String(req.query.wl || '');
+  // NT-1: days=N — strict horizon. Appends when:Nd at the fetch boundary AND
+  // drops anything older (or with unverifiable pubDate) server-side, then
+  // sorts newest-first (RSS order is approximate — curl-verified 2026-07-14).
+  // Additive: legacy callers and the TN path never send days=.
+  const days = parseInt(String(req.query.days || ''), 10) || 0;
   if (!q) return res.status(400).json({ error: 'q required' });
   const [hl, gl] = region === 'tn' ? ['fr', 'TN'] : ['en', 'US'];
   try {
-    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=${hl}&gl=${gl}&ceid=${gl}:${hl}`;
+    const gq = days > 0 ? `${q} when:${days}d` : q;
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(gq)}&hl=${hl}&gl=${gl}&ceid=${gl}:${hl}`;
     const xml = await (await fetch(url, { headers: UA })).text();
     let items = (xml.match(/<item>[\s\S]*?<\/item>/g) || []).slice(0, 48).map((b) => {
       const rawTitle = tag(b, 'title');
@@ -40,6 +46,15 @@ export default async function handler(req: any, res: any) {
         const s = i.source.toLowerCase();
         return CRYPTO_WL.some((w) => s.includes(w));
       });
+    }
+    if (days > 0) {
+      const cutoff = Date.now() - days * 86400_000;
+      items = items
+        .filter((i) => {
+          const t = new Date(i.time).getTime();
+          return !isNaN(t) && t >= cutoff; // unverifiable age = out
+        })
+        .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
     }
     res.json({ items: items.slice(0, 24) });
   } catch (e: any) {
