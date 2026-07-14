@@ -115,7 +115,7 @@ data under every asset.
   (spec "instant view cleansing" for the canvas). Verify: GRAM chart =
   OKX Gram candles or honest empty (never Binance GRAM-collision), HYPE/
   OKB/LEO charts fill from OKX, BTC unchanged, last close ≈ table price.
-- [ ] CP-5 **MCAP toggle + indicator overlays**: PRICE/MCAP toggle wired
+- [x] CP-5 **MCAP toggle + indicator overlays**: PRICE/MCAP toggle wired
   — MCAP = CG market_chart market_caps (REAL historical mcap, daily) as
   line series via `?view=mcapchart&id=` blob TTL 1h; candles hidden,
   line shown, axis reformats ($B). Indicators: EMA20/50/200, SMA, RSI,
@@ -147,3 +147,4 @@ data under every asset.
 - **CP-2 live** (2026-07-14): dead market-server WS path removed for crypto; CG tickers via ?view=tickers 15m blob — BTC top row Binance BTC/USDT $63,445 vol $1.14B depth $16.1M/$24.7M; GRAM shows real venue list MEXC/STON.fi/DeDust at $0.00114 (zero BTC rows); anomaly/stale/red-trust filtered; Perpetual/Futures tabs honest empty
 - **CP-3 live** (2026-07-14): YIELD_DATA + HOLDERS_DATA deleted; ?view=yield&sym= via llama pools (10MB held in-memory 1h, only per-sym top-15 blobbed 1h) — ETH real (fluid-lite 5.19% APY $133M TVL, justlend $869M), BTC thin real (b14g 0.17%), GRM [] honest; Holders = honest indexer-key state + real explorer links from CP-1 profile blob (gram-2 → tonscan/tonviewer)
 - **CP-4 live** (2026-07-14): chart venue-keyed from base row (never bare symbol); Yahoo crypto guess deleted; klines.ts +venue=okx branch (reversed, Binance shape, max 300) — HYPE OKX candles ascending $63.9-67.5; GRAM=the-open-network venue=binance close $1.606 vs CG $1.60 gate 0.375% pass; collision gate 3%/1% wipes to honest empty "No verified candle source"; WS binance-only, okx=10s REST tick; asset-switch wipe inherent (chart torn down per asset in effect)
+- **CP-5 live** (2026-07-14): PRICE/MCAP segmented wired (was dead) — ?view=mcapchart&id= 1h blob, BTC real history $2.38T (2025-07) → $1.28T (today), $B/$T axis via custom formatter, no candles/WS/indicators in mcap mode; INDICATORS button wired with dropdown (Topbar + Sidebar share list); EMA 200 added to Chart series map + both lists; RSI/MACD panes already client-side from loaded candles (same Binance 1d as table technicals — consistent by construction). Toolbar audit inert-left-as-is: TRADINGVIEW button, candles/line chart-type toggle (local state unused), DEX MODE (visual only)

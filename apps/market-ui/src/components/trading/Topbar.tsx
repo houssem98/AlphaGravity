@@ -22,7 +22,13 @@ interface TopbarProps {
   activeTab?: string;
   onTabChange?: (tab: string) => void;
   market?: import('../../lib/markets').MarketId;
+  chartMode?: 'price' | 'mcap';
+  onChartModeChange?: (mode: 'price' | 'mcap') => void;
+  activeIndicators?: string[];
+  onIndicatorToggle?: (indicator: string) => void;
 }
+
+const INDICATOR_LIST = ['SMA 20', 'SMA 50', 'SMA 200', 'EMA 20', 'EMA 50', 'EMA 200', 'RSI', 'MACD'];
 
 /** Two-row topbar: section tabs + CTA, then chart controls.
  *  Density: Bloomberg. Radii: 2-4px. Accent: amber, single use. */
@@ -36,11 +42,16 @@ export const Topbar: React.FC<TopbarProps> = ({
   activeTab = 'Chart',
   onTabChange,
   market,
+  chartMode = 'price',
+  onChartModeChange,
+  activeIndicators = [],
+  onIndicatorToggle,
 }) => {
   const tabs = market === 'tunisia' ? TN_TABS : COIN_TABS;
 
   const [chartType, setChartType] = useState<'candles' | 'line'>('candles');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isIndicatorsOpen, setIsIndicatorsOpen] = useState(false);
   const [dexMode, setDexMode] = useState(false);
   const [showAllTf, setShowAllTf] = useState(false);
 
@@ -106,12 +117,26 @@ export const Topbar: React.FC<TopbarProps> = ({
       {/* ── Row 2 : chart controls ──────────────────────────────────── */}
       <div className="flex items-center h-9 px-2">
         <div className="flex items-center gap-0.5 shrink-0">
-          {/* Price / MCap segmented */}
+          {/* Price / MCap segmented (CP-5: wired) */}
           <div className="flex items-center rounded-sm p-0.5 bg-[color:var(--bg)]">
-            <button className="px-2 py-0.5 text-label font-semibold rounded-[2px] bg-[color:var(--surface-2)] text-[color:var(--text)]">
+            <button
+              onClick={() => onChartModeChange?.('price')}
+              className={`px-2 py-0.5 text-label font-semibold rounded-[2px] ${
+                chartMode === 'price'
+                  ? 'bg-[color:var(--surface-2)] text-[color:var(--text)]'
+                  : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'
+              }`}
+            >
               PRICE
             </button>
-            <button className="px-2 py-0.5 text-label font-semibold text-[color:var(--text-3)] hover:text-[color:var(--text-2)]">
+            <button
+              onClick={() => onChartModeChange?.('mcap')}
+              className={`px-2 py-0.5 text-label font-semibold rounded-[2px] ${
+                chartMode === 'mcap'
+                  ? 'bg-[color:var(--surface-2)] text-[color:var(--text)]'
+                  : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'
+              }`}
+            >
               MCAP
             </button>
           </div>
@@ -133,10 +158,41 @@ export const Topbar: React.FC<TopbarProps> = ({
         </div>
 
         <div className="ml-auto flex items-center gap-0.5 shrink-0">
-          <button className="flex items-center gap-1.5 px-2 py-1 rounded-sm text-label font-semibold text-[color:var(--text-2)] hover:text-[color:var(--text)] bg-[color:var(--bg)] border border-[color:var(--line)] hover:border-[color:var(--line-strong)] transition-colors">
-            <Activity className="w-3 h-3" />
-            INDICATORS
-          </button>
+          {/* CP-5: wired — same toggle list as the Sidebar dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsIndicatorsOpen(!isIndicatorsOpen)}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-sm text-label font-semibold bg-[color:var(--bg)] border transition-colors ${
+                isIndicatorsOpen
+                  ? 'text-[color:var(--accent)] border-[color:var(--line-strong)]'
+                  : 'text-[color:var(--text-2)] hover:text-[color:var(--text)] border-[color:var(--line)] hover:border-[color:var(--line-strong)]'
+              }`}
+            >
+              <Activity className="w-3 h-3" />
+              INDICATORS
+            </button>
+            {isIndicatorsOpen && (
+              <div className="absolute top-9 right-0 rounded-[4px] py-1 shadow-xl z-50 min-w-[160px] bg-[color:var(--surface-2)] border border-[color:var(--line-strong)]">
+                {INDICATOR_LIST.map((indicator) => {
+                  const isActive = activeIndicators.includes(indicator);
+                  return (
+                    <button
+                      key={indicator}
+                      onClick={() => onIndicatorToggle?.(indicator)}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 text-data transition-colors ${
+                        isActive
+                          ? 'text-[color:var(--accent)]'
+                          : 'text-[color:var(--text-2)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)]'
+                      }`}
+                    >
+                      <span className="font-mono">{indicator}</span>
+                      {isActive && <span className="text-[10px]">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           <span className="w-px h-4 mx-1.5 bg-[color:var(--line)]" />
 

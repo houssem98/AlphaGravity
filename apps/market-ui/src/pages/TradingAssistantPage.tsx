@@ -62,6 +62,7 @@ export default function TradingAssistantPage() {
     [activeMarket, currentAsset],
   );
   const [currentTimeframe, setCurrentTimeframe] = useState<string>('1D');
+  const [chartMode, setChartMode] = useState<'price' | 'mcap'>('price');
   const [activeTab, setActiveTab] = useState<string>('Chart');
   // TN has no Markets/Yield/Holders tabs — snap back to Chart if one was open.
   useEffect(() => {
@@ -544,6 +545,10 @@ export default function TradingAssistantPage() {
                 activeTab={activeTab}
                 market={activeMarket}
                 onTabChange={(tab) => setActiveTab(tab)}
+                chartMode={chartMode}
+                onChartModeChange={setChartMode}
+                activeIndicators={activeIndicators}
+                onIndicatorToggle={handleIndicatorToggle}
               />
 
               {/* Phase 3T: Risk Alert Banner */}
@@ -566,7 +571,7 @@ export default function TradingAssistantPage() {
                     {activeMarket === 'tunisia' ? (
                       <TnChart asset={currentAsset} name={assetName} />
                     ) : (
-                      <Chart ref={chartRef} asset={currentAsset} timeframe={currentTimeframe} colors={chartColors} activeIndicators={activeIndicators} activeTool={activeTool} drawingPoints={drawingPoints} drawingConfig={drawingConfig} onChartClick={handleChartClick} />
+                      <Chart ref={chartRef} asset={currentAsset} timeframe={currentTimeframe} mode={chartMode} colors={chartColors} activeIndicators={activeIndicators} activeTool={activeTool} drawingPoints={drawingPoints} drawingConfig={drawingConfig} onChartClick={handleChartClick} />
                     )}
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[480px] max-w-[90%] z-20">
                       <div className="rounded-sm p-1.5 flex items-center gap-2 cursor-text transition-colors bg-[color:var(--surface)] border border-[color:var(--line-strong)] hover:border-[color:var(--accent)]" onClick={() => setIsAssistantOpen(true)}>

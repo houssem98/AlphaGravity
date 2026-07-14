@@ -221,7 +221,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {openMenuId === 'indicators' && (
           <div className="absolute left-[44px] top-0 rounded-[4px] shadow-xl py-1 min-w-[180px] z-50 bg-[color:var(--surface-2)] border border-[color:var(--line-strong)]">
-            {['SMA 20', 'SMA 50', 'SMA 200', 'EMA 20', 'EMA 50', 'RSI', 'MACD'].map((indicator) => {
+            {['SMA 20', 'SMA 50', 'SMA 200', 'EMA 20', 'EMA 50', 'EMA 200', 'RSI', 'MACD'].map((indicator) => {
               const isActive = activeIndicators?.includes(indicator);
               return (
                 <button

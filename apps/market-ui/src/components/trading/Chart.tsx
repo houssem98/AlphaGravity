@@ -30,6 +30,7 @@ export interface ChartColors {
 interface ChartProps {
   asset: string;
   timeframe: string;
+  mode?: 'price' | 'mcap';
   colors?: ChartColors;
   activeIndicators?: string[];
   activeTool?: string | null;
@@ -42,7 +43,7 @@ interface ChartProps {
 // CP-4: same tolerance class as the server gate (stables 1%, rest 3%).
 const STABLE_SYMS = new Set(['USDT', 'USDC', 'DAI', 'FDUSD', 'USDE', 'TUSD', 'PYUSD', 'USDP', 'USDD', 'FRAX', 'BUSD', 'GUSD', 'USDS', 'USD1', 'RLUSD']);
 
-export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, colors, activeIndicators = ['SMA 20', 'SMA 50'], activeTool, drawingPoints, drawingConfig, onChartClick, onDrawComplete }, ref) => {
+export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, mode = 'price', colors, activeIndicators = ['SMA 20', 'SMA 50'], activeTool, drawingPoints, drawingConfig, onChartClick, onDrawComplete }, ref) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   // CP-4: honest empty chart state — no verified candle source / collision gate hit
   const [emptyMsg, setEmptyMsg] = useState<string | null>(null);
@@ -1104,6 +1105,18 @@ export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, color
       },
     });
 
+    // CP-5: MCAP mode — real historical market cap as a line, axis in $B/$T.
+    const mcapSeries = mode === 'mcap'
+      ? chart.addSeries(LineSeries, {
+          color: '#F0B90B',
+          lineWidth: 2,
+          priceFormat: {
+            type: 'custom',
+            formatter: (p: number) => `$${Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(p)}`,
+          },
+        })
+      : null;
+
     const indicatorSeries: Record<string, any> = {};
 
     activeIndicators.forEach(indicator => {
@@ -1117,6 +1130,8 @@ export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, color
         indicatorSeries['EMA 20'] = chart.addSeries(LineSeries, { color: '#00E676', lineWidth: 2, crosshairMarkerVisible: false });
       } else if (indicator === 'EMA 50') {
         indicatorSeries['EMA 50'] = chart.addSeries(LineSeries, { color: '#FF1744', lineWidth: 2, crosshairMarkerVisible: false });
+      } else if (indicator === 'EMA 200') {
+        indicatorSeries['EMA 200'] = chart.addSeries(LineSeries, { color: '#00B8D4', lineWidth: 2, crosshairMarkerVisible: false });
       } else if (indicator === 'RSI') {
         indicatorSeries['RSI'] = chart.addSeries(LineSeries, { color: '#E040FB', lineWidth: 2, priceScaleId: 'left' });
       } else if (indicator === 'MACD') {
@@ -1370,6 +1385,29 @@ export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, color
         setEmptyMsg(null);
         let formattedData: any[] = [];
 
+        // CP-5: MCAP mode — daily line from CG market_chart, no candles/WS/indicators.
+        if (mode === 'mcap') {
+          if (!isCrypto) {
+            setEmptyMsg(`No market-cap history source for ${asset}`);
+            return;
+          }
+          try {
+            const base = await fetch('/api/crypto/markets').then((r) => r.json());
+            const row = Array.isArray(base) ? base.find((r: any) => r.symbol === asset) : null;
+            if (!row?.id) throw new Error('id');
+            const res = await fetch(`/api/crypto/markets?view=mcapchart&id=${encodeURIComponent(row.id)}`);
+            if (!res.ok) throw new Error(`${res.status}`);
+            const caps = await res.json();
+            if (!isMounted) return;
+            if (!Array.isArray(caps) || caps.length === 0) throw new Error('empty');
+            mcapSeries!.setData(caps.map((c: any) => ({ time: (c[0] / 1000) as Time, value: c[1] })));
+            chart.timeScale().fitContent();
+          } catch {
+            if (isMounted) setEmptyMsg(`No market-cap history for ${asset}`);
+          }
+          return;
+        }
+
         if (isCrypto) {
           let cgPrice = 0;
           try {
@@ -1487,6 +1525,10 @@ export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, color
           if (indicatorSeries['EMA 50']) {
             const ema50 = calculateEMA(data, 50);
             isUpdate && ema50.length > 0 ? indicatorSeries['EMA 50'].update(ema50[ema50.length - 1]) : indicatorSeries['EMA 50'].setData(ema50);
+          }
+          if (indicatorSeries['EMA 200']) {
+            const ema200 = calculateEMA(data, 200);
+            isUpdate && ema200.length > 0 ? indicatorSeries['EMA 200'].update(ema200[ema200.length - 1]) : indicatorSeries['EMA 200'].setData(ema200);
           }
           if (indicatorSeries['RSI']) {
             const rsi = calculateRSI(data, 14);
@@ -1732,7 +1774,7 @@ export const Chart = forwardRef<ChartRef, ChartProps>(({ asset, timeframe, color
         }
       }
     };
-  }, [asset, timeframe, JSON.stringify(activeIndicators)]);
+  }, [asset, timeframe, mode, JSON.stringify(activeIndicators)]);
 
   useEffect(() => {
     if (seriesRef.current && colors) {

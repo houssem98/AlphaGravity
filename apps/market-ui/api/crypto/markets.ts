@@ -587,6 +587,16 @@ async function fetchTickers(cgId: string) {
     }));
 }
 
+// ---- CP-5: historical market cap (CG market_chart daily, REAL mcap) ----
+
+async function fetchMcapChart(cgId: string) {
+  const r = await fetch(`https://api.coingecko.com/api/v3/coins/${cgId}/market_chart?vs_currency=usd&days=365&interval=daily`);
+  if (!r.ok) throw new Error(`coingecko market_chart ${r.status}`);
+  const j = await r.json();
+  const caps: any[] = Array.isArray(j?.market_caps) ? j.market_caps : [];
+  return caps.filter((c) => Array.isArray(c) && c[1] > 0).map((c) => [c[0], c[1]]);
+}
+
 // ---- CP-3: DeFi yield pools (yields.llama.fi/pools) ----
 // The full pools JSON is ~10MB — held in-memory 1h, NEVER blobbed whole;
 // only the tiny per-symbol top-15 slice goes to blob (1h TTL).
@@ -929,6 +939,16 @@ export default async function handler(req: any, res: any) {
       return res.json(profile);
     } catch (e) {
       return res.status(404).json({ error: 'profile not found' });
+    }
+  }
+  if (req.query?.view === 'mcapchart') {
+    const cgId = String(req.query.id || '').trim();
+    if (!cgId) return res.status(400).json({ error: 'id required' });
+    try {
+      const rows = await cachedBlob(`crypto_mcapchart_${cgId}.json`, 3600, () => fetchMcapChart(cgId), (d) => Array.isArray(d) && d.length > 0);
+      return res.json(rows);
+    } catch {
+      return res.status(404).json({ error: 'mcap chart not found' });
     }
   }
   if (req.query?.view === 'yield') {
