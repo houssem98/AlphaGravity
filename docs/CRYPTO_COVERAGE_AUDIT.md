@@ -1,6 +1,6 @@
 # Crypto Screener V3 Coverage Audit
 
-Generated: 2026-07-14T07:01:23.046Z | Target: https://market-ui-self.vercel.app | Coins: 200
+Generated: 2026-07-14T07:04:43.045Z | Target: https://market-ui-self.vercel.app | Coins: 200
 
 ## Totals
 
@@ -67,8 +67,8 @@ Generated: 2026-07-14T07:01:23.046Z | Target: https://market-ui-self.vercel.app 
 | 50 | QNT (quant-network) | OK | OK | OK | · |
 | 51 | POL (polygon-ecosystem-token) | OK | OK | OK | OK |
 | 52 | JST (just) | OK | OK | OK | OK |
-| 53 | PI (pi-network) | OK | OK | OK | OK |
-| 54 | ATOM (cosmos) | OK | OK | OK | · |
+| 53 | ATOM (cosmos) | OK | OK | OK | · |
+| 54 | PI (pi-network) | OK | OK | OK | OK |
 | 55 | ENA (ethena) | OK | OK | OK | OK |
 | 56 | RENDER (render-token) | OK | OK | OK | · |
 | 57 | ALGO (algorand) | OK | OK | OK | OK |
@@ -91,8 +91,8 @@ Generated: 2026-07-14T07:01:23.046Z | Target: https://market-ui-self.vercel.app 
 | 74 | PYTH (pyth-network) | OK | OK | OK | · |
 | 75 | TRUMP (official-trump) | OK | OK | OK | · |
 | 76 | PENGU (pudgy-penguins) | OK | OK | OK | OK |
-| 77 | VIRTUAL (virtual-protocol) | OK | OK | OK | · |
-| 78 | ETHFI (ether-fi) | OK | OK | OK | OK |
+| 77 | ETHFI (ether-fi) | OK | OK | OK | OK |
+| 78 | VIRTUAL (virtual-protocol) | OK | OK | OK | · |
 | 79 | FET (fetch-ai) | OK | OK | OK | · |
 | 80 | SUN (sun-token) | OK | OK | OK | OK |
 | 81 | FDUSD (first-digital-usd) | OK | OK | · | · |
@@ -117,8 +117,8 @@ Generated: 2026-07-14T07:01:23.046Z | Target: https://market-ui-self.vercel.app 
 | 100 | OP (optimism) | OK | OK | OK | OK |
 | 101 | JASMY (jasmycoin) | OK | OK | OK | · |
 | 102 | SYRUP (syrup) | OK | OK | OK | OK |
-| 103 | DCR (decred) | OK | OK | · | OK |
-| 104 | ZBCN (zebec-network) | OK | OK | · | · |
+| 103 | ZBCN (zebec-network) | OK | OK | · | · |
+| 104 | DCR (decred) | OK | OK | · | OK |
 | 105 | FLOKI (floki) | OK | OK | OK | OK |
 | 106 | KAIA (kaia) | OK | OK | OK | OK |
 | 107 | STRK (starknet) | OK | OK | OK | OK |
@@ -155,9 +155,9 @@ Generated: 2026-07-14T07:01:23.046Z | Target: https://market-ui-self.vercel.app 
 | 138 | SFP (safepal) | OK | OK | OK | · |
 | 139 | DYDX (dydx-chain) | OK | OK | OK | OK |
 | 140 | ZK (zksync) | OK | OK | OK | OK |
-| 141 | 1INCH (1inch) | OK | OK | OK | OK |
-| 142 | SENT (sentient) | OK | OK | OK | · |
-| 143 | EGLD (elrond-erd-2) | OK | OK | OK | OK |
+| 141 | SENT (sentient) | OK | OK | OK | · |
+| 142 | EGLD (elrond-erd-2) | OK | OK | OK | OK |
+| 143 | 1INCH (1inch) | OK | OK | OK | OK |
 | 144 | GLM (golem) | OK | OK | OK | · |
 | 145 | GALA (gala) | OK | OK | OK | OK |
 | 146 | DATA (story-2) | OK | · | OK | OK |
@@ -168,8 +168,8 @@ Generated: 2026-07-14T07:01:23.046Z | Target: https://market-ui-self.vercel.app 
 | 151 | RE (re) | OK | · | OK | · |
 | 152 | ATH (aethir) | OK | OK | OK | · |
 | 153 | SAFE (safe) | OK | OK | OK | · |
-| 154 | COW (cow-protocol) | OK | OK | OK | · |
-| 155 | FLUID (instadapp) | OK | OK | OK | OK |
+| 154 | FLUID (instadapp) | OK | OK | OK | OK |
+| 155 | COW (cow-protocol) | OK | OK | OK | · |
 | 156 | MET (meteora) | OK | OK | OK | OK |
 | 157 | RSR (reserve-rights-token) | OK | OK | OK | OK |
 | 158 | FORM (four) | OK | OK | OK | · |
@@ -209,9 +209,9 @@ Generated: 2026-07-14T07:01:23.046Z | Target: https://market-ui-self.vercel.app 
 | 192 | MEGA (megaeth) | OK | OK | OK | OK |
 | 193 | ENJ (enjincoin) | OK | OK | OK | OK |
 | 194 | SPK (spark-2) | OK | OK | OK | OK |
-| 195 | SYN (synapse-2) | OK | OK | OK | OK |
-| 196 | ZETA (zetachain) | OK | OK | OK | OK |
-| 197 | PROS (pharos-network) | OK | OK | OK | OK |
-| 198 | VELO (velo) | OK | OK | · | · |
-| 199 | HOME (home) | OK | OK | OK | · |
-| 200 | T (threshold-network-token) | OK | OK | OK | OK |
+| 195 | ZETA (zetachain) | OK | OK | OK | OK |
+| 196 | PROS (pharos-network) | OK | OK | OK | OK |
+| 197 | VELO (velo) | OK | OK | · | · |
+| 198 | SYN (synapse-2) | OK | OK | OK | OK |
+| 199 | T (threshold-network-token) | OK | OK | OK | OK |
+| 200 | HOME (home) | OK | OK | OK | · |

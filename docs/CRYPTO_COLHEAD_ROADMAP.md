@@ -65,7 +65,7 @@ and must land with ZERO visual change before any menu work starts.
   columns only for left/right semantics; start/end = whole order). Persist.
   Verify: move RSI to start → renders right after Price; move to end →
   before nothing (last); reload keeps order; typecheck 0, deploy.
-- [ ] CH-4 **Sweep**: full visual smoke (200-row page, expanded row,
+- [x] CH-4 **Sweep**: full visual smoke (200-row page, expanded row,
   chooser, merged-% dropdown, watchlist tab), audit rerun green
   (spot 200/200 MISMATCH 0), TN regression 200s, first paint budget
   unchanged, update this ledger + memory.
@@ -77,3 +77,4 @@ and must land with ZERO visual change before any menu work starts.
 - 2026-07-14 CH-1: codemod moved 65 th + 65 td verbatim into headerFor/cellFor switches (IIFE locals hoisted into cellFor prelude; th/td key sequences asserted equal), rendered via orderedCols = colOrder.filter(visible); DEFAULT_ORDER 65 keys, order persisted in nexus_crypto_cols {tf,cols,order}, sanitized; pinned star/#/Rank/Name/Price untouched. Typecheck 0, vite build ok, /trading 200 0.91s, audit spot 200/200 tech 197 deriv 177 meta 122 MISMATCH 0.
 - 2026-07-14 CH-2: menuTh — 64 headers converted (codemod: sortTh→base, techTh→tech, plain th→none; merged-% col keeps its own dropdown); menu = Sort asc/desc (explicit setSortConfig/setTechSort, kind-dispatched) + divider + Trash2 Hide (cols toggle, chooser re-enables); popover = merged-% dropdown classes. Typecheck 0, build 57.5s, /trading 200 0.65s, audit spot 200/200 MISMATCH 0.
 - 2026-07-14 CH-3: menu gains Move left/right (hops hidden cols) + Move to start/end (whole order) via moveColumn(setColOrder); FIXED CH-1 leftover — persist replace had silently no-oped on CRLF, {tf,cols,order} now actually written + colOrder in deps. Typecheck 0, /trading 200 0.59s, audit spot 200/200 tech 197 deriv 177 meta 123 MISMATCH 0.
+- 2026-07-14 CH-4 FINAL: /trading 200 0.21s (paint budget intact), 200 rows 0 dash Price/24h%, TN board 200 0.69s + intraday 200 1.77s, audit spot 200/200 tech 197 deriv 177 meta 123 MISMATCH 0; registry guarantees th/td parity structurally. COLHEAD COMPLETE 4/4 — every column: sort asc/desc, move left/right/start/end, hide; order+visibility persist. Browser click-through = user smoke.
