@@ -91,7 +91,7 @@ data under every asset.
   honest empty+retry. Verify: BTC shows Binance/Coinbase/OKX real rows,
   GRAM shows its real (small) venue list, prices within gate of
   livePrice.
-- [ ] CP-3 **Yield live + Holders honest**: yields — `?view=yield&sym=`
+- [x] CP-3 **Yield live + Holders honest**: yields — `?view=yield&sym=`
   branch → yields.llama.fi/pools symbol→pools map (cache map 1h blob),
   filter exact symbol match, top 15 by tvlUsd, {project, chain, symbol,
   apy, tvlUsd, stablecoin flag} → YieldTab renders real rows in existing
@@ -145,3 +145,4 @@ data under every asset.
 
 - **CP-1 live** (2026-07-14): bitcoin profile real (21M max, SHA-256, rank #1), gram-2 real (TON Ecosystem, gramcoin.org), prod curl verified, zero Satoshi leaks, 24h blob TTL, lazy fetch on tab open, design freeze reused grid layout
 - **CP-2 live** (2026-07-14): dead market-server WS path removed for crypto; CG tickers via ?view=tickers 15m blob — BTC top row Binance BTC/USDT $63,445 vol $1.14B depth $16.1M/$24.7M; GRAM shows real venue list MEXC/STON.fi/DeDust at $0.00114 (zero BTC rows); anomaly/stale/red-trust filtered; Perpetual/Futures tabs honest empty
+- **CP-3 live** (2026-07-14): YIELD_DATA + HOLDERS_DATA deleted; ?view=yield&sym= via llama pools (10MB held in-memory 1h, only per-sym top-15 blobbed 1h) — ETH real (fluid-lite 5.19% APY $133M TVL, justlend $869M), BTC thin real (b14g 0.17%), GRM [] honest; Holders = honest indexer-key state + real explorer links from CP-1 profile blob (gram-2 → tonscan/tonviewer)

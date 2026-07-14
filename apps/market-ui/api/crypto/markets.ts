@@ -587,6 +587,35 @@ async function fetchTickers(cgId: string) {
     }));
 }
 
+// ---- CP-3: DeFi yield pools (yields.llama.fi/pools) ----
+// The full pools JSON is ~10MB — held in-memory 1h, NEVER blobbed whole;
+// only the tiny per-symbol top-15 slice goes to blob (1h TTL).
+
+let poolsCache: { at: number; rows: any[] } | null = null;
+async function llamaPools() {
+  if (poolsCache && Date.now() - poolsCache.at < HOUR) return poolsCache.rows;
+  const j = await (await fetch('https://yields.llama.fi/pools')).json();
+  const rows: any[] = Array.isArray(j?.data) ? j.data : [];
+  if (rows.length) poolsCache = { at: Date.now(), rows };
+  return rows;
+}
+
+async function yieldFor(sym: string) {
+  const rows = await llamaPools();
+  return rows
+    .filter((p) => p.symbol === sym && p.tvlUsd > 0 && p.apy !== null && !p.outlier)
+    .sort((a, b) => b.tvlUsd - a.tvlUsd)
+    .slice(0, 15)
+    .map((p) => ({
+      project: p.project,
+      chain: p.chain,
+      symbol: p.symbol,
+      apy: p.apy,
+      tvlUsd: p.tvlUsd,
+      stablecoin: !!p.stablecoin,
+    }));
+}
+
 // ---- CT-2: verified-pair gate. A Binance/fapi row only counts for a coin if
 // the source's own price agrees with the coin's CG/base price (px= hints from
 // the UI, "SYM:price,..."). Disagreement > 3% (stables 1%) = symbol collision
@@ -900,6 +929,17 @@ export default async function handler(req: any, res: any) {
       return res.json(profile);
     } catch (e) {
       return res.status(404).json({ error: 'profile not found' });
+    }
+  }
+  if (req.query?.view === 'yield') {
+    const sym = String(req.query.sym || '').trim().toUpperCase();
+    if (!sym) return res.status(400).json({ error: 'sym required' });
+    try {
+      // usable = any array (empty is a real answer: no pools for this symbol)
+      const rows = await cachedBlob(`crypto_yield_${sym}.json`, 3600, () => yieldFor(sym), (d) => Array.isArray(d));
+      return res.json(rows);
+    } catch {
+      return res.status(502).json({ error: 'yield source unavailable' });
     }
   }
   if (req.query?.view === 'tickers') {
