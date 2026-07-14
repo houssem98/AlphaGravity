@@ -20,29 +20,27 @@ const TN_SECTOR: Record<string, string> = {
   TPR: 'Industrials', ARTES: 'Automotive', ENNAKL: 'Automotive', STAR: 'Insurance', ASTREE: 'Insurance',
 };
 
-const ASSET_INFO: Record<string, any> = {
-  BTC: {
-    name: 'Bitcoin', symbol: 'BTC',
-    description: 'Bitcoin is a peer-to-peer electronic cash system created by the pseudonymous Satoshi Nakamoto. It is the world\'s first decentralized digital currency and operates without a central bank or single administrator.',
-    founded: '2009', website: 'https://bitcoin.org', whitepaper: 'https://bitcoin.org/bitcoin.pdf',
-    github: 'https://github.com/bitcoin/bitcoin', twitter: 'https://twitter.com/bitcoin', discord: 'https://discord.gg/bitcoin',
-    blockchain: 'Bitcoin', consensus: 'Proof of Work (SHA-256)', totalSupply: '21,000,000 BTC', marketCap: '$1.2T',
-  },
-  ETH: {
-    name: 'Ethereum', symbol: 'ETH',
-    description: 'Ethereum is a decentralized computing platform featuring smart contracts. It enables developers to build decentralized applications (dApps) and has become the leading blockchain for DeFi, NFTs, and Web3 applications.',
-    founded: '2015', website: 'https://ethereum.org', whitepaper: 'https://ethereum.org/en/whitepaper/',
-    github: 'https://github.com/ethereum', twitter: 'https://twitter.com/ethereum', discord: 'https://discord.gg/ethereum',
-    blockchain: 'Ethereum', consensus: 'Proof of Stake', totalSupply: 'Unlimited', marketCap: '$310B',
-  },
-  SOL: {
-    name: 'Solana', symbol: 'SOL',
-    description: 'Solana is a high-performance blockchain built for scalability. It uses a novel Proof of History consensus mechanism to achieve high throughput and low transaction costs, making it ideal for NFTs and DeFi applications.',
-    founded: '2017', website: 'https://solana.com', whitepaper: 'https://solana.com/solana-whitepaper.pdf',
-    github: 'https://github.com/solana-labs/solana', twitter: 'https://twitter.com/solana', discord: 'https://discord.gg/solana',
-    blockchain: 'Solana', consensus: 'Proof of History + Proof of Stake', totalSupply: '511,616,946 SOL', marketCap: '$72B',
-  },
-};
+interface CryptoProfile {
+  id: string;
+  name: string;
+  symbol: string;
+  description: string;
+  image: string;
+  genesisDate: string;
+  hashingAlgorithm: string;
+  categories: string[];
+  circulatingSupply: number | null;
+  totalSupply: number | null;
+  maxSupply: number | null;
+  rank: number | null;
+  links: {
+    homepage: string;
+    whitepaper: string;
+    blockchainSite: string[];
+    twitter: string;
+    repos: string[];
+  };
+}
 
 // ── Tunisian company profile (real data only) ──────────────────────────────
 const TnAbout: React.FC<{ asset: string; name?: string }> = ({ asset, name }) => {
@@ -143,102 +141,129 @@ const TnAbout: React.FC<{ asset: string; name?: string }> = ({ asset, name }) =>
   );
 };
 
-export const AboutTab: React.FC<AboutTabProps> = ({ asset, name, market }) => {
-  if (market === 'tunisia') return <TnAbout asset={asset} name={name} />;
+const CryptoAbout: React.FC<{ asset: string; name?: string }> = ({ asset, name }) => {
+  const [profile, setProfile] = useState<CryptoProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const info = ASSET_INFO[asset] || ASSET_INFO.BTC;
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    setError(false);
+    Promise.resolve()
+      .then(async () => {
+        const baseR = await fetch(`/api/crypto/markets`).then(r => r.json()).catch(() => []);
+        const row = Array.isArray(baseR) ? baseR.find((r: any) => r.symbol === asset) : null;
+        if (!row?.id) throw new Error('id not found');
+        const profileR = await fetch(`/api/crypto/markets?view=profile&id=${encodeURIComponent(row.id)}`);
+        if (!profileR.ok) throw new Error(`${profileR.status}`);
+        return profileR.json();
+      })
+      .then(p => { if (live) setProfile(p); })
+      .catch(() => { if (live) setError(true); })
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [asset]);
+
+  if (loading) return (
+    <div className="flex-1 overflow-y-auto bg-[color:var(--bg)]">
+      <div className="max-w-4xl p-6 space-y-6">
+        <div className="h-24 bg-[color:var(--surface)] rounded-sm animate-pulse" />
+        <div className="space-y-2">
+          <div className="h-4 bg-[color:var(--surface)] rounded w-3/4 animate-pulse" />
+          <div className="h-4 bg-[color:var(--surface)] rounded w-1/2 animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+
+  if (error || !profile) return (
+    <div className="flex-1 overflow-y-auto bg-[color:var(--bg)] flex items-center justify-center">
+      <div className="max-w-md text-center p-6">
+        <p className="text-body text-[color:var(--text-2)] mb-4">Data temporarily unavailable for {name || asset}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-[color:var(--accent)] text-white rounded-sm text-label font-semibold hover:opacity-90">Retry</button>
+      </div>
+    </div>
+  );
 
   const links = [
-    { label: 'Website', url: info.website, icon: Globe },
-    { label: 'Whitepaper', url: info.whitepaper, icon: ExternalLink },
-    info.github && { label: 'GitHub', url: info.github, icon: Github },
-    info.twitter && { label: 'Twitter', url: info.twitter, icon: Twitter },
-    info.discord && { label: 'Discord', url: info.discord, icon: MessageCircle },
+    profile.links.homepage && { label: 'Website', url: profile.links.homepage, icon: Globe },
+    profile.links.whitepaper && { label: 'Whitepaper', url: profile.links.whitepaper, icon: ExternalLink },
+    ...(profile.links.repos.length > 0 ? [{ label: 'GitHub', url: profile.links.repos[0], icon: Github }] : []),
+    profile.links.twitter && { label: 'Twitter', url: profile.links.twitter, icon: Twitter },
+  ].filter(Boolean);
+
+  const supplyRows = [
+    profile.circulatingSupply !== null && { label: 'Circulating Supply', value: profile.circulatingSupply.toLocaleString() },
+    profile.totalSupply !== null && { label: 'Total Supply', value: profile.totalSupply.toLocaleString() },
+    profile.maxSupply !== null && { label: 'Max Supply', value: profile.maxSupply.toLocaleString() },
+    !profile.maxSupply && { label: 'Max Supply', value: '—' },
   ].filter(Boolean);
 
   return (
     <div className="flex-1 overflow-y-auto bg-[color:var(--bg)]">
       <div className="max-w-4xl p-6 space-y-6">
-        {/* Header */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[color:var(--accent)] to-[color:var(--up)] flex items-center justify-center text-h3 font-bold text-white">
-              {info.symbol.charAt(0)}
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[color:var(--accent)] to-[color:var(--up)] flex items-center justify-center text-h3 font-bold text-white overflow-hidden">
+              {profile.image ? <img src={profile.image} alt={profile.name} className="w-full h-full object-cover" /> : profile.symbol.charAt(0)}
             </div>
             <div>
-              <h1 className="text-h2 font-bold text-[color:var(--text)]">{info.name}</h1>
-              <p className="text-body text-[color:var(--text-3)]">
-                {info.symbol} • Founded {info.founded}
-              </p>
+              <h1 className="text-h2 font-bold text-[color:var(--text)]">{profile.name}</h1>
+              <p className="text-body text-[color:var(--text-3)]">{profile.symbol} • Rank #{profile.rank ?? '—'}</p>
             </div>
           </div>
         </motion.div>
 
-        {/* Description */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <h3 className="text-body font-semibold text-[color:var(--text)] mb-2">About</h3>
-          <p className="text-body text-[color:var(--text-2)] leading-relaxed">{info.description}</p>
+          <p className="text-body text-[color:var(--text-2)] leading-relaxed">{profile.description || '—'}</p>
         </motion.div>
 
-        {/* Technical Details */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <h3 className="text-body font-semibold text-[color:var(--text)] mb-3">Technical Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              { label: 'Blockchain', value: info.blockchain },
-              { label: 'Consensus', value: info.consensus },
-              { label: 'Total Supply', value: info.totalSupply },
-              { label: 'Market Cap', value: info.marketCap },
-            ].map((item, idx) => (
-              <motion.div
-                key={item.label}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.15 + idx * 0.05 }}
-                className="p-3 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm"
-              >
-                <div className="label text-[color:var(--text-3)] mb-1">{item.label}</div>
-                <div className="text-body font-semibold text-[color:var(--text)]">{item.value}</div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
+        {supplyRows.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            <h3 className="text-body font-semibold text-[color:var(--text)] mb-3">Supply</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {supplyRows.map((item: any, idx) => (
+                <motion.div key={item.label} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 + idx * 0.05 }}
+                  className="p-3 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm">
+                  <div className="label text-[color:var(--text-3)] mb-1">{item.label}</div>
+                  <div className="text-body font-semibold text-[color:var(--text)] font-mono">{item.value}</div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
-        {/* Links */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <h3 className="text-body font-semibold text-[color:var(--text)] mb-3">Resources</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {links.map((link: any, idx) => {
-              const Icon = link.icon;
-              return (
-                <motion.a
-                  key={link.label}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 + idx * 0.05 }}
-                  className="flex items-center gap-2 p-3 bg-[color:var(--surface)] border border-[color:var(--line)] hover:border-[color:var(--line-strong)] hover:bg-[color:var(--surface-2)] rounded-sm transition-colors group"
-                >
-                  <Icon className="w-4 h-4 text-[color:var(--text-3)] group-hover:text-[color:var(--accent)] transition-colors" />
-                  <span className="text-label font-semibold text-[color:var(--text-2)] group-hover:text-[color:var(--text)] transition-colors">
-                    {link.label}
-                  </span>
-                  <ExternalLink className="w-3 h-3 text-[color:var(--text-3)] opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
-                </motion.a>
-              );
-            })}
-          </div>
-        </motion.div>
+        {links.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <h3 className="text-body font-semibold text-[color:var(--text)] mb-3">Resources</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {links.map((link: any, idx) => {
+                const Icon = link.icon;
+                return (
+                  <motion.a key={link.label} href={link.url} target="_blank" rel="noopener noreferrer"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 + idx * 0.05 }}
+                    className="flex items-center gap-2 p-3 bg-[color:var(--surface)] border border-[color:var(--line)] hover:border-[color:var(--line-strong)] hover:bg-[color:var(--surface-2)] rounded-sm transition-colors group">
+                    <Icon className="w-4 h-4 text-[color:var(--text-3)] group-hover:text-[color:var(--accent)] transition-colors" />
+                    <span className="text-label font-semibold text-[color:var(--text-2)] group-hover:text-[color:var(--text)] transition-colors">{link.label}</span>
+                    <ExternalLink className="w-3 h-3 text-[color:var(--text-3)] opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
+                  </motion.a>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
-        {/* Disclaimer */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }} className="p-3 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm">
-          <p className="text-label text-[color:var(--text-3)]">
-            ℹ️ Information shown is for educational purposes only and should not be considered as investment advice.
-          </p>
+          <p className="text-label text-[color:var(--text-3)]">ℹ️ For educational purposes only, not investment advice.</p>
         </motion.div>
       </div>
     </div>
   );
+};
+
+export const AboutTab: React.FC<AboutTabProps> = ({ asset, name, market }) => {
+  if (market === 'tunisia') return <TnAbout asset={asset} name={name} />;
+  return <CryptoAbout asset={asset} name={name} />;
 };

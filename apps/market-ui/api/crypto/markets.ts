@@ -528,6 +528,39 @@ async function buildMeta() {
   return metaCache;
 }
 
+// ---- CP-1: coin profiles (CoinGecko slim) — 24h cache per id ----
+
+async function fetchProfile(cgId: string) {
+  const r = await fetch(
+    `https://api.coingecko.com/api/v3/coins/${cgId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false`,
+  );
+  if (!r.ok) throw new Error(`coingecko profile ${r.status}`);
+  const c = await r.json();
+  const cats = Array.isArray(c.categories) ? c.categories.slice(0, 3) : [];
+  const links = c.links || {};
+  return {
+    id: c.id,
+    name: c.name || '',
+    symbol: (c.symbol || '').toUpperCase(),
+    description: c.description?.en || '',
+    image: c.image?.large || c.image?.small || c.image?.thumb || '',
+    genesisDate: c.genesis_date || '',
+    hashingAlgorithm: c.hashing_algorithm || '',
+    categories: cats,
+    circulatingSupply: c.market_data?.circulating_supply ?? null,
+    totalSupply: c.market_data?.total_supply ?? null,
+    maxSupply: c.market_data?.max_supply ?? null,
+    rank: c.market_cap_rank ?? null,
+    links: {
+      homepage: Array.isArray(links.homepage) ? links.homepage[0] || '' : links.homepage || '',
+      whitepaper: links.whitepaper || '',
+      blockchainSite: Array.isArray(links.blockchain_site) ? links.blockchain_site : [],
+      twitter: links.twitter_screen_name ? `https://twitter.com/${links.twitter_screen_name}` : '',
+      repos: links.repos_url?.github || [],
+    },
+  };
+}
+
 // ---- CT-2: verified-pair gate. A Binance/fapi row only counts for a coin if
 // the source's own price agrees with the coin's CG/base price (px= hints from
 // the UI, "SYM:price,..."). Disagreement > 3% (stables 1%) = symbol collision
@@ -833,6 +866,16 @@ const manyRows = (d: any[]) => Array.isArray(d) && d.length >= 50;
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.query?.view === 'profile') {
+    const cgId = String(req.query.id || '').trim();
+    if (!cgId) return res.status(400).json({ error: 'id required' });
+    try {
+      const profile = await cachedBlob(`crypto_profile_${cgId}.json`, 86400, () => fetchProfile(cgId), (d) => d && d.id);
+      return res.json(profile);
+    } catch (e) {
+      return res.status(404).json({ error: 'profile not found' });
+    }
+  }
   if (req.query?.view === 'meta') {
     const syms = String(req.query.symbols || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean).slice(0, 200);
     if (syms.length === 0) return res.status(400).json({ error: 'symbols required' });

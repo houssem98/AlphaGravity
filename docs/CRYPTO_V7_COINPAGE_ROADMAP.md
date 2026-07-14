@@ -71,7 +71,7 @@ data under every asset.
 
 ## Ledger
 
-- [ ] CP-1 **About tab live**: `?view=profile&id={cgId}` branch in
+- [x] CP-1 **About tab live**: `?view=profile&id={cgId}` branch in
   markets.ts → CG /coins/{id} slim params → {description(en), links
   (homepage/whitepaper/repos/twitter/explorers), genesis_date,
   hashing_algorithm, categories(3), supply trio, max_supply null→'—',
@@ -143,4 +143,4 @@ data under every asset.
 
 ## Progress log
 
-(append one line per completed task, real numbers only)
+- **CP-1 live** (2026-07-14): bitcoin profile real (21M max, SHA-256, rank #1), gram-2 real (TON Ecosystem, gramcoin.org), prod curl verified, zero Satoshi leaks, 24h blob TTL, lazy fetch on tab open, design freeze reused grid layout
