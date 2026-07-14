@@ -60,7 +60,7 @@ and must land with ZERO visual change before any menu work starts.
   Price ths). Verify: sort asc/desc works on a base col (Price change %),
   a tech col (RSI), hide works + chooser re-enables; typecheck 0, deploy,
   prod smoke.
-- [ ] CH-3 **Move actions**: menu gains ← Move left / → Move right /
+- [x] CH-3 **Move actions**: menu gains ← Move left / → Move right /
   |← Move to the start / →| Move to the end mutating colOrder (visible
   columns only for left/right semantics; start/end = whole order). Persist.
   Verify: move RSI to start → renders right after Price; move to end →
@@ -76,3 +76,4 @@ and must land with ZERO visual change before any menu work starts.
 
 - 2026-07-14 CH-1: codemod moved 65 th + 65 td verbatim into headerFor/cellFor switches (IIFE locals hoisted into cellFor prelude; th/td key sequences asserted equal), rendered via orderedCols = colOrder.filter(visible); DEFAULT_ORDER 65 keys, order persisted in nexus_crypto_cols {tf,cols,order}, sanitized; pinned star/#/Rank/Name/Price untouched. Typecheck 0, vite build ok, /trading 200 0.91s, audit spot 200/200 tech 197 deriv 177 meta 122 MISMATCH 0.
 - 2026-07-14 CH-2: menuTh — 64 headers converted (codemod: sortTh→base, techTh→tech, plain th→none; merged-% col keeps its own dropdown); menu = Sort asc/desc (explicit setSortConfig/setTechSort, kind-dispatched) + divider + Trash2 Hide (cols toggle, chooser re-enables); popover = merged-% dropdown classes. Typecheck 0, build 57.5s, /trading 200 0.65s, audit spot 200/200 MISMATCH 0.
+- 2026-07-14 CH-3: menu gains Move left/right (hops hidden cols) + Move to start/end (whole order) via moveColumn(setColOrder); FIXED CH-1 leftover — persist replace had silently no-oped on CRLF, {tf,cols,order} now actually written + colOrder in deps. Typecheck 0, /trading 200 0.59s, audit spot 200/200 tech 197 deriv 177 meta 123 MISMATCH 0.

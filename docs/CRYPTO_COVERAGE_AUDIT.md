@@ -1,6 +1,6 @@
 # Crypto Screener V3 Coverage Audit
 
-Generated: 2026-07-14T06:53:47.633Z | Target: https://market-ui-self.vercel.app | Coins: 200
+Generated: 2026-07-14T07:01:23.046Z | Target: https://market-ui-self.vercel.app | Coins: 200
 
 ## Totals
 
@@ -9,7 +9,7 @@ Generated: 2026-07-14T06:53:47.633Z | Target: https://market-ui-self.vercel.app 
 | spot | 200/200 | 0 | 0 |
 | technicals | 197/200 | 3 | 0 |
 | derivatives | 177/200 | 23 | 0 |
-| meta | 122/200 | 78 | 0 |
+| meta | 123/200 | 77 | 0 |
 
 ## Per coin
 
@@ -47,7 +47,7 @@ Generated: 2026-07-14T06:53:47.633Z | Target: https://market-ui-self.vercel.app 
 | 30 | SHIB (shiba-inu) | OK | OK | OK | · |
 | 31 | UNI (uniswap) | OK | OK | OK | OK |
 | 32 | TAO (bittensor) | OK | OK | OK | OK |
-| 33 | DEXE (dexe) | OK | OK | OK | · |
+| 33 | DEXE (dexe) | OK | OK | OK | OK |
 | 34 | WLFI (world-liberty-financial) | OK | OK | OK | · |
 | 35 | PAXG (pax-gold) | OK | OK | OK | · |
 | 36 | ASTER (aster-2) | OK | OK | OK | OK |
@@ -67,8 +67,8 @@ Generated: 2026-07-14T06:53:47.633Z | Target: https://market-ui-self.vercel.app 
 | 50 | QNT (quant-network) | OK | OK | OK | · |
 | 51 | POL (polygon-ecosystem-token) | OK | OK | OK | OK |
 | 52 | JST (just) | OK | OK | OK | OK |
-| 53 | ATOM (cosmos) | OK | OK | OK | · |
-| 54 | PI (pi-network) | OK | OK | OK | OK |
+| 53 | PI (pi-network) | OK | OK | OK | OK |
+| 54 | ATOM (cosmos) | OK | OK | OK | · |
 | 55 | ENA (ethena) | OK | OK | OK | OK |
 | 56 | RENDER (render-token) | OK | OK | OK | · |
 | 57 | ALGO (algorand) | OK | OK | OK | OK |
@@ -114,12 +114,12 @@ Generated: 2026-07-14T06:53:47.633Z | Target: https://market-ui-self.vercel.app 
 | 97 | XPL (plasma) | OK | OK | OK | OK |
 | 98 | GRASS (grass) | OK | OK | OK | · |
 | 99 | CFX (conflux-token) | OK | OK | OK | OK |
-| 100 | DCR (decred) | OK | OK | · | OK |
-| 101 | OP (optimism) | OK | OK | OK | OK |
-| 102 | JASMY (jasmycoin) | OK | OK | OK | · |
-| 103 | SYRUP (syrup) | OK | OK | OK | OK |
-| 104 | FLOKI (floki) | OK | OK | OK | OK |
-| 105 | ZBCN (zebec-network) | OK | OK | · | · |
+| 100 | OP (optimism) | OK | OK | OK | OK |
+| 101 | JASMY (jasmycoin) | OK | OK | OK | · |
+| 102 | SYRUP (syrup) | OK | OK | OK | OK |
+| 103 | DCR (decred) | OK | OK | · | OK |
+| 104 | ZBCN (zebec-network) | OK | OK | · | · |
+| 105 | FLOKI (floki) | OK | OK | OK | OK |
 | 106 | KAIA (kaia) | OK | OK | OK | OK |
 | 107 | STRK (starknet) | OK | OK | OK | OK |
 | 108 | GRT (the-graph) | OK | OK | OK | · |
@@ -146,8 +146,8 @@ Generated: 2026-07-14T06:53:47.633Z | Target: https://market-ui-self.vercel.app 
 | 129 | AR (arweave) | OK | OK | OK | OK |
 | 130 | AWE (stp-network) | OK | OK | OK | · |
 | 131 | SAND (the-sandbox) | OK | OK | OK | · |
-| 132 | XEC (ecash) | OK | OK | OK | OK |
-| 133 | CVX (convex-finance) | OK | OK | OK | OK |
+| 132 | CVX (convex-finance) | OK | OK | OK | OK |
+| 133 | XEC (ecash) | OK | OK | OK | OK |
 | 134 | A (vaulta) | OK | OK | OK | OK |
 | 135 | BAT (basic-attention-token) | OK | OK | OK | · |
 | 136 | GENIUS (genius-3) | OK | OK | OK | · |
@@ -157,8 +157,8 @@ Generated: 2026-07-14T06:53:47.633Z | Target: https://market-ui-self.vercel.app 
 | 140 | ZK (zksync) | OK | OK | OK | OK |
 | 141 | 1INCH (1inch) | OK | OK | OK | OK |
 | 142 | SENT (sentient) | OK | OK | OK | · |
-| 143 | GLM (golem) | OK | OK | OK | · |
-| 144 | EGLD (elrond-erd-2) | OK | OK | OK | OK |
+| 143 | EGLD (elrond-erd-2) | OK | OK | OK | OK |
+| 144 | GLM (golem) | OK | OK | OK | · |
 | 145 | GALA (gala) | OK | OK | OK | OK |
 | 146 | DATA (story-2) | OK | · | OK | OK |
 | 147 | S (sonic-3) | OK | OK | OK | OK |
@@ -168,16 +168,16 @@ Generated: 2026-07-14T06:53:47.633Z | Target: https://market-ui-self.vercel.app 
 | 151 | RE (re) | OK | · | OK | · |
 | 152 | ATH (aethir) | OK | OK | OK | · |
 | 153 | SAFE (safe) | OK | OK | OK | · |
-| 154 | FLUID (instadapp) | OK | OK | OK | OK |
-| 155 | COW (cow-protocol) | OK | OK | OK | · |
+| 154 | COW (cow-protocol) | OK | OK | OK | · |
+| 155 | FLUID (instadapp) | OK | OK | OK | OK |
 | 156 | MET (meteora) | OK | OK | OK | OK |
 | 157 | RSR (reserve-rights-token) | OK | OK | OK | OK |
 | 158 | FORM (four) | OK | OK | OK | · |
 | 159 | YFI (yearn-finance) | OK | OK | OK | OK |
 | 160 | LPT (livepeer) | OK | OK | OK | · |
 | 161 | WAL (walrus-2) | OK | OK | OK | · |
-| 162 | NXPC (nexpace) | OK | OK | OK | OK |
-| 163 | BANANAS31 (banana-for-scale-2) | OK | OK | OK | · |
+| 162 | BANANAS31 (banana-for-scale-2) | OK | OK | OK | · |
+| 163 | NXPC (nexpace) | OK | OK | OK | OK |
 | 164 | ORDI (ordinals) | OK | OK | OK | · |
 | 165 | ZEN (zencash) | OK | OK | OK | · |
 | 166 | ZAMA (zama) | OK | OK | OK | OK |
@@ -209,9 +209,9 @@ Generated: 2026-07-14T06:53:47.633Z | Target: https://market-ui-self.vercel.app 
 | 192 | MEGA (megaeth) | OK | OK | OK | OK |
 | 193 | ENJ (enjincoin) | OK | OK | OK | OK |
 | 194 | SPK (spark-2) | OK | OK | OK | OK |
-| 195 | ZETA (zetachain) | OK | OK | OK | OK |
-| 196 | PROS (pharos-network) | OK | OK | OK | OK |
-| 197 | SYN (synapse-2) | OK | OK | OK | OK |
+| 195 | SYN (synapse-2) | OK | OK | OK | OK |
+| 196 | ZETA (zetachain) | OK | OK | OK | OK |
+| 197 | PROS (pharos-network) | OK | OK | OK | OK |
 | 198 | VELO (velo) | OK | OK | · | · |
-| 199 | T (threshold-network-token) | OK | OK | OK | OK |
-| 200 | HOME (home) | OK | OK | OK | · |
+| 199 | HOME (home) | OK | OK | OK | · |
+| 200 | T (threshold-network-token) | OK | OK | OK | OK |

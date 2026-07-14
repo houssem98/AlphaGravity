@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown, Plus, Check, Info, Database, Gauge, Trash2 } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight, Plus, Check, Info, Database, Gauge, Trash2 } from 'lucide-react';
 import { Sparkline } from './Sparkline';
 import { motion, AnimatePresence } from 'motion/react';
 import { CategoriesTab, ExchangesTab, NFTsTab, ConverterTab } from './MarketsTabs';
@@ -304,10 +304,25 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   const [cols, setCols] = useState<Record<ColKey, boolean>>(() => ({ ...DEFAULT_COLS, ...(loadPrefs().cols || {}) }));
   const [colOrder, setColOrder] = useState<ColKey[]>(() => sanitizeOrder(loadPrefs().order));
   const orderedCols = colOrder.filter((k) => cols[k]);
-  void setColOrder; // wired to the header menu in CH-3
+  // CH-3: left/right hop over hidden columns; start/end use the whole order.
+  const moveColumn = (kk: ColKey, where: 'left' | 'right' | 'start' | 'end') => {
+    setColOrder((prev) => {
+      const o = [...prev];
+      const i = o.indexOf(kk);
+      if (i < 0) return prev;
+      if (where === 'start') { o.splice(i, 1); o.unshift(kk); return o; }
+      if (where === 'end') { o.splice(i, 1); o.push(kk); return o; }
+      const dir = where === 'left' ? -1 : 1;
+      let j = i + dir;
+      while (j >= 0 && j < o.length && !cols[o[j]]) j += dir;
+      if (j < 0 || j >= o.length) return prev;
+      [o[i], o[j]] = [o[j], o[i]];
+      return o;
+    });
+  };
   useEffect(() => {
-    localStorage.setItem('nexus_crypto_cols', JSON.stringify({ tf: changeTf, cols }));
-  }, [changeTf, cols]);
+    localStorage.setItem('nexus_crypto_cols', JSON.stringify({ tf: changeTf, cols, order: colOrder }));
+  }, [changeTf, cols, colOrder]);
 
   useEffect(() => {
     localStorage.setItem('nexus_watchlist', JSON.stringify(watchlist));
@@ -547,6 +562,11 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                 <div className="h-px bg-[color:var(--line)] my-1" />
               </>
             )}
+            <button onClick={() => { moveColumn(kk, 'left'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowLeft className="w-3 h-3" /> Move left</button>
+            <button onClick={() => { moveColumn(kk, 'right'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowRight className="w-3 h-3" /> Move right</button>
+            <button onClick={() => { moveColumn(kk, 'start'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ChevronsLeft className="w-3 h-3" /> Move to the start</button>
+            <button onClick={() => { moveColumn(kk, 'end'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ChevronsRight className="w-3 h-3" /> Move to the end</button>
+            <div className="h-px bg-[color:var(--line)] my-1" />
             <button onClick={() => { setCols((p) => ({ ...p, [kk]: false })); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><Trash2 className="w-3 h-3" /> Hide column</button>
           </div>
         </>
