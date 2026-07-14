@@ -561,6 +561,32 @@ async function fetchProfile(cgId: string) {
   };
 }
 
+// ---- CP-2: exchange tickers (CoinGecko /tickers?depth=true) — 15m cache per id ----
+// Rows filtered honest: anomalous/stale dropped, trust_score red dropped (null
+// kept — CG free tier nulls it). Sorted by USD volume, top 20.
+
+async function fetchTickers(cgId: string) {
+  const r = await fetch(`https://api.coingecko.com/api/v3/coins/${cgId}/tickers?depth=true`);
+  if (!r.ok) throw new Error(`coingecko tickers ${r.status}`);
+  const j = await r.json();
+  const rows: any[] = Array.isArray(j?.tickers) ? j.tickers : [];
+  return rows
+    .filter((t) => !t.is_anomaly && !t.is_stale && t.trust_score !== 'red' && t.converted_last?.usd > 0)
+    .sort((a, b) => (b.converted_volume?.usd || 0) - (a.converted_volume?.usd || 0))
+    .slice(0, 20)
+    .map((t) => ({
+      name: t.market?.name || '',
+      pair: `${t.base}/${t.target}`,
+      priceUsd: t.converted_last?.usd ?? null,
+      volumeUsd: t.converted_volume?.usd ?? null,
+      depthUpUsd: t.cost_to_move_up_usd ?? null,
+      depthDownUsd: t.cost_to_move_down_usd ?? null,
+      spreadPct: t.bid_ask_spread_percentage ?? null,
+      trustScore: t.trust_score ?? null,
+      tradeUrl: t.trade_url || '',
+    }));
+}
+
 // ---- CT-2: verified-pair gate. A Binance/fapi row only counts for a coin if
 // the source's own price agrees with the coin's CG/base price (px= hints from
 // the UI, "SYM:price,..."). Disagreement > 3% (stables 1%) = symbol collision
@@ -874,6 +900,16 @@ export default async function handler(req: any, res: any) {
       return res.json(profile);
     } catch (e) {
       return res.status(404).json({ error: 'profile not found' });
+    }
+  }
+  if (req.query?.view === 'tickers') {
+    const cgId = String(req.query.id || '').trim();
+    if (!cgId) return res.status(400).json({ error: 'id required' });
+    try {
+      const rows = await cachedBlob(`crypto_tickers_${cgId}.json`, 900, () => fetchTickers(cgId), (d) => Array.isArray(d) && d.length > 0);
+      return res.json(rows);
+    } catch {
+      return res.status(404).json({ error: 'tickers not found' });
     }
   }
   if (req.query?.view === 'meta') {

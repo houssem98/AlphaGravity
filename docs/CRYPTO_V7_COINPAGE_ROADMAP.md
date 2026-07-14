@@ -82,7 +82,7 @@ data under every asset.
   from base row, not string. Verify: prod curl profile for bitcoin +
   gram-2 (GRAM) show different real data; GRAM page shows Telegram/TON
   Gram info or honest empty, zero Satoshi.
-- [ ] CP-2 **Markets tab live**: `?view=tickers&id={cgId}` branch → CG
+- [x] CP-2 **Markets tab live**: `?view=tickers&id={cgId}` branch → CG
   tickers?depth=true → top ~20 rows {exchange name, pair, price(usd),
   volume, depth ±2%, spread %, trust_score} sorted by volume,
   trust_score green/yellow only — blob crypto_tickers_{id}.json TTL 15m.
@@ -144,3 +144,4 @@ data under every asset.
 ## Progress log
 
 - **CP-1 live** (2026-07-14): bitcoin profile real (21M max, SHA-256, rank #1), gram-2 real (TON Ecosystem, gramcoin.org), prod curl verified, zero Satoshi leaks, 24h blob TTL, lazy fetch on tab open, design freeze reused grid layout
+- **CP-2 live** (2026-07-14): dead market-server WS path removed for crypto; CG tickers via ?view=tickers 15m blob — BTC top row Binance BTC/USDT $63,445 vol $1.14B depth $16.1M/$24.7M; GRAM shows real venue list MEXC/STON.fi/DeDust at $0.00114 (zero BTC rows); anomaly/stale/red-trust filtered; Perpetual/Futures tabs honest empty

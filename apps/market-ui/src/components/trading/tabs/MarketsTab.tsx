@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { AlertCircle, Search, X, ArrowUpDown, ExternalLink, Info, SlidersHorizontal, Sparkles, BarChart2 } from 'lucide-react';
 import { HermesQueryPanel } from '../HermesQueryPanel';
 import { useHermesPanel } from '../../../hooks/useHermesPanel';
-import { useMarketsWebSocket } from '../../../hooks/useMarketsWebSocket';
 import { useMarketsSort } from '../../../hooks/useMarketsSort';
 
 interface MarketsTabProps {
@@ -96,6 +95,60 @@ const SkeletonRow = () => (
 const TYPE_TABS = ['Spot', 'Perpetual', 'Futures'] as const;
 type MarketType = (typeof TYPE_TABS)[number];
 
+// CP-2: CG tickers row → the ExchangeMarket shape the grid already renders.
+const fmtUsd = (n: number | null) =>
+  n === null ? '—' : `$${n.toLocaleString('en-US', { maximumFractionDigits: n >= 100 ? 0 : n >= 1 ? 2 : 6 })}`;
+const fmtCompact = (n: number | null) =>
+  n === null ? '—' : `$${Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(n)}`;
+
+// CP-2: crypto markets come from CG /coins/{id}/tickers via ?view=tickers
+// (15m blob) — keyed by CG id from the base rows, never bare symbol. The dead
+// market-server WS path is gone for crypto.
+function useCgTickers(asset: string) {
+  const [rows, setRows] = useState<any[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    setError(null);
+    setRows(null);
+    (async () => {
+      const base = await fetch('/api/crypto/markets').then((r) => r.json()).catch(() => []);
+      const row = Array.isArray(base) ? base.find((r: any) => r.symbol === asset) : null;
+      if (!row?.id) throw new Error('id');
+      const r = await fetch(`/api/crypto/markets?view=tickers&id=${encodeURIComponent(row.id)}`);
+      if (!r.ok) throw new Error(`${r.status}`);
+      const tickers = await r.json();
+      if (!Array.isArray(tickers)) throw new Error('shape');
+      const volSum = tickers.reduce((s: number, t: any) => s + (t.volumeUsd || 0), 0);
+      return tickers.map((t: any, i: number) => ({
+        rank: i + 1,
+        name: t.name,
+        pair: t.pair,
+        price: fmtUsd(t.priceUsd),
+        depth: { bid: fmtCompact(t.depthUpUsd), ask: fmtCompact(t.depthDownUsd) },
+        volume24h: fmtCompact(t.volumeUsd),
+        volumePercent: volSum > 0 && t.volumeUsd ? `${((t.volumeUsd / volSum) * 100).toFixed(2)}%` : '—',
+        liquidity: Math.round((t.depthUpUsd || 0) + (t.depthDownUsd || 0)),
+        spreadBps: t.spreadPct !== null ? Math.round(t.spreadPct * 100) : 0,
+        lastUpdate: '',
+        symbol: asset,
+        market_type: 'spot' as const,
+        tradeUrl: t.tradeUrl,
+      }));
+    })()
+      .then((r) => { if (live) setRows(r); })
+      .catch(() => { if (live) setError(`Data temporarily unavailable for ${asset}`); })
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [asset, retryKey]);
+
+  return { rows, loading, error, retry: () => setRetryKey((k) => k + 1) };
+}
+
 export const MarketsTab: React.FC<MarketsTabProps> = ({ asset }) => {
   const [hoveredRank, setHoveredRank] = useState<number | null>(null);
   const [filter, setFilter] = useState<'all' | 'cex' | 'dex'>('all');
@@ -103,7 +156,8 @@ export const MarketsTab: React.FC<MarketsTabProps> = ({ asset }) => {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const hermesPanel = useHermesPanel();
-  const { data: marketsData, loading, error } = useMarketsWebSocket({ asset });
+  const { rows: cgRows, loading, error, retry } = useCgTickers(asset);
+  const marketsData = cgRows ? { exchanges: cgRows } : null;
 
   const wantType = marketType.toLowerCase(); // 'spot' | 'perpetual' | 'futures'
   const typeFiltered = (marketsData?.exchanges || []).filter((ex) => {
@@ -205,7 +259,7 @@ export const MarketsTab: React.FC<MarketsTabProps> = ({ asset }) => {
           <div className="text-center">
             <AlertCircle className="w-12 h-12 text-[color:var(--down)] mx-auto mb-3 opacity-50" />
             <p className="text-[color:var(--text-3)]">{error}</p>
-            <p className="text-[color:var(--text-3)] text-sm mt-2">(WebSocket reconnecting...)</p>
+            <button onClick={retry} className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:opacity-90">Retry</button>
           </div>
         </div>
       )}
