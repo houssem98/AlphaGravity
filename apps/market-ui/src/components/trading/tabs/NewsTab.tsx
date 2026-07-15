@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ExternalLink, Loader2, RefreshCw } from 'lucide-react';
 import { safeUrl } from '../../../lib/safeUrl';
 import { motion } from 'motion/react';
 import type { MarketId } from '../../../lib/markets';
 import { useCryptoStore, livePrice } from '../../../stores/cryptoStore';
 
-interface NewsItem { title: string; url: string; source: string; time: string }
+interface NewsItem { title: string; url: string; source: string; time: string; image?: string }
 
 interface NewsTabProps {
   asset: string;
@@ -21,9 +21,14 @@ function timeAgo(iso: string): string {
   return `${Math.floor(diff / 86400)} days ago`;
 }
 
+const TIER1_SOURCES = new Set([
+  'coindesk', 'cointelegraph', 'bloomberg', 'reuters', 'cnbc', 'forbes', 'decrypt',
+]);
+
 export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
+  const [sortMode, setSortMode] = useState<'latest' | 'top'>('latest');
 
   const isTN = market === 'tunisia';
   // V9 N-2: terminal header reads THE price from cryptoStore (one-source rule)
@@ -50,6 +55,26 @@ export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
 
   useEffect(() => { load(); }, [load]);
 
+  // V10-2: compute hero + list based on sort mode
+  const { heroItem, listItems } = useMemo(() => {
+    if (status !== 'ready' || !items.length) return { heroItem: null, listItems: [] };
+
+    if (!isTN && items.some((i) => i.image)) {
+      // crypto + has images: sort + split
+      const sorted =
+        sortMode === 'top'
+          ? [
+              ...items.filter((i) => i.image && TIER1_SOURCES.has(i.source.toLowerCase())),
+              ...items.filter((i) => i.image && !TIER1_SOURCES.has(i.source.toLowerCase())),
+              ...items.filter((i) => !i.image),
+            ]
+          : items; // latest: server order
+      return { heroItem: sorted[0] || null, listItems: sorted.slice(1) };
+    }
+    // no images or TN: plain list
+    return { heroItem: null, listItems: items };
+  }, [items, status, isTN, sortMode]);
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden bg-[color:var(--bg)]">
       {/* Header — V9 N-2: crypto gets the terminal report block, TN keeps plain */}
@@ -66,7 +91,31 @@ export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
             <span className="text-body font-semibold text-[color:var(--text)] tracking-wide">
               {(name || asset).split('(')[0].trim().toUpperCase()} ({asset}) — NETWORK NEWS
             </span>
-            <button onClick={load} className="ml-auto p-1.5 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)]" aria-label="Refresh">
+            {heroItem && (
+              <div className="ml-auto flex gap-1 bg-[color:var(--surface)] rounded-sm p-0.5 border border-[color:var(--line)]">
+                <button
+                  onClick={() => setSortMode('latest')}
+                  className={`px-2 py-1 text-label font-semibold rounded-sm transition-colors ${
+                    sortMode === 'latest'
+                      ? 'text-[color:var(--text)] bg-[color:var(--bg)]'
+                      : 'text-[color:var(--text-3)] hover:text-[color:var(--text)]'
+                  }`}
+                >
+                  LATEST
+                </button>
+                <button
+                  onClick={() => setSortMode('top')}
+                  className={`px-2 py-1 text-label font-semibold rounded-sm transition-colors ${
+                    sortMode === 'top'
+                      ? 'text-[color:var(--text)] bg-[color:var(--bg)]'
+                      : 'text-[color:var(--text-3)] hover:text-[color:var(--text)]'
+                  }`}
+                >
+                  TOP
+                </button>
+              </div>
+            )}
+            <button onClick={load} className="p-1.5 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)]" aria-label="Refresh">
               <RefreshCw className={`w-3.5 h-3.5 ${status === 'loading' ? 'animate-spin' : ''}`} />
             </button>
           </div>
@@ -95,29 +144,94 @@ export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
           <div className="flex items-center justify-center h-full text-label text-[color:var(--text-3)]">Couldn't load news. Try again.</div>
         )}
         {status === 'ready' && (
-          <div className="flex flex-col divide-y divide-[color:var(--line)]">
-            {items.map((item, idx) => (
+          heroItem ? (
+            // V10-2: CMC-style two-zone layout (crypto with images)
+            <div className="flex flex-col md:flex-row gap-4 p-4 overflow-auto">
+              {/* LEFT: Hero article */}
               <motion.a
-                key={idx}
-                href={safeUrl(item.url)}
+                href={safeUrl(heroItem.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(idx * 0.03, 0.3) }}
-                className="group flex items-start gap-3 px-4 py-3 hover:bg-[color:var(--surface)] transition-colors"
+                transition={{ delay: 0 }}
+                className="group flex-shrink-0 md:flex-1 md:max-w-sm flex flex-col bg-[color:var(--surface)] rounded-sm border border-[color:var(--line)] overflow-hidden hover:border-[color:var(--accent)] transition-colors"
               >
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-body text-[color:var(--text)] group-hover:text-[color:var(--accent)] transition-colors line-clamp-2">{item.title}</h3>
-                  <div className="flex items-center gap-2 mt-1 text-label text-[color:var(--text-3)]">
-                    <span className="truncate">{item.source}</span>
-                    {item.time && <span>· {timeAgo(item.time)}</span>}
+                {heroItem.image && (
+                  <img
+                    src={heroItem.image}
+                    alt={heroItem.title}
+                    className="w-full aspect-video object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+                <div className="flex-1 flex flex-col p-3">
+                  <h3 className="text-lg font-semibold text-[color:var(--text)] group-hover:text-[color:var(--accent)] transition-colors line-clamp-3">{heroItem.title}</h3>
+                  <div className="flex items-center gap-2 mt-auto text-label text-[color:var(--text-3)]">
+                    <span className="truncate">{heroItem.source}</span>
+                    {heroItem.time && <span>· {timeAgo(heroItem.time)}</span>}
                   </div>
                 </div>
-                <ExternalLink className="w-3.5 h-3.5 text-[color:var(--text-3)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
               </motion.a>
-            ))}
-          </div>
+              {/* RIGHT: List */}
+              <div className="flex-1 flex flex-col divide-y divide-[color:var(--line)] overflow-auto">
+                {listItems.map((item, idx) => (
+                  <motion.a
+                    key={idx}
+                    href={safeUrl(item.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: Math.min((idx + 1) * 0.03, 0.3) }}
+                    className="group flex items-start gap-2 py-2 px-3 hover:bg-[color:var(--surface)] transition-colors"
+                  >
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        className="w-10 h-10 flex-shrink-0 rounded object-cover"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-body text-[color:var(--text)] group-hover:text-[color:var(--accent)] transition-colors line-clamp-2">{item.title}</h3>
+                      <div className="flex items-center gap-2 mt-1 text-label text-[color:var(--text-3)]">
+                        <span className="truncate">{item.source}</span>
+                        {item.time && <span>· {timeAgo(item.time)}</span>}
+                      </div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-[color:var(--text-3)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5 flex-shrink-0" />
+                  </motion.a>
+                ))}
+              </div>
+            </div>
+          ) : (
+            // Plain list (no hero: TN or no images)
+            <div className="flex flex-col divide-y divide-[color:var(--line)]">
+              {listItems.map((item, idx) => (
+                <motion.a
+                  key={idx}
+                  href={safeUrl(item.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(idx * 0.03, 0.3) }}
+                  className="group flex items-start gap-3 px-4 py-3 hover:bg-[color:var(--surface)] transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-body text-[color:var(--text)] group-hover:text-[color:var(--accent)] transition-colors line-clamp-2">{item.title}</h3>
+                    <div className="flex items-center gap-2 mt-1 text-label text-[color:var(--text-3)]">
+                      <span className="truncate">{item.source}</span>
+                      {item.time && <span>· {timeAgo(item.time)}</span>}
+                    </div>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-[color:var(--text-3)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
+                </motion.a>
+              ))}
+            </div>
+          )
         )}
       </div>
     </div>

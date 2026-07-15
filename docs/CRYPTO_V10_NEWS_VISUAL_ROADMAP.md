@@ -48,7 +48,7 @@ News tab of every coin page, all 200 curated coins.
   desc apply to ALL). Verify: prod curl BTC — ≥3 items carry image URLs
   from ≥2 outlets, all ≤7d, newest-first, zero unmatched titles; GRAM zero
   leaks; VELO honest empty; TN + legacy responses byte-identical.
-- [ ] V10-2 **CMC-style layout (UI)**: NewsTab.tsx — crypto 'ready' state
+- [x] V10-2 **CMC-style layout (UI)**: NewsTab.tsx — crypto 'ready' state
   becomes two-zone layout under the N-2 terminal header: LEFT hero = newest
   item WITH image (large img aspect-video object-cover rounded, headline
   text-lg below, source + timeAgo row); RIGHT column = remaining items
@@ -69,3 +69,4 @@ News tab of every coin page, all 200 curated coins.
 (append one line per completed task, real numbers only)
 
 - **V10-1 live** (2026-07-15): 5 outlet feeds (Cointelegraph/Decrypt/Bitcoinist/NewsBTC/BeInCrypto) fetched parallel w/ Google RSS, Promise.allSettled + 6s timeout each; media:content/enclosure → image field; dedupe by normalized title; prod BTC 10/24 items carry image URLs (Decrypt/BeInCrypto/ctmedia); GRAM zero cross-asset leaks; legacy /api/news?q= + TN byte-identical (image key stripped when wl!=crypto); typecheck 0
+- **V10-2 live** (2026-07-15): NewsTab.tsx two-zone layout (crypto only when heroItem exists): LEFT hero = first item w/ image (aspect-video, text-lg); RIGHT list = remaining (small thumbs if image). Top/Latest toggle (Latest=server order, Top=has-image+tier-1 first). Mobile stacks. No images → plain list (TN untouched). Verified: typecheck 0, vercel --prod 57s, prod BTC 24/24 unique by normalized title, 10+ carry images, TN/legacy byte-identical, ETH strict title match, zero image-field in legacy paths
