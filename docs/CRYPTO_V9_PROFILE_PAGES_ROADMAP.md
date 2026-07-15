@@ -1,60 +1,56 @@
-# Crypto V9 — PROFILE PAGES (terminal-style, extreme-contrast, all 200 coins)
+# Crypto V9 — NEWS TAB TERMINAL (rich sources + terminal report header, all 200 coins)
 
-Spec source: gemini-code-1784130016527.md ("hardened technical profile pages").
-All 200 coins in curated universe → individual profile cards (terminal aesthetic: dark bg,
-bright monospace text, grid borders, micro-status blocks).
+Spec source: gemini-code-1784130016527.md (terminal report structure) + user
+screenshot (CMC-style coin news page) + user directive: "for news tab, merge
+all other links for information not only coindesk". Applies to the News tab
+of every coin page, all 200 curated coins.
 
-## Stack (reuse only)
+## Problem (verified V8 state)
 
-- V7 CP-1 profile blobs (name/links/genesis/categories/supply)
-- V8 NT news (days=7, match=, strict per-coin)
-- Market rows (price, volume, mcap, 24h% from spot blob)
-- NO new API files, NO new npm deps, NO new DB queries
+- CRYPTO_WL whitelist too thin → BTC news = CoinDesk monoculture (8/10 items),
+  HYPE/VELO filtered to zero. Reputable crypto outlets (CoinPedia, BSC News,
+  U.Today, CryptoSlate, Bitcoinist, Blockworks, DL News...) all discarded.
+- News tab is a plain list — spec wants a terminal report: coin header +
+  micro-status block (price | 24h% | article count) above the feed.
 
-## Doctrine (hard rules)
+## Doctrine (hard rules — V7/V8 carry-over)
 
-- **Terminal aesthetic**: CSS class `.terminal-profile` with dark background (#0a0e27),
-  bright text (#00ff88 primary, #0088ff accent), monospace font, grid borders (1px
-  solid rgba(0,255,136,0.2)). Extreme contrast = high readability in low light.
-- **Micro-status blocks**: one-liner code blocks (`<pre>` / monospace) showing:
-  price | volume | mcap | 24h% | supply. No charts, no fancy UI.
-- **News feed snippet**: show newest 1-2 titles from V8 news (clip to 60 chars), link to full.
-- **Per-coin profile**: name, ticker, genesis date, categories, description (first 120 chars),
-  links (explorer, website, Twitter), status block, news snippet.
-- **NO new serverless files** — all UI edits in apps/market-ui/src/pages/ or components/.
-  Profile data pulled from existing blob APIs (markets.ts, news.ts, existing cached calls).
-- **Keyless**, curl-verify profile shape before coding.
-- Verify per task: market-ui typecheck 0 + vercel --prod + prod curl /api/crypto/markets
-  returns profile blobs + audit green (spot 200/200 MISMATCH 0) + TN board/intraday 200s.
-  Flip ledger [x], one Progress-log line real numbers, commit on roadmap/world-class.
+- TRUTH intact: NT-1 horizon (days=7, newest-first) and NT-2 strict per-coin
+  title match STAY — widening sources must NOT reintroduce cross-contamination
+  or stale news. Honest empty stays for genuinely uncovered coins.
+- Whitelist widens to a CURATED crypto-media list (named outlets only), never
+  removed entirely — random SEO spam blogs stay out.
+- NO new serverless files (12-fn cap) — server edits in api/news.ts only.
+  No new npm deps. Google RSS has no thumbnails — no images, no scraping.
+- TN news path byte-identical. Legacy /api/news?q= unchanged.
+- Verify per task: typecheck 0 + vercel --prod (repo root) + prod curl real
+  numbers + TN regression + audit (spot 200/200 MISMATCH 0). Flip [x], one
+  Progress-log line, commit on roadmap/world-class (-F file if quotes).
 
 ## Ledger
 
-- [ ] **P-1 ProfileCard component**: apps/market-ui/src/components/trading/ProfileCard.tsx —
-  terminal-styled card layout. Props: symbol, name, profile (blob: description/links/
-  genesis/categories), market (row: price/vol/mcap), news (1-2 top items). Render:
-  <name> (<ticker>) block, monospace status (price|vol|mcap|chg|supply), link row
-  (explorer|website|twitter), news snippet (newest title clipped 60ch, link). CSS:
-  .terminal-profile dark/bright grid, <pre> for status, truncate text. No image, no
-  fallback image — honest empty if any blob missing (price null = show "--").
-  Verify: curl markets + profile blobs for BTC/ETH/GRAM — ProfileCard renders on
-  component isolation (Storybook or manual import test).
-- [ ] **P-2 Terminal theme CSS + ProfileGallery page**: apps/market-ui/src/pages/
-  CryptoProfileGallery.tsx — full page showing 200 coins as ProfileCard grid (4-col
-  responsive, 2-col mobile). Fetches /api/crypto/markets, maps to ProfileCard array,
-  lazy-loads profile/news on scroll (IntersectionObserver, one coin at a time).
-  CSS: .terminal-profile + .terminal-gallery (grid layout, gap 12px, dark page bg,
-  grid border separators between cards). Route: /trading/profiles or /crypto/profiles.
-  Verify: page load <500ms cold, render 4 cards, scroll down → load 4 more (no lag).
-  TypeScript zero errors. Scroll to end (200 coins) → verify no missing cards.
-- [ ] **P-3 Sweep**: prod pass for all 200 coins. Pick 10 random (BTC, ETH, GRAM, HYPE,
-  PEPE, VELO + 4 random from bottom 100 by mcap). Verify each ProfileCard: (1) name/
-  ticker render, (2) status block shows price/vol/mcap/24h%/supply (no NaN/null/
-  undefined), (3) news snippet shows newest title or honest empty ("No recent news..."),
-  (4) links render (explorer/website/twitter or empty if absent). CSS renders
-  (grid border visible, text color bright, monospace font applied). Performance:
-  full gallery (200) paint <2s cold, <500ms after cache. TN board/intraday 200s
-  unchanged. Audit: spot 200/200 MISMATCH 0. Ledger + memory update. Final commit.
+- [ ] N-1 **Source expansion (server)**: api/news.ts — widen CRYPTO_WL to
+  ~30 named crypto/finance outlets (add: coinpedia, bsc news, u.today,
+  cryptoslate, bitcoinist, newsbtc, beincrypto, ambcrypto, cryptopotato,
+  crypto.news, the defiant, blockworks, dl news, watcher.guru, cryptobriefing,
+  dailycoin, crypto adventure, benzinga, yahoo finance, investing.com,
+  coinspeaker, finbold, tronweekly). Keep strict match + horizon. Verify:
+  prod curl BTC — sources now ≥4 distinct outlets in top 10 (not CoinDesk
+  monoculture); HYPE and VELO recover ≥1 item each OR stay honest empty;
+  GRAM zero cross-asset leaks (strict match still holds).
+- [ ] N-2 **Terminal report header (UI)**: NewsTab.tsx — above the feed add
+  terminal-style report block per gemini spec: "{NAME} ({SYM}) — NETWORK
+  NEWS" title row + monospace micro-status line (live price | 24h% | N
+  articles | 7d window) pulled from cryptoStore livePrice (same one-source
+  rule as V5 — no new fetch). Separator lines, existing dark theme tokens,
+  monospace font for the status line only. List rows unchanged (design
+  freeze below header). TN News tab: keep current plain header (no terminal
+  block). Verify: typecheck 0, prod ETH News tab shows header w/ live price
+  matching topbar, article count == rendered rows.
+- [ ] N-3 **Sweep**: prod pass BTC/ETH/GRAM/HYPE/PEPE/VELO — source diversity
+  (BTC ≥4 outlets), ≤7d, newest-first, zero title leaks, honest empty only
+  where truly uncovered; TN news/board/intraday 200s; audit spot 200/200
+  MISMATCH 0; ledger + memory; final commit.
 
 ## Progress log
 
