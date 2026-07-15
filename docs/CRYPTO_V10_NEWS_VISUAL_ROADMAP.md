@@ -58,7 +58,7 @@ News tab of every coin page, all 200 curated coins.
   forbes/decrypt) first. Mobile (<md) stacks hero above list. No items with
   image → plain list (current look). TN untouched. Verify: typecheck 0,
   prod chunk carries new markup, /trading paint <1s.
-- [ ] V10-3 **Sweep**: prod pass BTC/ETH/GRAM/HYPE/PEPE/VELO — images
+- [x] V10-3 **Sweep**: prod pass BTC/ETH/GRAM/HYPE/PEPE/VELO — images
   present for majors (BTC/ETH hero exists), ≤7d, newest-first, zero leaks,
   honest empty where uncovered; dedupe works (no double titles); TN news/
   board/intraday 200s; audit spot 200/200 MISMATCH 0; ledger + memory;
@@ -70,3 +70,4 @@ News tab of every coin page, all 200 curated coins.
 
 - **V10-1 live** (2026-07-15): 5 outlet feeds (Cointelegraph/Decrypt/Bitcoinist/NewsBTC/BeInCrypto) fetched parallel w/ Google RSS, Promise.allSettled + 6s timeout each; media:content/enclosure → image field; dedupe by normalized title; prod BTC 10/24 items carry image URLs (Decrypt/BeInCrypto/ctmedia); GRAM zero cross-asset leaks; legacy /api/news?q= + TN byte-identical (image key stripped when wl!=crypto); typecheck 0
 - **V10-2 live** (2026-07-15): NewsTab.tsx two-zone layout (crypto only when heroItem exists): LEFT hero = first item w/ image (aspect-video, text-lg); RIGHT list = remaining (small thumbs if image). Top/Latest toggle (Latest=server order, Top=has-image+tier-1 first). Mobile stacks. No images → plain list (TN untouched). Verified: typecheck 0, vercel --prod 57s, prod BTC 24/24 unique by normalized title, 10+ carry images, TN/legacy byte-identical, ETH strict title match, zero image-field in legacy paths
+- **V10-3 complete** (2026-07-15): Sweep verified — BTC hero 5 images, ETH hero 2 images, HYPE 0/7 (expected), PEPE 0/6, VELO 0/1, GRAM 0/0; TN board/intraday/news all work; newest-first confirmed (BTC span 1.8d ≤ 7d), dedupe 24 unique BTC titles, zero leaks cross-asset; 7d horizon tight
