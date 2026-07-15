@@ -22,6 +22,33 @@ const CRYPTO_WL = [
   'coinspeaker', 'finbold', 'tronweekly', 'cryptonews', 'coincentral',
 ];
 
+// V10-1: outlet feeds that embed thumbnails (media:content / enclosure).
+// CCData news API is dead keyless (401 since CoinDesk acquisition). These 5
+// curl-verified 2026-07-15; fetched in parallel, partial-tolerant.
+const IMG_FEEDS: [string, string][] = [
+  ['Cointelegraph', 'https://cointelegraph.com/rss'],
+  ['Decrypt', 'https://decrypt.co/feed'],
+  ['Bitcoinist', 'https://bitcoinist.com/feed/'],
+  ['NewsBTC', 'https://www.newsbtc.com/feed/'],
+  ['BeInCrypto', 'https://beincrypto.com/feed/'],
+];
+
+function itemImage(block: string): string {
+  const m = block.match(/<(?:media:content|media:thumbnail|enclosure)[^>]*url="([^"]+)"/i);
+  return m && /^https:\/\//.test(m[1]) ? m[1] : '';
+}
+
+async function fetchOutletItems(): Promise<any[]> {
+  const settled = await Promise.allSettled(IMG_FEEDS.map(async ([name, feed]) => {
+    const xml = await (await fetch(feed, { headers: UA, signal: AbortSignal.timeout(6000) })).text();
+    return (xml.match(/<item>[\s\S]*?<\/item>/g) || []).slice(0, 30).map((b) => ({
+      title: tag(b, 'title'), url: tag(b, 'link'), source: name,
+      time: tag(b, 'pubDate'), image: itemImage(b),
+    })).filter((i) => i.title && i.url);
+  }));
+  return settled.flatMap((s) => (s.status === 'fulfilled' ? s.value : []));
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
@@ -44,20 +71,29 @@ export default async function handler(req: any, res: any) {
   try {
     const gq = days > 0 ? `${q} when:${days}d` : q;
     const url = `https://news.google.com/rss/search?q=${encodeURIComponent(gq)}&hl=${hl}&gl=${gl}&ceid=${gl}:${hl}`;
-    const xml = await (await fetch(url, { headers: UA })).text();
+    // V10-1: outlet feeds ride alongside the Google fetch (crypto only)
+    const [xml, outletItems] = await Promise.all([
+      (await fetch(url, { headers: UA })).text(),
+      wl === 'crypto' ? fetchOutletItems() : Promise.resolve([]),
+    ]);
     let items = (xml.match(/<item>[\s\S]*?<\/item>/g) || []).slice(0, 48).map((b) => {
       const rawTitle = tag(b, 'title');
       const source = tag(b, 'source');
       // Google appends " - Source" to titles; strip it when we already have the source.
       const title = source && rawTitle.endsWith(` - ${source}`)
         ? rawTitle.slice(0, -(source.length + 3)) : rawTitle;
-      return { title, url: tag(b, 'link'), source: source || 'Google News', time: tag(b, 'pubDate') };
+      return { title, url: tag(b, 'link'), source: source || 'Google News', time: tag(b, 'pubDate'), image: '' };
     }).filter((i) => i.title && i.url);
     if (wl === 'crypto') {
       items = items.filter((i) => {
         const s = i.source.toLowerCase();
         return CRYPTO_WL.some((w) => s.includes(w));
       });
+      // Outlet items ARE the named source — no whitelist pass needed. Dedupe
+      // by normalized title, image-bearing copy wins.
+      const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const seen = new Set(items.map((i) => norm(i.title)));
+      for (const o of outletItems) if (!seen.has(norm(o.title))) { seen.add(norm(o.title)); items.push(o); }
     }
     if (match || matchSym.length >= 2) {
       const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -76,6 +112,7 @@ export default async function handler(req: any, res: any) {
         })
         .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
     }
+    if (wl !== 'crypto') items.forEach((i: any) => { delete i.image; }); // legacy/TN shape byte-identical
     res.json({ items: items.slice(0, 24) });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

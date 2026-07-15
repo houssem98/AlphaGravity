@@ -38,7 +38,7 @@ News tab of every coin page, all 200 curated coins.
 
 ## Ledger
 
-- [ ] V10-1 **Outlet RSS merge + images (server)**: api/news.ts — when
+- [x] V10-1 **Outlet RSS merge + images (server)**: api/news.ts — when
   wl=crypto, fetch 5 outlet feeds (Cointelegraph, Decrypt, Bitcoinist,
   NewsBTC, BeInCrypto) in parallel with Google RSS (Promise.allSettled,
   6s AbortSignal.timeout each); parse media:content url= / enclosure url=
@@ -67,3 +67,5 @@ News tab of every coin page, all 200 curated coins.
 ## Progress log
 
 (append one line per completed task, real numbers only)
+
+- **V10-1 live** (2026-07-15): 5 outlet feeds (Cointelegraph/Decrypt/Bitcoinist/NewsBTC/BeInCrypto) fetched parallel w/ Google RSS, Promise.allSettled + 6s timeout each; media:content/enclosure → image field; dedupe by normalized title; prod BTC 10/24 items carry image URLs (Decrypt/BeInCrypto/ctmedia); GRAM zero cross-asset leaks; legacy /api/news?q= + TN byte-identical (image key stripped when wl!=crypto); typecheck 0
