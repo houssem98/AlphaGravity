@@ -47,7 +47,7 @@ of every coin page, all 200 curated coins.
   freeze below header). TN News tab: keep current plain header (no terminal
   block). Verify: typecheck 0, prod ETH News tab shows header w/ live price
   matching topbar, article count == rendered rows.
-- [ ] N-3 **Sweep**: prod pass BTC/ETH/GRAM/HYPE/PEPE/VELO — source diversity
+- [x] N-3 **Sweep**: prod pass BTC/ETH/GRAM/HYPE/PEPE/VELO — source diversity
   (BTC ≥4 outlets), ≤7d, newest-first, zero title leaks, honest empty only
   where truly uncovered; TN news/board/intraday 200s; audit spot 200/200
   MISMATCH 0; ledger + memory; final commit.
@@ -58,3 +58,4 @@ of every coin page, all 200 curated coins.
 
 - **N-1 live** (2026-07-15): CRYPTO_WL 15→40 outlets; prod BTC now 4 distinct sources (Yahoo Finance 14, CoinDesk 8, Forbes, Bloomberg — monoculture broken); HYPE recovered 0→4 real Hyperliquid items; VELO stays honest empty (truly uncovered); GRAM zero cross-asset leaks (strict match holds); TN BIAT byte-identical; audit spot 200/200 MISMATCH 0
 - **N-2 live** (2026-07-15): NewsTab crypto header = "{NAME} ({SYM}) — NETWORK NEWS" + monospace status line (livePrice from cryptoStore one-source | 24h% colored | N ARTICLES | 7D WINDOW), NaN-guarded; TN keeps plain header; typecheck 0; verified in prod chunk TradingAssistantPage-aoPVy5Da.js (NETWORK NEWS + 7D WINDOW strings present); /trading 200 0.87s
+- **N-3 sweep GREEN** (2026-07-15): 6-coin pass — BTC 24 items (was 16), ETH 24 (was 8), HYPE 13 (was 0), PEPE 6 (was 3), GRAM 2, VELO 0 honest; across all: old>7d=0, out-of-order=0, unmatched LEAKS=0; TN news 200 1.2s + board 200 1.3s + intraday 200 (0.8s warm); audit spot 200/200 MISMATCH 0. V9 COMPLETE 3/3.
