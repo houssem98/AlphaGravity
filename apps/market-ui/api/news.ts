@@ -14,6 +14,12 @@ const CRYPTO_WL = [
   'coindesk', 'cointelegraph', 'the block', 'theblock', 'decrypt', 'bloomberg',
   'reuters', 'cnbc', 'forbes', 'wall street journal', 'wsj', 'financial times',
   'business insider', 'coingecko', 'binance',
+  // V9 N-1: curated crypto-media expansion — named outlets only, SEO spam stays out
+  'coinpedia', 'bsc news', 'u.today', 'cryptoslate', 'bitcoinist', 'newsbtc',
+  'beincrypto', 'ambcrypto', 'cryptopotato', 'crypto.news', 'the defiant',
+  'blockworks', 'dl news', 'watcher.guru', 'crypto briefing', 'dailycoin',
+  'crypto adventure', 'benzinga', 'yahoo finance', 'investing.com',
+  'coinspeaker', 'finbold', 'tronweekly', 'cryptonews', 'coincentral',
 ];
 
 export default async function handler(req: any, res: any) {

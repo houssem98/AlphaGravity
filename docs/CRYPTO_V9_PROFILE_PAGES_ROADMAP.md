@@ -29,7 +29,7 @@ of every coin page, all 200 curated coins.
 
 ## Ledger
 
-- [ ] N-1 **Source expansion (server)**: api/news.ts — widen CRYPTO_WL to
+- [x] N-1 **Source expansion (server)**: api/news.ts — widen CRYPTO_WL to
   ~30 named crypto/finance outlets (add: coinpedia, bsc news, u.today,
   cryptoslate, bitcoinist, newsbtc, beincrypto, ambcrypto, cryptopotato,
   crypto.news, the defiant, blockworks, dl news, watcher.guru, cryptobriefing,
@@ -55,3 +55,5 @@ of every coin page, all 200 curated coins.
 ## Progress log
 
 (append one line per completed task, real numbers only)
+
+- **N-1 live** (2026-07-15): CRYPTO_WL 15→40 outlets; prod BTC now 4 distinct sources (Yahoo Finance 14, CoinDesk 8, Forbes, Bloomberg — monoculture broken); HYPE recovered 0→4 real Hyperliquid items; VELO stays honest empty (truly uncovered); GRAM zero cross-asset leaks (strict match holds); TN BIAT byte-identical; audit spot 200/200 MISMATCH 0
