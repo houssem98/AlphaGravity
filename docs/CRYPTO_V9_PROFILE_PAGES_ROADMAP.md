@@ -38,7 +38,7 @@ of every coin page, all 200 curated coins.
   prod curl BTC — sources now ≥4 distinct outlets in top 10 (not CoinDesk
   monoculture); HYPE and VELO recover ≥1 item each OR stay honest empty;
   GRAM zero cross-asset leaks (strict match still holds).
-- [ ] N-2 **Terminal report header (UI)**: NewsTab.tsx — above the feed add
+- [x] N-2 **Terminal report header (UI)**: NewsTab.tsx — above the feed add
   terminal-style report block per gemini spec: "{NAME} ({SYM}) — NETWORK
   NEWS" title row + monospace micro-status line (live price | 24h% | N
   articles | 7d window) pulled from cryptoStore livePrice (same one-source
@@ -57,3 +57,4 @@ of every coin page, all 200 curated coins.
 (append one line per completed task, real numbers only)
 
 - **N-1 live** (2026-07-15): CRYPTO_WL 15→40 outlets; prod BTC now 4 distinct sources (Yahoo Finance 14, CoinDesk 8, Forbes, Bloomberg — monoculture broken); HYPE recovered 0→4 real Hyperliquid items; VELO stays honest empty (truly uncovered); GRAM zero cross-asset leaks (strict match holds); TN BIAT byte-identical; audit spot 200/200 MISMATCH 0
+- **N-2 live** (2026-07-15): NewsTab crypto header = "{NAME} ({SYM}) — NETWORK NEWS" + monospace status line (livePrice from cryptoStore one-source | 24h% colored | N ARTICLES | 7D WINDOW), NaN-guarded; TN keeps plain header; typecheck 0; verified in prod chunk TradingAssistantPage-aoPVy5Da.js (NETWORK NEWS + 7D WINDOW strings present); /trading 200 0.87s

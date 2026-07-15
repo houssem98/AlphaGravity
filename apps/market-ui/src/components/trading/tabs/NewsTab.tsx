@@ -3,6 +3,7 @@ import { ExternalLink, Loader2, RefreshCw } from 'lucide-react';
 import { safeUrl } from '../../../lib/safeUrl';
 import { motion } from 'motion/react';
 import type { MarketId } from '../../../lib/markets';
+import { useCryptoStore, livePrice } from '../../../stores/cryptoStore';
 
 interface NewsItem { title: string; url: string; source: string; time: string }
 
@@ -25,6 +26,12 @@ export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
 
   const isTN = market === 'tunisia';
+  // V9 N-2: terminal header reads THE price from cryptoStore (one-source rule)
+  const row = useCryptoStore((s) => s.base.find((r: any) => r.symbol === asset));
+  const spotRow = useCryptoStore((s) => s.spot[asset]);
+  const price = isTN ? null : livePrice(row, spotRow);
+  const chg24Raw = !isTN && row ? parseFloat(row.changePercent24Hr) : NaN;
+  const chg24 = isFinite(chg24Raw) ? chg24Raw : null;
   const load = useCallback(async () => {
     setStatus('loading');
     try {
@@ -45,13 +52,34 @@ export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden bg-[color:var(--bg)]">
-      {/* Header */}
-      <div className="p-4 border-b border-[color:var(--line)] flex items-center gap-3">
-        <span className="text-body font-semibold text-[color:var(--text)]">{name || asset} News</span>
-        <button onClick={load} className="ml-auto p-1.5 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)]" aria-label="Refresh">
-          <RefreshCw className={`w-3.5 h-3.5 ${status === 'loading' ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
+      {/* Header — V9 N-2: crypto gets the terminal report block, TN keeps plain */}
+      {isTN ? (
+        <div className="p-4 border-b border-[color:var(--line)] flex items-center gap-3">
+          <span className="text-body font-semibold text-[color:var(--text)]">{name || asset} News</span>
+          <button onClick={load} className="ml-auto p-1.5 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)]" aria-label="Refresh">
+            <RefreshCw className={`w-3.5 h-3.5 ${status === 'loading' ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      ) : (
+        <div className="p-4 border-b border-[color:var(--line)]">
+          <div className="flex items-center gap-3">
+            <span className="text-body font-semibold text-[color:var(--text)] tracking-wide">
+              {(name || asset).split('(')[0].trim().toUpperCase()} ({asset}) — NETWORK NEWS
+            </span>
+            <button onClick={load} className="ml-auto p-1.5 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)]" aria-label="Refresh">
+              <RefreshCw className={`w-3.5 h-3.5 ${status === 'loading' ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+          <div className="mt-2 font-mono text-label text-[color:var(--text-3)] border border-[color:var(--line)] rounded-sm px-2.5 py-1.5 flex flex-wrap gap-x-3">
+            <span className="text-[color:var(--text-2)]">{price != null ? `$${price >= 1 ? price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : price.toPrecision(4)}` : '--'}</span>
+            <span className={chg24 == null ? '' : chg24 >= 0 ? 'text-[color:var(--up,#22c55e)]' : 'text-[color:var(--down,#ef4444)]'}>
+              {chg24 != null ? `${chg24 >= 0 ? '+' : ''}${chg24.toFixed(2)}% 24H` : '-- 24H'}
+            </span>
+            <span>{items.length} ARTICLES</span>
+            <span>7D WINDOW</span>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
         {status === 'loading' && (
