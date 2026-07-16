@@ -57,7 +57,14 @@ export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
       // NT-1/NT-2: 7-day horizon + strict per-coin title match (TN untouched).
       const cleanName = (name || '').split('(')[0].trim();
       const q = isTN ? `${name || asset} Bourse Tunis` : (cleanName ? `${cleanName} ${asset} crypto` : `${asset} crypto`);
-      const extra = isTN ? '' : `&wl=crypto&days=7&match=${encodeURIComponent(cleanName || asset)}&sym=${encodeURIComponent(asset)}`;
+      // TNV-4 (NT-1): TN gets days=14 → server horizon (14d, TN is lower-volume
+      // than crypto) + newest-first sort. NO match= (NT-2 omitted): TN symbol
+      // defs carry full legal names and the French press refers to companies by
+      // varied common names (TAIR→"Tunisair", PGH→"Poulina"), so a symbol- or
+      // legal-name title match collapses coverage (sym=TAIR → 0 items in prod) —
+      // exactly the coverage cut the doctrine forbids. Google relevance on the
+      // full-name query already scopes results; days= is the safe truth bump.
+      const extra = isTN ? '&days=14' : `&wl=crypto&days=7&match=${encodeURIComponent(cleanName || asset)}&sym=${encodeURIComponent(asset)}`;
       const r = await fetch(`/api/news?q=${encodeURIComponent(q)}&region=${isTN ? 'tn' : 'us'}${extra}`);
       const d = await r.json();
       const list: NewsItem[] = d.items || [];

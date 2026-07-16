@@ -88,7 +88,7 @@ news truth, TNV-5 chart indicators, TNV-6 sweep, TNV-7 grouped column chooser**.
   task — TNV-7.) Verify: typecheck 0; prod — menu opens, sort both directions,
   move + hide persist across reload; crypto Markets menu unchanged; TN
   board/intraday 200s.
-- [ ] TNV-4 **TN news truth (V8 NT-1/NT-2 parity)**: NewsTab.tsx TN branch +
+- [x] TNV-4 **TN news truth (V8 NT-1/NT-2 parity)**: NewsTab.tsx TN branch +
   the shared `/api/news` call — add `days=14` (TN news is lower-volume than
   crypto, 7d too tight) so the server applies horizon + newest-first sort (logic
   already exists, just unused by TN), and pass a light `match=` of the company
@@ -166,3 +166,17 @@ news truth, TNV-5 chart indicators, TNV-6 sweep, TNV-7 grouped column chooser**.
   200/200 OK MISMATCH 0 (tech 197/200, deriv 177/200, meta 121/200 — unchanged);
   crypto Markets.tsx untouched. Note: 7d% shifts to after marketCap in TN default
   (movable block contiguous) — honest reorder, same data.
+- **TNV-4 live** (2026-07-16): TN news call gains `&days=14` → server horizon +
+  newest-first sort (NT-1). typecheck 0, vercel --prod 1m. Prod: BIAT 2 items ≤14d
+  newest-first (Jul 03 → Jul 02 descending); SFBT + AeTech honest-empty (SFBT's
+  latest real news is May 2026 >14d — days=14 correctly drops the 2012–2024 junk
+  the un-windowed query returned). Bundle TradingAssistantPage-CqXFkM1q: TN
+  `days=14` present; crypto `wl=crypto` + `days=7` intact. Diff = NewsTab.tsx only
+  (api/news.ts untouched → legacy `/api/news?q=` byte-identical). **NT-2 match=
+  OMITTED, evidence-backed**: TN symbol defs carry FULL LEGAL names and the French
+  press uses varied common names (TAIR→"Tunisair", PGH→"Poulina"), so any symbol/
+  legal-name title match collapses coverage — prod `sym=TAIR` → 0 items. Omitting
+  it is the truth doctrine's "don't cut coverage", not a gap. Follow-up idea (own
+  task): the legal-name Google query underperforms the short-symbol query for some
+  names (SFBT legal→6 stale vs `SFBT`→24 recent) — a query-term tune could lift
+  coverage, but trades disambiguation for 2-letter tickers (AB/AL/CC).
