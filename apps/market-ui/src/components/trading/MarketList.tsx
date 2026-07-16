@@ -317,7 +317,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
       : k === 'volume' ? hasVol : k === 'marketCap' ? hasMcap : k === 'circulating' ? hasCirc : k === 'spark' ? showSpark : true;
   const order = isTN ? tnOrder : DEFAULT_ORDER;
   const visibleCols = order.filter((k) => availableCol(k) && !(isTN && tnHidden[k]));
-  const nColSpan = 2 + visibleCols.length + (isTN ? 1 : 0); // star + # + data cols + TN chooser th
+  const nColSpan = 2 + visibleCols.length; // star + # + data columns
 
   const moveColumn = (kk: ColKey, where: 'left' | 'right' | 'start' | 'end') => {
     setTnOrder((prev) => {
@@ -698,13 +698,91 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
               </button>
             );
           })}
-          {market.id === 'tunisia' && (
-            <button
-              onClick={() => setShowCompare(true)}
-              className="press ml-auto mb-1 flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-body font-medium text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
-            >
-              <ArrowUpDown className="w-3.5 h-3.5" /> Compare
-            </button>
+          {isTN && (
+            <>
+              {/* TNV-7: column chooser lives in the toolbar — the table scrolls
+                  horizontally, so a header-cell button would sit off-screen. */}
+              <div className="relative ml-auto mb-1">
+                <button
+                  onClick={() => setColMenu((v) => !v)}
+                  title="Add or remove columns"
+                  className="press flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-body font-medium text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Columns
+                </button>
+                {colMenu && (() => {
+                  const closeMenu = () => { setColMenu(false); setOpenGroup(null); setColSearch(''); };
+                  const isVis = (k: ColKey) => availableCol(k) && !tnHidden[k];
+                  const toggleCol = (k: ColKey) => {
+                    if (isVis(k) && visibleCols.length <= 1) return; // keep ≥1
+                    setTnHidden((p) => ({ ...p, [k]: !p[k] }));
+                  };
+                  const colRow = (c: { k: ColKey; label: string }) => (
+                    <button key={c.k} onClick={() => toggleCol(c.k)} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors">
+                      <span className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 ${isVis(c.k) ? 'bg-[color:var(--accent)] border-[color:var(--accent)]' : 'border-[color:var(--line-strong)]'}`}>
+                        {isVis(c.k) && <Check className="w-2.5 h-2.5 text-[color:var(--accent-ink)]" />}
+                      </span>
+                      {c.label}
+                    </button>
+                  );
+                  const searchBox = (
+                    <div className="px-2 pb-1.5">
+                      <input value={colSearch} onChange={(e) => setColSearch(e.target.value)} placeholder="Search"
+                        className="w-full bg-[color:var(--bg)] border border-[color:var(--line)] text-[color:var(--text)] placeholder:text-[color:var(--text-3)] text-body font-normal px-2 py-1 rounded-sm focus:outline-none focus:border-[color:var(--line-strong)]" />
+                    </div>
+                  );
+                  const grp = openGroup ? TN_COL_GROUPS.find((g) => g.label === openGroup) : null;
+                  return (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={closeMenu} />
+                      <div className="absolute right-0 top-full mt-1 z-50 w-60 max-h-80 overflow-y-auto bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case">
+                        {grp ? (
+                          <>
+                            <button onClick={() => { setOpenGroup(null); setColSearch(''); }} className="w-full flex items-center gap-1.5 px-3 py-1.5 text-body font-semibold text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors">
+                              <ChevronLeft className="w-3.5 h-3.5" /> {grp.label}
+                            </button>
+                            {searchBox}
+                            {grp.cols.filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase())).map(colRow)}
+                          </>
+                        ) : (
+                          <>
+                            <div className="label px-3 py-1.5 text-[color:var(--text-3)]">Columns</div>
+                            {searchBox}
+                            {colSearch
+                              ? TN_COL_GROUPS.flatMap((g) => g.cols).filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase())).map(colRow)
+                              : TN_COL_GROUPS.map((g) => {
+                                  const GIcon = g.icon;
+                                  const on = g.cols.filter((c) => isVis(c.k)).length;
+                                  return (
+                                    <button key={g.label} onClick={() => { setOpenGroup(g.label); setColSearch(''); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors">
+                                      <GIcon className="w-3.5 h-3.5 text-[color:var(--text-3)]" />
+                                      <span className="flex-1 text-left">{g.label}</span>
+                                      <span className="font-mono text-label text-[color:var(--text-3)]">{on}/{g.cols.length}</span>
+                                    </button>
+                                  );
+                                })}
+                            {!colSearch && (
+                              <>
+                                <div className="h-px bg-[color:var(--line)] my-1" />
+                                <button onClick={() => { setTnHidden(Object.fromEntries([...TN_ONLY_KEYS].map((k) => [k, true]))); setTnOrder(DEFAULT_ORDER); }} className="w-full px-3 py-1.5 text-body font-normal text-left text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors">
+                                  Reset columns
+                                </button>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+              <button
+                onClick={() => setShowCompare(true)}
+                className="press mb-1 flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-body font-medium text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
+              >
+                <ArrowUpDown className="w-3.5 h-3.5" /> Compare
+              </button>
+            </>
           )}
         </div>
 
@@ -717,77 +795,6 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                   <th className="py-2 px-4 w-8" />
                   <th className="py-2 px-4 label w-10 hidden sm:table-cell">#</th>
                   {visibleCols.map(headerFor)}
-                  {isTN && (
-                    <th className="py-2 px-4 w-10 relative">
-                      <button onClick={() => setColMenu((v) => !v)} title="Edit columns" className="flex items-center justify-center w-6 h-6 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)] transition-colors ml-auto">
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                      {colMenu && (() => {
-                        const closeMenu = () => { setColMenu(false); setOpenGroup(null); setColSearch(''); };
-                        const isVis = (k: ColKey) => availableCol(k) && !tnHidden[k];
-                        const toggleCol = (k: ColKey) => {
-                          if (isVis(k) && visibleCols.length <= 1) return; // keep ≥1
-                          setTnHidden((p) => ({ ...p, [k]: !p[k] }));
-                        };
-                        const colRow = (c: { k: ColKey; label: string }) => (
-                          <button key={c.k} onClick={() => toggleCol(c.k)} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors">
-                            <span className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 ${isVis(c.k) ? 'bg-[color:var(--accent)] border-[color:var(--accent)]' : 'border-[color:var(--line-strong)]'}`}>
-                              {isVis(c.k) && <Check className="w-2.5 h-2.5 text-[color:var(--accent-ink)]" />}
-                            </span>
-                            {c.label}
-                          </button>
-                        );
-                        const searchBox = (
-                          <div className="px-2 pb-1.5">
-                            <input value={colSearch} onChange={(e) => setColSearch(e.target.value)} placeholder="Search"
-                              className="w-full bg-[color:var(--bg)] border border-[color:var(--line)] text-[color:var(--text)] placeholder:text-[color:var(--text-3)] text-body font-normal px-2 py-1 rounded-sm focus:outline-none focus:border-[color:var(--line-strong)]" />
-                          </div>
-                        );
-                        const grp = openGroup ? TN_COL_GROUPS.find((g) => g.label === openGroup) : null;
-                        return (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={closeMenu} />
-                            <div className="absolute right-4 top-full mt-1 z-50 w-60 max-h-80 overflow-y-auto bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case">
-                              {grp ? (
-                                <>
-                                  <button onClick={() => { setOpenGroup(null); setColSearch(''); }} className="w-full flex items-center gap-1.5 px-3 py-1.5 text-body font-semibold text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors">
-                                    <ChevronLeft className="w-3.5 h-3.5" /> {grp.label}
-                                  </button>
-                                  {searchBox}
-                                  {grp.cols.filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase())).map(colRow)}
-                                </>
-                              ) : (
-                                <>
-                                  <div className="label px-3 py-1.5 text-[color:var(--text-3)]">Columns</div>
-                                  {searchBox}
-                                  {colSearch
-                                    ? TN_COL_GROUPS.flatMap((g) => g.cols).filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase())).map(colRow)
-                                    : TN_COL_GROUPS.map((g) => {
-                                        const GIcon = g.icon;
-                                        return (
-                                          <button key={g.label} onClick={() => { setOpenGroup(g.label); setColSearch(''); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors">
-                                            <GIcon className="w-3.5 h-3.5 text-[color:var(--text-3)]" />
-                                            <span className="flex-1 text-left">{g.label}</span>
-                                            <span className="font-mono text-label text-[color:var(--text-3)]">{g.cols.length}</span>
-                                          </button>
-                                        );
-                                      })}
-                                  {!colSearch && (
-                                    <>
-                                      <div className="h-px bg-[color:var(--line)] my-1" />
-                                      <button onClick={() => { setTnHidden(Object.fromEntries([...TN_ONLY_KEYS].map((k) => [k, true]))); setTnOrder(DEFAULT_ORDER); }} className="w-full px-3 py-1.5 text-body font-normal text-left text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors">
-                                        Reset columns
-                                      </button>
-                                    </>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </th>
-                  )}
                 </tr>
               </thead>
               <tbody>
