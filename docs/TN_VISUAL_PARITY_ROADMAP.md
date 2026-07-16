@@ -108,7 +108,7 @@ news truth, TNV-5 chart indicators, TNV-6 sweep, TNV-7 grouped column chooser**.
   typecheck 0; prod — BIAT chart shows SMA overlays + RSI toggle over real
   candles; MCAP toggle present only where shares exist; crypto Chart unchanged;
   TN intraday/history 200s.
-- [ ] TNV-6 **Sweep**: prod pass BIAT/SFBT/PGH/TAIR/an-unmapped-ticker — logos
+- [x] TNV-6 **Sweep**: prod pass BIAT/SFBT/PGH/TAIR/an-unmapped-ticker — logos
   present for covered, honest initials for uncovered, no layout shift; news
   header real numbers + list ≤14d newest-first + honest-empty; COLHEAD
   sort/move/hide persists; chart indicators render; one-source price verified
@@ -189,3 +189,15 @@ news truth, TNV-5 chart indicators, TNV-6 sweep, TNV-7 grouped column chooser**.
   present. Bundle TradingAssistantPage-Co5Ggqev: `Relative Strength Index (14)` +
   `MCAP` present. Diff = TnChart.tsx only → crypto Chart.tsx byte-identical. Crypto
   regress: audit spot 200/200 OK MISMATCH 0 (tech 197/deriv 177/meta 121 unchanged).
+- **TNV-6 sweep** (2026-07-16): verification-only, no gaps → no new code. Prod
+  BIAT/SFBT/PGH/TAIR: board prices real (171 / 14.95 / 28.45 / 0.33), intraday all
+  200. Logos: PGH (poulinagroupholding.com) + TAIR (tunisair.com) favicons 200 →
+  real logo; BIAT + SFBT 404 → honest 2-letter initials (onError, no layout shift);
+  unmapped SPDIT → initials (no TN_DOMAINS entry). News: BIAT 2 items ≤14d
+  newest-first, SFBT honest-empty. **One-source verified**: `/api/tn/markets`
+  (AssetInfoPanel) == `/api/tn/board` (list + news header) — identical price+chg
+  for all 4 (both BVMT-derived, no divergent/rogue fetch → panel == list == header,
+  CV-6 parity). `key={asset}` remount + COLHEAD `tn-cols` persist + chart SMA/RSI
+  wiring code-confirmed, endpoints 200. Crypto regress: audit spot 200/200 MISMATCH
+  0, TRX row present (logo = CoinGecko image, Chart.tsx untouched). TNV-7 (grouped
+  column chooser) remains open.
