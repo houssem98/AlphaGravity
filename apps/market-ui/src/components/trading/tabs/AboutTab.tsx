@@ -3,7 +3,7 @@ import { Globe, Github, Twitter, MessageCircle, ExternalLink, Building2, Newspap
 import { motion } from 'motion/react';
 import type { MarketId, MarketDef } from '../../../lib/markets';
 import type { AssetRow } from '../../../services/marketsHub';
-import { assetLinks } from '../MarketList';
+import { assetLinks, TN_DOMAINS } from '../MarketList';
 
 interface AboutTabProps {
   asset: string;
@@ -82,8 +82,13 @@ const TnAbout: React.FC<{ asset: string; name?: string }> = ({ asset, name }) =>
       <div className="max-w-4xl p-6 space-y-6">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[color:var(--accent)] to-[color:var(--up)] flex items-center justify-center text-h3 font-bold text-white">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[color:var(--accent)] to-[color:var(--up)] flex items-center justify-center text-h3 font-bold text-white relative overflow-hidden">
               {asset.charAt(0)}
+              {TN_DOMAINS[asset.replace('^', '')] && (
+                <img src={`https://icons.duckduckgo.com/ip3/${TN_DOMAINS[asset.replace('^', '')]}.ico`} alt={asset}
+                  className="absolute inset-0 w-full h-full object-contain bg-white p-1"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              )}
             </div>
             <div>
               <h1 className="text-h2 font-bold text-[color:var(--text)]">{company}</h1>

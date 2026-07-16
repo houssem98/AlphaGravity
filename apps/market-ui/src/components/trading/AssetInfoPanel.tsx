@@ -5,6 +5,7 @@ import { getMarket, type MarketId, type Unit } from '../../lib/markets';
 import { fetchMarket, fmtPrice } from '../../services/marketsHub';
 import { safeUrl } from '../../lib/safeUrl';
 import { useCryptoStore, ensureCryptoFeed, livePrice } from '../../stores/cryptoStore';
+import { TN_DOMAINS } from './MarketList';
 import {
   Info, Star, Globe, FileText, Copy, Check, ChevronDown, ChevronRight,
   Edit2, Unlock, CheckCircle2, ExternalLink, Play, ArrowLeftRight, Shield, ArrowLeft,
@@ -661,8 +662,11 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
   // Markets list unmounted (chart view).
   const cryptoRow = useCryptoStore((s) => (isCrypto ? s.base.find((b: any) => b.symbol === asset) : undefined));
   const cryptoSpot = useCryptoStore((s) => (isCrypto ? s.spot[asset] : undefined));
-  // Real coin logo (CoinGecko via markets API); coincap fallback, letter behind on error.
-  const logoUrl = isCrypto ? ((cryptoRow as any)?.image || `https://assets.coincap.io/assets/icons/${asset.toLowerCase()}@2x.png`) : undefined;
+  // Real logo: crypto = CoinGecko (coincap fallback); TN = company favicon via
+  // DuckDuckGo (TN_DOMAINS map). Letter behind on error for both.
+  const logoUrl = isCrypto
+    ? ((cryptoRow as any)?.image || `https://assets.coincap.io/assets/icons/${asset.toLowerCase()}@2x.png`)
+    : (isTN && TN_DOMAINS[asset.replace('^', '')] ? `https://icons.duckduckgo.com/ip3/${TN_DOMAINS[asset.replace('^', '')]}.ico` : undefined);
   useEffect(() => {
     if (!isCrypto) return;
     ensureCryptoFeed();
@@ -798,7 +802,8 @@ export const AssetInfoPanel: React.FC<AssetInfoPanelProps> = ({ asset, onAskAI, 
               style={{ background: gradient }}>
               {asset.charAt(0)}
               {logoUrl && (
-                <img src={logoUrl} alt={asset} className="absolute inset-0 w-full h-full object-cover"
+                <img src={logoUrl} alt={asset}
+                  className={`absolute inset-0 w-full h-full ${isTN ? 'object-contain bg-white p-0.5' : 'object-cover'}`}
                   onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               )}
             </div>
