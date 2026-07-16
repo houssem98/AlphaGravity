@@ -11,7 +11,11 @@ that don't need data the Tunis exchange doesn't publish.
 
 | Crypto roadmap | What it shipped | TN status |
 |---|---|---|
-| V3 truth / V4 world-class | Curated universe, no-fake fields, ruthless audit | ✅ have — TN universe (~78 BVMT tickers) + T-series audit |
+| V1 screener (CS-1..8) | Market-data cols, drill-in **column/group chooser** (CS-4), technicals cols, derivatives | ⚠️ chooser + O/H/L cols → folded into TNV-3; technicals cols ✅ covered by TN engine score; derivatives ⛔ N/A (no TN derivs market) |
+| V2 screener (CX-1..8) | Open/High/Low/Chg-from-open **list cols** (CX-3), technicals v2, meta/TVL, derivatives v2 | ⚠️ O/H/L cols → TNV-3 (TN intraday has the data); meta/TVL ⛔ N/A (stocks); derivatives ⛔ N/A |
+| V3 truth (CT-1..6) | Verified-pair gate, honest-null states, OKX fallback, coverage audit | ✅ have — TN embodies the truth doctrine (T-series honest states + own audit) |
+| Company Intelligence | AI brief, peer compare, fundamentals, SEC filings, DevilsAdvocate | ✅ mostly — TN brief (`/api/tn/brief`) + TnComparator + fundamentals (T21); SEC filings ⛔ N/A (BVMT has no EDGAR equivalent) |
+| V4 world-class | Curated universe, no-fake fields, ruthless audit | ✅ have — TN universe (~78 BVMT tickers) + T-series audit |
 | V4 CW-3 | Fresh prices (live-feel blob) | ✅ have — TN blob SWR + gated price |
 | V5 one-tick (CV-1..6) | Shared client store, Binance/OKX **WS live tick**, list==panel same ms | ⚠️ partial — TN has no public WS (session exchange); one-**source** applies → verify list==panel in sweep (TNV-6) |
 | V6 top-200 (CU-1..4) | Universe scale to 200 | ⛔ N/A — TN universe is a fixed listed set, not mcap-ranked scale |
@@ -80,9 +84,12 @@ truth, TNV-5 chart indicators, TNV-6 sweep**.
   reusing the crypto markup + our tokens. Columns: name, price, changePct,
   volume, marketCap. Column order + hidden set persist to localStorage (key
   `tn-cols`). Hidden column drops from header + rows; at least one column always
-  stays (guard). Verify: typecheck 0; prod — menu opens, sort both directions,
-  move + hide persist across reload; crypto Markets menu unchanged; TN
-  board/intraday 200s.
+  stays (guard). Also add a `+` column chooser to un-hide columns (V1 CS-4
+  parity) and, since `/api/tn/intraday` already carries them, three optional
+  columns — Open / High / Low (V2 CX-3 parity), default hidden so the lean
+  default view is unchanged. Verify: typecheck 0; prod — menu opens, sort both
+  directions, move + hide persist across reload; chooser un-hides + O/H/L show
+  real intraday numbers; crypto Markets menu unchanged; TN board/intraday 200s.
 - [ ] TNV-4 **TN news truth (V8 NT-1/NT-2 parity)**: NewsTab.tsx TN branch +
   the shared `/api/news` call — add `days=14` (TN news is lower-volume than
   crypto, 7d too tight) so the server applies horizon + newest-first sort (logic
