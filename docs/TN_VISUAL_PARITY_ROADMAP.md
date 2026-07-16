@@ -11,8 +11,8 @@ that don't need data the Tunis exchange doesn't publish.
 
 | Crypto roadmap | What it shipped | TN status |
 |---|---|---|
-| V1 screener (CS-1..8) | Market-data cols, drill-in **column/group chooser** (CS-4), technicals cols, derivatives | ⚠️ chooser + O/H/L cols → folded into TNV-3; technicals cols ✅ covered by TN engine score; derivatives ⛔ N/A (no TN derivs market) |
-| V2 screener (CX-1..8) | Open/High/Low/Chg-from-open **list cols** (CX-3), technicals v2, meta/TVL, derivatives v2 | ⚠️ O/H/L cols → TNV-3 (TN intraday has the data); meta/TVL ⛔ N/A (stocks); derivatives ⛔ N/A |
+| V1 screener (CS-1..8) | Market-data cols, drill-in **grouped `+` column chooser** (CS-4), technicals cols, derivatives | ❌ chooser → **TNV-7** (grouped, searchable, TN's honest 4 groups); technicals-as-cols ✅ covered by engine score/factors; derivatives ⛔ N/A (no TN derivs market) |
+| V2 screener (CX-1..8) | Open/High/Low/Chg-from-open **list cols** (CX-3), technicals v2, meta/TVL, derivatives v2 | ❌ O/H/L + valuation cols → **TNV-7** groups (intraday + fundamentals have the data); meta/TVL ⛔ N/A (stocks); derivatives ⛔ N/A |
 | V3 truth (CT-1..6) | Verified-pair gate, honest-null states, OKX fallback, coverage audit | ✅ have — TN embodies the truth doctrine (T-series honest states + own audit) |
 | Company Intelligence | AI brief, peer compare, fundamentals, SEC filings, DevilsAdvocate | ✅ mostly — TN brief (`/api/tn/brief`) + TnComparator + fundamentals (T21); SEC filings ⛔ N/A (BVMT has no EDGAR equivalent) |
 | V4 world-class | Curated universe, no-fake fields, ruthless audit | ✅ have — TN universe (~78 BVMT tickers) + T-series audit |
@@ -34,8 +34,8 @@ that don't need data the Tunis exchange doesn't publish.
 | logo fix (2026-07-16) | **Real logo in detail header** | ❌ gap → TNV-1 |
 | Grok banner art | AI hero art | ⛔ deferred — blocked on xAI credits |
 
-Net honest gaps → **TNV-1 logos, TNV-2 news header, TNV-3 COLHEAD, TNV-4 news
-truth, TNV-5 chart indicators, TNV-6 sweep**.
+Net honest gaps → **TNV-1 logos, TNV-2 news header, TNV-3 COLHEAD menu, TNV-4
+news truth, TNV-5 chart indicators, TNV-6 sweep, TNV-7 grouped column chooser**.
 
 ## Doctrine (hard rules)
 
@@ -69,7 +69,7 @@ truth, TNV-5 chart indicators, TNV-6 sweep**.
   Favicon on white chip, `object-contain`. Verify: typecheck 0; prod — mapped
   tickers with a DDG-cached favicon show the logo, unmapped/uncached show honest
   initials; a crypto coin (TRX) still shows its logo; TN board/intraday 200s.
-- [ ] TNV-2 **TN News terminal header (V9 N-2 parity)**: NewsTab.tsx TN branch —
+- [x] TNV-2 **TN News terminal header (V9 N-2 parity)**: NewsTab.tsx TN branch —
   replace the plain `{name} News` header ([NewsTab.tsx:56](../apps/market-ui/src/components/trading/tabs/NewsTab.tsx#L56)) with a terminal block
   matching the crypto one's structure but TN-sourced: `COMPANY (SYMBOL) —
   ACTUALITÉS`, then a mono strip with last price (from `/api/tn/board` or the
@@ -84,12 +84,10 @@ truth, TNV-5 chart indicators, TNV-6 sweep**.
   reusing the crypto markup + our tokens. Columns: name, price, changePct,
   volume, marketCap. Column order + hidden set persist to localStorage (key
   `tn-cols`). Hidden column drops from header + rows; at least one column always
-  stays (guard). Also add a `+` column chooser to un-hide columns (V1 CS-4
-  parity) and, since `/api/tn/intraday` already carries them, three optional
-  columns — Open / High / Low (V2 CX-3 parity), default hidden so the lean
-  default view is unchanged. Verify: typecheck 0; prod — menu opens, sort both
-  directions, move + hide persist across reload; chooser un-hides + O/H/L show
-  real intraday numbers; crypto Markets menu unchanged; TN board/intraday 200s.
+  stays (guard). (The grouped `+` chooser that un-hides / adds columns is its own
+  task — TNV-7.) Verify: typecheck 0; prod — menu opens, sort both directions,
+  move + hide persist across reload; crypto Markets menu unchanged; TN
+  board/intraday 200s.
 - [ ] TNV-4 **TN news truth (V8 NT-1/NT-2 parity)**: NewsTab.tsx TN branch +
   the shared `/api/news` call — add `days=14` (TN news is lower-volume than
   crypto, 7d too tight) so the server applies horizon + newest-first sort (logic
@@ -118,6 +116,26 @@ truth, TNV-5 chart indicators, TNV-6 sweep**.
   remount confirmed (BIAT→SFBT, no stale price/news/chart); TN board/intraday/
   news 200s; crypto regression (TRX logo + audit spot 200/200 MISMATCH 0);
   ledger + memory; final commit.
+- [ ] TNV-7 **Grouped column chooser (V1 CS-4 / V2 CX-3 parity)**: MarketList.tsx
+  — port the crypto grouped `+` popover (the screenshot: searchable list of
+  column GROUPS with per-group counts, click to add/remove columns). TN's HONEST
+  groups only — no fake/empty groups, no Derivatives (TN has no derivs market):
+  - **Company** (3): Sector, ISIN, Shares outstanding — from `/api/tn/ref` + board
+  - **Market data** (9): Price, Change % today, Change 7d, Volume, Turnover TND,
+    Market cap, Open, High, Low — from `/api/tn/board` + `/api/tn/intraday`
+  - **Valuation** (6): PER, EPS, P/B, Net income, Equity, Div yield — from
+    `/api/tn/fundamentals` (39-co coverage; uncovered cell shows honest `—`)
+  - **Signal** (6): Engine score, Label, Momentum, Volume, News, Liquidity/Trend
+    factors — from `/api/tn/engine`
+  Default view stays lean (name/price/chg%/volume/mcap shown; the rest opt-in via
+  the chooser). Search filters columns by label. Selection persists to
+  localStorage (`tn-cols`, shared with TNV-3). A column with no data for a ticker
+  renders `—`, never a fake number (truth doctrine). NO Derivatives/Technicals-
+  Oscillators groups — TN lacks that data; omitting them is honest, not a gap.
+  Verify: typecheck 0; prod — chooser opens with the 4 real groups + true counts,
+  search works, adding Valuation cols shows real PER/EPS for a covered co (BIAT)
+  and `—` for an uncovered one, selection persists across reload; crypto Markets
+  chooser unchanged; TN board/intraday/fundamentals/engine 200s.
 
 ## Progress log
 
@@ -129,3 +147,11 @@ truth, TNV-5 chart indicators, TNV-6 sweep**.
   PGH/TAIR/onetech DDG-cached (200), BIAT/SFBT/BT/STB not cached (404 → honest
   initials, matches list-row behavior). TN board+intraday+news all 200; crypto
   TRX logo unregressed. Google-s2 rejected (uniform ~330b globe placeholder).
+- **TNV-2 live** (2026-07-16): NewsTab TN branch → terminal header `COMPANY (SYM)
+  — ACTUALITÉS` + mono strip (last price TND | day change % colored | N ARTICLES
+  | fr-FR session date). Price/change from `/api/tn/board` (isTN-only fetch,
+  partial-tolerant `--`, never blocks list). Prod BIAT: 171.000 TND, +0.58%, 75
+  board rows. typecheck 0, vercel --prod 1m. Bundle TradingAssistantPage-fFPqOrRE:
+  ACTUALITÉS present; crypto NETWORK NEWS + 7D WINDOW unchanged; tn/board wired.
+  TN intraday+news 200; crypto news TRX 200; legacy `/api/news?q=` 200; diff scope
+  = NewsTab.tsx only (crypto path byte-identical via isTN guard).

@@ -37,6 +37,19 @@ export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
   const price = isTN ? null : livePrice(row, spotRow);
   const chg24Raw = !isTN && row ? parseFloat(row.changePercent24Hr) : NaN;
   const chg24 = isFinite(chg24Raw) ? chg24Raw : null;
+  // TNV-2: TN terminal header reads last price from /api/tn/board (partial-tolerant, never blocks list)
+  const [tnPrice, setTnPrice] = useState<number | null>(null);
+  const [tnChg, setTnChg] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isTN) return;
+    let alive = true;
+    fetch('/api/tn/board').then((r) => r.json()).then((d) => {
+      if (!alive) return;
+      const b = (d?.board || []).find((x: any) => x.symbol === asset);
+      if (b) { setTnPrice(typeof b.price === 'number' ? b.price : null); setTnChg(typeof b.changePct === 'number' ? b.changePct : null); }
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [isTN, asset]);
   const load = useCallback(async () => {
     setStatus('loading');
     try {
@@ -79,11 +92,23 @@ export const NewsTab: React.FC<NewsTabProps> = ({ asset, name, market }) => {
     <div className="flex flex-col flex-1 overflow-hidden bg-[color:var(--bg)]">
       {/* Header — V9 N-2: crypto gets the terminal report block, TN keeps plain */}
       {isTN ? (
-        <div className="p-4 border-b border-[color:var(--line)] flex items-center gap-3">
-          <span className="text-body font-semibold text-[color:var(--text)]">{name || asset} News</span>
-          <button onClick={load} className="ml-auto p-1.5 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)]" aria-label="Refresh">
-            <RefreshCw className={`w-3.5 h-3.5 ${status === 'loading' ? 'animate-spin' : ''}`} />
-          </button>
+        <div className="p-4 border-b border-[color:var(--line)]">
+          <div className="flex items-center gap-3">
+            <span className="text-body font-semibold text-[color:var(--text)] tracking-wide">
+              {(name || asset).split('(')[0].trim().toUpperCase()} ({asset}) — ACTUALITÉS
+            </span>
+            <button onClick={load} className="ml-auto p-1.5 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)]" aria-label="Refresh">
+              <RefreshCw className={`w-3.5 h-3.5 ${status === 'loading' ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+          <div className="mt-2 font-mono text-label text-[color:var(--text-3)] border border-[color:var(--line)] rounded-sm px-2.5 py-1.5 flex flex-wrap gap-x-3">
+            <span className="text-[color:var(--text-2)]">{tnPrice != null ? `${tnPrice.toFixed(3)} TND` : '--'}</span>
+            <span className={tnChg == null ? '' : tnChg >= 0 ? 'text-[color:var(--up,#22c55e)]' : 'text-[color:var(--down,#ef4444)]'}>
+              {tnChg != null ? `${tnChg >= 0 ? '+' : ''}${tnChg.toFixed(2)}%` : '--'}
+            </span>
+            <span>{items.length} ARTICLES</span>
+            <span>{new Date().toLocaleDateString('fr-FR')}</span>
+          </div>
         </div>
       ) : (
         <div className="p-4 border-b border-[color:var(--line)]">
