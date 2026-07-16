@@ -78,7 +78,7 @@ news truth, TNV-5 chart indicators, TNV-6 sweep, TNV-7 grouped column chooser**.
   below unchanged (plain, no images). Verify: typecheck 0; prod — BIAT news
   header shows real last price + change + count; crypto news header unchanged;
   legacy `/api/news?q=` byte-identical.
-- [ ] TNV-3 **COLHEAD per-column menu (TN list)**: MarketList.tsx — port the
+- [x] TNV-3 **COLHEAD per-column menu (TN list)**: MarketList.tsx — port the
   crypto `menuTh` popover ([Markets.tsx:548](../apps/market-ui/src/components/trading/Markets.tsx#L548)): click a column header → Sort asc /
   Sort desc / Move left / Move right / Move to start / Move to end / Hide column,
   reusing the crypto markup + our tokens. Columns: name, price, changePct,
@@ -155,3 +155,14 @@ news truth, TNV-5 chart indicators, TNV-6 sweep, TNV-7 grouped column chooser**.
   ACTUALITÉS present; crypto NETWORK NEWS + 7D WINDOW unchanged; tn/board wired.
   TN intraday+news 200; crypto news TRX 200; legacy `/api/news?q=` 200; diff scope
   = NewsTab.tsx only (crypto path byte-identical via isTN guard).
+- **TNV-3 live** (2026-07-16): MarketList data columns registry-driven (ColKey +
+  COLMETA + DEFAULT_ORDER); TN-only per-column header menu (menuTh: Sort asc/desc,
+  Move left/right/start/end, Hide) gated by `market.id==='tunisia'`. Non-TN uses
+  DEFAULT_ORDER + nothing hidden → byte-identical (same th/td output, toggleSort
+  kept). Order+hidden persist to `tn-cols`; hide guarded (≥1 visible column).
+  Movable set = name/price/changePct/volume/marketCap. typecheck 0, vercel --prod
+  2m. Bundle TradingAssistantPage-CDgsRQrW: `tn-cols` + `Hide column` present;
+  TNV-2 ACTUALITÉS intact. TN board+intraday 200. Crypto regress: audit spot
+  200/200 OK MISMATCH 0 (tech 197/200, deriv 177/200, meta 121/200 — unchanged);
+  crypto Markets.tsx untouched. Note: 7d% shifts to after marketCap in TN default
+  (movable block contiguous) — honest reorder, same data.

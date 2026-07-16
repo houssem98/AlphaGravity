@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Star, Trophy, Activity, ArrowUpDown, BarChart2, ExternalLink } from 'lucide-react';
+import { Search, ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Star, Trophy, Activity, ArrowUpDown, BarChart2, ExternalLink, ArrowUp, ArrowDown, ArrowRight, ChevronsLeft, ChevronsRight, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { MarketDef } from '../../lib/markets';
 import { fetchMarket, fetchQuotes, fetchSparks, fmtPrice, fmtPct, fmtCompact, type AssetRow } from '../../services/marketsHub';
@@ -30,6 +30,26 @@ interface MarketListProps {
 }
 
 type SortKey = 'name' | 'price' | 'changePct' | 'volume' | 'marketCap';
+
+// TNV-3 (COLHEAD parity): data columns after star/#, registry-driven so the TN
+// list can reorder/hide via a per-column header menu (crypto Markets menuTh).
+// Non-TN markets always use DEFAULT_ORDER with nothing hidden → byte-identical.
+type ColKey = 'name' | 'price' | 'changePct' | 'sevenD' | 'volume' | 'marketCap' | 'circulating' | 'spark';
+const DEFAULT_ORDER: ColKey[] = ['name', 'price', 'changePct', 'sevenD', 'volume', 'marketCap', 'circulating', 'spark'];
+const COLMETA: Record<ColKey, { label: string; cls: string; sort?: SortKey; movable?: boolean }> = {
+  name:        { label: 'Name', cls: '', sort: 'name', movable: true },
+  price:       { label: 'Price', cls: 'text-right', sort: 'price', movable: true },
+  changePct:   { label: '24h %', cls: 'text-right', sort: 'changePct', movable: true },
+  sevenD:      { label: '7d %', cls: 'text-right hidden md:table-cell' },
+  volume:      { label: 'Volume', cls: 'text-right hidden lg:table-cell', sort: 'volume', movable: true },
+  marketCap:   { label: 'Market Cap', cls: 'text-right hidden sm:table-cell', sort: 'marketCap', movable: true },
+  circulating: { label: 'Circulating', cls: 'text-right hidden lg:table-cell' },
+  spark:       { label: 'Last 7 Days', cls: 'text-right hidden md:table-cell' },
+};
+const sanitizeOrder = (o?: string[]): ColKey[] => {
+  const known = (o || []).filter((k): k is ColKey => (DEFAULT_ORDER as string[]).includes(k));
+  return [...known, ...DEFAULT_ORDER.filter((k) => !known.includes(k))];
+};
 
 // Tiny inline sparkline from a close series (no per-row fetch).
 const MiniSpark = ({ data }: { data: number[] }) => {
@@ -151,6 +171,18 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>(
     paged ? { key: 'name', dir: 'asc' } : { key: 'marketCap', dir: 'desc' },
   );
+  // TNV-3: TN-only column order + hidden set, persisted to `tn-cols`.
+  const isTN = market.id === 'tunisia';
+  const [headMenu, setHeadMenu] = useState<ColKey | null>(null);
+  const [tnOrder, setTnOrder] = useState<ColKey[]>(() => {
+    try { return sanitizeOrder(JSON.parse(localStorage.getItem('tn-cols') || '{}').order); } catch { return DEFAULT_ORDER; }
+  });
+  const [tnHidden, setTnHidden] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem('tn-cols') || '{}').hidden || {}; } catch { return {}; }
+  });
+  useEffect(() => {
+    if (isTN) localStorage.setItem('tn-cols', JSON.stringify({ order: tnOrder, hidden: tnHidden }));
+  }, [isTN, tnOrder, tnHidden]);
   const WKEY = `hub_watchlist_${market.id}`;
   const [watchlist, setWatchlist] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(WKEY) || '[]'); } catch { return []; }
@@ -204,7 +236,6 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   const hasVol = baseRows.some((r) => r.volume);
   const hasCirc = baseRows.some((r) => r.circulating);
   const showSpark = market.source === 'yahoo' || market.source === 'tunisia';
-  const nCols = 6 + (hasVol ? 1 : 0) + (hasMcap ? 1 : 0) + (hasCirc ? 1 : 0) + (showSpark ? 1 : 0);
   // CMC shows "$1.26T"; TND has no symbol so it goes after the number.
   const fmtCap = (v: number, cur: string) => (cur === 'TND' ? `${fmtCompact(v)} TND` : '$' + fmtCompact(v));
 
@@ -214,6 +245,143 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
     const s = sparks[r.symbol];
     if (s && s.length > 1 && s[0] !== 0) return ((s[s.length - 1] - s[0]) / s[0]) * 100;
     return null;
+  };
+
+  // TNV-3: which columns exist for this market, then the visible ordered set.
+  const availableCol = (k: ColKey): boolean =>
+    k === 'volume' ? hasVol : k === 'marketCap' ? hasMcap : k === 'circulating' ? hasCirc : k === 'spark' ? showSpark : true;
+  const order = isTN ? tnOrder : DEFAULT_ORDER;
+  const visibleCols = order.filter((k) => availableCol(k) && !(isTN && tnHidden[k]));
+  const nColSpan = 2 + visibleCols.length; // star + # + data columns (colspan for full-width rows)
+
+  const moveColumn = (kk: ColKey, where: 'left' | 'right' | 'start' | 'end') => {
+    setTnOrder((prev) => {
+      const o = [...prev];
+      const i = o.indexOf(kk);
+      if (i < 0) return prev;
+      if (where === 'start') { o.splice(i, 1); o.unshift(kk); return o; }
+      if (where === 'end') { o.splice(i, 1); o.push(kk); return o; }
+      const dir = where === 'left' ? -1 : 1;
+      let j = i + dir;
+      while (j >= 0 && j < o.length && !(availableCol(o[j]) && !tnHidden[o[j]])) j += dir;
+      if (j < 0 || j >= o.length) return prev;
+      [o[i], o[j]] = [o[j], o[i]];
+      return o;
+    });
+  };
+
+  // TN per-column header menu (crypto menuTh parity): sort / move / hide.
+  const menuTh = (kk: ColKey) => {
+    const m = COLMETA[kk];
+    return (
+      <th key={kk} className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group relative ${m.cls}`} onClick={() => setHeadMenu(headMenu === kk ? null : kk)}>
+        <div className={`flex items-center gap-1 ${m.cls.includes('text-right') ? 'justify-end' : ''}`}>
+          {m.label}
+          <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+        {headMenu === kk && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setHeadMenu(null); }} />
+            <div className="absolute right-4 top-full mt-1 z-50 w-44 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => { setSort({ key: m.sort!, dir: 'asc' }); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowUp className="w-3 h-3" /> Sort ascending</button>
+              <button onClick={() => { setSort({ key: m.sort!, dir: 'desc' }); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowDown className="w-3 h-3" /> Sort descending</button>
+              <div className="h-px bg-[color:var(--line)] my-1" />
+              <button onClick={() => { moveColumn(kk, 'left'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowLeft className="w-3 h-3" /> Move left</button>
+              <button onClick={() => { moveColumn(kk, 'right'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowRight className="w-3 h-3" /> Move right</button>
+              <button onClick={() => { moveColumn(kk, 'start'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ChevronsLeft className="w-3 h-3" /> Move to the start</button>
+              <button onClick={() => { moveColumn(kk, 'end'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ChevronsRight className="w-3 h-3" /> Move to the end</button>
+              <div className="h-px bg-[color:var(--line)] my-1" />
+              <button
+                disabled={visibleCols.length <= 1}
+                onClick={() => { if (visibleCols.length > 1) setTnHidden((p) => ({ ...p, [kk]: true })); setHeadMenu(null); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              ><Trash2 className="w-3 h-3" /> Hide column</button>
+            </div>
+          </>
+        )}
+      </th>
+    );
+  };
+
+  const headerFor = (kk: ColKey) => {
+    const m = COLMETA[kk];
+    if (isTN && m.movable) return menuTh(kk);
+    return (
+      <th
+        key={kk}
+        onClick={() => m.sort && toggleSort(m.sort)}
+        className={`py-2 px-4 label transition-colors group ${m.cls} ${m.sort ? 'cursor-pointer hover:text-[color:var(--text)]' : ''}`}
+      >
+        <div className={`flex items-center gap-1 ${m.cls.includes('text-right') ? 'justify-end' : ''}`}>
+          {m.label}
+          {m.sort && <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />}
+        </div>
+      </th>
+    );
+  };
+
+  const cellFor = (kk: ColKey, r: AssetRow, ctx: { loaded: boolean; up: boolean; p7: number | null; s: number[] }) => {
+    const { loaded, up, p7 } = ctx;
+    switch (kk) {
+      case 'name': return (
+        <td key={kk} className="py-2.5 px-4">
+          <div className="flex items-center gap-2.5">
+            <AssetIcon r={r} />
+            <span className="text-body font-semibold text-[color:var(--text)]">{r.name}</span>
+            <span className="font-mono text-label text-[color:var(--text-3)] bg-[color:var(--bg)] border border-[color:var(--line)] px-1.5 py-0.5 rounded-sm">{r.symbol.replace('^', '')}</span>
+          </div>
+        </td>
+      );
+      case 'price': return <td key={kk} className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text)]">{loaded ? fmtPrice(r.price, r.currency) : '—'}</td>;
+      case 'changePct': return (
+        <td key={kk} className={`py-2.5 px-4 text-right text-data ${loaded ? (up ? 'up' : 'down') : 'text-[color:var(--text-3)]'}`}>
+          {loaded ? <Delta pct={r.changePct} /> : '—'}
+        </td>
+      );
+      case 'sevenD': return (
+        <td key={kk} className={`py-2.5 px-4 text-right text-data hidden md:table-cell ${p7 !== null ? (p7 >= 0 ? 'up' : 'down') : 'text-[color:var(--text-3)]'}`}>
+          {p7 !== null ? <span className="font-mono">{fmtPct(p7)}</span> : '—'}
+        </td>
+      );
+      case 'volume': return (
+        <td key={kk} className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
+          {r.turnover ? (
+            <div className="flex flex-col items-end leading-tight">
+              <span>{fmtCompact(r.turnover)} {r.currency}</span>
+              <span className="text-label text-[color:var(--text-3)]">{fmtCompact(r.volume || 0)} {r.symbol.replace('^', '')}</span>
+            </div>
+          ) : r.volume ? fmtCompact(r.volume) : '—'}
+        </td>
+      );
+      case 'marketCap': return (
+        <td key={kk} className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden sm:table-cell">
+          {r.marketCap ? fmtCap(r.marketCap, r.currency) : '—'}
+        </td>
+      );
+      case 'circulating': return (
+        <td key={kk} className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
+          {r.circulating ? `${fmtCompact(r.circulating)} ${r.symbol.replace('^', '')}` : '—'}
+        </td>
+      );
+      case 'spark': return (
+        <td key={kk} className="py-2.5 px-4 text-right hidden md:table-cell">
+          <div className="flex items-center justify-end gap-3 relative">
+            <div className="w-24 h-8 transition-opacity group-hover:opacity-0 flex items-center justify-end">
+              <MiniSpark data={ctx.s} />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={(e) => { e.stopPropagation(); onAssetSelect(r.symbol); }}
+                className="bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 px-3 py-1 rounded-sm text-label font-semibold transition-colors shiny chrome cta-glow press"
+                style={{ letterSpacing: '0.06em' }}
+              >
+                TRADE
+              </button>
+            </div>
+          </div>
+        </td>
+      );
+    }
   };
 
   const view = useMemo(() => {
@@ -398,27 +566,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                 <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
                   <th className="py-2 px-4 w-8" />
                   <th className="py-2 px-4 label w-10 hidden sm:table-cell">#</th>
-                  {([
-                    { key: 'name', label: 'Name', cls: '' },
-                    { key: 'price', label: 'Price', cls: 'text-right' },
-                    { key: 'changePct', label: '24h %', cls: 'text-right' },
-                    { key: null, label: '7d %', cls: 'text-right hidden md:table-cell' },
-                    ...(hasVol ? [{ key: 'volume', label: 'Volume', cls: 'text-right hidden lg:table-cell' }] : []),
-                    ...(hasMcap ? [{ key: 'marketCap', label: 'Market Cap', cls: 'text-right hidden sm:table-cell' }] : []),
-                    ...(hasCirc ? [{ key: null, label: 'Circulating', cls: 'text-right hidden lg:table-cell' }] : []),
-                  ] as { key: SortKey | null; label: string; cls: string }[]).map((h) => (
-                    <th
-                      key={h.label}
-                      onClick={() => h.key && toggleSort(h.key)}
-                      className={`py-2 px-4 label transition-colors group ${h.cls} ${h.key ? 'cursor-pointer hover:text-[color:var(--text)]' : ''}`}
-                    >
-                      <div className={`flex items-center gap-1 ${h.cls.includes('text-right') ? 'justify-end' : ''}`}>
-                        {h.label}
-                        {h.key && <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />}
-                      </div>
-                    </th>
-                  ))}
-                  {showSpark && <th className="py-2 px-4 label text-right hidden md:table-cell">Last 7 Days</th>}
+                  {visibleCols.map(headerFor)}
                 </tr>
               </thead>
               <tbody>
@@ -427,23 +575,24 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                     <tr key={i} className="border-b border-[color:var(--line)]">
                       <td className="py-3 px-4"><div className="w-3.5 h-3.5 rounded-sm bg-[color:var(--surface-2)] animate-pulse" /></td>
                       <td className="py-3 px-4 hidden sm:table-cell"><div className="h-3 w-4 rounded bg-[color:var(--surface-2)] animate-pulse" /></td>
-                      <td className="py-3 px-4"><div className="flex items-center gap-2.5"><div className="w-6 h-6 rounded-full bg-[color:var(--surface-2)] animate-pulse" /><div className="h-3 w-40 rounded bg-[color:var(--surface-2)] animate-pulse" /></div></td>
-                      <td className="py-3 px-4"><div className="h-3 w-20 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>
-                      <td className="py-3 px-4"><div className="h-3 w-14 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>
-                      <td className="py-3 px-4 hidden md:table-cell"><div className="h-3 w-14 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>
-                      {hasVol && <td className="py-3 px-4 hidden lg:table-cell"><div className="h-3 w-14 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>}
-                      {hasMcap && <td className="py-3 px-4 hidden sm:table-cell"><div className="h-3 w-16 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>}
-                      {hasCirc && <td className="py-3 px-4 hidden lg:table-cell"><div className="h-3 w-16 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>}
-                      {showSpark && <td className="py-3 px-4 hidden md:table-cell"><div className="h-6 w-24 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" /></td>}
+                      {visibleCols.map((k) => (
+                        <td key={k} className={`py-3 px-4 ${COLMETA[k].cls}`}>
+                          {k === 'name'
+                            ? <div className="flex items-center gap-2.5"><div className="w-6 h-6 rounded-full bg-[color:var(--surface-2)] animate-pulse" /><div className="h-3 w-40 rounded bg-[color:var(--surface-2)] animate-pulse" /></div>
+                            : k === 'spark'
+                            ? <div className="h-6 w-24 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" />
+                            : <div className="h-3 w-16 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" />}
+                        </td>
+                      ))}
                     </tr>
                   ))
                 ) : error ? (
-                  <tr><td colSpan={nCols} className="py-10 text-center">
+                  <tr><td colSpan={nColSpan} className="py-10 text-center">
                     <div className="text-body text-[color:var(--text-3)] mb-2">Couldn't load {market.label}.</div>
                     <button onClick={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} className="px-3 py-1.5 rounded-sm text-label font-semibold bg-[color:var(--surface-2)] border border-[color:var(--line)] text-[color:var(--text-2)] hover:text-[color:var(--text)] hover:border-[color:var(--line-strong)] transition-colors">RETRY</button>
                   </td></tr>
                 ) : pageView.length === 0 ? (
-                  <tr><td colSpan={nCols} className="py-10 text-center text-body text-[color:var(--text-3)]">
+                  <tr><td colSpan={nColSpan} className="py-10 text-center text-body text-[color:var(--text-3)]">
                     {watchOnly ? 'Your watchlist is empty. Star assets to add them.' : 'No assets found.'}
                   </td></tr>
                 ) : (
@@ -466,58 +615,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                         <td className="py-2.5 px-4 font-mono text-data text-[color:var(--text-3)] hidden sm:table-cell">
                           {(page - 1) * perPage + i + 1}
                         </td>
-                        <td className="py-2.5 px-4">
-                          <div className="flex items-center gap-2.5">
-                            <AssetIcon r={r} />
-                            <span className="text-body font-semibold text-[color:var(--text)]">{r.name}</span>
-                            <span className="font-mono text-label text-[color:var(--text-3)] bg-[color:var(--bg)] border border-[color:var(--line)] px-1.5 py-0.5 rounded-sm">{r.symbol.replace('^', '')}</span>
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text)]">{loaded ? fmtPrice(r.price, r.currency) : '—'}</td>
-                        <td className={`py-2.5 px-4 text-right text-data ${loaded ? (up ? 'up' : 'down') : 'text-[color:var(--text-3)]'}`}>
-                          {loaded ? <Delta pct={r.changePct} /> : '—'}
-                        </td>
-                        <td className={`py-2.5 px-4 text-right text-data hidden md:table-cell ${p7 !== null ? (p7 >= 0 ? 'up' : 'down') : 'text-[color:var(--text-3)]'}`}>
-                          {p7 !== null ? <span className="font-mono">{fmtPct(p7)}</span> : '—'}
-                        </td>
-                        {hasVol && (
-                          <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
-                            {r.turnover ? (
-                              <div className="flex flex-col items-end leading-tight">
-                                <span>{fmtCompact(r.turnover)} {r.currency}</span>
-                                <span className="text-label text-[color:var(--text-3)]">{fmtCompact(r.volume || 0)} {r.symbol.replace('^', '')}</span>
-                              </div>
-                            ) : r.volume ? fmtCompact(r.volume) : '—'}
-                          </td>
-                        )}
-                        {hasMcap && (
-                          <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden sm:table-cell">
-                            {r.marketCap ? fmtCap(r.marketCap, r.currency) : '—'}
-                          </td>
-                        )}
-                        {hasCirc && (
-                          <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
-                            {r.circulating ? `${fmtCompact(r.circulating)} ${r.symbol.replace('^', '')}` : '—'}
-                          </td>
-                        )}
-                        {showSpark && (
-                          <td className="py-2.5 px-4 text-right hidden md:table-cell">
-                            <div className="flex items-center justify-end gap-3 relative">
-                              <div className="w-24 h-8 transition-opacity group-hover:opacity-0 flex items-center justify-end">
-                                <MiniSpark data={sparks[r.symbol] || []} />
-                              </div>
-                              <div className="absolute inset-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); onAssetSelect(r.symbol); }}
-                                  className="bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 px-3 py-1 rounded-sm text-label font-semibold transition-colors shiny chrome cta-glow press"
-                                  style={{ letterSpacing: '0.06em' }}
-                                >
-                                  TRADE
-                                </button>
-                              </div>
-                            </div>
-                          </td>
-                        )}
+                        {visibleCols.map((k) => cellFor(k, r, { loaded, up, p7, s }))}
                       </tr>
 
                       <AnimatePresence>
@@ -528,7 +626,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                             exit={{ opacity: 0 }}
                             className="bg-[color:var(--bg)] border-b border-[color:var(--line)]"
                           >
-                            <td colSpan={nCols} className="p-0">
+                            <td colSpan={nColSpan} className="p-0">
                               <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div className="space-y-3">
                                   <div className="flex items-center gap-2.5">
