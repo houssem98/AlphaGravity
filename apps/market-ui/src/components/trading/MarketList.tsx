@@ -348,9 +348,13 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
           <>
             <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setHeadMenu(null); }} />
             <div className="absolute right-4 top-full mt-1 z-50 w-44 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => { setSort({ key: m.sort!, dir: 'asc' }); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowUp className="w-3 h-3" /> Sort ascending</button>
-              <button onClick={() => { setSort({ key: m.sort!, dir: 'desc' }); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowDown className="w-3 h-3" /> Sort descending</button>
-              <div className="h-px bg-[color:var(--line)] my-1" />
+              {m.sort && (
+                <>
+                  <button onClick={() => { setSort({ key: m.sort!, dir: 'asc' }); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowUp className="w-3 h-3" /> Sort ascending</button>
+                  <button onClick={() => { setSort({ key: m.sort!, dir: 'desc' }); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowDown className="w-3 h-3" /> Sort descending</button>
+                  <div className="h-px bg-[color:var(--line)] my-1" />
+                </>
+              )}
               <button onClick={() => { moveColumn(kk, 'left'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowLeft className="w-3 h-3" /> Move left</button>
               <button onClick={() => { moveColumn(kk, 'right'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ArrowRight className="w-3 h-3" /> Move right</button>
               <button onClick={() => { moveColumn(kk, 'start'); setHeadMenu(null); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"><ChevronsLeft className="w-3 h-3" /> Move to the start</button>
@@ -370,7 +374,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
 
   const headerFor = (kk: ColKey) => {
     const m = COLMETA[kk];
-    if (isTN && m.movable) return menuTh(kk);
+    if (isTN) return menuTh(kk); // TN: every column gets the sort/move/hide menu
     return (
       <th
         key={kk}
