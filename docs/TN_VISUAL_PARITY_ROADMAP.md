@@ -98,7 +98,7 @@ news truth, TNV-5 chart indicators, TNV-6 sweep, TNV-7 grouped column chooser**.
   collapse. Verify: typecheck 0; prod — BIAT/SFBT news ≤14d, newest-first, still
   ≥1 item for active names, honest empty for quiet ones; crypto news params
   unchanged; legacy `/api/news?q=` byte-identical.
-- [ ] TNV-5 **TN chart indicators + MCAP toggle (V7 CP-4/CP-5 parity)**:
+- [x] TNV-5 **TN chart indicators + MCAP toggle (V7 CP-4/CP-5 parity)**:
   TnChart.tsx — add the crypto overlay stack using the existing
   `utils/indicators` (`calculateSMA/EMA/RSI`): SMA 20 / SMA 50 line overlays on
   the price pane (default on, toggle), RSI in a sub-pane (toggle). If per-share
@@ -180,3 +180,12 @@ news truth, TNV-5 chart indicators, TNV-6 sweep, TNV-7 grouped column chooser**.
   task): the legal-name Google query underperforms the short-symbol query for some
   names (SFBT legal→6 stale vs `SFBT`→24 recent) — a query-term tune could lift
   coverage, but trades disambiguation for 2-letter tickers (AB/AL/CC).
+- **TNV-5 live** (2026-07-16): TnChart gains SMA 20 (#2962FF) + SMA 50 (#FF6D00)
+  price-pane overlays (default on, MA toggle) via existing `utils/indicators`
+  calculateSMA; RSI 14 (#E040FB) on the left price scale (default off, RSI toggle);
+  PRICE/MCAP toggle (mcap = close × shares from `/api/tn/ref`, custom compact axis
+  formatter) shown only when shares exist. typecheck 0, vercel --prod 1m. Prod:
+  BIAT intraday+history 200; `/api/tn/ref` BIAT shares=40,800,000 → MCAP toggle
+  present. Bundle TradingAssistantPage-Co5Ggqev: `Relative Strength Index (14)` +
+  `MCAP` present. Diff = TnChart.tsx only → crypto Chart.tsx byte-identical. Crypto
+  regress: audit spot 200/200 OK MISMATCH 0 (tech 197/deriv 177/meta 121 unchanged).

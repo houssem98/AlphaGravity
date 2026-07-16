@@ -1,7 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, CandlestickSeries, HistogramSeries, LineStyle } from 'lightweight-charts';
+import { createChart, CandlestickSeries, HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, IPriceLine, Time } from 'lightweight-charts';
 import { Bell, BellRing } from 'lucide-react';
+import { calculateSMA, calculateRSI } from '../../utils/indicators';
+
+// Compact market-cap axis labels (TND billions/millions).
+const fmtCap = (v: number) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v.toFixed(0));
 
 interface TnChartProps {
   asset: string;
@@ -51,6 +55,21 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
   const candleRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const priceLineRef = useRef<IPriceLine | null>(null);
+  // TNV-5: SMA overlays + RSI sub-scale + PRICE/MCAP toggle (crypto CP-4/CP-5 parity).
+  const sma20Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  const sma50Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  const rsiRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const [showMA, setShowMA] = useState(true);
+  const [showRSI, setShowRSI] = useState(false);
+  const [priceMode, setPriceMode] = useState<'price' | 'mcap'>('price');
+  const [shares, setShares] = useState<number | null>(null);
+  useEffect(() => {
+    setPriceMode('price');
+    fetch('/api/tn/ref').then((r) => r.json()).then((d) => {
+      const s = d?.ref?.[asset]?.shares;
+      setShares(typeof s === 'number' && s > 0 ? s : null);
+    }).catch(() => setShares(null));
+  }, [asset]);
   const [interval, setInterval_] = useState<number>(5);
   const [mode, setMode] = useState<'intraday' | 'daily'>('intraday');
   const [tf, setTf] = useState<Tf>('D');
@@ -124,6 +143,11 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
       lastValueVisible: false, priceLineVisible: false,
     });
     volRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    // TNV-5: SMA overlays (price pane) + RSI on the left scale (crypto parity).
+    sma20Ref.current = chart.addSeries(LineSeries, { color: '#2962FF', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false });
+    sma50Ref.current = chart.addSeries(LineSeries, { color: '#FF6D00', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false });
+    rsiRef.current = chart.addSeries(LineSeries, { color: '#E040FB', lineWidth: 1, priceScaleId: 'left', crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false });
+    chart.priceScale('left').applyOptions({ visible: false, scaleMargins: { top: 0.7, bottom: 0 } });
     chart.subscribeCrosshairMove((param) => {
       const cd: any = candleRef.current && param.seriesData.get(candleRef.current);
       if (cd && cd.open !== undefined) {
@@ -131,8 +155,16 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
         setHover({ o: cd.open, h: cd.high, l: cd.low, c: cd.close, v: vd?.value ?? 0 });
       } else setHover(null);
     });
-    return () => { chart.remove(); chartRef.current = null; candleRef.current = null; volRef.current = null; };
+    return () => { chart.remove(); chartRef.current = null; candleRef.current = null; volRef.current = null; sma20Ref.current = null; sma50Ref.current = null; rsiRef.current = null; };
   }, []);
+
+  // TNV-5: toggle indicator visibility without reloading data.
+  useEffect(() => {
+    sma20Ref.current?.applyOptions({ visible: showMA });
+    sma50Ref.current?.applyOptions({ visible: showMA });
+    rsiRef.current?.applyOptions({ visible: showRSI });
+    chartRef.current?.priceScale('left').applyOptions({ visible: showRSI });
+  }, [showMA, showRSI]);
 
   // Load (and, intraday only, poll) for the current asset / interval / mode.
   useEffect(() => {
@@ -150,12 +182,16 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
         if (!d.candles?.length) { candleRef.current.setData([]); volRef.current.setData([]); setStatus('empty'); setMeta(d); return; }
         const cs = mode === 'daily' ? aggDaily(d.candles, tf) : d.candles;
         const p0 = d.last || cs[0].close;
-        candleRef.current.applyOptions({
-          priceFormat: { type: 'price', precision: p0 < 1 ? 3 : 2, minMove: p0 < 1 ? 0.001 : 0.01 },
-        });
+        // TNV-5: PRICE/MCAP — mcap = close × shares (linear), only when shares known.
+        const mult = priceMode === 'mcap' && shares ? shares : 1;
+        candleRef.current.applyOptions(
+          mult === 1
+            ? { priceFormat: { type: 'price', precision: p0 < 1 ? 3 : 2, minMove: p0 < 1 ? 0.001 : 0.01 } }
+            : { priceFormat: { type: 'custom', formatter: fmtCap, minMove: 1 } },
+        );
         type Bar = { time: Time; open: number; high: number; low: number; close: number } | { time: Time };
         const bars: Bar[] = cs.map((c) => ({
-          time: c.time as Time, open: c.open, high: c.high, low: c.low, close: c.close,
+          time: c.time as Time, open: c.open * mult, high: c.high * mult, low: c.low * mult, close: c.close * mult,
         }));
         // Frame the whole session with whitespace so a lone candle doesn't fill the width.
         if (mode === 'intraday' && d.sessionStart && d.sessionEnd) {
@@ -169,10 +205,15 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
         volRef.current.setData(cs.map((c) => ({
           time: c.time as Time, value: c.volume, color: c.close >= c.open ? `${UP}55` : `${DOWN}55`,
         })));
+        // TNV-5: SMA 20/50 on the (mcap-scaled) close; RSI on raw close (unitless).
+        const closesScaled = cs.map((c) => ({ time: c.time as Time, close: c.close * mult }));
+        sma20Ref.current?.setData(cs.length >= 20 ? calculateSMA(closesScaled, 20) : []);
+        sma50Ref.current?.setData(cs.length >= 50 ? calculateSMA(closesScaled, 50) : []);
+        rsiRef.current?.setData(cs.length > 15 ? calculateRSI(cs.map((c) => ({ time: c.time as Time, close: c.close })), 14) : []);
         if (priceLineRef.current) { candleRef.current.removePriceLine(priceLineRef.current); priceLineRef.current = null; }
         if (mode === 'intraday' && d.prevClose) {
           priceLineRef.current = candleRef.current.createPriceLine({
-            price: d.prevClose, color: '#5A6478', lineWidth: 1,
+            price: d.prevClose * mult, color: '#5A6478', lineWidth: 1,
             lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: 'prev',
           });
         }
@@ -189,7 +230,7 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
       return () => { live = false; window.clearInterval(iv); };
     }
     return () => { live = false; };
-  }, [asset, interval, mode, tf]);
+  }, [asset, interval, mode, tf, priceMode, shares]);
 
   return (
     <div className="relative w-full h-full bg-[#0A0E17]">
@@ -234,6 +275,27 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
               {t}
             </button>
           ))}
+        </div>
+
+        {/* TNV-5: indicator + price/mcap toggles */}
+        <div className="flex items-center gap-1 p-0.5 rounded-md bg-[#0F1420] border border-[#1B2236]">
+          <button onClick={() => setShowMA((v) => !v)} title="SMA 20 / SMA 50"
+            className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${showMA ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'}`}>
+            MA
+          </button>
+          <button onClick={() => setShowRSI((v) => !v)} title="Relative Strength Index (14)"
+            className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${showRSI ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'}`}>
+            RSI
+          </button>
+          {shares && (
+            <>
+              <div className="w-px h-3.5 bg-[#1B2236]" />
+              <button onClick={() => setPriceMode((m) => (m === 'price' ? 'mcap' : 'price'))} title="Toggle price / market cap (close × shares)"
+                className="px-2 py-0.5 rounded text-[11px] font-medium text-[#5A6478] hover:text-white transition-colors">
+                {priceMode === 'price' ? 'PRICE' : 'MCAP'}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Price alert */}
