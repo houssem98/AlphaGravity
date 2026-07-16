@@ -1,6 +1,6 @@
 # Crypto Screener V3 Coverage Audit
 
-Generated: 2026-07-16T01:56:13.652Z | Target: https://market-ui-self.vercel.app | Coins: 200
+Generated: 2026-07-16T02:07:59.824Z | Target: https://market-ui-self.vercel.app | Coins: 200
 
 ## Totals
 
@@ -50,12 +50,12 @@ Generated: 2026-07-16T01:56:13.652Z | Target: https://market-ui-self.vercel.app 
 | 33 | WLFI (world-liberty-financial) | OK | OK | OK | · |
 | 34 | PAXG (pax-gold) | OK | OK | OK | · |
 | 35 | ONDO (ondo-finance) | OK | OK | OK | OK |
-| 36 | DEXE (dexe) | OK | OK | OK | · |
-| 37 | OKB (okb) | OK | OK | OK | · |
+| 36 | OKB (okb) | OK | OK | OK | · |
+| 37 | DEXE (dexe) | OK | OK | OK | · |
 | 38 | ASTER (aster-2) | OK | OK | OK | OK |
 | 39 | RLUSD (ripple-usd) | OK | OK | · | · |
-| 40 | AAVE (aave) | OK | OK | OK | OK |
-| 41 | SKY (sky) | OK | OK | OK | OK |
+| 40 | SKY (sky) | OK | OK | OK | OK |
+| 41 | AAVE (aave) | OK | OK | OK | OK |
 | 42 | WLD (worldcoin-wld) | OK | OK | OK | OK |
 | 43 | DOT (polkadot) | OK | OK | OK | · |
 | 44 | MORPHO (morpho) | OK | OK | OK | OK |
@@ -120,32 +120,32 @@ Generated: 2026-07-16T01:56:13.652Z | Target: https://market-ui-self.vercel.app 
 | 103 | SYRUP (syrup) | OK | OK | OK | OK |
 | 104 | FLOKI (floki) | OK | OK | OK | OK |
 | 105 | ZBCN (zebec-network) | OK | OK | · | · |
-| 106 | KAIA (kaia) | OK | OK | OK | OK |
-| 107 | FF (falcon-finance-ff) | OK | OK | OK | OK |
+| 106 | FF (falcon-finance-ff) | OK | OK | OK | OK |
+| 107 | KAIA (kaia) | OK | OK | OK | OK |
 | 108 | STRK (starknet) | OK | OK | OK | OK |
 | 109 | GRT (the-graph) | OK | OK | OK | · |
 | 110 | RAY (raydium) | OK | OK | OK | OK |
 | 111 | USAT (usa) | OK | OK | · | · |
 | 112 | KAITO (kaito) | OK | OK | OK | · |
 | 113 | EIGEN (eigenlayer) | OK | OK | OK | OK |
-| 114 | CHZ (chiliz) | OK | OK | OK | OK |
-| 115 | ENS (ethereum-name-service) | OK | OK | OK | · |
+| 114 | ENS (ethereum-name-service) | OK | OK | OK | · |
+| 115 | CHZ (chiliz) | OK | OK | OK | OK |
 | 116 | AXS (axie-infinity) | OK | OK | OK | · |
 | 117 | IOTA (iota) | OK | OK | OK | OK |
 | 118 | COMP (compound-governance-token) | OK | OK | OK | OK |
 | 119 | APE (apecoin) | OK | OK | OK | OK |
 | 120 | WIF (dogwifcoin) | OK | OK | OK | · |
-| 121 | EDGE (edgex) | OK | OK | OK | OK |
-| 122 | TWT (trust-wallet-token) | OK | OK | OK | · |
+| 121 | TWT (trust-wallet-token) | OK | OK | OK | · |
+| 122 | EDGE (edgex) | OK | OK | OK | OK |
 | 123 | THETA (theta-token) | OK | OK | OK | OK |
 | 124 | RUNE (thorchain) | OK | OK | OK | OK |
 | 125 | NEO (neo) | OK | OK | OK | OK |
 | 126 | MANA (decentraland) | OK | OK | OK | · |
-| 127 | SNX (havven) | OK | OK | OK | · |
-| 128 | RIF (rif-token) | OK | OK | OK | · |
+| 127 | RIF (rif-token) | OK | OK | OK | · |
+| 128 | SNX (havven) | OK | OK | OK | · |
 | 129 | AR (arweave) | OK | OK | OK | OK |
-| 130 | SAND (the-sandbox) | OK | OK | OK | · |
-| 131 | XEC (ecash) | OK | OK | OK | OK |
+| 130 | XEC (ecash) | OK | OK | OK | OK |
+| 131 | SAND (the-sandbox) | OK | OK | OK | · |
 | 132 | A (vaulta) | OK | OK | OK | OK |
 | 133 | BAT (basic-attention-token) | OK | OK | OK | · |
 | 134 | CVX (convex-finance) | OK | OK | OK | OK |
@@ -154,11 +154,11 @@ Generated: 2026-07-16T01:56:13.652Z | Target: https://market-ui-self.vercel.app 
 | 137 | SFP (safepal) | OK | OK | OK | · |
 | 138 | IMX (immutable-x) | OK | OK | OK | OK |
 | 139 | 1INCH (1inch) | OK | OK | OK | OK |
-| 140 | ZK (zksync) | OK | OK | OK | OK |
-| 141 | DYDX (dydx-chain) | OK | OK | OK | OK |
+| 140 | DYDX (dydx-chain) | OK | OK | OK | OK |
+| 141 | ZK (zksync) | OK | OK | OK | OK |
 | 142 | DATA (story-2) | OK | · | OK | OK |
-| 143 | GLM (golem) | OK | OK | OK | · |
-| 144 | EGLD (elrond-erd-2) | OK | OK | OK | OK |
+| 143 | EGLD (elrond-erd-2) | OK | OK | OK | OK |
+| 144 | GLM (golem) | OK | OK | OK | · |
 | 145 | GALA (gala) | OK | OK | OK | OK |
 | 146 | SENT (sentient) | OK | OK | OK | · |
 | 147 | S (sonic-3) | OK | OK | OK | OK |
@@ -171,10 +171,10 @@ Generated: 2026-07-16T01:56:13.652Z | Target: https://market-ui-self.vercel.app 
 | 154 | FLUID (instadapp) | OK | OK | OK | OK |
 | 155 | ZEN (zencash) | OK | OK | OK | · |
 | 156 | RSR (reserve-rights-token) | OK | OK | OK | OK |
-| 157 | SAFE (safe) | OK | OK | OK | · |
+| 157 | ZAMA (zama) | OK | OK | OK | OK |
 | 158 | RE (re) | OK | · | OK | · |
 | 159 | ORDI (ordinals) | OK | OK | OK | · |
-| 160 | ZAMA (zama) | OK | OK | OK | OK |
+| 160 | SAFE (safe) | OK | OK | OK | · |
 | 161 | LPT (livepeer) | OK | OK | OK | · |
 | 162 | WAL (walrus-2) | OK | OK | OK | · |
 | 163 | YFI (yearn-finance) | OK | OK | OK | OK |
@@ -187,14 +187,14 @@ Generated: 2026-07-16T01:56:13.652Z | Target: https://market-ui-self.vercel.app 
 | 170 | QTUM (qtum) | OK | OK | OK | · |
 | 171 | NMR (numeraire) | OK | OK | OK | · |
 | 172 | CFG (centrifuge-2) | OK | OK | OK | OK |
-| 173 | MUB (micron-technology-bstock) | OK | OK | · | · |
-| 174 | GAS (gas) | OK | OK | OK | · |
+| 173 | GAS (gas) | OK | OK | OK | · |
+| 174 | MUB (micron-technology-bstock) | OK | OK | · | · |
 | 175 | HOT (holotoken) | OK | OK | OK | · |
-| 176 | HOME (home) | OK | OK | OK | · |
-| 177 | RVN (ravencoin) | OK | OK | OK | · |
-| 178 | GMX (gmx) | OK | OK | OK | OK |
-| 179 | CHIP (chip-2) | OK | OK | OK | OK |
-| 180 | PLUME (plume) | OK | OK | OK | OK |
+| 176 | RVN (ravencoin) | OK | OK | OK | · |
+| 177 | GMX (gmx) | OK | OK | OK | OK |
+| 178 | CHIP (chip-2) | OK | OK | OK | OK |
+| 179 | PLUME (plume) | OK | OK | OK | OK |
+| 180 | HOME (home) | OK | OK | OK | · |
 | 181 | KSM (kusama) | OK | OK | OK | · |
 | 182 | LINEA (linea) | OK | OK | OK | OK |
 | 183 | BIO (bio-protocol) | OK | OK | OK | OK |
@@ -203,13 +203,13 @@ Generated: 2026-07-16T01:56:13.652Z | Target: https://market-ui-self.vercel.app 
 | 186 | W (wormhole) | OK | OK | OK | OK |
 | 187 | ZIL (zilliqa) | OK | OK | OK | · |
 | 188 | IO (io) | OK | OK | OK | · |
-| 189 | MINA (mina-protocol) | OK | OK | OK | OK |
-| 190 | MEGA (megaeth) | OK | OK | OK | OK |
+| 189 | MEGA (megaeth) | OK | OK | OK | OK |
+| 190 | MINA (mina-protocol) | OK | OK | OK | OK |
 | 191 | BABYDOGE (baby-doge-coin) | OK | OK | · | OK |
 | 192 | BERA (berachain-bera) | OK | OK | OK | OK |
 | 193 | ENJ (enjincoin) | OK | OK | OK | OK |
-| 194 | SUPER (superfarm) | OK | OK | OK | · |
-| 195 | VELO (velo) | OK | OK | · | · |
+| 194 | VELO (velo) | OK | OK | · | · |
+| 195 | SUPER (superfarm) | OK | OK | OK | · |
 | 196 | SYN (synapse-2) | OK | OK | OK | OK |
 | 197 | PROS (pharos-network) | OK | OK | OK | OK |
 | 198 | SPK (spark-2) | OK | OK | OK | OK |

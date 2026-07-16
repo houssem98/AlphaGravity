@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Star, Trophy, Activity, ArrowUpDown, BarChart2, ExternalLink, ArrowUp, ArrowDown, ArrowRight, ChevronsLeft, ChevronsRight, Trash2 } from 'lucide-react';
+import { Search, ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Star, Trophy, Activity, ArrowUpDown, BarChart2, ExternalLink, ArrowUp, ArrowDown, ArrowRight, ChevronsLeft, ChevronsRight, Trash2, Plus, Check, ChevronLeft, Building2, Landmark } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { MarketDef } from '../../lib/markets';
 import { fetchMarket, fetchQuotes, fetchSparks, fmtPrice, fmtPct, fmtCompact, type AssetRow } from '../../services/marketsHub';
@@ -34,8 +34,25 @@ type SortKey = 'name' | 'price' | 'changePct' | 'volume' | 'marketCap';
 // TNV-3 (COLHEAD parity): data columns after star/#, registry-driven so the TN
 // list can reorder/hide via a per-column header menu (crypto Markets menuTh).
 // Non-TN markets always use DEFAULT_ORDER with nothing hidden → byte-identical.
-type ColKey = 'name' | 'price' | 'changePct' | 'sevenD' | 'volume' | 'marketCap' | 'circulating' | 'spark';
-const DEFAULT_ORDER: ColKey[] = ['name', 'price', 'changePct', 'sevenD', 'volume', 'marketCap', 'circulating', 'spark'];
+type ColKey =
+  | 'name' | 'price' | 'changePct' | 'sevenD' | 'volume' | 'marketCap' | 'circulating' | 'spark'
+  // TNV-7 chooser columns (TN-only, default hidden). Lazy data: ref / fundamentals / engine / intraday.
+  | 'sector' | 'isin' | 'turnover' | 'open' | 'high' | 'low'
+  | 'per' | 'eps' | 'pb' | 'netIncome' | 'equity' | 'divYield'
+  | 'engScore' | 'engLabel' | 'fMomentum' | 'fVolume' | 'fNews' | 'fLiqTrend';
+const DEFAULT_ORDER: ColKey[] = [
+  'name', 'price', 'changePct', 'sevenD', 'volume', 'marketCap', 'circulating', 'spark',
+  'sector', 'isin', 'turnover', 'open', 'high', 'low',
+  'per', 'eps', 'pb', 'netIncome', 'equity', 'divYield',
+  'engScore', 'engLabel', 'fMomentum', 'fVolume', 'fNews', 'fLiqTrend',
+];
+// Columns that only exist for the TN market (need TN-only data sources). Default
+// hidden; the grouped chooser opts them in. Non-TN markets never render them.
+const TN_ONLY_KEYS = new Set<ColKey>([
+  'sector', 'isin', 'turnover', 'open', 'high', 'low',
+  'per', 'eps', 'pb', 'netIncome', 'equity', 'divYield',
+  'engScore', 'engLabel', 'fMomentum', 'fVolume', 'fNews', 'fLiqTrend',
+]);
 const COLMETA: Record<ColKey, { label: string; cls: string; sort?: SortKey; movable?: boolean }> = {
   name:        { label: 'Name', cls: '', sort: 'name', movable: true },
   price:       { label: 'Price', cls: 'text-right', sort: 'price', movable: true },
@@ -45,7 +62,44 @@ const COLMETA: Record<ColKey, { label: string; cls: string; sort?: SortKey; mova
   marketCap:   { label: 'Market Cap', cls: 'text-right hidden sm:table-cell', sort: 'marketCap', movable: true },
   circulating: { label: 'Circulating', cls: 'text-right hidden lg:table-cell' },
   spark:       { label: 'Last 7 Days', cls: 'text-right hidden md:table-cell' },
+  sector:      { label: 'Sector', cls: 'hidden lg:table-cell' },
+  isin:        { label: 'ISIN', cls: 'text-right hidden xl:table-cell' },
+  turnover:    { label: 'Turnover', cls: 'text-right hidden lg:table-cell' },
+  open:        { label: 'Open', cls: 'text-right hidden xl:table-cell' },
+  high:        { label: 'High', cls: 'text-right hidden xl:table-cell' },
+  low:         { label: 'Low', cls: 'text-right hidden xl:table-cell' },
+  per:         { label: 'PER', cls: 'text-right hidden lg:table-cell' },
+  eps:         { label: 'EPS', cls: 'text-right hidden xl:table-cell' },
+  pb:          { label: 'P/B', cls: 'text-right hidden xl:table-cell' },
+  netIncome:   { label: 'Net Income', cls: 'text-right hidden xl:table-cell' },
+  equity:      { label: 'Equity', cls: 'text-right hidden xl:table-cell' },
+  divYield:    { label: 'Div Yield', cls: 'text-right hidden lg:table-cell' },
+  engScore:    { label: 'Score', cls: 'text-right hidden lg:table-cell' },
+  engLabel:    { label: 'Signal', cls: 'text-right hidden lg:table-cell' },
+  fMomentum:   { label: 'Momentum', cls: 'text-right hidden xl:table-cell' },
+  fVolume:     { label: 'Vol Factor', cls: 'text-right hidden xl:table-cell' },
+  fNews:       { label: 'News', cls: 'text-right hidden xl:table-cell' },
+  fLiqTrend:   { label: 'Liq/Trend', cls: 'text-right hidden xl:table-cell' },
 };
+// Grouped column chooser (TN only) — 4 HONEST groups, real data, honest — for gaps.
+const TN_COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }[] }[] = [
+  { label: 'Company', icon: Building2, cols: [
+    { k: 'sector', label: 'Sector' }, { k: 'isin', label: 'ISIN' }, { k: 'circulating', label: 'Shares outstanding' },
+  ] },
+  { label: 'Market data', icon: BarChart2, cols: [
+    { k: 'price', label: 'Price' }, { k: 'changePct', label: 'Change % today' }, { k: 'sevenD', label: 'Change 7d' },
+    { k: 'volume', label: 'Volume' }, { k: 'turnover', label: 'Turnover TND' }, { k: 'marketCap', label: 'Market cap' },
+    { k: 'open', label: 'Open' }, { k: 'high', label: 'High' }, { k: 'low', label: 'Low' },
+  ] },
+  { label: 'Valuation', icon: Landmark, cols: [
+    { k: 'per', label: 'PER' }, { k: 'eps', label: 'EPS' }, { k: 'pb', label: 'P/B' },
+    { k: 'netIncome', label: 'Net income' }, { k: 'equity', label: 'Equity' }, { k: 'divYield', label: 'Div yield' },
+  ] },
+  { label: 'Signal', icon: Activity, cols: [
+    { k: 'engScore', label: 'Engine score' }, { k: 'engLabel', label: 'Label' }, { k: 'fMomentum', label: 'Momentum' },
+    { k: 'fVolume', label: 'Volume factor' }, { k: 'fNews', label: 'News' }, { k: 'fLiqTrend', label: 'Liquidity/Trend' },
+  ] },
+];
 const sanitizeOrder = (o?: string[]): ColKey[] => {
   const known = (o || []).filter((k): k is ColKey => (DEFAULT_ORDER as string[]).includes(k));
   return [...known, ...DEFAULT_ORDER.filter((k) => !known.includes(k))];
@@ -178,11 +232,21 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
     try { return sanitizeOrder(JSON.parse(localStorage.getItem('tn-cols') || '{}').order); } catch { return DEFAULT_ORDER; }
   });
   const [tnHidden, setTnHidden] = useState<Record<string, boolean>>(() => {
-    try { return JSON.parse(localStorage.getItem('tn-cols') || '{}').hidden || {}; } catch { return {}; }
+    // TN-only chooser columns start hidden; stored prefs override.
+    const base = Object.fromEntries([...TN_ONLY_KEYS].map((k) => [k, true]));
+    try { return { ...base, ...(JSON.parse(localStorage.getItem('tn-cols') || '{}').hidden || {}) }; } catch { return base; }
   });
   useEffect(() => {
     if (isTN) localStorage.setItem('tn-cols', JSON.stringify({ order: tnOrder, hidden: tnHidden }));
   }, [isTN, tnOrder, tnHidden]);
+  // TNV-7 grouped chooser + lazy data maps (fetched only when a group's col is on).
+  const [colMenu, setColMenu] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [colSearch, setColSearch] = useState('');
+  const [refMap, setRefMap] = useState<Record<string, any>>({});
+  const [fundMap, setFundMap] = useState<Record<string, any>>({});
+  const [engineMap, setEngineMap] = useState<Record<string, any>>({});
+  const [ohlMap, setOhlMap] = useState<Record<string, { open: number; high: number; low: number }>>({});
   const WKEY = `hub_watchlist_${market.id}`;
   const [watchlist, setWatchlist] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(WKEY) || '[]'); } catch { return []; }
@@ -249,10 +313,11 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
 
   // TNV-3: which columns exist for this market, then the visible ordered set.
   const availableCol = (k: ColKey): boolean =>
-    k === 'volume' ? hasVol : k === 'marketCap' ? hasMcap : k === 'circulating' ? hasCirc : k === 'spark' ? showSpark : true;
+    TN_ONLY_KEYS.has(k) ? isTN
+      : k === 'volume' ? hasVol : k === 'marketCap' ? hasMcap : k === 'circulating' ? hasCirc : k === 'spark' ? showSpark : true;
   const order = isTN ? tnOrder : DEFAULT_ORDER;
   const visibleCols = order.filter((k) => availableCol(k) && !(isTN && tnHidden[k]));
-  const nColSpan = 2 + visibleCols.length; // star + # + data columns (colspan for full-width rows)
+  const nColSpan = 2 + visibleCols.length + (isTN ? 1 : 0); // star + # + data cols + TN chooser th
 
   const moveColumn = (kk: ColKey, where: 'left' | 'right' | 'start' | 'end') => {
     setTnOrder((prev) => {
@@ -381,6 +446,38 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
           </div>
         </td>
       );
+      default: {
+        // TNV-7 chooser columns — honest '—' when the source lacks the datum.
+        const sym = r.symbol.replace('^', '');
+        const rf = refMap[sym]; const fu = fundMap[sym]; const en = engineMap[sym]; const oh = ohlMap[sym];
+        const f = COLMETA[kk];
+        const dash = <span className="text-[color:var(--text-3)]">—</span>;
+        let body: React.ReactNode = dash;
+        const numTd = (n: number | null | undefined, fmt: (x: number) => React.ReactNode) =>
+          (typeof n === 'number' && isFinite(n) ? fmt(n) : dash);
+        switch (kk) {
+          case 'sector': body = rf?.sector ? <span className="text-[color:var(--text-2)] truncate">{rf.sector}</span> : dash; break;
+          case 'isin': body = (r.isin || rf?.isin) ? <span className="text-[color:var(--text-3)]">{r.isin || rf.isin}</span> : dash; break;
+          case 'turnover': body = r.turnover ? <>{fmtCompact(r.turnover)} {r.currency}</> : dash; break;
+          case 'open': body = numTd(oh?.open, (v) => fmtPrice(v, r.currency)); break;
+          case 'high': body = numTd(oh?.high, (v) => fmtPrice(v, r.currency)); break;
+          case 'low': body = numTd(oh?.low, (v) => fmtPrice(v, r.currency)); break;
+          case 'per': body = numTd(fu?.per, (v) => v.toFixed(2)); break;
+          case 'eps': body = numTd(fu?.eps, (v) => v.toFixed(3)); break;
+          case 'pb': body = numTd(fu?.pb, (v) => v.toFixed(2)); break;
+          case 'netIncome': body = numTd(fu?.netIncome, (v) => <>{fmtCompact(v)} TND</>); break;
+          case 'equity': body = numTd(fu?.equity, (v) => <>{fmtCompact(v)} TND</>); break;
+          case 'divYield': body = numTd(fu?.yield, (v) => `${v.toFixed(2)}%`); break;
+          case 'engScore': body = numTd(en?.score, (v) => <span className={v >= 60 ? 'up' : v <= 40 ? 'down' : 'text-[color:var(--text-2)]'}>{v}</span>); break;
+          case 'engLabel': body = en?.label ? <span className={en.label === 'bullish' ? 'up' : en.label === 'bearish' ? 'down' : 'text-[color:var(--text-2)]'}>{en.label}</span> : dash; break;
+          case 'fMomentum': body = numTd(en?.factors?.momentum?.score, (v) => v); break;
+          case 'fVolume': body = numTd(en?.factors?.volume?.score, (v) => v); break;
+          case 'fNews': body = numTd(en?.factors?.news?.score, (v) => v); break;
+          case 'fLiqTrend': body = (en?.factors?.liquidity || en?.factors?.trend)
+            ? <>{en.factors.liquidity?.score ?? '—'}/{en.factors.trend?.score ?? '—'}</> : dash; break;
+        }
+        return <td key={kk} className={`py-2.5 px-4 font-mono text-data text-[color:var(--text-2)] ${f.cls}`}>{body}</td>;
+      }
     }
   };
 
@@ -400,6 +497,55 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
 
   const totalPages = Math.max(1, Math.ceil(view.length / perPage));
   const pageView = view.slice((page - 1) * perPage, page * perPage);
+
+  // TNV-7: lazy-load a group's data only when ≥1 of its columns is visible.
+  const visibleSet = new Set(visibleCols);
+  const needRef = isTN && (visibleSet.has('sector') || visibleSet.has('isin'));
+  const needFund = isTN && ['per', 'eps', 'pb', 'netIncome', 'equity', 'divYield'].some((k) => visibleSet.has(k as ColKey));
+  const needOHL = isTN && (visibleSet.has('open') || visibleSet.has('high') || visibleSet.has('low'));
+  const needEngine = isTN && ['engScore', 'engLabel', 'fMomentum', 'fVolume', 'fNews', 'fLiqTrend'].some((k) => visibleSet.has(k as ColKey));
+  useEffect(() => {
+    if (!needRef || Object.keys(refMap).length) return;
+    fetch('/api/tn/ref').then((r) => r.json()).then((d) => setRefMap(d?.ref || {})).catch(() => {});
+  }, [needRef, refMap]);
+  useEffect(() => {
+    if (!needFund || Object.keys(fundMap).length) return;
+    fetch('/api/tn/fundamentals').then((r) => r.json()).then((d) => setFundMap(d?.fundamentals || {})).catch(() => {});
+  }, [needFund, fundMap]);
+  useEffect(() => {
+    if (!needOHL) return;
+    const miss = pageView.map((r) => r.symbol).filter((s) => !(s in ohlMap));
+    if (!miss.length) return;
+    let alive = true;
+    Promise.all(miss.map((s) =>
+      fetch(`/api/tn/intraday?symbol=${encodeURIComponent(s)}`).then((r) => r.json()).then((d) => {
+        const cs = d?.candles || [];
+        if (!cs.length) return null;
+        return [s, { open: cs[0].open, high: Math.max(...cs.map((c: any) => c.high)), low: Math.min(...cs.map((c: any) => c.low)) }] as const;
+      }).catch(() => null),
+    )).then((rows) => {
+      if (!alive) return;
+      const add = Object.fromEntries(rows.filter(Boolean) as [string, any][]);
+      if (Object.keys(add).length) setOhlMap((p) => ({ ...p, ...add }));
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needOHL, page, perPage, query, sort.key, sort.dir]);
+  useEffect(() => {
+    if (!needEngine) return;
+    const miss = pageView.map((r) => r.symbol).filter((s) => !(s in engineMap));
+    if (!miss.length) return;
+    let alive = true;
+    Promise.all(miss.map((s) =>
+      fetch(`/api/tn/engine?symbol=${encodeURIComponent(s)}`).then((r) => r.json()).then((d) => (d?.score != null ? [s, d] as const : null)).catch(() => null),
+    )).then((rows) => {
+      if (!alive) return;
+      const add = Object.fromEntries(rows.filter(Boolean) as [string, any][]);
+      if (Object.keys(add).length) setEngineMap((p) => ({ ...p, ...add }));
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needEngine, page, perPage, query, sort.key, sort.dir]);
 
   // Paged: fetch quotes for the visible page.
   useEffect(() => {
@@ -567,6 +713,77 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                   <th className="py-2 px-4 w-8" />
                   <th className="py-2 px-4 label w-10 hidden sm:table-cell">#</th>
                   {visibleCols.map(headerFor)}
+                  {isTN && (
+                    <th className="py-2 px-4 w-10 relative">
+                      <button onClick={() => setColMenu((v) => !v)} title="Edit columns" className="flex items-center justify-center w-6 h-6 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)] transition-colors ml-auto">
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                      {colMenu && (() => {
+                        const closeMenu = () => { setColMenu(false); setOpenGroup(null); setColSearch(''); };
+                        const isVis = (k: ColKey) => availableCol(k) && !tnHidden[k];
+                        const toggleCol = (k: ColKey) => {
+                          if (isVis(k) && visibleCols.length <= 1) return; // keep ≥1
+                          setTnHidden((p) => ({ ...p, [k]: !p[k] }));
+                        };
+                        const colRow = (c: { k: ColKey; label: string }) => (
+                          <button key={c.k} onClick={() => toggleCol(c.k)} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors">
+                            <span className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 ${isVis(c.k) ? 'bg-[color:var(--accent)] border-[color:var(--accent)]' : 'border-[color:var(--line-strong)]'}`}>
+                              {isVis(c.k) && <Check className="w-2.5 h-2.5 text-[color:var(--accent-ink)]" />}
+                            </span>
+                            {c.label}
+                          </button>
+                        );
+                        const searchBox = (
+                          <div className="px-2 pb-1.5">
+                            <input value={colSearch} onChange={(e) => setColSearch(e.target.value)} placeholder="Search"
+                              className="w-full bg-[color:var(--bg)] border border-[color:var(--line)] text-[color:var(--text)] placeholder:text-[color:var(--text-3)] text-body font-normal px-2 py-1 rounded-sm focus:outline-none focus:border-[color:var(--line-strong)]" />
+                          </div>
+                        );
+                        const grp = openGroup ? TN_COL_GROUPS.find((g) => g.label === openGroup) : null;
+                        return (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={closeMenu} />
+                            <div className="absolute right-4 top-full mt-1 z-50 w-60 max-h-80 overflow-y-auto bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case">
+                              {grp ? (
+                                <>
+                                  <button onClick={() => { setOpenGroup(null); setColSearch(''); }} className="w-full flex items-center gap-1.5 px-3 py-1.5 text-body font-semibold text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors">
+                                    <ChevronLeft className="w-3.5 h-3.5" /> {grp.label}
+                                  </button>
+                                  {searchBox}
+                                  {grp.cols.filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase())).map(colRow)}
+                                </>
+                              ) : (
+                                <>
+                                  <div className="label px-3 py-1.5 text-[color:var(--text-3)]">Columns</div>
+                                  {searchBox}
+                                  {colSearch
+                                    ? TN_COL_GROUPS.flatMap((g) => g.cols).filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase())).map(colRow)
+                                    : TN_COL_GROUPS.map((g) => {
+                                        const GIcon = g.icon;
+                                        return (
+                                          <button key={g.label} onClick={() => { setOpenGroup(g.label); setColSearch(''); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors">
+                                            <GIcon className="w-3.5 h-3.5 text-[color:var(--text-3)]" />
+                                            <span className="flex-1 text-left">{g.label}</span>
+                                            <span className="font-mono text-label text-[color:var(--text-3)]">{g.cols.length}</span>
+                                          </button>
+                                        );
+                                      })}
+                                  {!colSearch && (
+                                    <>
+                                      <div className="h-px bg-[color:var(--line)] my-1" />
+                                      <button onClick={() => { setTnHidden(Object.fromEntries([...TN_ONLY_KEYS].map((k) => [k, true]))); setTnOrder(DEFAULT_ORDER); }} className="w-full px-3 py-1.5 text-body font-normal text-left text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors">
+                                        Reset columns
+                                      </button>
+                                    </>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>

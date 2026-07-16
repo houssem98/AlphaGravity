@@ -116,7 +116,7 @@ news truth, TNV-5 chart indicators, TNV-6 sweep, TNV-7 grouped column chooser**.
   remount confirmed (BIAT→SFBT, no stale price/news/chart); TN board/intraday/
   news 200s; crypto regression (TRX logo + audit spot 200/200 MISMATCH 0);
   ledger + memory; final commit.
-- [ ] TNV-7 **Grouped column chooser (V1 CS-4 / V2 CX-3 parity)**: MarketList.tsx
+- [x] TNV-7 **Grouped column chooser (V1 CS-4 / V2 CX-3 parity)**: MarketList.tsx
   — port the crypto grouped `+` popover (the screenshot: searchable list of
   column GROUPS with per-group counts, click to add/remove columns). TN's HONEST
   groups only — no fake/empty groups, no Derivatives (TN has no derivs market):
@@ -201,3 +201,28 @@ news truth, TNV-5 chart indicators, TNV-6 sweep, TNV-7 grouped column chooser**.
   wiring code-confirmed, endpoints 200. Crypto regress: audit spot 200/200 MISMATCH
   0, TRX row present (logo = CoinGecko image, Chart.tsx untouched). TNV-7 (grouped
   column chooser) remains open.
+- **TNV-7 live** (2026-07-16): MarketList gains the crypto grouped `+` chooser
+  (TN-only), 4 HONEST groups: Company (3: Sector/ISIN/Shares — `/api/tn/ref` bulk),
+  Market data (9: price/chg%/7d/volume/turnover/mcap/open/high/low — board +
+  intraday), Valuation (6: PER/EPS/P-B/net income/equity/div yield —
+  `/api/tn/fundamentals` bulk 42 syms), Signal (6: engine score/label/momentum/
+  volume/news/liq-trend — `/api/tn/engine` per-symbol). Two-level popover +
+  cross-group search + per-group counts, ported from crypto markup. 18 new cols
+  registered default-hidden; lazy per-group fetch (only when a col is enabled;
+  per-row groups fetch the visible page only). Selection persists to `tn-cols`
+  (shared with TNV-3); ≥1-column guard. typecheck 0, vercel --prod 1m. Prod:
+  ref/fundamentals/engine/intraday/board all 200; BIAT PER 17.95 / EPS 9.44 / P-B
+  2.92, engine score 79 bullish (real); uncovered SPDIT → honest `—` (fundamentals
+  has 42 of 75 syms). Non-TN keys `availableCol=false` → yahoo/crypto-hub
+  byte-identical; diff = MarketList.tsx only → crypto Markets chooser untouched.
+  Crypto regress: audit spot 200/200 MISMATCH 0.
+
+## ✅ ROADMAP COMPLETE — 7/7 (2026-07-16)
+
+TNV-1 logos · TNV-2 news terminal header · TNV-3 COLHEAD menu · TNV-4 news truth
+(days=14) · TNV-5 chart indicators+MCAP · TNV-6 sweep · TNV-7 grouped chooser.
+All honest crypto-roadmap wins now live on the Tunisian market; ⛔ N/A items
+(derivatives, meta/TVL, hero images, outlet merge) documented in the parity
+matrix. TRUTH doctrine held throughout (honest initials, honest-empty news,
+honest `—`, evidence-backed NT-2 omission). Crypto path byte-identical; audit
+spot 200/200 MISMATCH 0 across all 7 tasks.
