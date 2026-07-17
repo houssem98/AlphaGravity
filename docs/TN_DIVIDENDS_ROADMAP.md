@@ -44,7 +44,7 @@ exchange document URL.
   ≥10 tickers with sourced dividends (feed has 118 AGO rows; not all are
   post-AGO with dividend — honest count wins), blob PATCH visible in prod
   `/api/tn/fundamentals` (yield non-null count grows from 3).
-- [ ] TND-2 **Restore divYield column**: revert the TNC-3 UI removal
+- [x] TND-2 **Restore divYield column**: revert the TNC-3 UI removal
   (ColKey/DEFAULT_ORDER/TN_ONLY_KEYS/COLMETA/cellFor/needFund + chooser
   Valuation 5→6 + audit script col). Cell shows yield% with title-attr source
   date if present; honest `—` otherwise. Verify: typecheck 0, deploy, chooser
@@ -64,3 +64,7 @@ exchange document URL.
   pages carry no doc), no-mention 4, ambiguous 2. SOTUV 0.250 TND verified by
   hand against its PDF. Blob PATCH 200; prod /api/tn/fundamentals yield
   non-null 3 → **25**. Every value stores divSource PDF URL + divAgoDate.
+- **TND-2 live** (2026-07-17): divYield restored (registry/chooser Valuation
+  5→6/cellFor with AGO-date title attr/audit col). typecheck 0, deployed. Audit:
+  divYield **25/77 (32%)** vs 3/75 pre-pipeline; TN board/intraday 200; crypto
+  spot 200/200 MISMATCH 0.

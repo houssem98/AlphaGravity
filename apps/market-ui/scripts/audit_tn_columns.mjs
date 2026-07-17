@@ -45,6 +45,7 @@ const cols = {
   pb:         ['Valuation', (s) => isNum(fund[s]?.pb)],
   netIncome:  ['Valuation', (s) => isNum(fund[s]?.netIncome)],
   equity:     ['Valuation', (s) => isNum(fund[s]?.equity)],
+  divYield:   ['Valuation', (s) => isNum(fund[s]?.yield)],
   engScore:   ['Signal', (s) => isNum(engines[s]?.score)],
   engLabel:   ['Signal', (s) => !!engines[s]?.label],
   fMomentum:  ['Signal', (s) => isNum(engines[s]?.factors?.momentum?.score)],
