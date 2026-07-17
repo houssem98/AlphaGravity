@@ -82,7 +82,7 @@ indices_recap + indices + BVMT REST) confirms the feed.
 **Ingestion plan:**
 - TNH-2 (TUNINDEX + sub-indices deep) → **`indices_recap.ndjson`**, floor 2025-01-02, daily HLC per index. Grafana/BVMT-REST are shallower — skip.
 - TNH-3 (per-company deep) → **`market_resume.ndjson`**, floor 2025-01-31 (2026 daily OHLCV, 2025 month-end). Honest: 2025 is monthly not daily — label it, don't interpolate.
-- [ ] TNH-2 **TUNINDEX (+ sub-indices) deep history**: backfill script →
+- [x] TNH-2 **TUNINDEX (+ sub-indices) deep history**: backfill script →
   `tn_index_history.json` blob (`{index: {"YYYY-MM-DD": level}}`) from the
   best TNH-1 source; serve via new `fn=indexhistory` branch; spot-check ≥3
   historical levels against the official source document by hand. Floor +
@@ -110,4 +110,5 @@ indices_recap + indices + BVMT REST) confirms the feed.
 
 (append one line per completed task, real numbers only)
 
+- TNH-2 DONE 2026-07-17: `build_tn_index_history.mjs` → `tn_index_history.json` blob (PUT 200) from `indices_recap.ndjson`. **14 indices**, TUNINDEX **383 pts** floor **2024-12-31=9953.71** (previousYearClose anchor) + daily 2025-01-02=9905.32 → 2026-07-17=21552.73. New `fn=indexhistory` (?index=<isin> or all). Spot-check 3 dates × 3 independent feeds agree exact: 2026-04-21=15829.45, 2026-06-15=18429.32, 2026-07-17=21552.73 (recap = indices.ndjson = BVMT-REST). Prod verified market-ui-self. typecheck 0, deploy OK, board/history/intraday 200, TN-only (crypto untouched).
 - TNH-1 DONE 2026-07-17: probed Grafana (4 tables, floors 2026-02-27/03-10/03-18), BVMT REST (`/history/{isin}` = 57 recent pts only, no pagination), TSE `historique/*.ndjson`. Winner = `indices_recap.ndjson` (382 daily dates, TUNINDEX floor **2025-01-02=9905.32** → 2026-07-17=21552.73) for indices + `market_resume.ndjson` (per-company, floor 2025-01-31, 2026 daily/2025 monthly). No year-partition files (404); pre-2025 only in bulletin PDFs (page=231, deferred). SOURCES table + ingestion plan written. Doc-only, no code touched.

@@ -611,6 +611,28 @@ async function brief(req: any, res: any) {
   res.json({ brief: entries[date] || null, available: dates });
 }
 
+// ── Deep index history (TNH-2) — TUNINDEX + 13 sub-indices daily closes ──────
+// Blob written offline by scripts/build_tn_index_history.mjs from the exchange's
+// historique/indices_recap.ndjson (floor 2024-12-31 anchor, daily from
+// 2025-01-02). Read-only here. ?index=<isin> filters to one; default = all.
+async function indexhistory(req: any, res: any) {
+  res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
+  const blob = await store('tn_index_history.json').get();
+  const all = blob.index || {};
+  const wanted = String(req.query.index || req.query.isin || '').toUpperCase();
+  if (wanted) {
+    const e = all[wanted];
+    if (!e) return res.status(404).json({ error: `unknown index ${wanted}` });
+    const series = Object.entries(e.levels).sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([d, v]) => ({ time: Math.floor(Date.parse(d) / 1000), value: v }));
+    return res.json({ isin: wanted, name: e.name, series });
+  }
+  const out: Record<string, any> = {};
+  for (const [isin, e] of Object.entries<any>(all)) {
+    out[isin] = { name: e.name, series: Object.entries(e.levels).sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([d, v]) => ({ time: Math.floor(Date.parse(d) / 1000), value: v })) };
+  }
+  res.json({ built: blob._built || null, index: out });
+}
+
 // ── Reference data: sector + shares outstanding (→ market cap) ───────────────
 // From the exchange's `raw_referentiels` (equity "mother line" per issuer).
 // Ref data is near-static → cache a day. Keyed by ticker (mnemo).
@@ -771,7 +793,7 @@ async function websearch(req: any, res: any) {
   res.json({ results });
 }
 
-const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, ref, highs, fundamentals, brief, websearch, board };
+const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, indexhistory, ref, highs, fundamentals, brief, websearch, board };
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
