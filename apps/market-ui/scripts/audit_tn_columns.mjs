@@ -8,7 +8,7 @@ const isNum = (v) => typeof v === 'number' && isFinite(v);
 
 const board = (await j('/api/tn/board'))?.board || [];
 const ref = (await j('/api/tn/ref'))?.ref || {};
-const fund = (await j('/api/tn/fundamentals'))?.fundamentals || {};
+const fund = (await j(`/api/tn/fundamentals?b=${Date.now()}`))?.fundamentals || {};
 const syms = board.map((r) => r.symbol);
 console.log(`board rows: ${board.length}`);
 

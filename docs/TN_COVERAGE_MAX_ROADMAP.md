@@ -24,7 +24,7 @@ Census 2026-07-17 (prod, 75 board rows):
 
 ## Ledger
 
-- [ ] TNM-1 **Fundamentals 42→~60**: list issuers with statements pubs but no
+- [x] TNM-1 **Fundamentals 42→~60**: list issuers with statements pubs but no
   blob entry (join raw_publications × board × blob). Feed those tickers through
   the existing `scripts/tn_fundamentals.py` pipeline (PDF → LLM → ratios,
   sanity-guarded, blob PATCH). Names that fail extraction or publish
@@ -47,3 +47,13 @@ Census 2026-07-17 (prod, 75 board rows):
 ## Progress log
 
 (append one line per completed task, real numbers only)
+
+- **TNM-1 live** (2026-07-17): ran tn_fundamentals.py on 18 candidates → 7 new
+  (BH 0.84 EPS / CC 0.12 / CITY 1.81 / MAG 0.33 / MPBS 0.36 / SITS 0.08 /
+  SOKNA 0.24), blob 52 cos, audit per/eps **42→49/75 (65%)**. Hand-checked:
+  CITY NI 32,554,821 + BH 39,769 both exact in source PDFs. 9 rejects = loss-
+  makers (negative NI → PER scale-check can't validate; ATB/BTE/PLAST/SCB/
+  SIMPA/STPAP/STPIL/TAIR/TGH) — honest ceiling; follow-up idea: P/B-based scale
+  validation would recover negative-EPS names. BHASS extraction empty, TJL no
+  statement PDF. Audit script now cache-busts fundamentals (s-maxage 3600 was
+  serving stale counts). Crypto spot 200/200 MISMATCH 0.
