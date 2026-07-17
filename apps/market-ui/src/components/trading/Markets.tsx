@@ -751,28 +751,107 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
         )}
 
         {/* Tabs */}
-        <div className="flex items-center gap-0 mb-0 border-b border-[color:var(--line)] overflow-x-auto">
-          {['all', 'watchlist', 'categories', 'portfolio', 'exchanges', 'nfts', 'converter'].map((tab) => {
-            const isActive = activeTab === tab;
-            const label = tab === 'watchlist' ? `Watchlist (${watchlist.length})` : tab === 'all' ? 'Cryptocurrencies' : tab;
-            return (
+        <div className="flex items-center gap-0 mb-0 border-b border-[color:var(--line)]">
+          <div className="flex items-center gap-0 overflow-x-auto flex-1 min-w-0">
+            {['all', 'watchlist', 'categories', 'portfolio', 'exchanges', 'nfts', 'converter'].map((tab) => {
+              const isActive = activeTab === tab;
+              const label = tab === 'watchlist' ? `Watchlist (${watchlist.length})` : tab === 'all' ? 'Cryptocurrencies' : tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab as any)}
+                  className={`relative px-3 py-2 text-body font-medium whitespace-nowrap capitalize transition-colors ${
+                    isActive
+                      ? 'text-[color:var(--text)]'
+                      : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {tab === 'watchlist' && <Star className={`w-3.5 h-3.5 ${isActive ? 'text-[color:var(--accent)]' : ''}`} />}
+                    {label}
+                  </div>
+                  {isActive && <span className="absolute bottom-0 left-0 right-0 h-px bg-[color:var(--accent)]" />}
+                </button>
+              );
+            })}
+          </div>
+          {/* Column chooser — lives outside the tab scroll container so the
+              popover isn't clipped and the button never scrolls off-screen
+              (it used to sit in the far-right header cell of a wide table). */}
+          {(activeTab === 'all' || activeTab === 'watchlist') && (
+            <div className="relative shrink-0 mb-1 ml-2">
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab as any)}
-                className={`relative px-3 py-2 text-body font-medium whitespace-nowrap capitalize transition-colors ${
-                  isActive
-                    ? 'text-[color:var(--text)]'
-                    : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'
-                }`}
+                onClick={() => setColMenu((v) => !v)}
+                title="Add or remove columns"
+                className="press flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-body font-medium text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
               >
-                <div className="flex items-center gap-1.5">
-                  {tab === 'watchlist' && <Star className={`w-3.5 h-3.5 ${isActive ? 'text-[color:var(--accent)]' : ''}`} />}
-                  {label}
-                </div>
-                {isActive && <span className="absolute bottom-0 left-0 right-0 h-px bg-[color:var(--accent)]" />}
+                <Plus className="w-3.5 h-3.5" /> Columns
               </button>
-            );
-          })}
+              {colMenu && (() => {
+                const closeMenu = () => { setColMenu(false); setOpenGroup(null); setColSearch(''); };
+                const colRow = (c: { k: ColKey; label: string }) => (
+                  <button key={c.k} onClick={() => setCols((p) => ({ ...p, [c.k]: !p[c.k] }))} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors">
+                    <span className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 ${cols[c.k] ? 'bg-[color:var(--accent)] border-[color:var(--accent)]' : 'border-[color:var(--line-strong)]'}`}>
+                      {cols[c.k] && <Check className="w-2.5 h-2.5 text-[color:var(--accent-ink)]" />}
+                    </span>
+                    {c.label}
+                  </button>
+                );
+                const searchBox = (
+                  <div className="px-2 pb-1.5">
+                    <input value={colSearch} onChange={(e) => setColSearch(e.target.value)} placeholder="Search"
+                      className="w-full bg-[color:var(--bg)] border border-[color:var(--line)] text-[color:var(--text)] placeholder:text-[color:var(--text-3)] text-body font-normal px-2 py-1 rounded-sm focus:outline-none focus:border-[color:var(--line-strong)]" />
+                  </div>
+                );
+                const grp = openGroup ? COL_GROUPS.find((g) => g.label === openGroup) : null;
+                return (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={closeMenu} />
+                    <div className="absolute right-0 top-full mt-1 z-50 w-60 max-h-80 overflow-y-auto bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case">
+                      {grp ? (
+                        <>
+                          <button onClick={() => { setOpenGroup(null); setColSearch(''); }} className="w-full flex items-center gap-1.5 px-3 py-1.5 text-body font-semibold text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors">
+                            <ChevronLeft className="w-3.5 h-3.5" /> {grp.label}
+                          </button>
+                          {searchBox}
+                          {grp.cols.filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase())).map(colRow)}
+                        </>
+                      ) : (
+                        <>
+                          <div className="label px-3 py-1.5 text-[color:var(--text-3)]">Columns</div>
+                          {searchBox}
+                          {colSearch
+                            ? COL_GROUPS.flatMap((g) => g.cols).filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase())).map(colRow)
+                            : COL_GROUPS.map((g) => {
+                                const GIcon = g.icon;
+                                const on = g.cols.filter((c) => cols[c.k]).length;
+                                return (
+                                  <button key={g.label} onClick={() => { setOpenGroup(g.label); setColSearch(''); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors">
+                                    <GIcon className="w-3.5 h-3.5 text-[color:var(--text-3)]" />
+                                    <span className="flex-1 text-left">{g.label}</span>
+                                    <span className="font-mono text-label text-[color:var(--text-3)]">{on}/{g.cols.length}</span>
+                                  </button>
+                                );
+                              })}
+                          {!colSearch && (
+                            <>
+                              <div className="h-px bg-[color:var(--line)] my-1" />
+                              <button
+                                onClick={() => { setCols(DEFAULT_COLS); setTechSort(null); }}
+                                className="w-full px-3 py-1.5 text-body font-normal text-left text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
+                              >
+                                Reset columns
+                              </button>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
 
         {/* Table container */}
@@ -806,92 +885,6 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                     {sortTh('name', 'Name', '')}
                     {sortTh('priceUsd', 'Price', 'text-right')}
                     {orderedCols.map((k) => <React.Fragment key={k}>{headerFor(k)}</React.Fragment>)}
-                    <th className="py-2 px-4 w-10 relative">
-                      <button onClick={() => setColMenu((v) => !v)} title="Edit columns" className="flex items-center justify-center w-6 h-6 rounded-sm text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface)] transition-colors ml-auto">
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                      {colMenu && (() => {
-                        const closeMenu = () => { setColMenu(false); setOpenGroup(null); setColSearch(''); };
-                        const colRow = (c: { k: ColKey; label: string }) => (
-                          <button
-                            key={c.k}
-                            onClick={() => setCols((p) => ({ ...p, [c.k]: !p[c.k] }))}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"
-                          >
-                            <span className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 ${cols[c.k] ? 'bg-[color:var(--accent)] border-[color:var(--accent)]' : 'border-[color:var(--line-strong)]'}`}>
-                              {cols[c.k] && <Check className="w-2.5 h-2.5 text-[color:var(--accent-ink)]" />}
-                            </span>
-                            {c.label}
-                          </button>
-                        );
-                        const searchBox = (
-                          <div className="px-2 pb-1.5">
-                            <input
-                              value={colSearch}
-                              onChange={(e) => setColSearch(e.target.value)}
-                              placeholder="Search"
-                              className="w-full bg-[color:var(--bg)] border border-[color:var(--line)] text-[color:var(--text)] placeholder:text-[color:var(--text-3)] text-body font-normal px-2 py-1 rounded-sm focus:outline-none focus:border-[color:var(--line-strong)]"
-                            />
-                          </div>
-                        );
-                        const grp = openGroup ? COL_GROUPS.find((g) => g.label === openGroup) : null;
-                        return (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={closeMenu} />
-                            <div className="absolute right-4 top-full mt-1 z-50 w-56 max-h-80 overflow-y-auto bg-[color:var(--surface)] border border-[color:var(--line)] rounded-sm shadow-xl py-1 text-left normal-case">
-                              {grp ? (
-                                <>
-                                  {/* Level 2: back header + group columns */}
-                                  <button
-                                    onClick={() => { setOpenGroup(null); setColSearch(''); }}
-                                    className="w-full flex items-center gap-1.5 px-3 py-1.5 text-body font-semibold text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
-                                  >
-                                    <ChevronLeft className="w-3.5 h-3.5" /> {grp.label}
-                                  </button>
-                                  {searchBox}
-                                  {grp.cols.filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase())).map(colRow)}
-                                </>
-                              ) : (
-                                <>
-                                  {/* Level 1: group list (or flat cross-group results while searching) */}
-                                  <div className="label px-3 py-1.5 text-[color:var(--text-3)]">Columns</div>
-                                  {searchBox}
-                                  {colSearch
-                                    ? COL_GROUPS.flatMap((g) => g.cols)
-                                        .filter((c) => c.label.toLowerCase().includes(colSearch.toLowerCase()))
-                                        .map(colRow)
-                                    : COL_GROUPS.map((g) => {
-                                        const GIcon = g.icon;
-                                        return (
-                                          <button
-                                            key={g.label}
-                                            onClick={() => { setOpenGroup(g.label); setColSearch(''); }}
-                                            className="w-full flex items-center gap-2 px-3 py-1.5 text-body font-normal text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] transition-colors"
-                                          >
-                                            <GIcon className="w-3.5 h-3.5 text-[color:var(--text-3)]" />
-                                            <span className="flex-1 text-left">{g.label}</span>
-                                            <span className="font-mono text-label text-[color:var(--text-3)]">{g.cols.length}</span>
-                                          </button>
-                                        );
-                                      })}
-                                  {!colSearch && (
-                                    <>
-                                      <div className="h-px bg-[color:var(--line)] my-1" />
-                                      <button
-                                        onClick={() => { setCols(DEFAULT_COLS); setTechSort(null); }}
-                                        className="w-full px-3 py-1.5 text-body font-normal text-left text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
-                                      >
-                                        Reset columns
-                                      </button>
-                                    </>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
