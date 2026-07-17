@@ -205,8 +205,16 @@ async function history(req: any, res: any) {
   if (!/^[A-Z0-9]+$/.test(isin)) return res.status(400).json({ error: 'bad isin' });
 
   const candles = await cached(`tn_hist_${isin}.json`, 1800, async () => {
-    const bars = await fetchDailyBars(isin);
-    return bars.map((b) => ({ time: Math.floor(Date.parse(b.date) / 1000), open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }));
+    // Merge: deep blob (TNH-3, market_resume OHLCV back to 2025-12-31) ∪ live
+    // accumulator (fetchDailyBars, raw_market ~2026-02-27→today). Keyed by date;
+    // the live bar wins on overlap (freshest, intraday-derived). Deep extends
+    // the floor back ~2mo + a real 2025-12-31 year-end close.
+    const [bars, deepBlob] = await Promise.all([fetchDailyBars(isin), store('tn_deep_daily.json').get().catch(() => ({}))]);
+    const byDate = new Map<string, any>();
+    const deep = (deepBlob as any)?.deep?.[isin]?.bars || {};
+    for (const [d, v] of Object.entries<any>(deep)) byDate.set(d, { time: Math.floor(Date.parse(d) / 1000), open: v[0], high: v[1], low: v[2], close: v[3], volume: v[4] });
+    for (const b of bars) byDate.set(b.date, { time: Math.floor(Date.parse(b.date) / 1000), open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume });
+    return [...byDate.values()].sort((a, b) => a.time - b.time);
   }, (x) => x.length > 0);
   res.json({ symbol, isin, candles });
 }
