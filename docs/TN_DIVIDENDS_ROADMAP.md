@@ -49,7 +49,7 @@ exchange document URL.
   Valuation 5→6 + audit script col). Cell shows yield% with title-attr source
   date if present; honest `—` otherwise. Verify: typecheck 0, deploy, chooser
   Valuation 6, BIAT-or-covered ticker shows real %, uncovered `—`.
-- [ ] TND-3 **Sweep**: rerun audit_tn_columns.mjs — divYield coverage = real
+- [x] TND-3 **Sweep**: rerun audit_tn_columns.mjs — divYield coverage = real
   extracted count (paste table); spot-check 3 extracted values against their
   source PDFs BY HAND (open PDF text, confirm millimes match); TN 200s; crypto
   spot 200/200 MISMATCH 0; ledger + memory; commit.
@@ -68,3 +68,11 @@ exchange document URL.
   5→6/cellFor with AGO-date title attr/audit col). typecheck 0, deployed. Audit:
   divYield **25/77 (32%)** vs 3/75 pre-pipeline; TN board/intraday 200; crypto
   spot 200/200 MISMATCH 0.
+- **TND-3 sweep PASS** (2026-07-17): hand-verified 4 extractions against
+  source PDFs — SOTUV 0.250 ("250 millimes par action"), SFBT 0.880 ("DIVIDENDE
+  TOTAL PAR ACTION = 0 D,880"), HL 0.450 ("dividende de 0,450 Dinars par
+  action"), NAKL 1.000 ("dividende de 1 dinars par action") — all exact. Audit:
+  divYield 25/77 (32%, every value sourced+dated); TN board/intraday 200;
+  crypto spot 200/200 MISMATCH 0.
+
+## ✅ ROADMAP COMPLETE — 3/3 (2026-07-17)
