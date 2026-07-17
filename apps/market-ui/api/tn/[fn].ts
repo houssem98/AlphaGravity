@@ -703,13 +703,14 @@ async function fundamentals(req: any, res: any) {
 async function fetchRecentCloses(): Promise<Record<string, number[]>> {
   // Date-bound the scan: raw_market accumulates months of ticks and the
   // unbounded aggregation crossed the fetch timeout (25s measured 2026-07-16),
-  // silently emptying every row's closes. 21 calendar days ≈ 14 sessions —
-  // plenty for a 7-close window. 15s timeout for margin; blob SWR hides it.
+  // silently emptying every row's closes. 60 days (2.9s measured) so thinly
+  // traded names still collect 7 TRADED sessions (JS slices last 7 below);
+  // 15s timeout for margin; blob SWR hides it.
   const sql =
     `SELECT codeisin, d, (array_agg(price ORDER BY t DESC))[1] cl FROM (` +
     `SELECT raw_data->>'codeIsin' codeisin, raw_data->>'dateSeance' d, raw_data->>'time' t, (raw_data->>'lastTradePrice')::float price ` +
     `FROM raw_market WHERE raw_data->>'lastTradePrice' IS NOT NULL ` +
-    `AND raw_data->>'dateSeance' >= to_char(now() - interval '21 days','YYYY-MM-DD')` +
+    `AND raw_data->>'dateSeance' >= to_char(now() - interval '60 days','YYYY-MM-DD')` +
     `) x GROUP BY codeisin, d ORDER BY codeisin, d`;
   const rows = await gqueryTable(sql, 15000);
   const byIsin = new Map<string, { d: string; cl: number }[]>();

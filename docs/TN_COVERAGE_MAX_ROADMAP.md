@@ -30,7 +30,7 @@ Census 2026-07-17 (prod, 75 board rows):
   sanity-guarded, blob PATCH). Names that fail extraction or publish
   garbage stay `—` (log each). Verify: prod fundamentals count grows (target
   ≥52; paste real count), spot-check 2 new tickers' EPS vs their PDFs by hand.
-- [ ] TNM-2 **Closes 69→75**: widen `fetchRecentCloses` window 21d→60d but cap
+- [x] TNM-2 **Closes 69→75**: widen `fetchRecentCloses` window 21d→60d but cap
   at last 7 TRADED sessions per isin (same shape); measure query time ≤15s
   budget (paste timing). Names still without 2 trades in 60d stay `—`. Verify:
   prod board closes>1 count (target ≥73), spark renders for BHASS/ALKIM if they
@@ -57,3 +57,9 @@ Census 2026-07-17 (prod, 75 board rows):
   validation would recover negative-EPS names. BHASS extraction empty, TJL no
   statement PDF. Audit script now cache-busts fundamentals (s-maxage 3600 was
   serving stale counts). Crypto spot 200/200 MISMATCH 0.
+- **TNM-2 live** (2026-07-17): closes window 21d→60d (query 2.9s measured, 200
+  isins, 15s budget); JS still slices last 7 TRADED sessions. Prod: closes>1
+  **69→70/75**; BHASS recovered (7 closes). Honest ceiling reached: SOTEM/
+  ALKIM/PLTU/UADH/AETEC have ≤1 trade in 60 days (ALKIM exactly 1) — dead
+  listings can't have a price line; roadmap's ≥73 estimate was wrong, real
+  ceiling ~70. TN intraday 200; crypto spot 200/200 MISMATCH 0.
