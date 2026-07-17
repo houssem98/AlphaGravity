@@ -94,13 +94,16 @@ indices_recap + indices + BVMT REST) confirms the feed.
   tn_daily accumulator (accumulator keeps winning for recent sessions).
   Coverage histogram pasted (symbols × years). Spot-check 3 symbols × 2 dates
   vs source.
-- [ ] TNH-4 **UI — macro index chart + deep company ranges**: TN market
+- [x] TNH-4 **UI — macro index chart + deep company ranges**: TN market
   overview gains a TUNINDEX macro line chart (lightweight-charts or the
   existing sparkline pattern — NO new deps, our tokens, honest floor label
   e.g. "since 2010 — official data floor"); TnChart daily mode gains range
   buttons (1Y / 5Y / MAX) that read the merged history; W/M aggregation reuses
   aggDaily. key={asset} remount + one-source rules hold. typecheck 0, deploy,
   BIAT + TUNINDEX verified in prod with real numbers.
+  *(Shipped 3M/1Y/MAX instead of 1Y/5Y/MAX: data floor 2025-12-31 makes 5Y
+  indistinguishable from MAX until 2031 — a 5Y button would imply depth we
+  don't have.)*
 - [ ] TNH-5 **Sweep**: coverage audit (per-symbol year-span histogram + index
   floor), 3 hand spot-checks vs official documents pasted, TN regressions
   200s, crypto audit spot MISMATCH 0, ledger + memory
@@ -110,6 +113,7 @@ indices_recap + indices + BVMT REST) confirms the feed.
 
 (append one line per completed task, real numbers only)
 
+- TNH-4 DONE 2026-07-17: TnMarketOverview + `TunindexMacro` (lightweight-charts AreaSeries, fn=indexhistory, honest label "since 2024-12-31 — official data floor"); TnChart daily gains 3M/1Y/MAX range presets (setVisibleRange clamped to floor; 5Y omitted honestly — ledger note). Prod verified: TUNINDEX macro 383 pts 2024-12-31=9953.71→2026-07-17=21552.73; BIAT merged 136 bars floor 2025-12-31 C=111, live bar wins today (185 vs 13:05 snapshot). typecheck 0, deployed, board/intraday/markets 200, crypto audit spot 200/200 MISMATCH 0. TN-gated components only (activeMarket==='tunisia').
 - TNH-3 DONE 2026-07-17: `build_tn_deep_daily.mjs` → `tn_deep_daily.json` (PUT 200): **589 ISINs**, real OHLCV floor **2025-12-31** (market_resume 2025 monthly rows are price-NULL referentiel — skipped honestly; priced data = 2025-12-31 + daily 2026-01-02→). Coverage: main lines 136 bars (2025-12-31→2026-07-17), delisted tails honest (T8SBF 12 bars). `history()` merges deep ∪ accumulator (live bar wins). Spot-check 3 sym × 2 dates EXACT vs source: BIAT 2025-12-31 C=111 / 06-15 C=159; SFBT 12.5/12.62/12.02/12.6/31106 & 14.4; TLNET 6.81/6.85/6.8/6.84/8043 & 10.54. typecheck 0, deployed, board/intraday/markets/indexhistory 200, crypto audit spot 200/200 MISMATCH 0. Gotcha: verify with cache-buster (?cb=) — edge cache s-maxage=1800 serves pre-deploy payloads.
 - TNH-2 DONE 2026-07-17: `build_tn_index_history.mjs` → `tn_index_history.json` blob (PUT 200) from `indices_recap.ndjson`. **14 indices**, TUNINDEX **383 pts** floor **2024-12-31=9953.71** (previousYearClose anchor) + daily 2025-01-02=9905.32 → 2026-07-17=21552.73. New `fn=indexhistory` (?index=<isin> or all). Spot-check 3 dates × 3 independent feeds agree exact: 2026-04-21=15829.45, 2026-06-15=18429.32, 2026-07-17=21552.73 (recap = indices.ndjson = BVMT-REST). Prod verified market-ui-self. typecheck 0, deploy OK, board/history/intraday 200, TN-only (crypto untouched).
 - TNH-1 DONE 2026-07-17: probed Grafana (4 tables, floors 2026-02-27/03-10/03-18), BVMT REST (`/history/{isin}` = 57 recent pts only, no pagination), TSE `historique/*.ndjson`. Winner = `indices_recap.ndjson` (382 daily dates, TUNINDEX floor **2025-01-02=9905.32** → 2026-07-17=21552.73) for indices + `market_resume.ndjson` (per-company, floor 2025-01-31, 2026 daily/2025 monthly). No year-partition files (404); pre-2025 only in bulletin PDFs (page=231, deferred). SOURCES table + ingestion plan written. Doc-only, no code touched.

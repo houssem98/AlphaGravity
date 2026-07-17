@@ -26,6 +26,11 @@ interface Intraday {
 const INTERVALS = [1, 5, 15] as const;
 const TFS = ['D', 'W', 'M'] as const;
 type Tf = (typeof TFS)[number];
+// TNH-4: visible-range presets over the merged deep history (floor 2025-12-31).
+// 5Y omitted — indistinguishable from MAX until the data floor is >1Y deep.
+const RANGES = ['3M', '1Y', 'MAX'] as const;
+type Range = (typeof RANGES)[number];
+const RANGE_DAYS: Record<Range, number> = { '3M': 91, '1Y': 365, MAX: Infinity };
 const UP = '#00E676';
 const DOWN = '#FF1744';
 
@@ -73,6 +78,7 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
   const [interval, setInterval_] = useState<number>(5);
   const [mode, setMode] = useState<'intraday' | 'daily'>('intraday');
   const [tf, setTf] = useState<Tf>('D');
+  const [range, setRange] = useState<Range>('MAX');
   // C2: once the user picks a mode, auto-switching (illiquid names → daily) is disabled.
   const userPickedMode = useRef(false);
   useEffect(() => { if (!userPickedMode.current) setMode('intraday'); }, [asset]);
@@ -217,7 +223,13 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
             lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: 'prev',
           });
         }
-        chartRef.current?.timeScale().fitContent();
+        // TNH-4: apply range preset (daily mode); clamp to the honest data floor.
+        if (mode === 'daily' && range !== 'MAX' && cs.length > 1) {
+          const to = cs[cs.length - 1].time, from = Math.max(cs[0].time, to - RANGE_DAYS[range] * 86400);
+          chartRef.current?.timeScale().setVisibleRange({ from: from as Time, to: to as Time });
+        } else {
+          chartRef.current?.timeScale().fitContent();
+        }
         if (mode === 'intraday') checkAlert(d.last);
         setMeta(d); setStatus('ready');
       } catch {
@@ -230,7 +242,7 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
       return () => { live = false; window.clearInterval(iv); };
     }
     return () => { live = false; };
-  }, [asset, interval, mode, tf, priceMode, shares]);
+  }, [asset, interval, mode, tf, range, priceMode, shares]);
 
   return (
     <div className="relative w-full h-full bg-[#0A0E17]">
@@ -275,6 +287,20 @@ export const TnChart: React.FC<TnChartProps> = ({ asset, name }) => {
               {t}
             </button>
           ))}
+          {/* TNH-4: range presets over merged deep history (daily mode only) */}
+          {mode === 'daily' && (
+            <>
+              <div className="w-px h-3.5 bg-[#1B2236]" />
+              {RANGES.map((r) => (
+                <button key={r} onClick={() => setRange(r)}
+                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                    range === r ? 'bg-[#1B2236] text-white' : 'text-[#5A6478] hover:text-white'
+                  }`}>
+                  {r}
+                </button>
+              ))}
+            </>
+          )}
         </div>
 
         {/* TNV-5: indicator + price/mcap toggles */}

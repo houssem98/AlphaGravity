@@ -1,5 +1,51 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createChart, AreaSeries } from 'lightweight-charts';
+import type { Time } from 'lightweight-charts';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+
+// TNH-4: TUNINDEX macro chart — deep daily closes from fn=indexhistory
+// (tn_index_history.json blob, official exchange NDJSON; floor 2024-12-31).
+// Honest floor label; no invented points.
+const TunindexMacro: React.FC = () => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [floor, setFloor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const chart = createChart(ref.current, {
+      autoSize: true,
+      layout: { background: { color: 'transparent' }, textColor: '#5A6478', fontSize: 10, attributionLogo: false },
+      grid: { vertLines: { visible: false }, horzLines: { color: '#1A202C' } },
+      timeScale: { borderColor: '#1A202C', timeVisible: false },
+      rightPriceScale: { borderColor: '#1A202C' },
+      crosshair: { mode: 0 },
+      handleScroll: false,
+      handleScale: false,
+    });
+    const series = chart.addSeries(AreaSeries, {
+      lineColor: '#00E676', lineWidth: 2,
+      topColor: 'rgba(0,230,118,0.18)', bottomColor: 'rgba(0,230,118,0)',
+      priceLineVisible: false, lastValueVisible: true,
+      priceFormat: { type: 'price', precision: 0, minMove: 1 },
+    });
+    let live = true;
+    fetch('/api/tn/indexhistory?index=TN0009050014').then((r) => r.json()).then((j) => {
+      if (!live || !j?.series?.length) return;
+      series.setData(j.series.map((p: { time: number; value: number }) => ({ time: p.time as Time, value: p.value })));
+      chart.timeScale().fitContent();
+      setFloor(new Date(j.series[0].time * 1000).toISOString().slice(0, 10));
+    }).catch(() => {});
+    return () => { live = false; chart.remove(); };
+  }, []);
+  return (
+    <div className="px-4 py-3 border-t border-[color:var(--line)]">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="label text-[color:var(--text-3)]">TUNINDEX</span>
+        {floor && <span className="text-label text-[color:var(--text-3)]">since {floor} — official data floor</span>}
+      </div>
+      <div ref={ref} className="w-full h-[150px]" />
+    </div>
+  );
+};
 
 interface Idx { name: string; level: number; changePct: number; yearPct: number | null }
 interface Stats { marketCap: number | null; advancers: number | null; decliners: number | null; turnover: number | null; trades: number | null; active: number | null; listed: number | null }
@@ -95,6 +141,9 @@ export const TnMarketOverview: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* TNH-4: TUNINDEX macro chart (deep history, honest floor) */}
+      <TunindexMacro />
 
       {/* Daily Brief — written nightly by the Hermes agent (H4.1), grounded
           in the same endpoints this page reads. */}
