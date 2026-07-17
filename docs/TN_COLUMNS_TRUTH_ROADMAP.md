@@ -52,7 +52,7 @@ payload cached fine.
   scraping). Drop the col from `TN_COL_GROUPS` Valuation (6→5) + registry.
   Keep the 42/75 Valuation columns. Verify: chooser shows Valuation 0/5;
   typecheck 0.
-- [ ] TNC-4 **Re-audit sweep**: rerun `audit_tn_columns.mjs` post-fixes; every
+- [x] TNC-4 **Re-audit sweep**: rerun `audit_tn_columns.mjs` post-fixes; every
   remaining column ≥ its honest floor (spark/7d ≥60, valuation 42, session
   cols 65, rest 75); paste the full table; TN + crypto regressions green;
   ledger + memory; final commit.
@@ -78,3 +78,11 @@ payload cached fine.
   script. Post-removal audit: valuation 5 cols 42/75, session cols 65/75,
   spark/7d 69/75, rest 75/75 — every remaining column ≥ honest floor. TN
   board/intraday 200; crypto audit spot 200/200 MISMATCH 0.
+- **TNC-4 sweep PASS** (2026-07-16): final audit, 75 board rows — spark/7d
+  69/75 (92%); volume/turnover/open/high/low 65/75 (87%, untraded session =
+  honest); per/eps/pb/netIncome/equity 42/75 (56%, fundamentals coverage);
+  price/changePct/marketCap/sector/isin/shares + all 6 Signal cols 75/75.
+  divYield removed. Zero fabricated values remain (fake-zero 7d% dead, closeless
+  rows null). TN board/intraday/news 200; crypto audit spot 200/200 MISMATCH 0.
+
+## ✅ ROADMAP COMPLETE — 4/4 (2026-07-16)
