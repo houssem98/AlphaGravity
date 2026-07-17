@@ -545,13 +545,13 @@ async function grafanaGroups() {
 }
 
 // Column-oriented query → array of row objects (for aggregations, not JSON blobs).
-async function gqueryTable(rawSql: string): Promise<any[]> {
+async function gqueryTable(rawSql: string, timeoutMs = 8000): Promise<any[]> {
   try {
     const r = await fetch(GRAFANA, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Referer: 'https://tunis-stockexchange.com/grafana/', 'User-Agent': 'Mozilla/5.0' },
       body: JSON.stringify({ queries: [{ refId: 'A', datasource: { uid: DS_UID, type: 'grafana-postgresql-datasource' }, rawSql, format: 'table' }] }),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const j = await r.json();
     const frame = j?.results?.A?.frames?.[0];
@@ -701,11 +701,17 @@ async function fundamentals(req: any, res: any) {
 // of one round-trip per stock — same full-scan pattern as highs() above, proven to
 // come back fast. Returns isin -> closes (oldest→newest, capped to the last 7).
 async function fetchRecentCloses(): Promise<Record<string, number[]>> {
+  // Date-bound the scan: raw_market accumulates months of ticks and the
+  // unbounded aggregation crossed the fetch timeout (25s measured 2026-07-16),
+  // silently emptying every row's closes. 21 calendar days ≈ 14 sessions —
+  // plenty for a 7-close window. 15s timeout for margin; blob SWR hides it.
   const sql =
     `SELECT codeisin, d, (array_agg(price ORDER BY t DESC))[1] cl FROM (` +
     `SELECT raw_data->>'codeIsin' codeisin, raw_data->>'dateSeance' d, raw_data->>'time' t, (raw_data->>'lastTradePrice')::float price ` +
-    `FROM raw_market WHERE raw_data->>'lastTradePrice' IS NOT NULL) x GROUP BY codeisin, d ORDER BY codeisin, d`;
-  const rows = await gqueryTable(sql);
+    `FROM raw_market WHERE raw_data->>'lastTradePrice' IS NOT NULL ` +
+    `AND raw_data->>'dateSeance' >= to_char(now() - interval '21 days','YYYY-MM-DD')` +
+    `) x GROUP BY codeisin, d ORDER BY codeisin, d`;
+  const rows = await gqueryTable(sql, 15000);
   const byIsin = new Map<string, { d: string; cl: number }[]>();
   for (const r of rows) {
     if (!r.codeisin || r.cl == null) continue;
