@@ -41,7 +41,7 @@ Census 2026-07-17 (prod, 75 board rows):
   dividends only — pre-AGM proposals rejected. Rerun build_tn_dividends.mjs
   --write. Verify: divYield count (paste), any new value spot-checked by hand
   vs its PDF.
-- [ ] TNM-4 **Sweep**: rerun audit — paste full table; per-column ceiling
+- [x] TNM-4 **Sweep**: rerun audit — paste full table; per-column ceiling
   notes final; TN 200s; crypto spot 200/200 MISMATCH 0; memory; commit.
 
 ## Progress log
@@ -63,3 +63,13 @@ Census 2026-07-17 (prod, 75 board rows):
   ALKIM/PLTU/UADH/AETEC have ≤1 trade in 60 days (ALKIM exactly 1) — dead
   listings can't have a price line; roadmap's ≥73 estimate was wrong, real
   ceiling ~70. TN intraday 200; crypto spot 200/200 MISMATCH 0.
+- **TNM-4 sweep PASS** (2026-07-17): final table — divYield 32/75 (43%);
+  per/eps/pb/netIncome/equity 49/75 (65%); volume/turnover/open/high/low 65/75
+  (87%, session ceiling); spark/7d 70/75 (93%, 5 dead listings ≤1 trade/60d);
+  price/chg/mcap/sector/isin/shares + Signal ×6 = 75/75. Ceilings: PGH/CC/SPDIT
+  no statements; ATB/BTE + 7 more loss-makers blocked on PER-scale-check
+  (follow-up: P/B-based validation); STAR AGO 21/07 pending → rerun harvest
+  after. TN 200s; crypto MISMATCH 0 (1 NULL external). Campaign totals from
+  start of column-truth work: valuation 42→49, dividends 3→32, spark 0→70.
+
+## ✅ ROADMAP COMPLETE — 4/4 (2026-07-17)
