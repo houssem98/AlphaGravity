@@ -47,7 +47,7 @@ payload cached fine.
   (no more counting zeros as real). Verify: prod board rows without closes
   show `change7d: null`; UI 7d% cell `—` not `+0.00%`; audit sevenD == spark
   coverage.
-- [ ] TNC-3 **Remove divYield from the chooser** (3/75 = misleading column of
+- [x] TNC-3 **Remove divYield from the chooser** (3/75 = misleading column of
   dashes; AGM-declared dividends have no honest automated source — no
   scraping). Drop the col from `TN_COL_GROUPS` Valuation (6→5) + registry.
   Keep the 42/75 Valuation columns. Verify: chooser shows Valuation 0/5;
@@ -73,3 +73,8 @@ payload cached fine.
   tightened to closes-based. Prod: 6 closeless rows all `change7d: null`;
   audit sevenD == spark == **69/75 (92%)** (was fake-100%). TN board/intraday/
   news 200; crypto audit spot 200/200 MISMATCH 0.
+- **TNC-3 live** (2026-07-16): divYield stripped from ColKey/DEFAULT_ORDER/
+  TN_ONLY_KEYS/COLMETA/cellFor/needFund + chooser Valuation (6→5) + audit
+  script. Post-removal audit: valuation 5 cols 42/75, session cols 65/75,
+  spark/7d 69/75, rest 75/75 — every remaining column ≥ honest floor. TN
+  board/intraday 200; crypto audit spot 200/200 MISMATCH 0.

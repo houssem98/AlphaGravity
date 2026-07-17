@@ -38,19 +38,19 @@ type ColKey =
   | 'name' | 'price' | 'changePct' | 'sevenD' | 'volume' | 'marketCap' | 'circulating' | 'spark'
   // TNV-7 chooser columns (TN-only, default hidden). Lazy data: ref / fundamentals / engine / intraday.
   | 'sector' | 'isin' | 'turnover' | 'open' | 'high' | 'low'
-  | 'per' | 'eps' | 'pb' | 'netIncome' | 'equity' | 'divYield'
+  | 'per' | 'eps' | 'pb' | 'netIncome' | 'equity'
   | 'engScore' | 'engLabel' | 'fMomentum' | 'fVolume' | 'fNews' | 'fLiqTrend';
 const DEFAULT_ORDER: ColKey[] = [
   'name', 'price', 'changePct', 'sevenD', 'volume', 'marketCap', 'circulating', 'spark',
   'sector', 'isin', 'turnover', 'open', 'high', 'low',
-  'per', 'eps', 'pb', 'netIncome', 'equity', 'divYield',
+  'per', 'eps', 'pb', 'netIncome', 'equity',
   'engScore', 'engLabel', 'fMomentum', 'fVolume', 'fNews', 'fLiqTrend',
 ];
 // Columns that only exist for the TN market (need TN-only data sources). Default
 // hidden; the grouped chooser opts them in. Non-TN markets never render them.
 const TN_ONLY_KEYS = new Set<ColKey>([
   'sector', 'isin', 'turnover', 'open', 'high', 'low',
-  'per', 'eps', 'pb', 'netIncome', 'equity', 'divYield',
+  'per', 'eps', 'pb', 'netIncome', 'equity',
   'engScore', 'engLabel', 'fMomentum', 'fVolume', 'fNews', 'fLiqTrend',
 ]);
 const COLMETA: Record<ColKey, { label: string; cls: string; sort?: SortKey; movable?: boolean }> = {
@@ -73,7 +73,6 @@ const COLMETA: Record<ColKey, { label: string; cls: string; sort?: SortKey; mova
   pb:          { label: 'P/B', cls: 'text-right hidden xl:table-cell' },
   netIncome:   { label: 'Net Income', cls: 'text-right hidden xl:table-cell' },
   equity:      { label: 'Equity', cls: 'text-right hidden xl:table-cell' },
-  divYield:    { label: 'Div Yield', cls: 'text-right hidden lg:table-cell' },
   engScore:    { label: 'Score', cls: 'text-right hidden lg:table-cell' },
   engLabel:    { label: 'Signal', cls: 'text-right hidden lg:table-cell' },
   fMomentum:   { label: 'Momentum', cls: 'text-right hidden xl:table-cell' },
@@ -93,7 +92,7 @@ const TN_COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: strin
   ] },
   { label: 'Valuation', icon: Landmark, cols: [
     { k: 'per', label: 'PER' }, { k: 'eps', label: 'EPS' }, { k: 'pb', label: 'P/B' },
-    { k: 'netIncome', label: 'Net income' }, { k: 'equity', label: 'Equity' }, { k: 'divYield', label: 'Div yield' },
+    { k: 'netIncome', label: 'Net income' }, { k: 'equity', label: 'Equity' },
   ] },
   { label: 'Signal', icon: Activity, cols: [
     { k: 'engScore', label: 'Engine score' }, { k: 'engLabel', label: 'Label' }, { k: 'fMomentum', label: 'Momentum' },
@@ -471,7 +470,6 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
           case 'pb': body = numTd(fu?.pb, (v) => v.toFixed(2)); break;
           case 'netIncome': body = numTd(fu?.netIncome, (v) => <>{fmtCompact(v)} TND</>); break;
           case 'equity': body = numTd(fu?.equity, (v) => <>{fmtCompact(v)} TND</>); break;
-          case 'divYield': body = numTd(fu?.yield, (v) => `${v.toFixed(2)}%`); break;
           case 'engScore': body = numTd(en?.score, (v) => <span className={v >= 60 ? 'up' : v <= 40 ? 'down' : 'text-[color:var(--text-2)]'}>{v}</span>); break;
           case 'engLabel': body = en?.label ? <span className={en.label === 'bullish' ? 'up' : en.label === 'bearish' ? 'down' : 'text-[color:var(--text-2)]'}>{en.label}</span> : dash; break;
           case 'fMomentum': body = numTd(en?.factors?.momentum?.score, (v) => v); break;
@@ -505,7 +503,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   // TNV-7: lazy-load a group's data only when ≥1 of its columns is visible.
   const visibleSet = new Set(visibleCols);
   const needRef = isTN && (visibleSet.has('sector') || visibleSet.has('isin'));
-  const needFund = isTN && ['per', 'eps', 'pb', 'netIncome', 'equity', 'divYield'].some((k) => visibleSet.has(k as ColKey));
+  const needFund = isTN && ['per', 'eps', 'pb', 'netIncome', 'equity'].some((k) => visibleSet.has(k as ColKey));
   const needOHL = isTN && (visibleSet.has('open') || visibleSet.has('high') || visibleSet.has('low'));
   const needEngine = isTN && ['engScore', 'engLabel', 'fMomentum', 'fVolume', 'fNews', 'fLiqTrend'].some((k) => visibleSet.has(k as ColKey));
   useEffect(() => {
