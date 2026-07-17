@@ -45,7 +45,7 @@ design tokens.
 
 ## Ledger
 
-- [ ] TNH-1 **Source probe (no product code)**: measure real floors —
+- [x] TNH-1 **Source probe (no product code)**: measure real floors —
   (a) Grafana: `min(dateSeance)` / row counts for raw_market, raw_indices,
   raw_trades, market_latest (date-bounded probes, information_schema first);
   (b) BVMT REST: enumerate known api paths from our own market-server/tn code,
@@ -55,6 +55,33 @@ design tokens.
   Output: a SOURCES verdict table in this doc (source × coverage window ×
   granularity × format), each row backed by a real probe response. Pick the
   ingestion plan for TNH-2/TNH-3 from evidence.
+
+### TNH-1 SOURCES verdict (every row = real probe response, 2026-07-17)
+
+| Source | Coverage window | Granularity | Format | Probe evidence |
+|---|---|---|---|---|
+| **TSE `historique/indices_recap.ndjson`** ⭐ | **2025-01-02 → 2026-07-17** | **daily** — all 14 indices, prev/high/low/current + yearly H/L + weightInTunindex | NDJSON (2.2MB) | 382 distinct dates; TUNINDEX 389 pts, floor `2025-01-02 = 9905.32`, ceil `2026-07-17 = 21552.73` |
+| **TSE `historique/market_resume.ndjson`** ⭐ | **2025-01-31 → 2026-07-17** | per-company OHLCV + full referentiel; 2026 **daily** (135d), 2025 **monthly** (12 month-end snaps) | NDJSON (156MB, ~1MB/session line) | 147 sessions, floor `2025-01-31`; keys incl coursOuvert/cloture/echanges/quantites/capitaux |
+| TSE `historique/indices.ndjson` | 2025-10-27 → 2026-07-17 | daily index levels (shallower than recap) | NDJSON (7MB) | 162 dates, TUNINDEX floor `2025-10-28 = 12503.25` |
+| Grafana `raw_market` | 2026-02-27 → now | intraday per-ISIN ticks | jsonb via `/grafana/api/ds/query` | oldest row ingested 2026-02-27; ~622K rows |
+| Grafana `raw_indices` | 2026-02-27 → now | intraday index ticks | jsonb | oldest 2026-02-27; ~207K rows |
+| Grafana `raw_trades` | 2026-03-18 → now | per-trade | jsonb | oldest 2026-03-18; ~14K rows |
+| Grafana `market_latest` | 2026-03-10 → 2026-07-17 | daily snapshot | table | `min(date_seance)=2026-03-10`, 580 rows |
+| BVMT REST `/history/{isin}` | ~2026-04-20 → now | daily index close (index ISIN only) | JSON `indexHistorys` | TUNINDEX 57 pts, floor `2026-04-20`; no pagination params honored (size/limit/from all ignored) |
+| BVMT REST `/intraday/{isin}` | today | intraday | JSON | live (our /trading uses it) |
+| BVMT bulletin PDFs (`editions-statistique`) | listing paginates to **page=231** (multi-year) | daily official bulletin | PDF | `Bull20260617.pdf`, `fr-physionomie-seance-*.pdf`; PDF-parse = heavy, deferred lever for pre-2025 |
+| Old `bvmt.com.tn` file downloads | — | — | — | all `histo_cotation*.zip` / legacy paths return HTTP 200 **0 bytes** = dead |
+
+**Verdict:** deepest clean machine-readable floor = **2025-01-02** (18mo). No
+year-partitioned files exist (`*_2020.ndjson` all 404). Pre-2025 exists ONLY as
+bulletin PDFs (page=231 pagination) — heavy per-day PDF parse, deferred. Bonus
+anchors: `previousYearClose` field = real 2024-12-31 index close, one extra
+sourced point per index. Cross-source agreement on today (21552.73 across
+indices_recap + indices + BVMT REST) confirms the feed.
+
+**Ingestion plan:**
+- TNH-2 (TUNINDEX + sub-indices deep) → **`indices_recap.ndjson`**, floor 2025-01-02, daily HLC per index. Grafana/BVMT-REST are shallower — skip.
+- TNH-3 (per-company deep) → **`market_resume.ndjson`**, floor 2025-01-31 (2026 daily OHLCV, 2025 month-end). Honest: 2025 is monthly not daily — label it, don't interpolate.
 - [ ] TNH-2 **TUNINDEX (+ sub-indices) deep history**: backfill script →
   `tn_index_history.json` blob (`{index: {"YYYY-MM-DD": level}}`) from the
   best TNH-1 source; serve via new `fn=indexhistory` branch; spot-check ≥3
@@ -82,3 +109,5 @@ design tokens.
 ## Progress log
 
 (append one line per completed task, real numbers only)
+
+- TNH-1 DONE 2026-07-17: probed Grafana (4 tables, floors 2026-02-27/03-10/03-18), BVMT REST (`/history/{isin}` = 57 recent pts only, no pagination), TSE `historique/*.ndjson`. Winner = `indices_recap.ndjson` (382 daily dates, TUNINDEX floor **2025-01-02=9905.32** → 2026-07-17=21552.73) for indices + `market_resume.ndjson` (per-company, floor 2025-01-31, 2026 daily/2025 monthly). No year-partition files (404); pre-2025 only in bulletin PDFs (page=231, deferred). SOURCES table + ingestion plan written. Doc-only, no code touched.
