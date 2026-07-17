@@ -27,13 +27,20 @@ async function gq(rawSql) {
   return raw.map((s) => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean);
 }
 
-// 1. Latest post-AGO publication per ISIN (fr rows carry the doc link too).
-const pubs = await gq(
-  `SELECT DISTINCT ON (raw_data->>'codeIsin') raw_data FROM raw_publications ` +
-  `WHERE raw_data->>'langue'='fr' AND raw_data->>'type' IN ('Ordinaire') ` +
-  `AND raw_data->>'title' ILIKE '%post assembl%' ` +
-  `ORDER BY raw_data->>'codeIsin', raw_data->>'date' DESC`);
-console.log(`post-AGO publications: ${pubs.length}`);
+// 1. ALL post-AGO publications (fr), newest first — some issuers publish the
+// notice twice and only one carries the PDF (BIAT/TJARI), and post-AGO rows
+// hide under several types (CIL: 'Informations Post Assemblée...', TUNISAIR:
+// 'Ordinaire & Extraordianire' [sic, feed typo]). Iterate per ISIN until a PDF
+// yields a dividend.
+const allPubs = await gq(
+  `SELECT raw_data FROM raw_publications ` +
+  `WHERE raw_data->>'langue'='fr' AND raw_data->>'title' ILIKE '%post assembl%' ` +
+  `AND (raw_data->>'type' LIKE 'Ordinaire%' OR raw_data->>'type' LIKE 'Informations Post%') ` +
+  `ORDER BY raw_data->>'date' DESC`);
+const byIsinPubs = new Map();
+for (const p of allPubs) (byIsinPubs.get(p.codeIsin) || byIsinPubs.set(p.codeIsin, []).get(p.codeIsin)).push(p);
+const pubs = [...byIsinPubs.values()].map((l) => l[0]); // keep shape for the loop below
+console.log(`post-AGO publications: ${allPubs.length} rows, ${pubs.length} isins`);
 
 // 2. Board: isin -> {symbol, price}.
 const board = (await (await fetch('https://market-ui-self.vercel.app/api/tn/board')).json()).board;
@@ -60,7 +67,7 @@ async function deepseekExtract(text, name) {
       model: 'deepseek-chat', temperature: 0,
       messages: [{ role: 'user', content:
         `Document AGO de ${name} (bourse de Tunis). Quel dividende PAR ACTION en dinars a été approuvé ? ` +
-        `Réponds UNIQUEMENT par le nombre décimal en dinars (ex: 0.250) ou NULL si aucun dividende n'est mentionné/approuvé.\n\n---\n${text.slice(0, 12000)}` }],
+        `Réponds UNIQUEMENT par le nombre décimal en dinars (ex: 0.250) ou NULL si aucun dividende n'est mentionné/approuvé.\n\n---\n${text.slice(0, 24000)}` }],
     }),
   }).catch(() => null);
   const out = (await r?.json())?.choices?.[0]?.message?.content?.trim() || '';
@@ -70,34 +77,38 @@ async function deepseekExtract(text, name) {
 
 const tmp = mkdtempSync(join(tmpdir(), 'tndiv-'));
 const results = [];
-for (const p of pubs) {
-  const b = byIsin[p.codeIsin];
+for (const [isin, plist] of byIsinPubs) {
+  const b = byIsin[isin];
   if (!b) continue; // not a board equity
-  const row = { sym: b.symbol, name: p.denomination, date: p.date, div: null, how: '-', src: null };
+  const row = { sym: b.symbol, name: plist[0].denomination, date: plist[0].date, div: null, how: '-', src: null };
   results.push(row);
-  try {
-    const html = await (await fetch(p.linkPublication, { headers: UA })).text();
-    const href = (html.match(/href="(\/sites\/default\/files\/[^"]+\.pdf)"/i) || [])[1];
-    if (!href || /Logotype/i.test(href)) { row.how = 'no-pdf'; continue; }
-    row.src = TSE + href.replace(/&amp;/g, '&');
-    const pdfPath = join(tmp, `${b.symbol}.pdf`), txtPath = join(tmp, `${b.symbol}.txt`);
-    const buf = Buffer.from(await (await fetch(row.src, { headers: UA })).arrayBuffer());
-    writeFileSync(pdfPath, buf);
-    execFileSync('pdftotext', [pdfPath, txtPath]);
-    const text = readFileSync(txtPath, 'utf8');
-    for (const re of RES) {
-      const m = text.match(re);
-      if (m) { row.div = parseAmt(m[1], m[2]); row.how = 'regex'; break; }
-    }
-    if (row.div == null) {
-      if (/dividende/i.test(text)) { row.div = await deepseekExtract(text, p.denomination); row.how = row.div != null ? 'deepseek' : 'miss'; }
-      else row.how = 'no-mention';
-    }
-    if (row.div != null) {
-      const y = (row.div / b.price) * 100;
-      if (!(y > 0 && y <= 15)) { console.log(`  REJECT ${b.symbol}: div ${row.div} vs price ${b.price} -> yield ${y.toFixed(1)}% out of guard`); row.div = null; row.how += '-rejected'; }
-    }
-  } catch (e) { row.how = `err:${String(e.message).slice(0, 40)}`; }
+  for (const p of plist) {
+    try {
+      const html = await (await fetch(p.linkPublication, { headers: UA })).text();
+      const href = (html.match(/href="(\/sites\/default\/files\/[^"]+\.pdf)"/i) || [])[1];
+      if (!href || /Logotype/i.test(href)) { if (row.how === '-') row.how = 'no-pdf'; continue; }
+      row.src = TSE + href.replace(/&amp;/g, '&');
+      row.date = p.date;
+      const pdfPath = join(tmp, `${b.symbol}-${p.nid}.pdf`), txtPath = join(tmp, `${b.symbol}-${p.nid}.txt`);
+      const buf = Buffer.from(await (await fetch(row.src, { headers: UA })).arrayBuffer());
+      writeFileSync(pdfPath, buf);
+      execFileSync('pdftotext', [pdfPath, txtPath]);
+      const text = readFileSync(txtPath, 'utf8');
+      for (const re of RES) {
+        const m = text.match(re);
+        if (m) { row.div = parseAmt(m[1], m[2]); row.how = 'regex'; break; }
+      }
+      if (row.div == null) {
+        if (/dividende/i.test(text)) { row.div = await deepseekExtract(text, p.denomination); row.how = row.div != null ? 'deepseek' : 'miss'; }
+        else if (row.how === '-' || row.how === 'no-pdf') row.how = 'no-mention';
+      }
+      if (row.div != null) {
+        const y = (row.div / b.price) * 100;
+        if (!(y > 0 && y <= 15)) { console.log(`  REJECT ${b.symbol}: div ${row.div} vs price ${b.price} -> yield ${y.toFixed(1)}% out of guard`); row.div = null; row.how += '-rejected'; }
+        else break; // first document with an in-guard dividend wins (newest first)
+      }
+    } catch (e) { if (row.how === '-') row.how = `err:${String(e.message).slice(0, 40)}`; }
+  }
 }
 
 console.log('\nticker  div(TND)  yield%   how       AGO date');

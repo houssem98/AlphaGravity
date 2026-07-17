@@ -35,7 +35,7 @@ Census 2026-07-17 (prod, 75 board rows):
   budget (paste timing). Names still without 2 trades in 60d stay `—`. Verify:
   prod board closes>1 count (target ≥73), spark renders for BHASS/ALKIM if they
   traded; timing pasted.
-- [ ] TNM-3 **Dividends 25→~30**: widen post-AGO harvest — additional title
+- [x] TNM-3 **Dividends 25→~30**: widen post-AGO harvest — additional title
   phrasings + `Communiqué de presse` rows that reference AGO results for names
   still missing; retry BTE/ATB with fuller text slices (24k chars). APPROVED
   dividends only — pre-AGM proposals rejected. Rerun build_tn_dividends.mjs
