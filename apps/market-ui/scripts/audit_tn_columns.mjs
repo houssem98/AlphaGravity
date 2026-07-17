@@ -28,7 +28,8 @@ const cols = {
   // key: [group, fn(sym) -> has real value?]
   price:      ['Market', (s, b) => isNum(b.price) && b.price > 0],
   changePct:  ['Market', (s, b) => isNum(b.changePct)],
-  sevenD:     ['Market', (s, b) => isNum(b.change7d) || (Array.isArray(b.closes) && b.closes.length > 1)],
+  // change7d derives from closes; a bare 0 with no closes is fabricated — count closes only.
+  sevenD:     ['Market', (s, b) => Array.isArray(b.closes) && b.closes.length > 1],
   spark:      ['Market', (s, b) => Array.isArray(b.closes) && b.closes.length > 1],
   volume:     ['Market', (s, b) => isNum(b.volume) && b.volume > 0],
   turnover:   ['Market', (s, b) => isNum(b.turnover) && b.turnover > 0],

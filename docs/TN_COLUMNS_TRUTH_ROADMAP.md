@@ -41,7 +41,7 @@ payload cached fine.
   real bar per session; ~14 sessions exist since 2026-07-02 seed). Either way
   the board must return real `closes` again. Verify: prod board ≥60/75 rows
   with `closes.length>1`; spark renders in UI.
-- [ ] TNC-2 **Kill the fake-zero 7d%**: `change7d` = null (not 0) when
+- [x] TNC-2 **Kill the fake-zero 7d%**: `change7d` = null (not 0) when
   `closes.length<2`; `marketsHub.fetchTunisia` maps null→undefined so the UI
   renders `—`; audit script's `sevenD` check tightened to `closes.length>1`
   (no more counting zeros as real). Verify: prod board rows without closes
@@ -68,3 +68,8 @@ payload cached fine.
   for this call. Prod after blob refresh: **69/75 rows with closes>1** (was
   0/75); BIAT closes [168.8→185], chg7d +9.6% real. Spark column renders again.
   typecheck 0; TN-only file, crypto untouched.
+- **TNC-2 live** (2026-07-16): `change7d` now null (not 0) when closes<2; client
+  `?? undefined` already maps null→`—` (no client change). Audit `sevenD` check
+  tightened to closes-based. Prod: 6 closeless rows all `change7d: null`;
+  audit sevenD == spark == **69/75 (92%)** (was fake-100%). TN board/intraday/
+  news 200; crypto audit spot 200/200 MISMATCH 0.

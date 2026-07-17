@@ -744,7 +744,8 @@ async function board(_req: any, res: any) {
     const rows = (d?.markets || []).filter((m: any) => m?.referentiel?.ticker && m.last);
     return rows.map((m: any) => {
       const closes = closesByIsin[m.isin] || [];
-      const change7d = closes.length > 1 ? ((closes[closes.length - 1] - closes[0]) / closes[0]) * 100 : 0;
+      // TNC-2: null, never 0 — a fabricated 0.00% is fake data; UI renders — for null.
+      const change7d = closes.length > 1 ? ((closes[closes.length - 1] - closes[0]) / closes[0]) * 100 : null;
       const shares = sharesByTicker[m.referentiel.ticker] || 0;
       return {
         symbol: m.referentiel.ticker, name: m.referentiel.stockName || m.referentiel.ticker,
