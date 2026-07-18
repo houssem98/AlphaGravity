@@ -47,10 +47,10 @@ async def init_pool() -> None:
             ssl_arg = False
         else:
             import ssl as _ssl
-            ctx = _ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = _ssl.CERT_NONE
-            ssl_arg = ctx
+            # Verify the server cert (Supabase pooler + direct both use a
+            # publicly-trusted CA). ponytail: if a host ever ships a private
+            # CA, point this at its bundle instead of disabling verification.
+            ssl_arg = _ssl.create_default_context()
         _pool = await asyncpg.create_pool(
             dsn, min_size=1, max_size=5, command_timeout=30,
             ssl=ssl_arg,

@@ -169,13 +169,17 @@ async def ingest_document(
                        f"Supported: PDF, DOCX, TXT, HTML",
             )
 
-    # Read and size-check the file
-    content = await file.read()
-    if len(content) > MAX_UPLOAD_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large ({len(content) / 1024 / 1024:.1f} MB). Max: 50 MB",
-        )
+    # Stream-read with a hard cap: reading the whole body first would let an
+    # oversized upload exhaust memory before the size check ever runs.
+    buf = bytearray()
+    while chunk := await file.read(1024 * 1024):
+        buf.extend(chunk)
+        if len(buf) > MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large (> {len(buf) / 1024 / 1024:.1f} MB). Max: 50 MB",
+            )
+    content = bytes(buf)
     if not content:
         raise HTTPException(status_code=400, detail="Empty file")
 
