@@ -350,12 +350,19 @@ export default function TradingAssistantPage() {
   }, [activeTool, drawingPoints, drawingConfig]);
 
   useEffect(() => {
+    // True when the user is typing somewhere real (input, textarea,
+    // contentEditable) — shortcuts must not hijack those keys.
+    const inEditable = () => {
+      const el = document.activeElement as HTMLElement | null;
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+    };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      if (e.repeat) return;
+      if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey && !inEditable()) {
         e.preventDefault();
         setIsAssistantOpen(true);
       }
-      if (e.key === '/' && !e.ctrlKey && !e.altKey && !e.metaKey && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      if (e.key === '/' && !e.ctrlKey && !e.altKey && !e.metaKey && !inEditable()) {
         e.preventDefault();
         setSearchSeed('');
         setIsSearchModalOpen(true);
@@ -368,14 +375,16 @@ export default function TradingAssistantPage() {
       }
       // Type-to-open (TradingView behavior): any bare letter/digit opens the
       // symbol search seeded with that character.
-      if (/^[a-zA-Z0-9]$/.test(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      if (/^[a-zA-Z0-9]$/.test(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey && !inEditable()) {
         e.preventDefault();
         setSearchSeed(e.key.toUpperCase());
         setIsSearchModalOpen(true);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    // Capture phase: fires even if an inner widget (chart canvas, panel)
+    // stops propagation in the bubble phase.
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, []);
 
   return (
