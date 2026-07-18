@@ -83,6 +83,7 @@ export default function TradingAssistantPage() {
   const [isOrderBookOpen, setIsOrderBookOpen] = useState(false);
   const [isOrderBlockModalOpen, setIsOrderBlockModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [searchSeed, setSearchSeed] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Phase 3T: Risk analysis for current asset.
@@ -356,6 +357,20 @@ export default function TradingAssistantPage() {
       }
       if (e.key === '/' && !e.ctrlKey && !e.altKey && !e.metaKey && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
+        setSearchSeed('');
+        setIsSearchModalOpen(true);
+      }
+      // Ctrl/Cmd+K — standard command-palette muscle memory.
+      if (e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey) && !e.altKey) {
+        e.preventDefault();
+        setSearchSeed('');
+        setIsSearchModalOpen(true);
+      }
+      // Type-to-open (TradingView behavior): any bare letter/digit opens the
+      // symbol search seeded with that character.
+      if (/^[a-zA-Z0-9]$/.test(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        setSearchSeed(e.key.toUpperCase());
         setIsSearchModalOpen(true);
       }
     };
@@ -458,7 +473,7 @@ export default function TradingAssistantPage() {
           </div>
           <div
             className="relative hidden md:flex items-center cursor-pointer"
-            onClick={() => setIsSearchModalOpen(true)}
+            onClick={() => { setSearchSeed(''); setIsSearchModalOpen(true); }}
           >
             <Search className="w-3.5 h-3.5 absolute left-2.5 text-[color:var(--text-3)]" />
             <input
@@ -651,9 +666,10 @@ export default function TradingAssistantPage() {
           }}
         />
         
-        <SymbolSearchModal 
-          isOpen={isSearchModalOpen} 
-          onClose={() => setIsSearchModalOpen(false)} 
+        <SymbolSearchModal
+          isOpen={isSearchModalOpen}
+          initialQuery={searchSeed}
+          onClose={() => setIsSearchModalOpen(false)}
           onSelect={(asset) => {
             setCurrentAsset(asset);
             setIsSearchModalOpen(false);

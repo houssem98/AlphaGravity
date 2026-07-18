@@ -6,16 +6,17 @@ interface SymbolSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (symbol: string) => void;
+  initialQuery?: string;
 }
 
-export const SymbolSearchModal: React.FC<SymbolSearchModalProps> = ({ isOpen, onClose, onSelect }) => {
+export const SymbolSearchModal: React.FC<SymbolSearchModalProps> = ({ isOpen, onClose, onSelect, initialQuery }) => {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('All');
 
-  // Reset search and tab when modal opens
+  // Reset search and tab when modal opens (type-to-open seeds the first char)
   useEffect(() => {
     if (isOpen) {
-      setSearch('');
+      setSearch(initialQuery || '');
       setActiveTab('All');
     }
   }, [isOpen]);
