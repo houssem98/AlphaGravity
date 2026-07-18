@@ -349,6 +349,15 @@ export default function TradingAssistantPage() {
     }
   }, [activeTool, drawingPoints, drawingConfig]);
 
+  // Warm the SearchPage chunk (~1MB) while the user is here: react-router v7
+  // navigates inside startTransition, so the old page stays frozen on screen
+  // until the lazy chunk downloads — on a cold cache that reads as "clicking
+  // Search does nothing". Preloading makes the switch instant.
+  useEffect(() => {
+    const t = setTimeout(() => { import('./SearchPage'); }, 2500);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     // True when the user is typing somewhere real (input, textarea,
     // contentEditable) — shortcuts must not hijack those keys.
