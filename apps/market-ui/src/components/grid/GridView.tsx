@@ -69,6 +69,38 @@ async function searchGravityCell(query: string, ticker: string, signal?: AbortSi
     return queryGravityRAG(query, { companies: [ticker] });
 }
 
+// AC-3 cell tools — live market-server endpoints (probed 2026-07-19).
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+const fmtB = (n?: number) => (typeof n === 'number' && isFinite(n) ? `$${(n / 1e9).toFixed(1)}B` : 'n/a');
+const fmtPct = (n?: number) => (typeof n === 'number' && isFinite(n) ? `${(n * 100).toFixed(1)}%` : 'n/a');
+
+async function fetchMarketQuote(ticker: string, signal?: AbortSignal) {
+    const r = await fetch(`${API_BASE}/api/quote?symbols=${encodeURIComponent(ticker)}`, { signal });
+    if (!r.ok) throw new Error(`quote HTTP ${r.status}`);
+    const q = (await r.json())?.quoteResponse?.result?.[0];
+    if (!q?.regularMarketPrice) throw new Error('quote: empty result');
+    const text = `${ticker} price $${q.regularMarketPrice} (${(q.regularMarketChangePercent ?? 0).toFixed(2)}% today), `
+        + `prev close $${q.regularMarketPreviousClose}, market cap ${fmtB(q.marketCap)}, `
+        + `52-week range $${q.fiftyTwoWeekLow}-$${q.fiftyTwoWeekHigh}`;
+    return { text, data: q };
+}
+
+async function fetchFundamentals(ticker: string, signal?: AbortSignal) {
+    const r = await fetch(`${API_BASE}/api/fundamentals?symbol=${encodeURIComponent(ticker)}`, { signal });
+    if (!r.ok) throw new Error(`fundamentals HTTP ${r.status}`);
+    const res = (await r.json())?.quoteSummary?.result?.[0];
+    const sd = res?.summaryDetail, fd = res?.financialData, ks = res?.defaultKeyStatistics;
+    if (!fd && !sd) throw new Error('fundamentals: empty result');
+    const text = `${ticker} trailing P/E ${sd?.trailingPE?.toFixed?.(1) ?? 'n/a'}, EPS $${ks?.trailingEps ?? 'n/a'}, `
+        + `revenue TTM ${fmtB(fd?.totalRevenue)}, FCF ${fmtB(fd?.freeCashflow)}, `
+        + `gross margin ${fmtPct(fd?.grossMargins)}, operating margin ${fmtPct(fd?.operatingMargins)}, `
+        + `analyst consensus ${fd?.recommendationKey ?? 'n/a'} (${fd?.numberOfAnalystOpinions ?? 0} analysts)`;
+    return { text, data: { summaryDetail: sd, financialData: fd, defaultKeyStatistics: ks } };
+}
+
+const CELL_TOOLS = { marketQuote: fetchMarketQuote, fundamentals: fetchFundamentals };
+
 const DEFAULT_TICKERS = ['NVDA', 'AAPL', 'MSFT', 'GOOGL'];
 
 // Typo guard: warn (never block — non-S&P tickers are valid, on-demand ingest
@@ -396,6 +428,7 @@ export default function GridView() {
         const deps: CellRunnerDeps = {
             callLLM: (prompt, signal) => callLLMProxy(prompt, selectedModel, signal),
             searchGravity: searchGravityCell,
+            tools: CELL_TOOLS,
         };
 
         try {
@@ -450,6 +483,7 @@ export default function GridView() {
         const deps: CellRunnerDeps = {
             callLLM: (p, signal) => callLLMProxy(p, selectedModel, signal),
             searchGravity: searchGravityCell,
+            tools: CELL_TOOLS,
         };
 
         try {
@@ -540,6 +574,7 @@ export default function GridView() {
         const deps: CellRunnerDeps = {
             callLLM: (prompt, signal) => callLLMProxy(prompt, selectedModel, signal),
             searchGravity: searchGravityCell,
+            tools: CELL_TOOLS,
         };
         try {
             const final = await runGridRounds(state.def, deps, {

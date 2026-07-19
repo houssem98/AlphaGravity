@@ -283,10 +283,21 @@ export function resolvePrompt(prompt: GridPrompt, ticker: string): string {
 // One LLM call per cell (not the full deep-research pipeline). Keeps per-cell
 // latency to a few seconds so a 10×5 grid finishes in under a minute.
 
+// AC-3: optional per-cell tools. Each returns a short human-readable snapshot
+// (`text`) the analyze step can cite, plus the raw payload. Absent tools =
+// byte-identical legacy behavior (row 9).
+export interface ToolResult { text: string; data?: unknown }
+export interface CellTools {
+    marketQuote?: (ticker: string, signal?: AbortSignal) => Promise<ToolResult>;
+    fundamentals?: (ticker: string, signal?: AbortSignal) => Promise<ToolResult>;
+    webSearch?: (query: string, signal?: AbortSignal) => Promise<ToolResult>;
+}
+
 export interface CellRunnerDeps {
     callLLM: (prompt: string, signal?: AbortSignal) => Promise<{ text: string; model: ResearchModelId }>;
     searchWeb?: (query: string, signal?: AbortSignal) => Promise<Citation[]>;
     searchGravity?: (query: string, ticker: string, signal?: AbortSignal) => Promise<GravityRAGResult>;
+    tools?: CellTools;
 }
 
 // Build the cross-doc comparison prompt for a synthesis cell. Groups answers BY
@@ -395,6 +406,23 @@ export async function runGridCell(
     const resolved = resolvePrompt(prompt, ticker);
 
     try {
+        // ── Tools fan-out (AC-3): parallel with RAG; failures are recorded by
+        // the trace and swallowed here — one dead tool never kills the cell.
+        const toolResults: { quote?: ToolResult; fundamentals?: ToolResult } = {};
+        const toolTasks: Promise<void>[] = [];
+        if (deps.tools?.marketQuote) {
+            toolTasks.push(trace.step('Fetching market data', 'marketQuote',
+                () => deps.tools!.marketQuote!(ticker, signal),
+                { meta: r => r.text.slice(0, 120) })
+                .then(r => { toolResults.quote = r; }, () => { /* traced as failed */ }));
+        }
+        if (deps.tools?.fundamentals) {
+            toolTasks.push(trace.step('Pulling fundamentals', 'fundamentals',
+                () => deps.tools!.fundamentals!(ticker, signal),
+                { meta: r => r.text.slice(0, 120) })
+                .then(r => { toolResults.fundamentals = r; }, () => { /* traced as failed */ }));
+        }
+
         // ── RAG retrieval (primary) ────────────────────────────────────────
         let ragResult: GravityRAGResult | null = null;
         if (deps.searchGravity) {
@@ -404,6 +432,7 @@ export async function runGridCell(
                     { isEmpty: r => !r.available || !r.answer, meta: r => `${r.sources?.length ?? 0} passages` });
             } catch { /* soft-fail */ }
         }
+        await Promise.all(toolTasks);
 
         // If RAG returned a grounded answer, use it directly — no LLM call needed.
         if (ragResult?.available && ragResult.answer) {
@@ -476,9 +505,15 @@ export async function runGridCell(
         }
 
         // ── NO DATA: Return early instead of hallucinating ────────────────
+        // Row 6: only SUCCESSFUL tool results exist in toolResults — a failed
+        // tool's data can never reach the LLM.
+        const toolBlock = [
+            toolResults.quote && `Live market data (real-time quote):\n${toolResults.quote.text}`,
+            toolResults.fundamentals && `Fundamentals snapshot (TTM):\n${toolResults.fundamentals.text}`,
+        ].filter(Boolean).join('\n\n');
         const hasRagSources = ragResult && ragResult.sources && ragResult.sources.length > 0;
         const hasWebCitations = citations.length > 0;
-        if (!hasRagSources && !hasWebCitations) {
+        if (!hasRagSources && !hasWebCitations && !toolBlock) {
             return {
                 ticker, promptId,
                 status: 'done',
@@ -496,7 +531,7 @@ export async function runGridCell(
         const webBlock = citations.length
             ? `\n\nWeb context (cite by [n]):\n${citations.map(c => `[${c.id}] ${c.title}: ${c.url}`).join('\n')}\n\n`
             : '';
-        const contextBlock = [ragBlock, webBlock].filter(Boolean).join('\n\n');
+        const contextBlock = [ragBlock, webBlock, toolBlock].filter(Boolean).join('\n\n');
 
         const fullPrompt = `You are a sell-side equity analyst. Answer concisely (under 150 words) with citations like [1].\n\n${contextBlock}\n\nQuestion: ${resolved}`;
 

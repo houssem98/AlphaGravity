@@ -60,6 +60,54 @@ describe('gridResearch — AC-2 instrumentation (rows 4, 9)', () => {
         expect(cell.steps!.map(s => [s.tool, s.status])).toEqual([['rag', 'empty'], ['llm', 'ok']]);
     });
 
+    // ── AC-3: tool registry (rows 3, 6) ─────────────────────────────────────
+    it('row 3: one tool rejects → failed step with real error, cell still done from the rest', async () => {
+        let llmPrompt = '';
+        const deps: CellRunnerDeps = {
+            callLLM: async (p) => { llmPrompt = p; return { text: 'P/E is 40.5 [1].', model: 'deepseek-chat' as never }; },
+            searchGravity: async () => rag({ available: false, sources: [] }),
+            tools: {
+                marketQuote: async () => { throw new Error('HTTP 502'); },
+                fundamentals: async () => ({ text: 'AAPL trailing P/E 40.5, FCF $101.1B' }),
+            },
+        };
+        const cell = await runGridCell(DEF, 'AAPL', 'valuation', deps);
+        expect(cell.status).toBe('done');
+        const quoteStep = cell.steps!.find(s => s.tool === 'marketQuote')!;
+        expect(quoteStep.status).toBe('failed');
+        expect(quoteStep.error).toBe('HTTP 502');
+        expect(cell.steps!.find(s => s.tool === 'fundamentals')!.status).toBe('ok');
+        // row 6: analyze prompt carries ONLY the successful tool's data
+        expect(llmPrompt).toContain('FCF $101.1B');
+        expect(llmPrompt).not.toContain('HTTP 502');
+    });
+
+    it('row 6 + honest-empty: everything fails/empty → no LLM call, honest cell', async () => {
+        const deps: CellRunnerDeps = {
+            callLLM: async () => { throw new Error('LLM must not run with zero data'); },
+            searchGravity: async () => rag({ available: false, sources: [] }),
+            tools: {
+                marketQuote: async () => { throw new Error('down'); },
+                fundamentals: async () => { throw new Error('down'); },
+            },
+        };
+        const cell = await runGridCell(DEF, 'AAPL', 'valuation', deps);
+        expect(cell.status).toBe('done');
+        expect(cell.modelUsed).toBe('no-sources');
+        expect(cell.steps!.filter(s => s.status === 'failed')).toHaveLength(2);
+    });
+
+    it('tools + grounded RAG: tool steps traced, RAG answer untouched (no LLM call)', async () => {
+        const deps: CellRunnerDeps = {
+            callLLM: async () => { throw new Error('LLM must not be called on grounded path'); },
+            searchGravity: async () => GROUNDED,
+            tools: { marketQuote: async () => ({ text: 'AAPL price $333.74' }) },
+        };
+        const cell = await runGridCell(DEF, 'AAPL', 'valuation', deps);
+        expect(cell.answer).toBe('Revenue was $416,161M [1].');
+        expect(cell.steps!.map(s => s.tool).sort()).toEqual(['marketQuote', 'rag']);
+    });
+
     it('row 4: steps never leak into exports — CSV/memo identical with or without them', async () => {
         const base: GridState = {
             def: DEF,
