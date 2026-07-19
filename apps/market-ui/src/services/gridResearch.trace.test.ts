@@ -142,6 +142,23 @@ describe('gridResearch — AC-2 instrumentation (rows 4, 9)', () => {
         expect(b.grade).toBe('B'); // corroboration adds evidence, never inflates past the band
     });
 
+    // ── AC-6: persistence (row 5) ───────────────────────────────────────────
+    it('row 5: steps survive a JSON round-trip exactly (JSONB save/load)', async () => {
+        const deps: CellRunnerDeps = {
+            callLLM: async () => ({ text: 'x', model: 'deepseek-chat' as never }),
+            searchGravity: async () => GROUNDED,
+            tools: {
+                marketQuote: async () => ({ text: 'AAPL price $333.74' }),
+                fundamentals: async () => { throw new Error('HTTP 500'); },
+            },
+        };
+        const cell = await runGridCell(DEF, 'AAPL', 'valuation', deps);
+        expect(cell.steps!.length).toBe(3); // quote ok, fundamentals failed, rag ok
+        const revived = JSON.parse(JSON.stringify(cell));
+        expect(revived).toEqual(cell);
+        expect(revived.steps).toEqual(cell.steps);
+    });
+
     it('row 4: steps never leak into exports — CSV/memo identical with or without them', async () => {
         const base: GridState = {
             def: DEF,

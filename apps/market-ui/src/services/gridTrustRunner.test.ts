@@ -148,6 +148,18 @@ describe('gridTrustRunner — runGridRounds', () => {
         expect(log.llmPrompts.every(p => !p.includes('CONTRADICTED'))).toBe(true);
     });
 
+    it('row 11 (AC-6): hardening reuses the same deps (tools included) and keeps the round-1 trace', async () => {
+        const log = mkLog();
+        const deps = mkDeps(log);
+        deps.tools = { marketQuote: async () => ({ text: 'BAD price $10' }) };
+        const state = await runGridRounds(DEF, deps, { maxRounds: 2 });
+        const bad = state.cells[cellKey('BAD', 'valuation')];
+        expect(bad.rounds).toBe(2);
+        expect(bad.steps).toBeDefined();
+        expect(bad.steps!.some(s => s.tool === 'rag')).toBe(true);
+        expect(bad.steps!.some(s => s.tool === 'marketQuote')).toBe(true); // round-1 trace intact after merge
+    });
+
     it('row 14 + row 10: failed verification round → nothing changed → no re-synthesis', async () => {
         const log = mkLog();
         const deps = mkDeps(log, {
