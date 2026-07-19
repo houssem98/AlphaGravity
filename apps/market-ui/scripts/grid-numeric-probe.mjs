@@ -14,7 +14,7 @@
 // Runs under tsx (not plain node) so it can import the TS trust helpers.
 
 import { scoreCellTrust, consensusFigures } from '../src/services/gridTrust';
-import { extractFigures } from '../src/services/gridResearch';
+import { extractFigures, runGridCell } from '../src/services/gridResearch';
 
 const API = process.env.VITE_GRAVITY_API_URL || 'https://gravity-api-prod.fly.dev';
 
@@ -123,6 +123,63 @@ for (const b of BROAD) {
         && consensus.conflict[0].r2.includes('999,999');
     if (caught) { pass++; console.log(`  ok    conflict canary: planted $999,999M caught vs $274,515M`); }
     else { fail++; failures.push(`conflict canary: planted wrong figure NOT caught (${JSON.stringify(consensus)})`); console.log(`  FAIL  conflict canary`); }
+}
+
+// AC-7 (row 12): one REAL agentic cell against live gravity + market-server —
+// full runGridCell with the tool registry; ≥2 ok steps, XBRL figure present.
+{
+    console.log('\n--- AC-7 agentic cell (live gravity + market-server) ---');
+    const MKT = process.env.MARKET_SERVER_URL || 'https://market-server-prod.fly.dev';
+    const def = {
+        id: 'probe', name: 'probe', tickers: ['AAPL'],
+        prompts: [{ id: 'valuation', label: 'Financials', prompt: '{ticker} total net sales for fiscal year 2025 exact figure' }],
+    };
+    const deps = {
+        callLLM: async () => { throw new Error('probe expects a grounded RAG answer (no LLM)'); },
+        searchGravity: async (query) => {
+            const r = await fetch(`${API}/v1/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-API-Key': 'deep-research-internal' },
+                body: JSON.stringify({ query, options: { reasoning_depth: 'fast', stream: false } }),
+            });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const d = await r.json();
+            return {
+                available: !!d.answer, answer: d.answer || '', sources: d.sources || [],
+                structured_data: d.structured_data || [], citations: d.citations || [],
+                confidence: d.confidence || 'NONE', latency_ms: d.latency_ms || 0,
+            };
+        },
+        tools: {
+            marketQuote: async (t) => {
+                const r = await fetch(`${MKT}/api/quote?symbols=${t}`);
+                if (!r.ok) throw new Error(`quote HTTP ${r.status}`);
+                const q = (await r.json())?.quoteResponse?.result?.[0];
+                if (!q?.regularMarketPrice) throw new Error('quote: empty result');
+                return { text: `${t} price $${q.regularMarketPrice}, market cap $${(q.marketCap / 1e9).toFixed(1)}B` };
+            },
+            fundamentals: async (t) => {
+                const r = await fetch(`${MKT}/api/fundamentals?symbol=${t}`);
+                if (!r.ok) throw new Error(`fundamentals HTTP ${r.status}`);
+                const fd = (await r.json())?.quoteSummary?.result?.[0]?.financialData;
+                if (!fd) throw new Error('fundamentals: empty result');
+                return { text: `${t} revenue TTM $${(fd.totalRevenue / 1e9).toFixed(1)}B, FCF $${(fd.freeCashflow / 1e9).toFixed(1)}B` };
+            },
+        },
+    };
+    try {
+        const cell = await runGridCell(def, 'AAPL', 'valuation', deps);
+        const steps = cell.steps || [];
+        const okSteps = steps.filter(s => s.status !== 'failed');
+        const totalMs = steps.reduce((a, s) => a + s.ms, 0);
+        console.log(`  steps: ${steps.map(s => `[${s.status}] ${s.tool} ${s.ms}ms`).join(' | ')}`);
+        const good = cell.status === 'done' && okSteps.length >= 2 && hasFig(cell.answer || '', '416,161') && totalMs > 0;
+        if (good) { pass++; console.log(`  ok    agentic cell: done, ${okSteps.length}/${steps.length} ok steps, 416,161 present, ${totalMs}ms trace`); }
+        else { fail++; failures.push(`agentic cell: status=${cell.status} okSteps=${okSteps.length}/${steps.length} totalMs=${totalMs}`); console.log('  FAIL  agentic cell'); }
+    } catch (e) {
+        fail++; failures.push(`agentic cell threw: ${e.message}`);
+        console.log(`  FAIL  agentic cell — ${e.message}`);
+    }
 }
 
 console.log(`\n${pass} passed, ${fail} failed (of ${pass + fail} assertions)`);
