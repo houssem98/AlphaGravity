@@ -29,7 +29,7 @@ import {
     type CellRunnerDeps,
 } from '../../services/gridResearch';
 import { queryGravityRAG } from '../../services/gravitySearchService';
-import { scoreCellTrust, chipPropsFor, needsRerun, type TrustChipProps, type TrustScore } from '../../services/gridTrust';
+import { scoreCellTrust, chipPropsFor, needsRerun, gradeDistribution, type TrustChipProps, type TrustScore } from '../../services/gridTrust';
 import { runGridRounds } from '../../services/gridTrustRunner';
 import { saveGridRun, loadLatestGridRun, listGridRuns, loadGridRun, deleteGridRun, type SavedGridRow } from '../../services/gridStore';
 import { useGridRunStore, gridAbort } from '../../stores/gridRunStore';
@@ -969,6 +969,8 @@ export default function GridView() {
                                                     const cells = Object.values(row.cells ?? {});
                                                     const rag = cells.some(c => c.ragUsed);
                                                     const preview = cells.find(c => c.answer)?.answer;
+                                                    // GT-5 row 11: derived lazily; legacy rows without trust never throw.
+                                                    const grades = gradeDistribution(row.cells ?? {});
                                                     return (
                                                         <div
                                                             key={row.id}
@@ -981,6 +983,11 @@ export default function GridView() {
                                                                     {rag && (
                                                                         <span className="shrink-0 px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] text-[9px] uppercase tracking-wider">
                                                                             RAG
+                                                                        </span>
+                                                                    )}
+                                                                    {grades && (
+                                                                        <span title="Trust grade distribution (lazily scored)" className="shrink-0 px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--text-2)] text-[9px] font-mono">
+                                                                            {grades}
                                                                         </span>
                                                                     )}
                                                                 </div>

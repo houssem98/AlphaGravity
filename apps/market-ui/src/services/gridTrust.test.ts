@@ -2,7 +2,7 @@
 // plus scoring monotonicity. Run: npx vitest run src/services/gridTrust.test.ts
 
 import { describe, it, expect } from 'vitest';
-import { scoreCellTrust, needsRerun, TRUST_THRESHOLD, normalizeFigure, consensusFigures, mergeRounds, chipPropsFor } from './gridTrust';
+import { scoreCellTrust, needsRerun, TRUST_THRESHOLD, normalizeFigure, consensusFigures, mergeRounds, chipPropsFor, gradeDistribution } from './gridTrust';
 import { extractFigures, type GridCell } from './gridResearch';
 import type { Citation } from './deepResearchService';
 
@@ -257,5 +257,60 @@ describe('gridTrust — mergeRounds', () => {
         expect(cell.roundHistory).toHaveLength(3);
         expect(cell.roundHistory!.every(h => h.answer.length <= 2000)).toBe(true);
         expect(cell.rounds).toBe(5);
+    });
+});
+
+// ─── GT-5: persistence + history (row 11 + JSONB round-trip) ────────────────
+
+describe('gridTrust — persistence + gradeDistribution', () => {
+    it('round-trip: cell → JSON → cell preserves trust/rounds/contradictions/roundHistory', () => {
+        const r2 = mkCell({
+            answer: 'Revenue was $420,000M [1].',
+            citations: [evCite(1, 'net sales $420,000 million')],
+        });
+        const hardened = mergeRounds(mkCell({
+            answer: 'Revenue was $416,161M [1].',
+            ragUsed: true,
+            citations: [mkCite(1)],
+        }), r2);
+        expect(hardened.trust).toBeDefined();
+        expect(hardened.contradictions?.length).toBeGreaterThan(0);
+
+        const revived = JSON.parse(JSON.stringify(hardened));
+        expect(revived).toEqual(hardened); // JSONB drops nothing
+        expect(revived.trust.grade).toBe(hardened.trust!.grade);
+        expect(revived.roundHistory).toEqual(hardened.roundHistory);
+    });
+
+    it('row 11: legacy cells without trust fields load + score lazily, never throw', () => {
+        // Simulates a pre-GT saved row straight out of lib_grid_runs JSONB.
+        const legacy: Record<string, any> = JSON.parse(JSON.stringify({
+            'AAPL::valuation': { ticker: 'AAPL', promptId: 'valuation', status: 'done', answer: 'Revenue $416,161M [1].', ragUsed: true, citations: [mkCite(1)] },
+            'AAPL::risks': { ticker: 'AAPL', promptId: 'risks', status: 'error', error: 'boom' },
+            'ALL::synthesis': { ticker: 'ALL', promptId: 'synthesis', status: 'done', answer: 'Comparison.' },
+        }));
+        const dist = gradeDistribution(legacy);
+        expect(dist).toBe('B×1'); // error cell not done, synthesis never graded
+    });
+
+    it('gradeDistribution counts stored + lazy grades and conflict flags', () => {
+        const conflicted = mergeRounds(
+            mkCell({ answer: 'Revenue was $416,161M [1].', ragUsed: true, citations: [mkCite(1)] }),
+            mkCell({ answer: 'Revenue was $420,000M [1].', citations: [evCite(1, 'net sales $420,000 million')] }),
+        );
+        const cells = {
+            a: mkCell({ answer: 'Sources do not contain this metric.', ragUsed: true, citations: [mkCite(1)] }),
+            b: conflicted,
+            c: mkCell({ answer: 'Margin guess 46%.', ragUsed: false, citations: [] }),
+        };
+        const dist = gradeDistribution(cells as any);
+        expect(dist).toContain('B×1');   // honest-empty
+        expect(dist).toContain('D×1');   // conflict-capped
+        expect(dist).toContain('⚠1');    // conflict flag
+    });
+
+    it('empty / malformed input yields empty string, no throw', () => {
+        expect(gradeDistribution({})).toBe('');
+        expect(gradeDistribution(undefined as any)).toBe('');
     });
 });

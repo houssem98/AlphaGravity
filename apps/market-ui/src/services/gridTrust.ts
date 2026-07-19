@@ -141,6 +141,26 @@ export function chipPropsFor(trust: TrustScore): TrustChipProps {
     };
 }
 
+// ─── GT-5: grade distribution for saved runs (row 11) ───────────────────────
+// Lazy summary over a run's cells: stored trust wins, missing trust is scored
+// on the fly, malformed/legacy cells never throw. "A×3 B×8 C×2 ⚠1" or ''.
+
+export function gradeDistribution(cells: Record<string, GridCell>): string {
+    const counts: Record<TrustGrade, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+    let conflicts = 0;
+    for (const c of Object.values(cells ?? {})) {
+        if (!c || c.ticker === 'ALL' || c.status !== 'done') continue;
+        const t = c.trust ?? scoreCellTrust(c);
+        counts[t.grade] += 1;
+        if (c.contradictions?.length) conflicts += 1;
+    }
+    const parts = (['A', 'B', 'C', 'D', 'F'] as TrustGrade[])
+        .filter(g => counts[g] > 0)
+        .map(g => `${g}×${counts[g]}`);
+    if (conflicts > 0) parts.push(`⚠${conflicts}`);
+    return parts.join(' ');
+}
+
 // ─── GT-2: figure consensus + round merging (Section 4 rows 3, 4, 5, 9, 10) ──
 
 // Canonical form for one extractFigures() token so $97,690M ≡ $97.69B.
