@@ -4,6 +4,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Sparkles, Activity, LogOut } from 'lucide-react';
 import { signOut } from '../services/supabase';
 import { NAV_ITEMS as NAV } from '../lib/navItems';
+import { preloadRoute } from '../lib/preloadRoute';
 
 export default function AppLayout() {
     const location = useLocation();
@@ -41,6 +42,9 @@ export default function AppLayout() {
                             key={to}
                             to={to}
                             title={label}
+                            onPointerEnter={() => preloadRoute(to)}
+                            onPointerDown={() => preloadRoute(to)}
+                            onFocus={() => preloadRoute(to)}
                             className={`w-8 h-8 rounded-sm flex items-center justify-center transition-colors ${isActive(to) ? itemActive : itemIdle}`}
                         >
                             <Icon className="w-4 h-4" />

@@ -13,7 +13,8 @@
     "eval": "node scripts/run-eval.mjs fixtures",
     "eval:synthetic": "node scripts/run-eval.mjs synthetic",
     "eval:loop": "vitest run eval/loopSelfImprove.test.ts",
-    "probe": "tsx scripts/grid-numeric-probe.mjs"
+    "probe": "tsx scripts/grid-numeric-probe.mjs",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
@@ -81,6 +82,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@opendataloader/pdf": "^2.4.7",
+    "@playwright/test": "^1.61.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

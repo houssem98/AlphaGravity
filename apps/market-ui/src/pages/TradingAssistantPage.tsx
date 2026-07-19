@@ -33,6 +33,7 @@ import { X, MessageSquare, Search, Settings, PieChart, Star, ArrowLeft, Sparkles
 import { motion, AnimatePresence } from 'motion/react';
 
 import { NAV_ITEMS as NAV } from '../lib/navItems';
+import { preloadRoute, preloadRouteWhenIdle } from '../lib/preloadRoute';
 import { signOut } from '../services/supabase';
 
 const hexToRgba = (hex: string, alpha: number) => {
@@ -349,14 +350,12 @@ export default function TradingAssistantPage() {
     }
   }, [activeTool, drawingPoints, drawingConfig]);
 
-  // Warm the SearchPage chunk (~1MB) while the user is here: react-router v7
+  // Warm the SearchPage chunk (194 kB, 48 kB gzip) while the user is here: react-router v7
   // navigates inside startTransition, so the old page stays frozen on screen
   // until the lazy chunk downloads — on a cold cache that reads as "clicking
-  // Search does nothing". Preloading makes the switch instant.
-  useEffect(() => {
-    const t = setTimeout(() => { import('./SearchPage'); }, 2500);
-    return () => clearTimeout(t);
-  }, []);
+  // Search does nothing". Fires on idle (instead of a fixed 2.5s wait) so a
+  // fast click can't beat it; the nav links also preload on hover/press.
+  useEffect(() => preloadRouteWhenIdle('/search'), []);
 
   useEffect(() => {
     // True when the user is typing somewhere real (input, textarea,
@@ -400,7 +399,13 @@ export default function TradingAssistantPage() {
     <div className="flex h-screen w-full font-sans overflow-hidden bg-[color:var(--bg)] text-[color:var(--text-2)]">
       {/* Persistent Left Nav Sidebar (collapsible) */}
       <aside className={`${railOpen ? 'w-[56px]' : 'w-0 border-r-0'} overflow-hidden flex flex-col items-center py-3 shrink-0 z-50 bg-[color:var(--surface)] border-r border-[color:var(--line)] transition-[width] duration-200`}>
-        <Link to="/search" className="w-8 h-8 rounded-sm flex items-center justify-center mb-4 bg-[color:color-mix(in_oklch,var(--accent)_12%,transparent)] glint chrome">
+        <Link
+          to="/search"
+          onPointerEnter={() => preloadRoute('/search')}
+          onPointerDown={() => preloadRoute('/search')}
+          onFocus={() => preloadRoute('/search')}
+          className="w-8 h-8 rounded-sm flex items-center justify-center mb-4 bg-[color:color-mix(in_oklch,var(--accent)_12%,transparent)] glint chrome"
+        >
           <Sparkles className="w-4 h-4 text-[color:var(--accent)]" />
         </Link>
         <nav className="flex flex-col gap-1 flex-1 stagger">
@@ -411,6 +416,9 @@ export default function TradingAssistantPage() {
                 key={to}
                 to={to}
                 title={label}
+                onPointerEnter={() => preloadRoute(to)}
+                onPointerDown={() => preloadRoute(to)}
+                onFocus={() => preloadRoute(to)}
                 className={`w-8 h-8 rounded-sm flex items-center justify-center transition-colors ${
                   active
                     ? 'text-[color:var(--accent)] bg-[color:color-mix(in_oklch,var(--accent)_12%,transparent)]'
