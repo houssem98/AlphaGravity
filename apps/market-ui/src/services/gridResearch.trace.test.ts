@@ -3,7 +3,8 @@
 // Run: npx vitest run src/services/gridResearch.trace.test.ts
 
 import { describe, it, expect } from 'vitest';
-import { runGridCell, toCSV, buildMemo, cellKey, type GridDef, type GridState, type CellRunnerDeps } from './gridResearch';
+import { runGridCell, attachToolEvidence, toCSV, buildMemo, cellKey, type GridDef, type GridState, type CellRunnerDeps } from './gridResearch';
+import { scoreCellTrust } from './gridTrust';
 import type { GravityRAGResult } from './gravitySearchService';
 
 const DEF: GridDef = {
@@ -97,15 +98,48 @@ describe('gridResearch — AC-2 instrumentation (rows 4, 9)', () => {
         expect(cell.steps!.filter(s => s.status === 'failed')).toHaveLength(2);
     });
 
-    it('tools + grounded RAG: tool steps traced, RAG answer untouched (no LLM call)', async () => {
+    it('tools + grounded RAG: no LLM call; RAG prose kept, cited tool evidence appended (row 8)', async () => {
         const deps: CellRunnerDeps = {
             callLLM: async () => { throw new Error('LLM must not be called on grounded path'); },
             searchGravity: async () => GROUNDED,
             tools: { marketQuote: async () => ({ text: 'AAPL price $333.74' }) },
         };
         const cell = await runGridCell(DEF, 'AAPL', 'valuation', deps);
-        expect(cell.answer).toBe('Revenue was $416,161M [1].');
+        expect(cell.answer!.startsWith('Revenue was $416,161M [1].')).toBe(true);
+        expect(cell.answer).toContain('Live market: AAPL price $333.74 [2]');
+        expect(cell.citations).toHaveLength(2);
+        expect(cell.citations![1]).toMatchObject({ id: 2, source: 'market-server' });
+        expect(cell.citations![1].sourceData?.text).toBe('AAPL price $333.74');
         expect(cell.steps!.map(s => s.tool).sort()).toEqual(['marketQuote', 'rag']);
+    });
+
+    // ── AC-4: attachToolEvidence (rows 8, 10) ───────────────────────────────
+    it('row 8: attachToolEvidence — ids continue after max, markers adjacent, empty tools = identity', () => {
+        const base = [{ id: 3, title: 'RAG', url: 'gravity://source/3', source: 'gravity' }];
+        const out = attachToolEvidence('Prose [3].', base, {
+            quote: { text: 'price $100' }, fundamentals: { text: 'P/E 20, FCF $5.0B' },
+        }, 'AAPL');
+        expect(out.citations.map(c => c.id)).toEqual([3, 4, 5]);
+        expect(out.answer).toContain('Live market: price $100 [4]');
+        expect(out.answer).toContain('Fundamentals (TTM): P/E 20, FCF $5.0B [5]');
+        const noop = attachToolEvidence('Prose [3].', base, {}, 'AAPL');
+        expect(noop.answer).toBe('Prose [3].');
+        expect(noop.citations).toBe(base);
+    });
+
+    it('row 10: tool evidence never changes the earned grade of a grounded cell', async () => {
+        const bare: CellRunnerDeps = {
+            callLLM: async () => ({ text: 'x', model: 'deepseek-chat' as never }),
+            searchGravity: async () => GROUNDED,
+        };
+        const withTools: CellRunnerDeps = {
+            ...bare,
+            tools: { fundamentals: async () => ({ text: 'AAPL P/E 40.5, FCF $101.1B' }) },
+        };
+        const a = scoreCellTrust(await runGridCell(DEF, 'AAPL', 'valuation', bare));
+        const b = scoreCellTrust(await runGridCell(DEF, 'AAPL', 'valuation', withTools));
+        expect(a.grade).toBe('B');
+        expect(b.grade).toBe('B'); // corroboration adds evidence, never inflates past the band
     });
 
     it('row 4: steps never leak into exports — CSV/memo identical with or without them', async () => {

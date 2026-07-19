@@ -340,6 +340,44 @@ export function buildSynthesisPrompt(
     );
 }
 
+// AC-4 (row 8): successful tool snapshots become REAL evidence — appended as
+// cited lines whose [N] markers resolve to new citation entries carrying the
+// snapshot text. Tool figures are clickable and count for figure-adjacency
+// exactly like RAG cites. Pure → unit-testable.
+export function attachToolEvidence(
+    answer: string,
+    citations: Citation[],
+    tools: { quote?: ToolResult; fundamentals?: ToolResult },
+    ticker: string,
+): { answer: string; citations: Citation[] } {
+    let nextId = Math.max(0, ...citations.map(c => c.id)) + 1;
+    const lines: string[] = [];
+    const extra: Citation[] = [];
+    if (tools.quote) {
+        extra.push({
+            id: nextId,
+            title: `${ticker} live quote (market-server, real-time)`,
+            url: `market://quote/${ticker}`,
+            source: 'market-server',
+            sourceData: { text: tools.quote.text, ticker },
+        });
+        lines.push(`Live market: ${tools.quote.text} [${nextId}]`);
+        nextId += 1;
+    }
+    if (tools.fundamentals) {
+        extra.push({
+            id: nextId,
+            title: `${ticker} fundamentals TTM (market-server)`,
+            url: `market://fundamentals/${ticker}`,
+            source: 'market-server',
+            sourceData: { text: tools.fundamentals.text, ticker },
+        });
+        lines.push(`Fundamentals (TTM): ${tools.fundamentals.text} [${nextId}]`);
+    }
+    if (extra.length === 0) return { answer, citations };
+    return { answer: `${answer}\n\n${lines.join('\n')}`, citations: [...citations, ...extra] };
+}
+
 export async function runGridCell(
     def: GridDef,
     ticker: string,
@@ -482,11 +520,12 @@ export async function runGridCell(
                     sourceData: { text: s.text, ticker: s.ticker, date: s.date, documentType: s.document_type, section: s.section },
                 }));
             }
+            const enriched = attachToolEvidence(prose, ragCitations, toolResults, ticker);
             return {
                 ticker, promptId,
                 status: 'done',
-                answer: prose,
-                citations: ragCitations,
+                answer: enriched.answer,
+                citations: enriched.citations,
                 durationMs: Date.now() - started,
                 modelUsed: 'gravity-rag',
                 ragUsed: true,
@@ -538,11 +577,12 @@ export async function runGridCell(
         const { text, model } = await trace.step('Analyzing', 'llm',
             () => deps.callLLM(fullPrompt, signal));
 
+        const enriched = attachToolEvidence(text, citations, toolResults, ticker);
         return {
             ticker, promptId,
             status: 'done',
-            answer: text,
-            citations,
+            answer: enriched.answer,
+            citations: enriched.citations,
             durationMs: Date.now() - started,
             modelUsed: model,
             steps: trace.done(),
