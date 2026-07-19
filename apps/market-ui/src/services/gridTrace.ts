@@ -64,6 +64,10 @@ export interface TraceSummary {
     totalMs: number;
 }
 
+// Row 7 UI glyph: ✓ ok · ✗ failed · ∅ empty (ran fine, nothing useful).
+export const stepGlyph = (status: CellStep['status']): string =>
+    status === 'ok' ? '✓' : status === 'failed' ? '✗' : '∅';
+
 export function traceSummary(steps: CellStep[]): TraceSummary {
     return {
         tools: steps.length,

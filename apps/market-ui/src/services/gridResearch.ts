@@ -298,6 +298,9 @@ export interface CellRunnerDeps {
     searchWeb?: (query: string, signal?: AbortSignal) => Promise<Citation[]>;
     searchGravity?: (query: string, ticker: string, signal?: AbortSignal) => Promise<GravityRAGResult>;
     tools?: CellTools;
+    // AC-5 live ticker: fired when a trace step starts, so the UI can show the
+    // current step inside the running cell. Purely observational.
+    onStep?: (ticker: string, promptId: string, label: string) => void;
 }
 
 // Build the cross-doc comparison prompt for a synthesis cell. Groups answers BY
@@ -400,6 +403,7 @@ export async function runGridCell(
     // AC-2: every call the cell makes is recorded as a trace step. The trace
     // never changes behavior — errors re-throw into the existing handlers.
     const trace = newTrace();
+    const note = (label: string) => { try { deps.onStep?.(ticker, promptId, label); } catch { /* observer never breaks the cell */ } };
 
     // ── Synthesis cells: compare all tickers ────────────────────────────
     if (prompt.synthesis && state) {
@@ -415,6 +419,7 @@ export async function runGridCell(
                 };
             }
 
+            note('Analyzing');
             const { text, model } = await trace.step('Analyzing', 'llm',
                 () => deps.callLLM(synthesisPrompt, signal));
             return {
@@ -449,12 +454,14 @@ export async function runGridCell(
         const toolResults: { quote?: ToolResult; fundamentals?: ToolResult } = {};
         const toolTasks: Promise<void>[] = [];
         if (deps.tools?.marketQuote) {
+            note('Fetching market data');
             toolTasks.push(trace.step('Fetching market data', 'marketQuote',
                 () => deps.tools!.marketQuote!(ticker, signal),
                 { meta: r => r.text.slice(0, 120) })
                 .then(r => { toolResults.quote = r; }, () => { /* traced as failed */ }));
         }
         if (deps.tools?.fundamentals) {
+            note('Pulling fundamentals');
             toolTasks.push(trace.step('Pulling fundamentals', 'fundamentals',
                 () => deps.tools!.fundamentals!(ticker, signal),
                 { meta: r => r.text.slice(0, 120) })
@@ -465,6 +472,7 @@ export async function runGridCell(
         let ragResult: GravityRAGResult | null = null;
         if (deps.searchGravity) {
             try {
+                note('Searching SEC filings');
                 ragResult = await trace.step('Searching SEC filings', 'rag',
                     () => deps.searchGravity!(`${ticker} ${resolved}`, ticker, signal),
                     { isEmpty: r => !r.available || !r.answer, meta: r => `${r.sources?.length ?? 0} passages` });
@@ -537,6 +545,7 @@ export async function runGridCell(
         let citations: Citation[] = [];
         if (deps.searchWeb) {
             try {
+                note('Searching the web');
                 citations = await trace.step('Searching the web', 'webSearch',
                     () => deps.searchWeb!(`${ticker} ${prompt.label}`, signal),
                     { isEmpty: c => c.length === 0, meta: c => `${c.length} results` });
@@ -574,6 +583,7 @@ export async function runGridCell(
 
         const fullPrompt = `You are a sell-side equity analyst. Answer concisely (under 150 words) with citations like [1].\n\n${contextBlock}\n\nQuestion: ${resolved}`;
 
+        note('Analyzing');
         const { text, model } = await trace.step('Analyzing', 'llm',
             () => deps.callLLM(fullPrompt, signal));
 

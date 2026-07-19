@@ -32,6 +32,7 @@ import { queryGravityRAG } from '../../services/gravitySearchService';
 import { scoreCellTrust, chipPropsFor, needsRerun, gradeDistribution, withTrust, type TrustChipProps, type TrustScore } from '../../services/gridTrust';
 import { runGridRounds } from '../../services/gridTrustRunner';
 import { localLessonStore, recordLessons, chronicConflictPrompts, chronicUnverifiedPrompts, rewordPromptIfChronic } from '../../services/gridLessons';
+import { traceSummary, stepGlyph } from '../../services/gridTrace';
 import { saveGridRun, loadLatestGridRun, listGridRuns, loadGridRun, deleteGridRun, type SavedGridRow } from '../../services/gridStore';
 import { useGridRunStore, gridAbort } from '../../stores/gridRunStore';
 import EdgarLink, { parseFilingTitle } from '../EdgarLink';
@@ -170,6 +171,9 @@ export default function GridView() {
     // Cells whose figures changed vs the previous run (P2.3 change-alerts).
     const changedCells = useGridRunStore(s => s.changedCells);
     const setChangedCells = useGridRunStore(s => s.setChangedCells);
+    // AC-5: live per-cell trace-step labels while running
+    const cellSteps = useGridRunStore(s => s.cellSteps);
+    const setCellStep = useGridRunStore(s => s.setCellStep);
     const [sourceViewer, setSourceViewer] = useState<SourceViewerData | null>(null);
     const [chunkFullText, setChunkFullText] = useState<string | null>(null);
     // P4-b throughput: actual wall-time + cells/sec for the last run, so the
@@ -429,6 +433,7 @@ export default function GridView() {
             callLLM: (prompt, signal) => callLLMProxy(prompt, selectedModel, signal),
             searchGravity: searchGravityCell,
             tools: CELL_TOOLS,
+            onStep: (t, p, label) => setCellStep(cellKey(t, p), label),
         };
 
         try {
@@ -440,6 +445,7 @@ export default function GridView() {
                 signal: controller.signal,
                 onCellUpdate: (s, cell) => {
                     setState({ ...s });
+                    setCellStep(cellKey(cell.ticker, cell.promptId), null);
                     if (cell.status === 'done' && cell.answer) {
                         const prev = prevCells[cellKey(cell.ticker, cell.promptId)];
                         if (prev?.answer && figuresChanged(prev.answer, cell.answer)) {
@@ -484,6 +490,7 @@ export default function GridView() {
             callLLM: (p, signal) => callLLMProxy(p, selectedModel, signal),
             searchGravity: searchGravityCell,
             tools: CELL_TOOLS,
+            onStep: (t, p, label) => setCellStep(cellKey(t, p), label),
         };
 
         try {
@@ -499,6 +506,7 @@ export default function GridView() {
             }
             const cell = await runGridCell(def, ticker, promptId, deps, undefined, state);
             setState(s => s ? updateCell(s, ticker, promptId, cell) : s);
+            setCellStep(cellKey(ticker, promptId), null);
             setEditingCell(null);
         } catch (e: any) {
             setState(s => s ? updateCell(s, ticker, promptId, {
@@ -575,13 +583,17 @@ export default function GridView() {
             callLLM: (prompt, signal) => callLLMProxy(prompt, selectedModel, signal),
             searchGravity: searchGravityCell,
             tools: CELL_TOOLS,
+            onStep: (t, p, label) => setCellStep(cellKey(t, p), label),
         };
         try {
             const final = await runGridRounds(state.def, deps, {
                 maxRounds: 3,
                 resumeState: state,
                 signal: controller.signal,
-                onCellUpdate: (s) => setState({ ...s }),
+                onCellUpdate: (s, cell) => {
+                    setState({ ...s });
+                    setCellStep(cellKey(cell.ticker, cell.promptId), null);
+                },
             });
             setState(final);
             recordLessons(final); // GT-6: learn from every hardened run
@@ -1209,7 +1221,7 @@ export default function GridView() {
                                                                 ⚡ {outlierTerms[0]}
                                                             </span>
                                                         )}
-                                                        <CellContent cell={cell} loading={running} />
+                                                        <CellContent cell={cell} loading={running} stepLabel={cellSteps[cellKey(ticker, p.id)]} />
                                                         {cell?.status === 'done' && cell?.answer && (
                                                             <button
                                                                 onClick={e => {
@@ -1272,7 +1284,7 @@ export default function GridView() {
                                                                 )}
                                                             </motion.div>
                                                         ) : (
-                                                            <CellContent cell={cell} loading={running} />
+                                                            <CellContent cell={cell} loading={running} stepLabel={cellSteps[cellKey('ALL', p.id)]} />
                                                         )}
                                                     </td>
                                                 );
@@ -1342,6 +1354,29 @@ export default function GridView() {
                                 onOpenCitation={openCitation}
                             />
                         </div>
+                        {selectedCell.steps && selectedCell.steps.length > 0 && (() => {
+                            const ts = traceSummary(selectedCell.steps!);
+                            return (
+                                <details className="mb-6 rounded-lg border border-white/[0.08] bg-white/[0.02] px-4 py-3" open>
+                                    <summary className="cursor-pointer text-xs font-bold text-[#00d9ff] uppercase tracking-wider">
+                                        Tools — called {ts.tools} · {(ts.totalMs / 1000).toFixed(1)}s{ts.failed > 0 ? ` · ${ts.failed} failed` : ''}
+                                    </summary>
+                                    <ul className="mt-3 space-y-1.5">
+                                        {selectedCell.steps!.map((s, i) => (
+                                            <li key={i} className="flex items-center gap-2 text-xs font-mono">
+                                                <span className={s.status === 'failed' ? 'text-[#ff6666]' : s.status === 'empty' ? 'text-[#888]' : 'text-[#00ff9d]'} title={s.error}>
+                                                    {stepGlyph(s.status)}
+                                                </span>
+                                                <span className="text-[#e8e8f0]">{s.label}</span>
+                                                <span className="text-[#666]">({(s.ms / 1000).toFixed(1)}s)</span>
+                                                {s.meta && <span className="text-[#666] truncate">— {s.meta}</span>}
+                                                {s.error && <span className="text-[#ff6666] truncate">— {s.error}</span>}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </details>
+                            );
+                        })()}
                         {(() => {
                             // Regular cells: show only sources the answer cites ([N] markers).
                             // Synthesis/comparison cells (ticker 'ALL'): show the full
@@ -1562,13 +1597,13 @@ function TrustChip({ trust }: { trust: TrustScore }) {
     );
 }
 
-function CellContent({ cell, loading }: { cell?: GridCell; loading?: boolean }) {
+function CellContent({ cell, loading, stepLabel }: { cell?: GridCell; loading?: boolean; stepLabel?: string }) {
     if (!cell || cell.status === 'pending') {
         // During an active run, pending cells render skeletons (spec §11.4)
         return loading ? <SkeletonCard /> : <span className="text-[#444] text-[10px]">—</span>;
     }
     if (cell.status === 'running') {
-        return <SkeletonCard active />;
+        return <SkeletonCard active stepLabel={stepLabel} />;
     }
     if (cell.status === 'error') {
         return (
@@ -1620,6 +1655,17 @@ function CellContent({ cell, loading }: { cell?: GridCell; loading?: boolean }) 
                             R{cell.rounds}
                         </span>
                     )}
+                    {cell.steps && cell.steps.length > 0 && (() => {
+                        const ts = traceSummary(cell.steps);
+                        return (
+                            <span
+                                title={cell.steps.map(s => `${stepGlyph(s.status)} ${s.label} (${(s.ms / 1000).toFixed(1)}s)`).join('\n')}
+                                className="text-[8px] font-bold text-[#00d9ff]"
+                            >
+                                ⚡{ts.tools}·{(ts.totalMs / 1000).toFixed(1)}s
+                            </span>
+                        );
+                    })()}
                 </div>
             )}
             <p className={`text-[10px] leading-snug line-clamp-3 w-full break-words ${
@@ -1641,7 +1687,7 @@ function CellContent({ cell, loading }: { cell?: GridCell; loading?: boolean }) 
 }
 
 // Pulsing skeleton card shown while a cell is pending/running during a run (spec §11.4).
-function SkeletonCard({ active }: { active?: boolean }) {
+function SkeletonCard({ active, stepLabel }: { active?: boolean; stepLabel?: string }) {
     return (
         <motion.div
             animate={{ opacity: [0.45, 0.85, 0.45] }}
@@ -1652,6 +1698,10 @@ function SkeletonCard({ active }: { active?: boolean }) {
             <div className="h-1.5 w-full rounded bg-white/10" />
             <div className="h-1.5 w-[85%] rounded bg-white/10" />
             <div className="h-1.5 w-[60%] rounded bg-white/10" />
+            {/* AC-5 live ticker: the step actually running right now */}
+            {active && stepLabel && (
+                <div className="text-[9px] font-mono text-[#00d9ff] truncate">{stepLabel}…</div>
+            )}
         </motion.div>
     );
 }

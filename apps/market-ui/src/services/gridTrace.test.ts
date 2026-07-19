@@ -3,7 +3,7 @@
 // Run: npx vitest run src/services/gridTrace.test.ts
 
 import { describe, it, expect } from 'vitest';
-import { newTrace, traceSummary, TRACE_MAX_STEPS, TRACE_META_MAX } from './gridTrace';
+import { newTrace, traceSummary, stepGlyph, TRACE_MAX_STEPS, TRACE_META_MAX } from './gridTrace';
 
 // Fake monotonic clock: each fn advances it explicitly.
 const mkClock = () => {
@@ -81,5 +81,11 @@ describe('gridTrace — traceSummary', () => {
 
     it('empty trace → zeros', () => {
         expect(traceSummary([])).toEqual({ tools: 0, ok: 0, failed: 0, totalMs: 0 });
+    });
+
+    it('row 7: step glyphs — ✓ ok, ✗ failed, ∅ empty', () => {
+        expect(stepGlyph('ok')).toBe('✓');
+        expect(stepGlyph('failed')).toBe('✗');
+        expect(stepGlyph('empty')).toBe('∅');
     });
 });
