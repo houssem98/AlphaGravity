@@ -31,6 +31,7 @@ import {
 import { queryGravityRAG } from '../../services/gravitySearchService';
 import { scoreCellTrust, chipPropsFor, needsRerun, gradeDistribution, type TrustChipProps, type TrustScore } from '../../services/gridTrust';
 import { runGridRounds } from '../../services/gridTrustRunner';
+import { localLessonStore, recordLessons, chronicConflictPrompts, chronicUnverifiedPrompts, rewordPromptIfChronic } from '../../services/gridLessons';
 import { saveGridRun, loadLatestGridRun, listGridRuns, loadGridRun, deleteGridRun, type SavedGridRow } from '../../services/gridStore';
 import { useGridRunStore, gridAbort } from '../../stores/gridRunStore';
 import EdgarLink, { parseFilingTitle } from '../EdgarLink';
@@ -313,6 +314,11 @@ export default function GridView() {
     const allPrompts = [...SEED_GRID_PROMPTS, ...customPrompts];
     const activePrompts = allPrompts.filter(p => promptIds.includes(p.id));
 
+    // GT-6: lessons from past hardened runs — chronic-offender hints + query rewording.
+    const lessons = useMemo(() => localLessonStore.load(), [state]);
+    const chronicConflicts = useMemo(() => chronicConflictPrompts(lessons), [lessons]);
+    const chronicUnverified = useMemo(() => chronicUnverifiedPrompts(lessons), [lessons]);
+
     // M2 outliers: per column, salient terms unique to one company's cell.
     const outliersByCell = useMemo(() => {
         const map = new Map<string, string[]>();
@@ -371,7 +377,9 @@ export default function GridView() {
             id: `grid-${Date.now()}`,
             name: `${tickers.length} tickers × ${activePrompts.length} prompts (${selectedModel})`,
             tickers,
-            prompts: activePrompts,
+            // GT-6 (b): chronically-unverified prompts lead metric-forward so
+            // retrieval finds the exact figures that historically went missing.
+            prompts: activePrompts.map(p => rewordPromptIfChronic(p, chronicUnverified)),
         };
         // Snapshot the previous run's answers (same ticker×prompt) to flag cells
         // whose figures move on this re-run. Empty on first run / changed grid.
@@ -540,6 +548,7 @@ export default function GridView() {
                 onCellUpdate: (s) => setState({ ...s }),
             });
             setState(final);
+            recordLessons(final); // GT-6: learn from every hardened run
             saveGridRun(final).then(() => refreshHistory()).catch(() => { /* ignore */ });
         } finally {
             abortRef.current = null;
@@ -805,6 +814,9 @@ export default function GridView() {
                                         } disabled:opacity-40 cursor-pointer`}
                                 >
                                     {p.label}
+                                    {chronicConflicts.has(p.id) && (
+                                        <span title="Chronic offender: this prompt's figures conflicted in >30% of past hardened cells" className="text-amber-400">⚠</span>
+                                    )}
                                     {isCustom && (
                                         <X
                                             className="w-3 h-3 opacity-50 hover:opacity-100"
