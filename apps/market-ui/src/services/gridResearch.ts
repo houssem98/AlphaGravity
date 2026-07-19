@@ -12,7 +12,7 @@
 
 import type { Citation, ResearchModelId } from './deepResearchService';
 import type { TrustScore } from './gridTrust';
-import type { CellStep } from './gridTrace';
+import { newTrace, type CellStep } from './gridTrace';
 import { queryGravityRAG, formatRAGSourcesForPrompt, type GravityRAGResult } from './gravitySearchService';
 
 // The backend answer ends with a "Sources" footer (rich `[N] label: value`
@@ -348,6 +348,10 @@ export async function runGridCell(
 
     const started = Date.now();
 
+    // AC-2: every call the cell makes is recorded as a trace step. The trace
+    // never changes behavior — errors re-throw into the existing handlers.
+    const trace = newTrace();
+
     // ── Synthesis cells: compare all tickers ────────────────────────────
     if (prompt.synthesis && state) {
         try {
@@ -362,7 +366,8 @@ export async function runGridCell(
                 };
             }
 
-            const { text, model } = await deps.callLLM(synthesisPrompt, signal);
+            const { text, model } = await trace.step('Analyzing', 'llm',
+                () => deps.callLLM(synthesisPrompt, signal));
             return {
                 ticker,
                 promptId,
@@ -371,6 +376,7 @@ export async function runGridCell(
                 citations: aggregateCitations(def, state),
                 durationMs: Date.now() - started,
                 modelUsed: model,
+                steps: trace.done(),
             };
         } catch (e: any) {
             if (signal?.aborted) {
@@ -393,7 +399,9 @@ export async function runGridCell(
         let ragResult: GravityRAGResult | null = null;
         if (deps.searchGravity) {
             try {
-                ragResult = await deps.searchGravity(`${ticker} ${resolved}`, ticker, signal);
+                ragResult = await trace.step('Searching SEC filings', 'rag',
+                    () => deps.searchGravity!(`${ticker} ${resolved}`, ticker, signal),
+                    { isEmpty: r => !r.available || !r.answer, meta: r => `${r.sources?.length ?? 0} passages` });
             } catch { /* soft-fail */ }
         }
 
@@ -453,6 +461,7 @@ export async function runGridCell(
                 durationMs: Date.now() - started,
                 modelUsed: 'gravity-rag',
                 ragUsed: true,
+                steps: trace.done(),
             };
         }
 
@@ -460,7 +469,9 @@ export async function runGridCell(
         let citations: Citation[] = [];
         if (deps.searchWeb) {
             try {
-                citations = await deps.searchWeb(`${ticker} ${prompt.label}`, signal);
+                citations = await trace.step('Searching the web', 'webSearch',
+                    () => deps.searchWeb!(`${ticker} ${prompt.label}`, signal),
+                    { isEmpty: c => c.length === 0, meta: c => `${c.length} results` });
             } catch { /* soft-fail */ }
         }
 
@@ -476,6 +487,7 @@ export async function runGridCell(
                 durationMs: Date.now() - started,
                 modelUsed: 'no-sources',
                 ragUsed: false,
+                steps: trace.done(),
             };
         }
 
@@ -488,7 +500,8 @@ export async function runGridCell(
 
         const fullPrompt = `You are a sell-side equity analyst. Answer concisely (under 150 words) with citations like [1].\n\n${contextBlock}\n\nQuestion: ${resolved}`;
 
-        const { text, model } = await deps.callLLM(fullPrompt, signal);
+        const { text, model } = await trace.step('Analyzing', 'llm',
+            () => deps.callLLM(fullPrompt, signal));
 
         return {
             ticker, promptId,
@@ -497,16 +510,18 @@ export async function runGridCell(
             citations,
             durationMs: Date.now() - started,
             modelUsed: model,
+            steps: trace.done(),
         };
     } catch (e: any) {
         if (signal?.aborted || /abort/i.test(e?.name ?? '')) {
-            return { ticker, promptId, status: 'cancelled', durationMs: Date.now() - started };
+            return { ticker, promptId, status: 'cancelled', durationMs: Date.now() - started, steps: trace.done() };
         }
         return {
             ticker, promptId,
             status: 'error',
             error: e?.message || String(e),
             durationMs: Date.now() - started,
+            steps: trace.done(),
         };
     }
 }
