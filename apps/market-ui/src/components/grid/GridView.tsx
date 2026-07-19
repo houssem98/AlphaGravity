@@ -29,7 +29,7 @@ import {
     type CellRunnerDeps,
 } from '../../services/gridResearch';
 import { queryGravityRAG } from '../../services/gravitySearchService';
-import { scoreCellTrust, chipPropsFor, needsRerun, gradeDistribution, type TrustChipProps, type TrustScore } from '../../services/gridTrust';
+import { scoreCellTrust, chipPropsFor, needsRerun, gradeDistribution, withTrust, type TrustChipProps, type TrustScore } from '../../services/gridTrust';
 import { runGridRounds } from '../../services/gridTrustRunner';
 import { localLessonStore, recordLessons, chronicConflictPrompts, chronicUnverifiedPrompts, rewordPromptIfChronic } from '../../services/gridLessons';
 import { saveGridRun, loadLatestGridRun, listGridRuns, loadGridRun, deleteGridRun, type SavedGridRow } from '../../services/gridStore';
@@ -477,23 +477,24 @@ export default function GridView() {
     const stampedName = (ext: string) =>
         `grid-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.${ext}`;
 
+    // GT-8: every export carries verification status — score before exporting.
     const handleExportCSV = () => {
         if (!state) return;
-        const blob = new Blob([toCSV(state)], { type: 'text/csv;charset=utf-8' });
+        const blob = new Blob([toCSV(withTrust(state))], { type: 'text/csv;charset=utf-8' });
         downloadBlob(blob, stampedName('csv'));
         recordExport('csv', { bytes: blob.size, destination: stampedName('csv') });
     };
 
     const handleExportXLSX = async () => {
         if (!state) return;
-        const blob = await exportGridToXLSX(state);
+        const blob = await exportGridToXLSX(withTrust(state));
         downloadBlob(blob, stampedName('xlsx'));
         recordExport('xlsx', { bytes: blob.size, destination: stampedName('xlsx') });
     };
 
     const handleExportMemo = () => {
         if (!state) return;
-        const blob = new Blob([buildMemo(state, outliersByCell)], { type: 'text/markdown;charset=utf-8' });
+        const blob = new Blob([buildMemo(withTrust(state), outliersByCell)], { type: 'text/markdown;charset=utf-8' });
         downloadBlob(blob, stampedName('md'));
         recordExport('memo', { bytes: blob.size, destination: stampedName('md') });
     };

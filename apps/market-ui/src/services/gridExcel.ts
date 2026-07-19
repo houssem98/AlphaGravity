@@ -146,6 +146,26 @@ export async function exportGridToXLSX(state: GridState): Promise<Blob> {
         }
     }
 
+    // GT-8: unresolved verification conflicts ride in the Sources sheet — an
+    // exported hardened grid never hides a contradiction.
+    let conflictRows = 0;
+    for (const c of Object.values(state.cells)) {
+        if (!c.contradictions?.length) continue;
+        const promptLabel = state.def.prompts.find(p => p.id === c.promptId)?.label ?? c.promptId;
+        for (const contra of c.contradictions) {
+            conflictRows += 1;
+            const row = srcSheet.addRow({
+                ticker: c.ticker,
+                prompt: promptLabel,
+                cid: '⚠',
+                title: `CONFLICT (unresolved): ${contra}`,
+                url: '',
+                type: 'CONFLICT',
+            });
+            row.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.errorBg } };
+        }
+    }
+
     // ── Sheet 3: FinData (structured financial metrics from RAG) ─────────
     const finRows: Array<{ ticker: string; metric: string; value: string; unit: string; period: string; entity: string; source: string }> = [];
     for (const ticker of state.def.tickers) {
@@ -198,6 +218,7 @@ export async function exportGridToXLSX(state: GridState): Promise<Blob> {
         ['Cancelled cells',                  cancelledCells, cancelledCells === 0 ? 'OK' : 'INFO'],
         ['SEC RAG-grounded cells',           ragCells,      ragCells > 0 ? 'OK' : 'INFO'],
         ['Total citations in Sources sheet', sourcedCells,  sourcedCells > 0 ? 'OK' : 'INFO'],
+        ['Contradiction-flagged conflicts',  conflictRows,  conflictRows === 0 ? 'OK' : 'WARN'],
         ['Formula errors (#REF!/#DIV/0!)',   0,             'OK'],  // text-only grid; no formulas
         ['Generated at',                     new Date().toISOString(), 'INFO'],
     ];

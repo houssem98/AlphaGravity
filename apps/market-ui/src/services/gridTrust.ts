@@ -11,7 +11,7 @@
 //   D/F — re-run triggers (TRUST_THRESHOLD): fabricated cites, uncited figures,
 //       broken/error/empty cells.
 
-import { extractFigures, findUnmappedCites, type GridCell } from './gridResearch';
+import { extractFigures, findUnmappedCites, updateCell, type GridCell, type GridState } from './gridResearch';
 
 export type TrustGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 
@@ -139,6 +139,19 @@ export function chipPropsFor(trust: TrustScore): TrustChipProps {
         tone,
         title: trust.reasons.join(' · '),
     };
+}
+
+// ─── GT-8: annotate a state with trust before exporting ─────────────────────
+// Exports read cell.trust only (no lazy scoring inside export code paths), so
+// callers run the whole state through this first — no silent-confidence exports.
+
+export function withTrust(state: GridState): GridState {
+    let out = state;
+    for (const c of Object.values(state.cells)) {
+        if (c.trust || c.ticker === 'ALL' || c.status !== 'done') continue;
+        out = updateCell(out, c.ticker, c.promptId, { trust: scoreCellTrust(c) });
+    }
+    return out;
 }
 
 // ─── GT-5: grade distribution for saved runs (row 11) ───────────────────────

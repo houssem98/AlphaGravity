@@ -1,7 +1,7 @@
 // splitAnswerSources() unit checks — strip the baked-in "Sources" footer,
 // keep rich labels by id. Run: npx tsx apps/market-ui/src/services/gridResearch.sources.test.ts
 
-import { splitAnswerSources, findUnmappedCites, figuresChanged, distinctiveTerms, buildMemo, aggregateCitations, type GridState } from './gridResearch';
+import { splitAnswerSources, findUnmappedCites, figuresChanged, distinctiveTerms, buildMemo, aggregateCitations, toCSV, type GridState } from './gridResearch';
 
 let pass = 0, fail = 0;
 const failures: string[] = [];
@@ -90,6 +90,39 @@ check('memo has ticker section', memo.includes('## NVDA'));
 check('memo has question + answer', memo.includes('### Risks') && memo.includes('Antitrust risk is material'));
 check('memo notes outlier', memo.includes('⚡ Unique to NVDA: antitrust'));
 check('memo lists real source url', memo.includes('https://sec.gov/x'));
+
+console.log('\n=== GT-8 export honesty (trust in memo + CSV) ===\n');
+
+const trustState: GridState = {
+    def: { id: 'g', name: 'Trusted Grid', tickers: ['NVDA'], prompts: [{ id: 'risks', label: 'Risks', prompt: '{ticker} risks' }] },
+    cells: {
+        'NVDA::risks': {
+            ticker: 'NVDA', promptId: 'risks', status: 'done',
+            answer: 'Revenue was $416,161M [1].',
+            citations: [{ id: 1, title: 'NVDA 10-K', url: 'https://sec.gov/x', source: 'gravity' }],
+            trust: { grade: 'D', score: 45, reasons: ['1 figure contradiction(s) across rounds'] },
+            rounds: 2,
+            contradictions: ['round1: $416,161m vs round2: $420,000m'],
+        },
+    },
+};
+const trustMemo = buildMemo(trustState);
+check('memo heading carries grade', trustMemo.includes('### Risks — Trust D'));
+check('memo has inline contradiction callout', trustMemo.includes('⚠ CONTRADICTION') && trustMemo.includes('$420,000m'));
+check('memo has Trust section', trustMemo.includes('## Trust'));
+check('memo Trust section lists per-company grades', trustMemo.includes('- NVDA: Risks D⚠'));
+check('memo Trust section lists conflict with both values', trustMemo.includes('- NVDA Risks: round1: $416,161m vs round2: $420,000m'));
+
+const trustCsv = toCSV(trustState);
+const csvLines = trustCsv.split('\r\n');
+check('CSV header gains trust column', csvLines[0].endsWith(',trust'));
+check('CSV row carries grade + conflict marker', csvLines[1].endsWith(',D⚠'));
+
+// Un-graded state: memo has no Trust section, CSV grades show placeholder.
+const plainMemo = buildMemo(memoState);
+check('ungraded memo has no Trust section', !plainMemo.includes('## Trust'));
+const plainCsv = toCSV(memoState);
+check('ungraded CSV trust cell is placeholder', plainCsv.split('\r\n')[1].endsWith(',·'));
 
 console.log('\n=== aggregateCitations (P3.1) ===\n');
 

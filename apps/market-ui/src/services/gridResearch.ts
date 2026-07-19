@@ -52,9 +52,14 @@ export function buildMemo(state: GridState, outliers?: Map<string, string[]>): s
         for (const p of regular) {
             const cell = cells[cellKey(ticker, p.id)];
             if (!cell?.answer) continue;
-            out.push(`### ${p.label}`);
+            // GT-8: a hardened grid exports its verification status inline.
+            const grade = cell.trust ? ` — Trust ${cell.trust.grade}${cell.trust.honest ? ' (honest)' : ''}` : '';
+            out.push(`### ${p.label}${grade}`);
             const o = outliers?.get(cellKey(ticker, p.id));
             if (o?.length) out.push(`> ⚡ Unique to ${ticker}: ${o.join(', ')}`);
+            if (cell.contradictions?.length) {
+                out.push(`> ⚠ CONTRADICTION (unresolved — both values shown): ${cell.contradictions.join('; ')}`);
+            }
             out.push(cell.answer.trim());
             if (cell.citations?.length) {
                 out.push('');
@@ -74,6 +79,34 @@ export function buildMemo(state: GridState, outliers?: Map<string, string[]>): s
             out.push(cell.answer.trim());
             out.push('');
         }
+    }
+    // GT-8 Trust section: per-company grades + every unresolved contradiction.
+    const graded = def.tickers.some(t => regular.some(p => cells[cellKey(t, p.id)]?.trust));
+    if (graded) {
+        out.push('## Trust');
+        out.push('*A = figures stable across ≥2 verification rounds · B = grounded or honest-empty · C = LLM-only ceiling · D/F = needs re-verification*');
+        for (const ticker of def.tickers) {
+            const parts = regular
+                .map(p => {
+                    const c = cells[cellKey(ticker, p.id)];
+                    return c?.trust ? `${p.label} ${c.trust.grade}${c.contradictions?.length ? '⚠' : ''}` : null;
+                })
+                .filter(Boolean);
+            if (parts.length) out.push(`- ${ticker}: ${parts.join(', ')}`);
+        }
+        const conflicts: string[] = [];
+        for (const ticker of def.tickers) {
+            for (const p of regular) {
+                const c = cells[cellKey(ticker, p.id)];
+                for (const contra of c?.contradictions ?? []) conflicts.push(`- ${ticker} ${p.label}: ${contra}`);
+            }
+        }
+        if (conflicts.length) {
+            out.push('');
+            out.push('**⚠ Contradictions (unresolved):**');
+            out.push(...conflicts);
+        }
+        out.push('');
     }
     return out.join('\n');
 }
@@ -564,12 +597,15 @@ function csvEscape(value: unknown): string {
 }
 
 export function toCSV(state: GridState): string {
-    const header = ['ticker', ...state.def.prompts.map(p => p.label)];
+    // GT-8: exports carry verification status — trailing `trust` column holds
+    // per-prompt grades in column order (⚠ marks an unresolved contradiction).
+    const header = ['ticker', ...state.def.prompts.map(p => p.label), 'trust'];
     const rows: string[][] = [header];
 
     // Regular ticker rows
     for (const ticker of state.def.tickers) {
         const row: string[] = [ticker];
+        const grades: string[] = [];
         for (const p of state.def.prompts) {
             const cell = state.cells[cellKey(ticker, p.id)];
             if (!cell || cell.status === 'pending') row.push('');
@@ -577,7 +613,11 @@ export function toCSV(state: GridState): string {
             else if (cell.status === 'error') row.push(`(error: ${cell.error ?? 'unknown'})`);
             else if (cell.status === 'cancelled') row.push('(cancelled)');
             else row.push(cell.answer ?? '');
+            if (!p.synthesis) {
+                grades.push(cell?.trust ? `${cell.trust.grade}${cell.contradictions?.length ? '⚠' : ''}` : '·');
+            }
         }
+        row.push(grades.join(' '));
         rows.push(row);
     }
 
@@ -593,6 +633,7 @@ export function toCSV(state: GridState): string {
             else if (cell.status === 'cancelled') synthRow.push('(cancelled)');
             else synthRow.push(cell.answer ?? '');
         }
+        synthRow.push(''); // trust column — synthesis is never graded
         rows.push(synthRow);
     }
 
