@@ -1,5 +1,11 @@
 // Single Vercel function for all BVMT/Tunisia endpoints (Hobby 12-function cap).
 // Dispatches on the path segment: /api/tn/markets | intraday | history | snapshot.
+// AC-8: also hosts the NL agentic endpoint (ask) — see comment at its handler.
+import { runGridCell, type CellRunnerDeps } from '../../src/services/gridResearch.js';
+import { scoreCellTrust } from '../../src/services/gridTrust.js';
+
+export const maxDuration = 60; // agentic ask: RAG + tools can exceed the 10s default
+
 const UA = { 'User-Agent': 'Mozilla/5.0' };
 const GROUPS = 'https://www.bvmt.com.tn/rest_api/rest/market/groups/11,12,52,95,99';
 const FILE = 'tn_daily.json';
@@ -801,7 +807,84 @@ async function websearch(req: any, res: any) {
   res.json({ results });
 }
 
-const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, indexhistory, ref, highs, fundamentals, brief, websearch, board };
+// ── AC-8: natural-language agentic endpoint ─────────────────────────────────
+// GET/POST /api/tn/ask?q=...&ticker=AAPL → one agentic grid cell run server-
+// side (gravity RAG + market-server tools via the runGridCell deps seam), with
+// the full trace, citations, and earned trust grade in the response. Lives in
+// this dispatcher for the same reason as websearch: it's the only Vercel
+// function excluded from the Fly rewrite (Hobby 12-function cap).
+async function ask(req: any, res: any) {
+    res.setHeader('Cache-Control', 'no-store');
+    const q = String(req.query.q || req.body?.q || '').trim();
+    if (!q) return res.status(400).json({ error: 'q is required' });
+    const ticker = String(req.query.ticker || req.body?.ticker || (q.match(/\b[A-Z]{2,5}\b/)?.[0] ?? '')).toUpperCase();
+    if (!ticker) return res.status(400).json({ error: 'pass ticker= (or include an uppercase ticker in q)' });
+
+    const GRAVITY = process.env.GRAVITY_API_URL || 'https://gravity-api-prod.fly.dev';
+    const MKT = process.env.MARKET_SERVER_URL || 'https://market-server-prod.fly.dev';
+
+    const deps: CellRunnerDeps = {
+        callLLM: async (prompt: string) => {
+            const r = await fetch(`${MKT}/api/llm/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ provider: 'deepseek', model: 'deepseek-chat', prompt, max_tokens: 2048 }),
+            });
+            if (!r.ok) throw new Error(`LLM proxy ${r.status}`);
+            const d: any = await r.json();
+            return { text: d.text ?? '', model: d.model ?? 'deepseek-chat' };
+        },
+        searchGravity: async (query: string) => {
+            const r = await fetch(`${GRAVITY}/v1/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-API-Key': 'deep-research-internal' },
+                body: JSON.stringify({ query, options: { reasoning_depth: 'fast', stream: false } }),
+            });
+            if (!r.ok) throw new Error(`gravity ${r.status}`);
+            const d: any = await r.json();
+            return {
+                available: !!d.answer, answer: d.answer || '', sources: d.sources || [],
+                structured_data: d.structured_data || [], citations: d.citations || [],
+                confidence: d.confidence || 'NONE', latency_ms: d.latency_ms || 0,
+            };
+        },
+        tools: {
+            marketQuote: async (t: string) => {
+                const r = await fetch(`${MKT}/api/quote?symbols=${encodeURIComponent(t)}`);
+                if (!r.ok) throw new Error(`quote HTTP ${r.status}`);
+                const qt: any = ((await r.json()) as any)?.quoteResponse?.result?.[0];
+                if (!qt?.regularMarketPrice) throw new Error('quote: empty result');
+                return { text: `${t} price $${qt.regularMarketPrice} (${(qt.regularMarketChangePercent ?? 0).toFixed(2)}% today), market cap $${((qt.marketCap ?? 0) / 1e9).toFixed(1)}B, 52-week $${qt.fiftyTwoWeekLow}-$${qt.fiftyTwoWeekHigh}` };
+            },
+            fundamentals: async (t: string) => {
+                const r = await fetch(`${MKT}/api/fundamentals?symbol=${encodeURIComponent(t)}`);
+                if (!r.ok) throw new Error(`fundamentals HTTP ${r.status}`);
+                const fd: any = ((await r.json()) as any)?.quoteSummary?.result?.[0]?.financialData;
+                if (!fd) throw new Error('fundamentals: empty result');
+                return { text: `${t} revenue TTM $${((fd.totalRevenue ?? 0) / 1e9).toFixed(1)}B, FCF $${((fd.freeCashflow ?? 0) / 1e9).toFixed(1)}B, gross margin ${((fd.grossMargins ?? 0) * 100).toFixed(1)}%, consensus ${fd.recommendationKey ?? 'n/a'}` };
+            },
+        },
+    };
+
+    const def = {
+        id: `ask-${Date.now()}`, name: 'ask', tickers: [ticker],
+        prompts: [{ id: 'ask', label: 'Answer', prompt: q }],
+    };
+    const cell = await runGridCell(def, ticker, 'ask', deps);
+    const trust = cell.status === 'done' ? scoreCellTrust(cell) : undefined;
+    res.json({
+        ticker, question: q,
+        status: cell.status,
+        answer: cell.answer ?? null,
+        error: cell.error,
+        citations: cell.citations ?? [],
+        steps: cell.steps ?? [],
+        trust,
+        durationMs: cell.durationMs,
+    });
+}
+
+const ROUTES: Record<string, (req: any, res: any) => Promise<any>> = { markets, intraday, history, snapshot, engine, index, indexhistory, ref, highs, fundamentals, brief, websearch, board, ask };
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');

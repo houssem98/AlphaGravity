@@ -11,7 +11,7 @@
 //   D/F — re-run triggers (TRUST_THRESHOLD): fabricated cites, uncited figures,
 //       broken/error/empty cells.
 
-import { extractFigures, findUnmappedCites, updateCell, type GridCell, type GridState } from './gridResearch';
+import { extractFigures, findUnmappedCites, updateCell, type GridCell, type GridState } from './gridResearch.js';
 
 export type TrustGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 

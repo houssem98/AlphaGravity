@@ -10,10 +10,10 @@
 //
 // It does NOT own React rendering or persistence; those live in stores + pages.
 
-import type { Citation, ResearchModelId } from './deepResearchService';
-import type { TrustScore } from './gridTrust';
-import { newTrace, type CellStep } from './gridTrace';
-import { queryGravityRAG, formatRAGSourcesForPrompt, type GravityRAGResult } from './gravitySearchService';
+import type { Citation, ResearchModelId } from './deepResearchService.js';
+import type { TrustScore } from './gridTrust.js';
+import { newTrace, type CellStep } from './gridTrace.js';
+import { queryGravityRAG, formatRAGSourcesForPrompt, type GravityRAGResult } from './gravitySearchService.js';
 
 // The backend answer ends with a "Sources" footer (rich `[N] label: value`
 // lines) that duplicates the source list AND defeats the cited-only filter
