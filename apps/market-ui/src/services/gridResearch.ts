@@ -12,6 +12,7 @@
 
 import type { Citation, ResearchModelId } from './deepResearchService';
 import type { TrustScore } from './gridTrust';
+import type { CellStep } from './gridTrace';
 import { queryGravityRAG, formatRAGSourcesForPrompt, type GravityRAGResult } from './gravitySearchService';
 
 // The backend answer ends with a "Sources" footer (rich `[N] label: value`
@@ -201,6 +202,8 @@ export interface GridCell {
     rounds?: number;
     contradictions?: string[];
     roundHistory?: Array<{ answer: string; figures: string[] }>;
+    // AC-1 agentic trace (optional + additive — legacy cells render unchanged)
+    steps?: CellStep[];
 }
 
 export interface GridState {
