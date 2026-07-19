@@ -11,6 +11,7 @@
 // It does NOT own React rendering or persistence; those live in stores + pages.
 
 import type { Citation, ResearchModelId } from './deepResearchService';
+import type { TrustScore } from './gridTrust';
 import { queryGravityRAG, formatRAGSourcesForPrompt, type GravityRAGResult } from './gravitySearchService';
 
 // The backend answer ends with a "Sources" footer (rich `[N] label: value`
@@ -162,6 +163,11 @@ export interface GridCell {
     durationMs?: number;
     modelUsed?: ResearchModelId | string;
     ragUsed?: boolean;
+    // GT-2 trust layer (all optional — old saved runs stay loadable, row 11)
+    trust?: TrustScore;
+    rounds?: number;
+    contradictions?: string[];
+    roundHistory?: Array<{ answer: string; figures: string[] }>;
 }
 
 export interface GridState {

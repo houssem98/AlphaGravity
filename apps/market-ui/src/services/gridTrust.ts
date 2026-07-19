@@ -118,3 +118,125 @@ export function scoreCellTrust(cell: GridCell): TrustScore {
 
     return { grade, score, reasons };
 }
+
+// ─── GT-2: figure consensus + round merging (Section 4 rows 3, 4, 5, 9, 10) ──
+
+// Canonical form for one extractFigures() token so $97,690M ≡ $97.69B.
+// Percentages are their own kind ("pct:46" never equals plain "46").
+const UNIT_MULT: Record<string, number> = {
+    k: 1e3, m: 1e6, million: 1e6, b: 1e9, bn: 1e9, billion: 1e9, trillion: 1e12,
+};
+
+export function normalizeFigure(fig: string): string {
+    const s = fig.toLowerCase().replace(/[\s,]/g, '');
+    const m = s.match(/^\$?(\d+(?:\.\d+)?)(%|bn|billion|trillion|million|[mbk])?$/);
+    if (!m) return s;
+    if (m[2] === '%') return `pct:${Number(parseFloat(m[1]).toPrecision(12))}`;
+    const value = parseFloat(m[1]) * (UNIT_MULT[m[2] ?? ''] ?? 1);
+    return String(Number(value.toPrecision(12)));
+}
+
+const canonValue = (fig: string): number =>
+    parseFloat(normalizeFigure(fig).replace(/^pct:/, ''));
+
+export interface FigureConsensus {
+    agree: string[];                          // r1 figures re-derived by round 2
+    conflict: Array<{ r1: string; r2: string }>; // both values captured (row 4)
+    unverified: string[];                     // r2 figures absent from r2 evidence (row 5)
+}
+
+// r2EvidenceText = the round-2 citations' text (titles + source passages).
+// Row 5: an r2 figure that does not appear there can never reach agree/conflict.
+export function consensusFigures(r1: string[], r2: string[], r2EvidenceText: string): FigureConsensus {
+    const evidence = new Set(extractFigures(r2EvidenceText).map(normalizeFigure));
+    const verified: string[] = [];
+    const unverified: string[] = [];
+    for (const f of r2) (evidence.has(normalizeFigure(f)) ? verified : unverified).push(f);
+
+    const verifiedNorms = new Set(verified.map(normalizeFigure));
+    const agree = r1.filter(f => verifiedNorms.has(normalizeFigure(f)));
+    const agreeNorms = new Set(agree.map(normalizeFigure));
+    const r1Left = r1.filter(f => !agreeNorms.has(normalizeFigure(f)));
+    const r2Left = verified.filter(f => !agreeNorms.has(normalizeFigure(f)));
+
+    // Pair leftovers within the same kind (pct vs magnitude) in value order —
+    // deterministic conflict pairing without metric labels.
+    const conflict: Array<{ r1: string; r2: string }> = [];
+    for (const kind of ['pct', 'num']) {
+        const ofKind = (f: string) => (normalizeFigure(f).startsWith('pct:') ? 'pct' : 'num') === kind;
+        const a = r1Left.filter(ofKind).sort((x, y) => canonValue(x) - canonValue(y));
+        const b = r2Left.filter(ofKind).sort((x, y) => canonValue(x) - canonValue(y));
+        for (let i = 0; i < Math.min(a.length, b.length); i += 1) conflict.push({ r1: a[i], r2: b[i] });
+    }
+    return { agree, conflict, unverified };
+}
+
+const HISTORY_MAX = 3;      // bounded per Section 3
+const ANSWER_TRUNC = 2000;  // keep JSONB rows small
+
+// Merge a verification round into the round-1 cell. The r1 prose is ALWAYS the
+// answer that survives — round 2 only verifies; its figures are never adopted
+// into the cell (row 5). Grade A is earned here and only here (row 3).
+export function mergeRounds(r1: GridCell, r2: GridCell): GridCell {
+    // Row 10: cancelled/error/empty verification round → round-1 cell intact.
+    if (r2.status !== 'done' || !r2.answer) return r1;
+
+    // Verifying a broken r1 (error/cancelled — graded F, so re-run): the fresh
+    // round IS the answer now; score it as a round-1 cell.
+    if (r1.status !== 'done' || !r1.answer) {
+        return {
+            ...r2,
+            rounds: (r1.rounds ?? 1) + 1,
+            roundHistory: [{ answer: r2.answer.slice(0, ANSWER_TRUNC), figures: extractFigures(r2.answer) }],
+            trust: scoreCellTrust(r2),
+        };
+    }
+
+    const r1Figs = extractFigures(r1.answer);
+    const r2Figs = extractFigures(r2.answer);
+    const evidenceText = (r2.citations ?? [])
+        .map(c => [c.title, c.sourceData?.text].filter(Boolean).join(' '))
+        .join('\n');
+    const consensus = consensusFigures(r1Figs, r2Figs, evidenceText);
+
+    const rounds = (r1.rounds ?? 1) + 1;
+    const roundHistory = [
+        ...(r1.roundHistory ?? [{ answer: r1.answer.slice(0, ANSWER_TRUNC), figures: r1Figs }]),
+        { answer: r2.answer.slice(0, ANSWER_TRUNC), figures: r2Figs },
+    ].slice(-HISTORY_MAX);
+
+    const merged: GridCell = { ...r1, rounds, roundHistory };
+    const base = scoreCellTrust(merged);
+
+    const newContradictions = consensus.conflict.map(c => `round1: ${c.r1} vs round2: ${c.r2}`);
+    const contradictions = [...(r1.contradictions ?? []), ...newContradictions];
+
+    if (contradictions.length > 0) {
+        // Row 9: contradiction → grade capped at D, both values surfaced.
+        merged.contradictions = contradictions;
+        merged.trust = {
+            grade: base.grade === 'F' ? 'F' : 'D',
+            score: Math.min(base.score, 45),
+            reasons: [`${contradictions.length} figure contradiction(s) across rounds`, ...contradictions],
+        };
+        return merged;
+    }
+
+    const stable = consensus.agree.length > 0;
+    if (stable && base.grade === 'B' && !base.honest) {
+        // Row 3: A = RAG + resolving citations (grade B implies both) + stability.
+        merged.trust = {
+            grade: 'A',
+            score: Math.max(base.score, 90),
+            reasons: [`${consensus.agree.length} figure(s) stable across ${rounds} rounds`, ...base.reasons],
+        };
+    } else {
+        const reasons = [...base.reasons,
+            stable ? 'figures stable but grounding insufficient for A' : 'no figure overlap across rounds — not promoted'];
+        if (consensus.unverified.length > 0) {
+            reasons.push(`unverified round-2 figure(s) ignored: ${consensus.unverified.join(', ')}`);
+        }
+        merged.trust = { ...base, reasons };
+    }
+    return merged;
+}
