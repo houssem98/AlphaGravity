@@ -13,7 +13,7 @@
     "eval": "node scripts/run-eval.mjs fixtures",
     "eval:synthetic": "node scripts/run-eval.mjs synthetic",
     "eval:loop": "vitest run eval/loopSelfImprove.test.ts",
-    "probe": "node scripts/grid-numeric-probe.mjs"
+    "probe": "tsx scripts/grid-numeric-probe.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

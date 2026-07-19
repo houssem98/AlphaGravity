@@ -5,8 +5,16 @@
 // answer or its citations. This is a network/live probe, NOT a unit test — it is
 // deliberately kept out of `npm run test` so the unit suite stays deterministic.
 //
-// Usage: node scripts/grid-numeric-probe.mjs   (or `npm run probe`)
+// Usage: npx tsx scripts/grid-numeric-probe.mjs   (or `npm run probe`)
 //   VITE_GRAVITY_API_URL overrides the target (default prod).
+//
+// GT-7: each probe answer is also scored with scoreCellTrust (grade must be
+// B-equivalent or better for XBRL-backed answers), and a deliberately-wrong
+// planted figure must be caught by consensusFigures as a conflict.
+// Runs under tsx (not plain node) so it can import the TS trust helpers.
+
+import { scoreCellTrust, consensusFigures } from '../src/services/gridTrust';
+import { extractFigures } from '../src/services/gridResearch';
 
 const API = process.env.VITE_GRAVITY_API_URL || 'https://gravity-api-prod.fly.dev';
 
@@ -35,8 +43,20 @@ async function search(query) {
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
+    const citations = (d.citations || []).map(c => ({
+        id: c.id, title: c.source || `Source ${c.id}`, url: c.url || `gravity://source/${c.id}`,
+        source: 'gravity', sourceData: { text: c.text || '' },
+    }));
     const cites = (d.citations || []).map(c => `${c.source || ''} ${c.text || ''}`).join(' ');
-    return `${d.answer || ''} ${cites}`;
+    return { hay: `${d.answer || ''} ${cites}`, answer: d.answer || '', citations };
+}
+
+// GT-7: grade a live probe answer exactly as the grid would grade the cell.
+function gradeProbe(answer, citations) {
+    return scoreCellTrust({
+        ticker: 'PROBE', promptId: 'probe', status: 'done',
+        answer, citations, ragUsed: true,
+    });
 }
 
 // Broad multi-year recall — ONE range query must surface EVERY year, not just the
@@ -60,32 +80,50 @@ const hasFig = (hay, fig) =>
     hay.includes(fig) || hay.replace(/[^0-9]/g, '').includes(fig.replace(/,/g, ''));
 
 for (const p of PROBES) {
-    let hay;
+    let res;
     try {
-        hay = await search(p.q);
+        res = await search(p.q);
     } catch (e) {
         fail++; failures.push(`${p.label}: ${p.fig} (query failed: ${e.message})`);
         console.log(`  FAIL  ${p.label} — query error: ${e.message}`);
         continue;
     }
-    if (hasFig(hay, p.fig)) { pass++; console.log(`  ok    ${p.label}: ${p.fig}`); }
-    else { fail++; failures.push(`${p.label}: ${p.fig}`); console.log(`  FAIL  ${p.label}: ${p.fig} — not found`); }
+    const trust = gradeProbe(res.answer, res.citations);
+    const trustOk = trust.grade === 'A' || trust.grade === 'B';
+    if (hasFig(res.hay, p.fig)) { pass++; console.log(`  ok    ${p.label}: ${p.fig} [grade ${trust.grade}/${trust.score}]`); }
+    else { fail++; failures.push(`${p.label}: ${p.fig}`); console.log(`  FAIL  ${p.label}: ${p.fig} — not found [grade ${trust.grade}]`); }
+    // GT-7: an XBRL-backed answer must grade B-equivalent or better.
+    if (trustOk) { pass++; }
+    else { fail++; failures.push(`${p.label}: trust ${trust.grade} < B (${trust.reasons.join(' · ')})`); console.log(`  FAIL  ${p.label}: trust ${trust.grade} < B`); }
 }
 
 for (const b of BROAD) {
-    let hay;
+    let res;
     try {
-        hay = await search(b.q);
+        res = await search(b.q);
     } catch (e) {
         for (const f of b.figs) { fail++; failures.push(`${b.label}: ${f} (query failed: ${e.message})`); }
         console.log(`  FAIL  ${b.label} — query error: ${e.message}`);
         continue;
     }
     for (const f of b.figs) {
-        if (hasFig(hay, f)) { pass++; console.log(`  ok    ${b.label}: ${f}`); }
+        if (hasFig(res.hay, f)) { pass++; console.log(`  ok    ${b.label}: ${f}`); }
         else { fail++; failures.push(`${b.label}: ${f}`); console.log(`  FAIL  ${b.label}: ${f} — not found in one broad query`); }
     }
 }
 
-console.log(`\n${pass} passed, ${fail} failed (of ${pass + fail} numeric assertions)`);
-if (fail > 0) { console.error('\nMissing figures:', failures); process.exit(1); }
+// GT-7 conflict canary (offline, deterministic): a deliberately-wrong figure
+// planted in a round-2 answer MUST surface as a conflict, never merge silently.
+{
+    const r1 = extractFigures('AAPL revenue was $274,515M [1].');
+    const planted = extractFigures('AAPL revenue was $999,999M [1].');
+    const consensus = consensusFigures(r1, planted, 'total net sales $999,999 million per 10-K');
+    const caught = consensus.conflict.length === 1
+        && consensus.conflict[0].r1.includes('274,515')
+        && consensus.conflict[0].r2.includes('999,999');
+    if (caught) { pass++; console.log(`  ok    conflict canary: planted $999,999M caught vs $274,515M`); }
+    else { fail++; failures.push(`conflict canary: planted wrong figure NOT caught (${JSON.stringify(consensus)})`); console.log(`  FAIL  conflict canary`); }
+}
+
+console.log(`\n${pass} passed, ${fail} failed (of ${pass + fail} assertions)`);
+if (fail > 0) { console.error('\nFailures:', failures); process.exit(1); }
