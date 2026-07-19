@@ -29,7 +29,11 @@ import {
     type CellRunnerDeps,
 } from '../../services/gridResearch';
 import { queryGravityRAG } from '../../services/gravitySearchService';
+import { scoreCellTrust, chipPropsFor, needsRerun, type TrustChipProps, type TrustScore } from '../../services/gridTrust';
+import { runGridRounds } from '../../services/gridTrustRunner';
 import { saveGridRun, loadLatestGridRun, listGridRuns, loadGridRun, deleteGridRun, type SavedGridRow } from '../../services/gridStore';
+import { useGridRunStore, gridAbort } from '../../stores/gridRunStore';
+import EdgarLink, { parseFilingTitle } from '../EdgarLink';
 import { exportGridToXLSX, downloadBlob } from '../../services/gridExcel';
 import { buildShareLink, readSharedGridFromUrl, clearSharedGridFromUrl } from '../../services/gridShare';
 import { recordExport } from '../../services/auditClient';
@@ -113,8 +117,12 @@ export default function GridView() {
     // NL custom columns: analyst-authored prompts on top of the seed set.
     const [customPrompts, setCustomPrompts] = useState<GridPrompt[]>([]);
     const [newColInput, setNewColInput] = useState('');
-    const [state, setState] = useState<GridState | null>(null);
-    const [running, setRunning] = useState(false);
+    // Run state lives in a store, not here — mode switches unmount GridView and
+    // a running grid must survive that (see gridRunStore).
+    const state = useGridRunStore(s => s.gridState);
+    const setState = useGridRunStore(s => s.setGridState);
+    const running = useGridRunStore(s => s.running);
+    const setRunning = useGridRunStore(s => s.setRunning);
     const [selectedCell, setSelectedCell] = useState<GridCell | null>(null);
     const [editingCell, setEditingCell] = useState<{ ticker: string; promptId: string } | null>(null);
     const [editPrompt, setEditPrompt] = useState<string>("");
@@ -127,15 +135,17 @@ export default function GridView() {
     const [copiedCell, setCopiedCell] = useState<string | null>(null);
     const [shareMsg, setShareMsg] = useState<string | null>(null);
     // Cells whose figures changed vs the previous run (P2.3 change-alerts).
-    const [changedCells, setChangedCells] = useState<Set<string>>(new Set());
+    const changedCells = useGridRunStore(s => s.changedCells);
+    const setChangedCells = useGridRunStore(s => s.setChangedCells);
     const [sourceViewer, setSourceViewer] = useState<SourceViewerData | null>(null);
     const [chunkFullText, setChunkFullText] = useState<string | null>(null);
     // P4-b throughput: actual wall-time + cells/sec for the last run, so the
     // /100-cell SLA is measurable (was unmeasured).
-    const [runStats, setRunStats] = useState<{ cells: number; wallS: number; per100S: number } | null>(null);
+    const runStats = useGridRunStore(s => s.runStats);
+    const setRunStats = useGridRunStore(s => s.setRunStats);
     const [burst, setBurst] = useState(false);
     const [activeCitation, setActiveCitation] = useState<number | null>(null);
-    const abortRef = useRef<AbortController | null>(null);
+    const abortRef = gridAbort;
     const searchInputRef = useRef<HTMLInputElement | null>(null);
 
     // Click an inline [N] citation → reveal & highlight that source below.
@@ -162,6 +172,16 @@ export default function GridView() {
     // restore the user's last run (best-effort; silent on failure/signed-out).
     useEffect(() => {
         let cancelled = false;
+        // Remount with a run already in the store (mode switch mid-run): adopt
+        // it instead of restoring the last saved run, which would clobber it.
+        const live = useGridRunStore.getState().gridState;
+        if (live) {
+            setTickersInput(live.def.tickers.join(', '));
+            setPromptIds(live.def.prompts.map(p => p.id));
+            setCustomPrompts(customFromDef(live.def));
+            refreshHistory();
+            return () => { cancelled = true; };
+        }
         const shared = readSharedGridFromUrl();
         if (shared) {
             setState(shared);
@@ -501,6 +521,48 @@ export default function GridView() {
         await refreshHistory();
     };
 
+    // GT-4: continuation hardening — verification rounds over the CURRENT run
+    // state (round 1 is never re-run). Same abort + store plumbing as startRun.
+    const hardenRun = async () => {
+        if (!state || running) return;
+        setRunning(true);
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const deps: CellRunnerDeps = {
+            callLLM: (prompt, signal) => callLLMProxy(prompt, selectedModel, signal),
+            searchGravity: searchGravityCell,
+        };
+        try {
+            const final = await runGridRounds(state.def, deps, {
+                maxRounds: 3,
+                resumeState: state,
+                signal: controller.signal,
+                onCellUpdate: (s) => setState({ ...s }),
+            });
+            setState(final);
+            saveGridRun(final).then(() => refreshHistory()).catch(() => { /* ignore */ });
+        } finally {
+            abortRef.current = null;
+            setRunning(false);
+        }
+    };
+
+    // Lazy trust over the current run (row 11: old runs without trust never
+    // throw — score on render). Synthesis cells are never graded.
+    const trustSummary = useMemo(() => {
+        if (!state) return null;
+        let belowB = 0, rerunnable = 0, contradictions = 0, maxRounds = 1;
+        for (const c of Object.values(state.cells)) {
+            if (c.ticker === 'ALL' || c.status !== 'done') continue;
+            const t = c.trust ?? scoreCellTrust(c);
+            if (t.grade !== 'A' && t.grade !== 'B') belowB += 1;
+            if (needsRerun(t)) rerunnable += 1;
+            if (c.contradictions?.length) contradictions += 1;
+            if ((c.rounds ?? 1) > maxRounds) maxRounds = c.rounds ?? 1;
+        }
+        return { belowB, rerunnable, contradictions, maxRounds };
+    }, [state]);
+
     const cancelRun = () => {
         abortRef.current?.abort();
         if (state) {
@@ -807,6 +869,12 @@ export default function GridView() {
                                 <AnimatedCount value={progress.done} />/{progress.total} DONE
                                 {progress.failed > 0 && <span className="text-[#ff4444]"> · {progress.failed} FAILED</span>}
                                 {progress.cancelled > 0 && <span className="text-[#888]"> · {progress.cancelled} CANCELLED</span>}
+                                {trustSummary && trustSummary.maxRounds > 1 && (
+                                    <span title={`Verification rounds ran (max ${trustSummary.maxRounds} rounds on a cell)`} className="text-[#00ff9d]"> · ⛨ HARDENED R{trustSummary.maxRounds}</span>
+                                )}
+                                {trustSummary && trustSummary.contradictions > 0 && (
+                                    <span title="Cells where verification found a conflicting figure" className="text-[#ff4444]"> · ⚠ {trustSummary.contradictions} CONFLICT{trustSummary.contradictions > 1 ? 'S' : ''}</span>
+                                )}
                                 <ParticleBurst show={burst} />
                             </span>
                         )}
@@ -821,6 +889,17 @@ export default function GridView() {
                                 <Clock className="w-3 h-3" />
                                 {runStats.per100S}s/100
                             </span>
+                        )}
+
+                        {state && !running && progress && progress.done > 0 && trustSummary && trustSummary.belowB > 0 && (
+                            <button
+                                onClick={hardenRun}
+                                title={`${trustSummary.belowB} cell(s) below grade B — ${trustSummary.rerunnable} will be adversarially re-verified (grade D/F only)`}
+                                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-[#0a0a0a] bg-[#00ff9d] hover:shadow-md hover:shadow-[#00ff9d]/40 active:scale-95 transition-all uppercase tracking-wider"
+                            >
+                                <Check className="w-3.5 h-3.5" />
+                                Harden
+                            </button>
                         )}
 
                         {state && !running && progress && progress.done > 0 && (
@@ -865,36 +944,66 @@ export default function GridView() {
                                 <button
                                     onClick={() => setHistoryOpen(o => !o)}
                                     title="Recent runs"
-                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs text-[color:var(--text-2)] border border-[color:var(--line)] hover:text-[color:var(--text)] hover:border-[color:var(--line-strong)] transition-colors"
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-[color:var(--text-2)] border border-[color:var(--line)] hover:text-[color:var(--text)] hover:border-[color:var(--text-2)] hover:shadow-sm hover:bg-[color:var(--surface-2)] transition-all"
                                 >
                                     <Clock className="w-3.5 h-3.5" />
                                     History ({history.length})
                                 </button>
                                 {historyOpen && (
                                     <>
-                                        <div className="fixed inset-0 z-30" onClick={() => setHistoryOpen(false)} />
-                                        <div className="absolute right-0 mt-1 w-[320px] max-h-[360px] overflow-y-auto rounded-sm bg-[color:var(--surface-2)] border border-[color:var(--line)] shadow-lg z-40">
-                                            {history.map(row => (
-                                                <div
-                                                    key={row.id}
-                                                    onClick={() => handleLoadHistory(row.id)}
-                                                    className="flex items-start gap-2 px-3 py-2 cursor-pointer hover:bg-[color:var(--surface)] border-b border-[color:var(--line)] last:border-b-0"
-                                                >
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-xs text-[color:var(--text)] truncate">{row.name}</div>
-                                                        <div className="label mt-0.5">
-                                                            {new Date(row.created_at).toLocaleString()}
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        onClick={(e) => handleDeleteHistory(row.id, e)}
-                                                        title="Delete"
-                                                        className="p-1 rounded-sm text-[color:var(--text-4)] hover:text-[color:var(--down)] hover:bg-[color:var(--surface)]"
-                                                    >
-                                                        <Trash2 className="w-3 h-3" />
-                                                    </button>
+                                        <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setHistoryOpen(false)} />
+                                        <div className="fixed inset-y-0 right-0 w-[400px] max-w-full z-50 flex flex-col" style={{ background: 'var(--bg)', borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+                                            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-5 h-5 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] text-[10px] font-bold flex items-center justify-center">
+                                                        {history.length}
+                                                    </span>
+                                                    <span className="text-xs font-semibold text-white">History</span>
                                                 </div>
-                                            ))}
+                                                <button onClick={() => setHistoryOpen(false)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
+                                                    <X className="w-4 h-4 text-[var(--text-2)]" />
+                                                </button>
+                                            </div>
+                                            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2">
+                                                {history.map(row => {
+                                                    const cells = Object.values(row.cells ?? {});
+                                                    const rag = cells.some(c => c.ragUsed);
+                                                    const preview = cells.find(c => c.answer)?.answer;
+                                                    return (
+                                                        <div
+                                                            key={row.id}
+                                                            onClick={() => handleLoadHistory(row.id)}
+                                                            className="group flex items-start gap-2 rounded-lg bg-white/[0.03] border border-white/[0.06] p-3 cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12] transition-colors"
+                                                        >
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-1.5">
+                                                                    <span className="text-xs font-semibold text-white truncate">{row.name}</span>
+                                                                    {rag && (
+                                                                        <span className="shrink-0 px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] text-[9px] uppercase tracking-wider">
+                                                                            RAG
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {preview && (
+                                                                    <p className="text-xs leading-relaxed text-[var(--text-2)] line-clamp-2">
+                                                                        {preview.replace(/[*#`]/g, '')}
+                                                                    </p>
+                                                                )}
+                                                                <p className="text-[10px] text-[var(--text-3)] mt-1.5">
+                                                                    {new Date(row.created_at).toLocaleString()}
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                onClick={(e) => handleDeleteHistory(row.id, e)}
+                                                                title="Delete"
+                                                                className="p-1.5 rounded-lg text-[var(--text-3)] opacity-0 group-hover:opacity-100 hover:bg-white/10 hover:text-[color:var(--down)] transition-all"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     </>
                                 )}
@@ -1161,6 +1270,16 @@ export default function GridView() {
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
+                        {selectedCell.contradictions && selectedCell.contradictions.length > 0 && (
+                            <div className="mb-6 px-4 py-3 rounded-lg bg-[#ff4444]/10 border border-[#ff4444]/30">
+                                <p className="text-xs font-bold text-[#ff6666] uppercase tracking-wider mb-2">
+                                    ⚠ Verification conflicts — both values shown, neither auto-resolved
+                                </p>
+                                <ul className="space-y-1 text-xs text-[#ffb0b0] font-mono">
+                                    {selectedCell.contradictions.map((c, i) => <li key={i}>{c}</li>)}
+                                </ul>
+                            </div>
+                        )}
                         <div className="mb-6">
                             <CellAnswer
                                 text={selectedCell.answer ?? ''}
@@ -1195,6 +1314,15 @@ export default function GridView() {
                                         <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[color:color-mix(in_oklch,var(--accent)_25%,transparent)] text-[color:var(--accent)] border border-[color:color-mix(in_oklch,var(--accent)_40%,transparent)]">
                                             SEC RAG
                                         </span>
+                                    </>
+                                )}
+                                {selectedCell.status === 'done' && selectedCell.ticker !== 'ALL' && (
+                                    <>
+                                        <span className="opacity-40">•</span>
+                                        <TrustChip trust={selectedCell.trust ?? scoreCellTrust(selectedCell)} />
+                                        {(selectedCell.rounds ?? 1) > 1 && (
+                                            <span className="text-[10px] font-bold text-[#00ff9d]">R{selectedCell.rounds}</span>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -1325,7 +1453,25 @@ export default function GridView() {
                                 return <p className="whitespace-pre-wrap">{full}</p>;
                             })()}
                         </div>
-                        {sourceViewer.url && (
+                        {/* Resolve to the real filing document (same as Quick Answer),
+                            falling back to the citation's own url when there's no ticker. */}
+                        {sourceViewer.ticker ? (() => {
+                            const fromTitle = parseFilingTitle(sourceViewer.title);
+                            // Deliberately NOT sourceViewer.date: for XBRL facts that is
+                            // financials.filing_date, which holds the period END
+                            // (FY2021 -> 2021-12-31), not the SEC filed date
+                            // (2022-02-07). Feeding a period end to the resolver silently
+                            // returns the company's LATEST filing instead of the cited one.
+                            return (
+                                <EdgarLink
+                                    ticker={sourceViewer.ticker}
+                                    snippet={sourceViewer.text}
+                                    filingType={fromTitle.filingType || sourceViewer.documentType || ''}
+                                    filingDate={fromTitle.filingDate}
+                                    className="inline-flex items-center gap-1.5 mt-4 text-xs font-semibold text-[color:var(--accent)] hover:underline"
+                                />
+                            );
+                        })() : sourceViewer.url && (
                             <a
                                 href={safeUrl(sourceViewer.url)}
                                 target="_blank"
@@ -1340,6 +1486,24 @@ export default function GridView() {
                 </div>
             )}
         </div>
+    );
+}
+
+// GT-4 row 12: grade chip. F/D red, C amber, A/B green, honest-empty cyan
+// ("honest" styling, never failure styling). Tooltip lists the earned reasons.
+const CHIP_CLASSES: Record<TrustChipProps['tone'], string> = {
+    green: 'bg-[#00ff9d]/15 text-[#00ff9d] border border-[#00ff9d]/40',
+    honest: 'bg-[#00d9ff]/15 text-[#00d9ff] border border-[#00d9ff]/40',
+    amber: 'bg-amber-400/15 text-amber-300 border border-amber-400/40',
+    red: 'bg-[#ff4444]/15 text-[#ff6666] border border-[#ff4444]/40',
+};
+
+function TrustChip({ trust }: { trust: TrustScore }) {
+    const p = chipPropsFor(trust);
+    return (
+        <span title={p.title} className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${CHIP_CLASSES[p.tone]}`}>
+            {p.label}
+        </span>
     );
 }
 
@@ -1364,6 +1528,8 @@ function CellContent({ cell, loading }: { cell?: GridCell; loading?: boolean }) 
     }
     const isNoData = cell.modelUsed === 'no-sources';
     const excerpt = (cell.answer ?? '').slice(0, 120);
+    // Row 11: saved runs without trust score lazily on render; synthesis never graded.
+    const trust = cell.ticker !== 'ALL' ? (cell.trust ?? scoreCellTrust(cell)) : undefined;
 
     // Self-contained "module card" per design spec §6.2:
     // faint cyan border, rounded corners, top-left badge, padded body.
@@ -1374,15 +1540,29 @@ function CellContent({ cell, loading }: { cell?: GridCell; loading?: boolean }) 
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             className="card-module p-2.5 space-y-1.5"
         >
-            {(isNoData || cell.ragUsed) && (
-                <div className="inline-block">
+            {(isNoData || cell.ragUsed || trust) && (
+                <div className="flex items-center gap-1 flex-wrap">
                     {isNoData ? (
                         <span className="inline-block px-1.5 py-0.5 rounded text-[8px] font-bold bg-[#888]/20 text-[#888] uppercase tracking-wider">
                             FLAG
                         </span>
-                    ) : (
+                    ) : cell.ragUsed ? (
                         <span className="inline-block px-1.5 py-0.5 rounded text-[8px] font-bold bg-[#00f0ff]/20 text-[#00f0ff] uppercase tracking-wider">
                             RAG
+                        </span>
+                    ) : null}
+                    {trust && <TrustChip trust={trust} />}
+                    {cell.contradictions && cell.contradictions.length > 0 && (
+                        <span
+                            title={`Verification conflict:\n${cell.contradictions.join('\n')}`}
+                            className="inline-block px-1.5 py-0.5 rounded text-[8px] font-bold bg-[#ff4444]/20 text-[#ff6666] border border-[#ff4444]/40 uppercase tracking-wider"
+                        >
+                            ⚠ conflict
+                        </span>
+                    )}
+                    {(cell.rounds ?? 1) > 1 && (
+                        <span title={`${cell.rounds} research rounds`} className="text-[8px] font-bold text-[#00ff9d]">
+                            R{cell.rounds}
                         </span>
                     )}
                 </div>

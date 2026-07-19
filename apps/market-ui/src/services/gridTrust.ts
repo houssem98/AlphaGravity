@@ -119,6 +119,28 @@ export function scoreCellTrust(cell: GridCell): TrustScore {
     return { grade, score, reasons };
 }
 
+// ─── GT-4: trust chip props (Section 4 row 12) ──────────────────────────────
+// Pure mapping TrustScore → chip rendering props. F/D red, C amber, A/B green;
+// honest-empty gets its own tone (honesty is never styled as failure).
+
+export interface TrustChipProps {
+    label: string;                              // 'A'…'F', or 'B·honest'
+    tone: 'green' | 'amber' | 'red' | 'honest';
+    title: string;                              // tooltip = the earned reasons
+}
+
+export function chipPropsFor(trust: TrustScore): TrustChipProps {
+    const tone = trust.honest ? 'honest'
+        : trust.grade === 'A' || trust.grade === 'B' ? 'green'
+        : trust.grade === 'C' ? 'amber'
+        : 'red';
+    return {
+        label: trust.honest ? `${trust.grade}·honest` : trust.grade,
+        tone,
+        title: trust.reasons.join(' · '),
+    };
+}
+
 // ─── GT-2: figure consensus + round merging (Section 4 rows 3, 4, 5, 9, 10) ──
 
 // Canonical form for one extractFigures() token so $97,690M ≡ $97.69B.

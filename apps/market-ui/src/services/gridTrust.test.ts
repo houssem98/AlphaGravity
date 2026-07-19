@@ -2,7 +2,7 @@
 // plus scoring monotonicity. Run: npx vitest run src/services/gridTrust.test.ts
 
 import { describe, it, expect } from 'vitest';
-import { scoreCellTrust, needsRerun, TRUST_THRESHOLD, normalizeFigure, consensusFigures, mergeRounds } from './gridTrust';
+import { scoreCellTrust, needsRerun, TRUST_THRESHOLD, normalizeFigure, consensusFigures, mergeRounds, chipPropsFor } from './gridTrust';
 import { extractFigures, type GridCell } from './gridResearch';
 import type { Citation } from './deepResearchService';
 
@@ -227,6 +227,23 @@ describe('gridTrust — mergeRounds', () => {
     it('row 10: error verification round leaves round-1 cell intact', () => {
         const r2 = mkCell({ status: 'error', error: 'timeout' });
         expect(mergeRounds(r1Grounded, r2)).toBe(r1Grounded);
+    });
+
+    it('row 12: chip tones — A/B green, C amber, D/F red, honest never failure-styled', () => {
+        expect(chipPropsFor({ grade: 'A', score: 92, reasons: ['stable'] }).tone).toBe('green');
+        expect(chipPropsFor({ grade: 'B', score: 74, reasons: [] }).tone).toBe('green');
+        expect(chipPropsFor({ grade: 'C', score: 55, reasons: [] }).tone).toBe('amber');
+        expect(chipPropsFor({ grade: 'D', score: 35, reasons: [] }).tone).toBe('red');
+        expect(chipPropsFor({ grade: 'F', score: 0, reasons: [] }).tone).toBe('red');
+        const honest = chipPropsFor({ grade: 'B', score: 75, reasons: ['honest-empty'], honest: true });
+        expect(honest.tone).toBe('honest');
+        expect(honest.label).toBe('B·honest');
+    });
+
+    it('row 12: chip tooltip carries the earned reasons', () => {
+        const p = chipPropsFor({ grade: 'D', score: 32, reasons: ['no RAG grounding', 'fabricated [9]'] });
+        expect(p.title).toBe('no RAG grounding · fabricated [9]');
+        expect(p.label).toBe('D');
     });
 
     it('roundHistory bounded to 3 entries, answers truncated to 2k chars', () => {
