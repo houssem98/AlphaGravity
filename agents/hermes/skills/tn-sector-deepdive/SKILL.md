@@ -2,7 +2,7 @@
 name: tn-sector-deepdive
 description: Weekly BVMT sector deep-dive - rotates through all 16 board sectors by ISO week, pulls fundamentals + 3-month price change for every ticker in the rotated sector, and appends it to the tn_brief.json blob
 version: 1.0.0
-author: antigravity
+author: alphagravity
 license: MIT
 platforms: [linux, macos, windows]
 metadata:

@@ -31,7 +31,7 @@ export default function AppLayout() {
                 <Link
                     to="/search"
                     className="w-8 h-8 rounded-sm flex items-center justify-center mb-4 bg-[color:color-mix(in_oklch,var(--accent)_12%,transparent)]"
-                    title="Antigravity"
+                    title="AlphaGravity"
                 >
                     <Sparkles className="w-4 h-4 text-[color:var(--accent)]" />
                 </Link>
@@ -68,7 +68,7 @@ export default function AppLayout() {
                         <div className="w-6 h-6 rounded-sm flex items-center justify-center bg-[color:var(--accent)] glint chrome">
                             <Sparkles className="w-3.5 h-3.5 text-[color:var(--accent-ink)]" />
                         </div>
-                        <span className="font-display font-semibold text-h4 text-[color:var(--text)] tracking-tight">Antigravity</span>
+                        <span className="font-display font-semibold text-h4 text-[color:var(--text)] tracking-tight">AlphaGravity</span>
                         <span className="label ml-1">MARKET INTELLIGENCE</span>
                     </div>
                     <div className="flex items-center gap-3">

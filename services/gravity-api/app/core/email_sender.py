@@ -31,7 +31,7 @@ logger = structlog.get_logger()
 
 
 def _from_addr() -> str:
-    return os.getenv("EMAIL_FROM", "no-reply@antigravity.ai")
+    return os.getenv("EMAIL_FROM", "no-reply@alphagravity.ai")
 
 
 def _app_url() -> str:

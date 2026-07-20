@@ -151,7 +151,7 @@ class RateLimiter:
                     detail=(
                         f"Monthly quota exceeded: {monthly_limit} queries/month for "
                         f"'{tier}' tier. Resets 1st of next month. "
-                        f"Upgrade at antigravity.ai/pricing."
+                        f"Upgrade at alphagravity.ai/pricing."
                     ),
                     headers={"Retry-After": str(_month_ttl()), **headers},
                 )

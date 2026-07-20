@@ -64,7 +64,7 @@ async def fetch_pdf(
     url: str,
     timeout: float = _DEFAULT_TIMEOUT,
     max_bytes: int = _MAX_BYTES,
-    user_agent: str = "GravitySearch/1.0 (gravity@antigravity.ai)",
+    user_agent: str = "GravitySearch/1.0 (gravity@alphagravity.ai)",
 ) -> Optional[FetchedPDF]:
     """Download a PDF URL with size cap. Returns None on failure or if not a PDF."""
     import httpx
@@ -119,7 +119,7 @@ async def fetch_and_extract(
             ) as client:
                 resp = await client.get(
                     url,
-                    headers={"User-Agent": "GravitySearch/1.0 (gravity@antigravity.ai)"},
+                    headers={"User-Agent": "GravitySearch/1.0 (gravity@alphagravity.ai)"},
                 )
             if resp.status_code != 200:
                 logger.debug("pdf_fetch_status", url=url, status=resp.status_code)

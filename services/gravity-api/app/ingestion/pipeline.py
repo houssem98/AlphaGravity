@@ -242,7 +242,7 @@ class IngestionPipeline:
             async with httpx.AsyncClient(timeout=60) as client:
                 response = await client.get(
                     url,
-                    headers={"User-Agent": "GravitySearch/1.0 (gravity@antigravity.ai)"},
+                    headers={"User-Agent": "GravitySearch/1.0 (gravity@alphagravity.ai)"},
                     follow_redirects=True,
                 )
                 response.raise_for_status()

@@ -193,7 +193,7 @@ class MCPClient:
                 "tools": {}
             },
             "clientInfo": {
-                "name": "antigravity-gravity-search",
+                "name": "alphagravity-gravity-search",
                 "version": "1.0.0",
             },
         })
@@ -354,7 +354,7 @@ class MCPRegistry:
         registry = MCPRegistry()
 
         # ── Load from .mcp.json files in financial-services-main ──
-        repo_root = Path(__file__).resolve().parents[5]  # → antigravity/
+        repo_root = Path(__file__).resolve().parents[5]  # → alphagravity/
         mcp_json_files = list(
             (repo_root / "financial-services-main" / "plugins").rglob(".mcp.json")
         )

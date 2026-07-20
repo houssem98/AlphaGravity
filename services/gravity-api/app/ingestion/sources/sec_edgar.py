@@ -32,7 +32,7 @@ EDGAR_SUBMISSIONS_URL = "https://data.sec.gov/submissions"
 EDGAR_FULL_INDEX = "https://www.sec.gov/Archives/edgar/full-index"
 
 # Required by EDGAR — change to your real contact info
-USER_AGENT = "GravitySearch/1.0 (gravity@antigravity.ai)"
+USER_AGENT = "GravitySearch/1.0 (gravity@alphagravity.ai)"
 
 # Filing types to monitor.
 # 10-K/Q/8-K = periodic. Form 4 = insider tx. 13F-HR = institutional holdings.

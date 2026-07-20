@@ -1,5 +1,5 @@
 # -------------------------------------------------
-#  Antigravity - Unified Dev Starter (Windows)
+#  AlphaGravity - Unified Dev Starter (Windows)
 # -------------------------------------------------
 #  Usage: .\scripts\dev.ps1
 #  Starts Docker infra + all 4 services with colored output
@@ -11,7 +11,7 @@ Set-Location $root
 
 Write-Host ""
 Write-Host "==============================" -ForegroundColor Cyan
-Write-Host "  Antigravity - Starting Dev  " -ForegroundColor Cyan
+Write-Host "  AlphaGravity - Starting Dev  " -ForegroundColor Cyan
 Write-Host "==============================" -ForegroundColor Cyan
 Write-Host ""
 

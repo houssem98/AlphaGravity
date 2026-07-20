@@ -193,7 +193,7 @@ class EntityResolver:
                 async with httpx.AsyncClient(timeout=15) as client:
                     resp = await client.get(
                         _SEC_TICKERS_URL,
-                        headers={"User-Agent": "GravitySearch/1.0 (gravity@antigravity.ai)"},
+                        headers={"User-Agent": "GravitySearch/1.0 (gravity@alphagravity.ai)"},
                     )
                     resp.raise_for_status()
                     raw = resp.json()
@@ -492,7 +492,7 @@ class EntityResolver:
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(
                     url,
-                    headers={"User-Agent": "GravitySearch/1.0 (gravity@antigravity.ai)"},
+                    headers={"User-Agent": "GravitySearch/1.0 (gravity@alphagravity.ai)"},
                 )
                 if resp.status_code != 200:
                     return {}

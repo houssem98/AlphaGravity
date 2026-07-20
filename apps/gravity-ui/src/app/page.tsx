@@ -52,7 +52,7 @@ export default function HomePage() {
             <Zap className="w-4 h-4 text-white" />
           </div>
           <span className="font-semibold text-white">Gravity Search</span>
-          <span className="text-xs text-slate-500 ml-1">by Antigravity</span>
+          <span className="text-xs text-slate-500 ml-1">by AlphaGravity</span>
         </div>
         <nav className="flex items-center gap-4 text-sm text-slate-500">
           <a href="#" className="hover:text-slate-300 transition-colors">Docs</a>

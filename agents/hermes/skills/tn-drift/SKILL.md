@@ -2,7 +2,7 @@
 name: tn-drift
 description: Cross-source drift check - our TUNINDEX endpoint vs TSE Grafana raw, and our crypto tape (Coinlore) vs Binance spot; reports both sources' numbers side by side and alerts on unexplained divergence
 version: 1.0.0
-author: antigravity
+author: alphagravity
 license: MIT
 platforms: [linux, macos, windows]
 metadata:

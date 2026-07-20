@@ -1,13 +1,13 @@
-# Antigravity
+# AlphaGravity
 
 > **Unified Market Intelligence & Gravity Search Platform**
 
-A monorepo containing the full Antigravity platform — combining a high-performance hybrid search engine (Gravity) with an AlphaSense-style market intelligence UI.
+A monorepo containing the full AlphaGravity platform — combining a high-performance hybrid search engine (Gravity) with an AlphaSense-style market intelligence UI.
 
 ## Architecture
 
 ```
-antigravity/
+alphagravity/
 ├── apps/
 │   ├── gravity-ui/          Next.js frontend — search interface
 │   └── market-ui/           Vite + React — AlphaSense-style research UI
@@ -35,8 +35,8 @@ antigravity/
 ### 1. Clone & configure
 
 ```bash
-git clone <repo-url> antigravity
-cd antigravity
+git clone <repo-url> alphagravity
+cd alphagravity
 cp .env.example .env
 # Fill in your API keys in .env
 ```

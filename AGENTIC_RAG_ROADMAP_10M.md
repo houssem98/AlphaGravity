@@ -1,4 +1,4 @@
-# Antigravity — Roadmap to 10 Million Documents (Agentic RAG at Scale)
+# AlphaGravity — Roadmap to 10 Million Documents (Agentic RAG at Scale)
 
 **Goal:** scale the agentic RAG system to **10,000,000 source documents** —
 SEC filings, earnings-call transcripts, news, and broker reports — while keeping

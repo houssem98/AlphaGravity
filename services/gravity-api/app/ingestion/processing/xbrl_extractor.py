@@ -561,7 +561,7 @@ async def fetch_company_facts(cik: str) -> dict | None:
     import httpx
     cik_padded = str(int(cik)).zfill(10)
     url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_padded}.json"
-    headers = {"User-Agent": "GravitySearch/1.0 (gravity@antigravity.ai)"}
+    headers = {"User-Agent": "GravitySearch/1.0 (gravity@alphagravity.ai)"}
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(url, headers=headers)

@@ -1,11 +1,11 @@
 #!/bin/bash
-# Deploy Antigravity to Cloud (Fly.io + Vercel)
+# Deploy AlphaGravity to Cloud (Fly.io + Vercel)
 # Usage: bash scripts/deploy-to-cloud.sh
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Antigravity Cloud Deployment"
+echo "  AlphaGravity Cloud Deployment"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -126,7 +126,7 @@ echo "[7/7] Verifying free tier..."
 echo "   Free tier active:"
 echo "     - New users auto-assigned 10 searches/day"
 echo "     - Enforced in app/api/middleware/rate_limit.py"
-echo "     - Test at: https://antigravity.fyi/auth → sign up → try 11 searches"
+echo "     - Test at: https://alphagravity.fyi/auth → sign up → try 11 searches"
 echo ""
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

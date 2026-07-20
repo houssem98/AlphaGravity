@@ -41,7 +41,7 @@ logger = structlog.get_logger()
 
 _REDDIT_BASE = "https://www.reddit.com"
 _STOCKTWITS_BASE = "https://api.stocktwits.com/api/2"
-_USER_AGENT = "GravitySearch/1.0 (gravity@antigravity.ai)"
+_USER_AGENT = "GravitySearch/1.0 (gravity@alphagravity.ai)"
 
 # Subreddits worth searching for equity discussion.
 _DEFAULT_SUBREDDITS = [

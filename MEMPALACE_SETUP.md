@@ -7,18 +7,18 @@ Three-layer local-first AI memory system for gravity-api.
 ### 1. Palace Initialization (Done)
 
 ```bash
-mempalace init ~/.mempalace/antigravity --no-llm
+mempalace init ~/.mempalace/alphagravity --no-llm
 ```
 
-Palace location: `~/.mempalace/antigravity`
+Palace location: `~/.mempalace/alphagravity`
 
 ### 2. Mine Codebase (In Progress)
 
-**Background task started to mine antigravity/**
+**Background task started to mine alphagravity/**
 
 ```bash
-export MEMPALACE_PATH=~/.mempalace/antigravity
-mempalace mine /path/to/antigravity --wing antigravity
+export MEMPALACE_PATH=~/.mempalace/alphagravity
+mempalace mine /path/to/alphagravity --wing alphagravity
 mempalace mine ~/.claude/projects --mode convos --wing claude-sessions
 ```
 
@@ -39,7 +39,7 @@ from app.memory.mempalace_client import MemPalaceClient
 palace = MemPalaceClient()
 
 # Search for RAG patterns
-results = await palace.search("how does fusion work", limit=3, wing="antigravity")
+results = await palace.search("how does fusion work", limit=3, wing="alphagravity")
 
 # Store query for future context
 await palace.store_query(
@@ -64,7 +64,7 @@ Connect in Claude Code settings:
   "mcpServers": {
     "mempalace": {
       "command": "mempalace-mcp",
-      "args": ["--palace", "~/.mempalace/antigravity"]
+      "args": ["--palace", "~/.mempalace/alphagravity"]
     }
   }
 }
@@ -119,8 +119,8 @@ Preserves context across 30-day sessions.
 ```
 Codebase + Queries
      ↓
-  MemPalace Palace (~/.mempalace/antigravity)
-     ├─ Wing: "antigravity" (code)
+  MemPalace Palace (~/.mempalace/alphagravity)
+     ├─ Wing: "alphagravity" (code)
      ├─ Wing: "gravity-api" (queries)
      └─ Wing: "claude-sessions" (conversations)
           ↓ (semantic search via ChromaDB)
@@ -143,7 +143,7 @@ Codebase + Queries
 
 ## Next Steps
 
-1. Wait for mining to complete: `mempalace status --palace ~/.mempalace/antigravity`
+1. Wait for mining to complete: `mempalace status --palace ~/.mempalace/alphagravity`
 2. Wire `palace.search()` into search_pipeline.py context building
 3. Add `palace.store_query()` hook after answer generation
 4. Test with similar queries across sessions

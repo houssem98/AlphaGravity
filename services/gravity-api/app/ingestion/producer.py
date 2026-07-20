@@ -143,7 +143,7 @@ class DocumentProducer:
         import httpx
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                r = await client.get(url, headers={"User-Agent": "GravitySearch/1.0 (gravity@antigravity.ai)"})
+                r = await client.get(url, headers={"User-Agent": "GravitySearch/1.0 (gravity@alphagravity.ai)"})
                 r.raise_for_status()
                 content_type = r.headers.get("content-type", "text/html").split(";")[0].strip()
                 return await self.publish_bytes(

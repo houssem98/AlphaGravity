@@ -94,7 +94,7 @@ Anthropic. Fail-open: proxy down → original context passes, generation never b
 - `QDRANT_URL`, `QDRANT_API_KEY`
 - `VOYAGE_API_KEY`, `COHERE_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`
 - `DEEPSEEK_API_KEY`, `GROQ_API_KEY`, `ANTHROPIC_API_KEY` (no credit)
-- `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USER=houssemzitoub@gmail.com`, `SMTP_PASSWORD`, `EMAIL_FROM=Antigravity <houssemzitoub@gmail.com>`
+- `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USER=houssemzitoub@gmail.com`, `SMTP_PASSWORD`, `EMAIL_FROM=AlphaGravity <houssemzitoub@gmail.com>`
 - `AUTH_JWT_SECRET` (legacy, kept for backward compat)
 - `EDGAR_POLLING_ENABLED` (off by default — OOMs 4GB machine; needs 8GB to enable)
 - `SPLADE_ENABLED=false`, `SPLADE_WARMUP_ENABLED=false`

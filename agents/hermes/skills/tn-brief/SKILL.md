@@ -2,7 +2,7 @@
 name: tn-brief
 description: Generate the nightly TN Daily Brief (TUNINDEX, breadth, top movers, near-highs, engine standout, one-paragraph summary) from live prod data and append it to the tn_brief.json Supabase blob
 version: 1.0.0
-author: antigravity
+author: alphagravity
 license: MIT
 platforms: [linux, macos, windows]
 metadata:

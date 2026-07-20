@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────
-#  Antigravity — Monorepo Makefile
+#  AlphaGravity — Monorepo Makefile
 # ─────────────────────────────────────────────────
 #  make dev       → Start all services (Gravity API + Market Server + both UIs)
 #  make infra     → Docker Compose up (Postgres, Redis, Qdrant, ES, Neo4j)

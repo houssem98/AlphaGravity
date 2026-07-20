@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────
-#  Antigravity — Health Check (Windows)
+#  AlphaGravity — Health Check (Windows)
 # ─────────────────────────────────────────────────
 #  Usage: .\scripts\health-check.ps1
 #  Pings all service and infrastructure endpoints
@@ -9,7 +9,7 @@ $ErrorActionPreference = "SilentlyContinue"
 
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║   🏥 Antigravity — Health Check              ║" -ForegroundColor Cyan
+Write-Host "║   🏥 AlphaGravity — Health Check              ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 

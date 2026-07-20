@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────
-#  Antigravity — Data Seed Script (Windows)
+#  AlphaGravity — Data Seed Script (Windows)
 # ─────────────────────────────────────────────────
 #  Usage: .\scripts\seed.ps1
 
@@ -9,7 +9,7 @@ Set-Location $root
 
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║   🌱 Antigravity — Seeding Data              ║" -ForegroundColor Cyan
+Write-Host "║   🌱 AlphaGravity — Seeding Data              ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 

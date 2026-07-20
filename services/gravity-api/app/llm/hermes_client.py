@@ -1,5 +1,5 @@
 """
-Hermes Agent Adapter for Antigravity
+Hermes Agent Adapter for AlphaGravity
 
 Integrates the NousResearch Hermes Agent framework as a first-class execution engine.
 Hermes is optimized for the Hermes-3 model family, supporting advanced reasoning,

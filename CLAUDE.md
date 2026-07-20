@@ -66,7 +66,7 @@ npm run typecheck     # all JS workspaces
 
 ### Monorepo Layout
 ```
-antigravity/
+alphagravity/
 ├── apps/gravity-ui/        Next.js 15 — conversational search interface
 ├── apps/market-ui/         Vite + React — AlphaSense-style research platform
 ├── services/gravity-api/   FastAPI (Python) — core search + ingestion engine

@@ -39,7 +39,7 @@ from app.core.retrieval.fusion import RetrievalResult
 logger = structlog.get_logger()
 
 
-_USER_AGENT = "GravitySearch/1.0 (gravity@antigravity.ai)"
+_USER_AGENT = "GravitySearch/1.0 (gravity@alphagravity.ai)"
 
 # Free public bases — no auth.
 _DEFILLAMA_BASE = "https://api.llama.fi"

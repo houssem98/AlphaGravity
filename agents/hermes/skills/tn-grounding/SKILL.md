@@ -2,7 +2,7 @@
 name: tn-grounding
 description: MANDATORY grounding policy for all Tunisia (BVMT/TSE) and market data questions - every price, index level, volume, ratio or any other market number MUST come from a curl of an allowlisted endpoint executed in THIS conversation turn, never from memory or training data
 version: 1.0.0
-author: antigravity
+author: alphagravity
 license: MIT
 platforms: [linux, macos, windows]
 metadata:

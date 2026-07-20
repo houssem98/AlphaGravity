@@ -23,7 +23,7 @@ import structlog
 
 logger = structlog.get_logger()
 
-SEC_UA = "antigravity-research houssemzitoub@gmail.com"
+SEC_UA = "alphagravity-research houssemzitoub@gmail.com"
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
 

@@ -608,7 +608,7 @@ def main():
 
     if args.submit_mode:
         submission = {
-            "system": "antigravity/gravity-api",
+            "system": "alphagravity/gravity-api",
             "model": "claude-sonnet-4-6 (router)",
             "harness_version": "vals_ai_v1.1",
             "anchor_date": ANCHOR_DATE,

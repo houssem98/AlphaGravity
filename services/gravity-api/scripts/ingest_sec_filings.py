@@ -83,7 +83,7 @@ def embed_texts(texts: List[str]) -> List[List[float]]:
 
 SEC_BASE = "https://efts.sec.gov/LATEST"
 EDGAR_ARCHIVE = "https://www.sec.gov/Archives/edgar/data"
-USER_AGENT = "Antigravity Research Bot research@antigravity.dev"
+USER_AGENT = "AlphaGravity Research Bot research@alphagravity.dev"
 
 # Major companies to ingest (ticker → CIK)
 COMPANIES = {

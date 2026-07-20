@@ -25,7 +25,7 @@ import sys
 
 import httpx
 
-_UA = {"User-Agent": "GravitySearch-eval/1.0 (eval@antigravity.ai)"}
+_UA = {"User-Agent": "GravitySearch-eval/1.0 (eval@alphagravity.ai)"}
 _SEC_TICKERS = "https://www.sec.gov/files/company_tickers.json"
 _FACTS = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 

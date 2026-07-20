@@ -1,5 +1,5 @@
 /**
- * Antigravity — Shared TypeScript Types
+ * AlphaGravity — Shared TypeScript Types
  *
  * Types shared between market-ui, market-server, and gravity-ui.
  * Import with: import { SearchResult, ResearchReport } from 'shared-types'

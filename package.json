@@ -1,9 +1,9 @@
 {
-    "name": "antigravity",
+    "name": "alphagravity",
     "version": "1.0.0",
     "private": true,
     "type": "module",
-    "description": "Antigravity — Unified Market Intelligence & Gravity Search Platform",
+    "description": "AlphaGravity — Unified Market Intelligence & Gravity Search Platform",
     "workspaces": [
         "apps/*",
         "services/*",

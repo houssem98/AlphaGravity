@@ -171,7 +171,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
             },
         },
     },
-    "app_name": "Antigravity",
+    "app_name": "AlphaGravity",
     "support_email": "",
 }
 
@@ -463,14 +463,14 @@ async def _paypal_checkout(plan: str, user_id: str, amount: float,
         "intent": "CAPTURE",
         "purchase_units": [{
             "reference_id": f"{user_id}:{plan}",
-            "description": f"Antigravity {plan.capitalize()} Plan",
+            "description": f"AlphaGravity {plan.capitalize()} Plan",
             "amount": {"currency_code": "USD", "value": f"{amount:.2f}"},
             "custom_id": user_id,
         }],
         "application_context": {
             "return_url": f"{base_url}{success_path}?provider=paypal",
             "cancel_url": f"{base_url}{cancel_path}",
-            "brand_name": "Antigravity",
+            "brand_name": "AlphaGravity",
             "user_action": "PAY_NOW",
         },
     }
@@ -493,7 +493,7 @@ async def _paypal_checkout(plan: str, user_id: str, amount: float,
 
 def _payoneer_info(plan: str, amount: float, cfg: dict) -> dict:
     email = cfg["providers"]["payoneer"].get("email") or os.getenv("PAYONEER_EMAIL", "")
-    app_name = cfg.get("app_name", "Antigravity")
+    app_name = cfg.get("app_name", "AlphaGravity")
     display_email = email or "your-payoneer@email.com"
     return {
         "method": "Payoneer",
@@ -536,7 +536,7 @@ async def _coinbase_charge(plan: str, user_id: str, amount_usd: float) -> dict:
     if not api_key:
         return {}
     payload = {
-        "name": f"Antigravity {plan.capitalize()} Plan",
+        "name": f"AlphaGravity {plan.capitalize()} Plan",
         "description": f"Monthly subscription — {plan}",
         "pricing_type": "fixed_price",
         "local_price": {"amount": f"{amount_usd:.2f}", "currency": "USD"},
@@ -633,7 +633,7 @@ async def public_config(request: Request):
     return {
         "plans": active_plans,
         "providers": active_providers,
-        "app_name": cfg.get("app_name", "Antigravity"),
+        "app_name": cfg.get("app_name", "AlphaGravity"),
         "support_email": cfg.get("support_email", ""),
     }
 

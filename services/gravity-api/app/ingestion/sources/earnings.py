@@ -32,7 +32,7 @@ ALPHA_VANTAGE_URL = "https://www.alphavantage.co/query"
 _SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _EDGAR_SUBMISSIONS = "https://data.sec.gov/submissions/CIK{cik}.json"
 _EDGAR_ARCHIVES = "https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/{filename}"
-_EDGAR_HEADERS = {"User-Agent": "GravitySearch/1.0 (gravity@antigravity.ai)"}
+_EDGAR_HEADERS = {"User-Agent": "GravitySearch/1.0 (gravity@alphagravity.ai)"}
 
 # Module-level CIK cache (ticker → 10-digit CIK string)
 _cik_cache: dict[str, str] = {}

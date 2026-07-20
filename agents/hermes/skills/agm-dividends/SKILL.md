@@ -2,7 +2,7 @@
 name: agm-dividends
 description: Scan TSE post-AGO publications for approved dividend declarations, extract dividend-per-share with source links, and PROPOSE tn_fundamentals blob updates - never uploads, human confirms every number
 version: 1.0.0
-author: antigravity
+author: alphagravity
 license: MIT
 platforms: [linux, macos, windows]
 metadata:

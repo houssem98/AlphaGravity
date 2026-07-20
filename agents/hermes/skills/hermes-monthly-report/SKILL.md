@@ -2,7 +2,7 @@
 name: hermes-monthly-report
 description: Monthly flywheel maintenance report - real counts of checks run, health pass-rate, alerts fired, brief streak, plus a skill dedupe audit and mean-time-to-detect, from the box's own run history
 version: 1.0.0
-author: antigravity
+author: alphagravity
 license: MIT
 platforms: [linux, macos, windows]
 metadata:

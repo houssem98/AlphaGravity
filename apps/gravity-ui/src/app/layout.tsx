@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Gravity Search — Antigravity",
+  title: "Gravity Search — AlphaGravity",
   description: "Conversational financial search engine. Search SEC filings, earnings transcripts, and market intelligence with AI-powered citations.",
   openGraph: {
     title: "Gravity Search",

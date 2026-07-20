@@ -2,7 +2,7 @@
 name: tn-alerts
 description: Owner watchlist - compile natural-language BVMT alert rules into structured checks and ping the owner on Telegram when a rule fires against live endpoint data
 version: 1.0.0
-author: antigravity
+author: alphagravity
 license: MIT
 platforms: [linux, macos, windows]
 metadata:

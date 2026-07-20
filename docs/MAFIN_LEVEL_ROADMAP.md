@@ -1,4 +1,4 @@
-# Roadmap: antigravity → Mafin-level financial RAG
+# Roadmap: alphagravity → Mafin-level financial RAG
 
 **Goal:** match Mafin 2.5 — ~98.7% FinanceBench, hallucination-free, SEC + earnings
 + real-time, Russell 3000 coverage.

@@ -1,10 +1,10 @@
-# Deploy Antigravity to Cloud (Fly.io + Vercel)
+# Deploy AlphaGravity to Cloud (Fly.io + Vercel)
 # Usage: .\scripts\Deploy-ToCloud.ps1
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-Write-Host "  Antigravity Cloud Deployment" -ForegroundColor Cyan
+Write-Host "  AlphaGravity Cloud Deployment" -ForegroundColor Cyan
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
 Write-Host ""
 
@@ -149,7 +149,7 @@ Write-Host "[7/7] Verifying free tier..." -ForegroundColor Yellow
 Write-Host "   Free tier active:" -ForegroundColor Green
 Write-Host "     - New users auto-assigned 10 searches/day" -ForegroundColor Gray
 Write-Host "     - Enforced in app/api/middleware/rate_limit.py" -ForegroundColor Gray
-Write-Host "     - Test at: https://antigravity.fyi/auth → sign up → try 11 searches" -ForegroundColor Gray
+Write-Host "     - Test at: https://alphagravity.fyi/auth → sign up → try 11 searches" -ForegroundColor Gray
 Write-Host ""
 
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan

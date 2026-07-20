@@ -55,7 +55,7 @@ revenue table, comparing YoY…").
 - Contextual Embeddings + Contextual **BM25**: −49% (5.7% → 2.9%)
 - \+ **Reranking**: up to **−67%** retrieval failure
 
-> Antigravity already chunks-with-metadata-prefix. Upgrade that prefix from static
+> AlphaGravity already chunks-with-metadata-prefix. Upgrade that prefix from static
 > metadata to an **LLM-generated contextual sentence** per chunk. Big, cheap accuracy gain.
 > Source: [Anthropic Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval)
 
@@ -159,7 +159,7 @@ Opus-class model for contradiction detection.
 
 ---
 
-## 5. How this maps onto the existing Antigravity codebase
+## 5. How this maps onto the existing AlphaGravity codebase
 
 Good news: the skeleton already matches. Concrete upgrades:
 

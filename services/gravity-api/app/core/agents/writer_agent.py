@@ -248,7 +248,7 @@ class WriterAgent(BaseAgent):
 
         # For streaming we use a simpler prompt that outputs markdown directly
         streaming_system = (
-            "You are a senior financial research analyst at Antigravity.\n"
+            "You are a senior financial research analyst at AlphaGravity.\n"
             "Synthesize a comprehensive answer from the extracted data.\n\n"
             "Rules:\n"
             "1. Cite every claim as [Source N].\n"

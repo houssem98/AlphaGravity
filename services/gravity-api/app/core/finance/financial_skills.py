@@ -12,7 +12,7 @@ The loader:
      agent system prompts (Writer, Planner)
   4. Loads named agent system prompts for workflow-level guidance
 
-This bridges Anthropic's reference templates into Antigravity's agent pipeline
+This bridges Anthropic's reference templates into AlphaGravity's agent pipeline
 without requiring the Claude plugin runtime.
 """
 
@@ -31,7 +31,7 @@ logger = structlog.get_logger()
 # ── Root path to the financial-services-main plugins directory ──────────
 
 # parents[5] is the repo root in the dev tree (services/gravity-api/app/core/finance
-# → antigravity/). On the Fly image the layout is /app/app/core/finance, which has
+# → alphagravity/). On the Fly image the layout is /app/app/core/finance, which has
 # fewer levels → parents[5] raised IndexError AT IMPORT, killing the ENTIRE
 # app.core.finance package (and with it the RatioEngine — it never loaded in prod).
 try:

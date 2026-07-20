@@ -2,7 +2,7 @@
 name: bvmt-health
 description: Run the BVMT/TN endpoint invariant health check (markets, intraday, history, highs, fundamentals, index vs TSE Grafana, snapshot freshness) against live prod and report one line per check plus the summary verdict
 version: 1.0.0
-author: antigravity
+author: alphagravity
 license: MIT
 platforms: [linux, macos, windows]
 metadata:

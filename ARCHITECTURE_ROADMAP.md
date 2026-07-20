@@ -1,6 +1,6 @@
-# The Antigravity "Path to Perfection" Roadmap
+# The AlphaGravity "Path to Perfection" Roadmap
 
-Based on the honest teardown of the current architecture, here is the strategic roadmap to transform Antigravity from a "world-class prototype" into an **indestructible, production-grade enterprise product.** 
+Based on the honest teardown of the current architecture, here is the strategic roadmap to transform AlphaGravity from a "world-class prototype" into an **indestructible, production-grade enterprise product.** 
 
 The theme of this roadmap is **Subtraction and Consolidation**. We are not adding new AI features; we are ripping out complexity so the Ferrari engine can actually drive on the street.
 

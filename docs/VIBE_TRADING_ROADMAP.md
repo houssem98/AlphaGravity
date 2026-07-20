@@ -2,7 +2,7 @@
 
 Goal: port the highest-leverage patterns from **HKUDS/Vibe-Trading** (MIT,
 verified 2026-07-06: 18,066 stars, created 2026-04-01, pushed same day) into
-antigravity — WITHOUT adopting its stack. We take designs and formulas, not
+alphagravity — WITHOUT adopting its stack. We take designs and formulas, not
 dependencies: data-source fallback chains for our fragile Yahoo/CoinCap
 endpoints, published alpha-factor math for the TN engine score, and their
 multi-agent committee composition for deep research. Source of truth =

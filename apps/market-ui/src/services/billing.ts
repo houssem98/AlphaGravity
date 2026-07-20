@@ -82,7 +82,7 @@ export interface BillingConfig {
 
 // Fallback static data used if the API is unreachable
 const FALLBACK_CONFIG: BillingConfig = {
-    app_name: 'Antigravity',
+    app_name: 'AlphaGravity',
     support_email: '',
     plans: {
         free: {

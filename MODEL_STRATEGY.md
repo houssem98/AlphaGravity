@@ -1,4 +1,4 @@
-# Antigravity — Model Strategy (which model for which feature)
+# AlphaGravity — Model Strategy (which model for which feature)
 
 **Principle:** best tool per task, with automatic failover so no single provider
 outage stops the product. Grounded in June 2026 benchmarks (sources at bottom).

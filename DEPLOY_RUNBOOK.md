@@ -1,4 +1,4 @@
-# Deploy Runbook — Antigravity to Production Cloud
+# Deploy Runbook — AlphaGravity to Production Cloud
 
 **Target:** Ship to cloud with free tier + multi-provider billing (Paddle, PayPal, Payoneer, Crypto). Works from Tunisia.
 
@@ -20,7 +20,7 @@
 
 ## 0 · Prep (20 min)
 
-1. **Buy domain** (Namecheap / Porkbun). Example: `antigravity.fyi`.
+1. **Buy domain** (Namecheap / Porkbun). Example: `alphagravity.fyi`.
 
 2. **Fly.io account:** https://fly.io → sign up (free tier available).
    ```bash
@@ -165,8 +165,8 @@ curl https://market-server-prod.fly.dev/api/health
    VITE_ALPHA_VANTAGE_API_KEY=<your key>
    ```
 4. Deploy. Vercel gives `<slug>.vercel.app`.
-5. Add custom domain: Vercel → Settings → Domains → `antigravity.fyi`. Point DNS per Vercel.
-6. Site live at `https://antigravity.fyi`.
+5. Add custom domain: Vercel → Settings → Domains → `alphagravity.fyi`. Point DNS per Vercel.
+6. Site live at `https://alphagravity.fyi`.
 
 ---
 
@@ -198,7 +198,7 @@ Expected: ~20 min for 121K chunks, ~$3.64 Voyage embedding cost.
 
 Verify free tier:
 ```bash
-# Sign up at https://antigravity.fyi/auth
+# Sign up at https://alphagravity.fyi/auth
 # Check /billing page — should show "Free" plan
 # Try 11 searches in one day — 11th fails with 429 rate limit
 
@@ -243,7 +243,7 @@ Verify free tier:
 
 ### Test checkout
 ```bash
-# Log in at https://antigravity.fyi/auth
+# Log in at https://alphagravity.fyi/auth
 # Go to /billing → click upgrade → select provider
 # Paddle: opens Paddle checkout (test card: 4242)
 # PayPal: OAuth redirect
@@ -256,7 +256,7 @@ Verify free tier:
 ## 7 · Smoke test (30 min)
 
 From a clean browser:
-1. Visit `https://antigravity.fyi/auth`.
+1. Visit `https://alphagravity.fyi/auth`.
 2. Sign up with email + password.
 3. Confirm you're on free plan (10 searches/day).
 4. Submit query "What was Apple revenue in FY 2024?" — verify answer + citations.

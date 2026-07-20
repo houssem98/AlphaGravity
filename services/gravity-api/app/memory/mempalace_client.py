@@ -94,7 +94,7 @@ class MemPalaceClient:
 
     @staticmethod
     def initialize_palace(palace_path: Optional[str] = None) -> None:
-        """Initialize palace and mine antigravity codebase."""
+        """Initialize palace and mine alphagravity codebase."""
         if Palace is None:
             raise ImportError("mempalace not installed")
 
