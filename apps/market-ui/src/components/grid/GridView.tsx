@@ -29,6 +29,7 @@ import {
     type CellRunnerDeps,
 } from '../../services/gridResearch';
 import { queryGravityRAG } from '../../services/gravitySearchService';
+import { searchWeb as tavilySearchWeb } from '../../services/tavilyService';
 import { scoreCellTrust, chipPropsFor, needsRerun, gradeDistribution, withTrust, type TrustChipProps, type TrustScore } from '../../services/gridTrust';
 import { runGridRounds } from '../../services/gridTrustRunner';
 import { localLessonStore, recordLessons, chronicConflictPrompts, chronicUnverifiedPrompts, rewordPromptIfChronic } from '../../services/gridLessons';
@@ -101,6 +102,19 @@ async function fetchFundamentals(ticker: string, signal?: AbortSignal) {
 }
 
 const CELL_TOOLS = { marketQuote: fetchMarketQuote, fundamentals: fetchFundamentals };
+
+// Web fallback (used only when RAG has no sources) — Tavily revived 2026-07-20.
+async function searchWebCell(query: string): Promise<Citation[]> {
+    const { results } = await tavilySearchWeb(query, 5);
+    return results.map((r, i) => ({
+        id: i + 1,
+        title: r.title,
+        url: r.url,
+        source: 'tavily',
+        publishedDate: r.publishedDate,
+        sourceData: { text: r.content },
+    }));
+}
 
 const DEFAULT_TICKERS = ['NVDA', 'AAPL', 'MSFT', 'GOOGL'];
 
@@ -432,6 +446,7 @@ export default function GridView() {
         const deps: CellRunnerDeps = {
             callLLM: (prompt, signal) => callLLMProxy(prompt, selectedModel, signal),
             searchGravity: searchGravityCell,
+            searchWeb: searchWebCell,
             tools: CELL_TOOLS,
             onStep: (t, p, label) => setCellStep(cellKey(t, p), label),
         };
@@ -489,6 +504,7 @@ export default function GridView() {
         const deps: CellRunnerDeps = {
             callLLM: (p, signal) => callLLMProxy(p, selectedModel, signal),
             searchGravity: searchGravityCell,
+            searchWeb: searchWebCell,
             tools: CELL_TOOLS,
             onStep: (t, p, label) => setCellStep(cellKey(t, p), label),
         };
@@ -582,6 +598,7 @@ export default function GridView() {
         const deps: CellRunnerDeps = {
             callLLM: (prompt, signal) => callLLMProxy(prompt, selectedModel, signal),
             searchGravity: searchGravityCell,
+            searchWeb: searchWebCell,
             tools: CELL_TOOLS,
             onStep: (t, p, label) => setCellStep(cellKey(t, p), label),
         };
