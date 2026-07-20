@@ -14,7 +14,7 @@
 // abuse system can fingerprint us cleanly.
 
 export const REDDIT_BASE = 'https://www.reddit.com';
-export const REDDIT_USER_AGENT = 'market-ui/1.0 deep-research client (+https://github.com/houssem98/antigravity)';
+export const REDDIT_USER_AGENT = 'market-ui/1.0 deep-research client (+https://github.com/houssem98/AlphaGravity)';
 
 export interface RedditPost {
     subreddit: string;

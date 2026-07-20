@@ -212,7 +212,7 @@ STPIL class) — no prompt fixes absent input; fixture corrected (BL→reject-
 for-cause), corrected set 45/45=100%. Verdict: prod extraction prompt already
 optimal on replayable signal; coverage lever = OCR/AGM (H3.3), not prompt.
 STPIL metric encodes anti-hallucination: empty excerpt → null only. PR #4:
-https://github.com/houssem98/antigravity/pull/4 (harness+fixture+report).
+https://github.com/houssem98/AlphaGravity/pull/4 (harness+fixture+report).
 2026-07-06 H3.3 — agm-dividends skill LIVE: scanned 15 latest post-AGO pubs,
 captured 8 REAL declared dividends (need ≥3) w/ TSE source PDFs: AL 8.9,
 DH 0.55, ECYCL 0.7 (pay 2025-08-27*), SOTET 0.6 (pay 2026-09-11), AST 3.0
@@ -267,7 +267,7 @@ CLOSED → H2.2 PR next.
 roadmap/world-class): [fn].ts book() comment rewritten OPEN QUESTION→RESOLVED
 with payload evidence linked (captures + numbers). tsc 0 errors,
 comment-only, no deploy needed. AWAITS HUMAN MERGE:
-https://github.com/houssem98/antigravity/pull/3
+https://github.com/houssem98/AlphaGravity/pull/3
 2026-07-06 H3.1 — eval set BUILT: agents/hermes/eval/tn_fundamentals_cases
 .json = 42 accept (ticker+PDF url+expected NI/EPS/FY from live blob) + 4
 PROBED rejects (STPIL no-plausible-scale raw=123456; BTE loss -9,900; TAIR
@@ -318,7 +318,7 @@ substituted DeepSeek as stand-in, documented in report. BASELINE ACCURACY:
 100.0, delta 0. Roadmap gate ("strictly up") NOT MET by construction — 0
 failing cases means GEPA's reflection has nothing to learn from (ceiling
 effect). No-regression gate PASS, prompt unchanged. PR #5:
-https://github.com/houssem98/antigravity/pull/5. Found concurrent
+https://github.com/houssem98/AlphaGravity/pull/5. Found concurrent
 uncommitted edit to api/tn/[fn].ts (Vibe-Trading factor library) from a
 parallel session on this branch — left untouched, verified my H4.2 commit
 (74aa62b) contains only my store()/brief changes.
