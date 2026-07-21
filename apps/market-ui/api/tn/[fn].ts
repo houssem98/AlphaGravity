@@ -91,9 +91,15 @@ const hms = (t: string) => { const [h = '0', m = '0', s = '0'] = String(t).split
 // Re-verify true field semantics against a LIVE session payload (Mon–Fri
 // 09:00–14:00 Tunis) before ever "correcting" sides again.
 function book(l: any) {
-  const s1 = { price: l?.bid || 0, qty: l?.bidQty || 0 };
-  const s2 = { price: l?.ask || 0, qty: l?.askQty || 0 };
-  const [lo, hi] = s1.price <= s2.price ? [s1, s2] : [s2, s1];
+  // BVMT parks the sentinel 88888888 on a side with no resting order instead of
+  // omitting it — same meaning as a zero, and it must never reach the UI as a
+  // price (it rendered as an 88M-dinar ask and an absurd spread).
+  const px = (p: any) => (p > 0 && p !== 88888888 ? p : 0);
+  const s1 = { price: px(l?.bid), qty: l?.bidQty || 0 };
+  const s2 = { price: px(l?.ask), qty: l?.askQty || 0 };
+  // Both sides quoted: enforce the invariant. Only one side: keep its own label
+  // — there is nothing to cross, and swapping would relabel a real bid as an ask.
+  const [lo, hi] = s1.price && s2.price && s1.price > s2.price ? [s2, s1] : [s1, s2];
   return {
     bid: lo.price > 0 ? lo.price : null,
     bidQty: lo.price > 0 ? lo.qty : null,

@@ -613,7 +613,11 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
     <div className="flex-1 bg-[color:var(--bg)] overflow-y-auto">
       {/* Market stats bar (mirrors the crypto global bar) */}
       <div className="border-b border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 flex flex-wrap items-center gap-x-5 gap-y-1">
-        <Stat label="ASSETS" value={market.symbols.length || loadedRows.length} />
+        {/* Registry count is a floor, not the truth: TN's registry list is a
+            10-symbol stub while the BVMT feed returns the full board. Paged
+            Yahoo markets are the reverse — the registry knows all 503 while
+            only a page is loaded. Whichever is larger is the real universe. */}
+        <Stat label="ASSETS" value={Math.max(market.symbols.length, loadedRows.length)} />
         <span className="w-px h-3 bg-[color:var(--line)]" />
         <Stat label="GAINERS" value={<span className="up">{nUp}</span>} />
         <Stat label="LOSERS" value={<span className="down">{nDown}</span>} />
