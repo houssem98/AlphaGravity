@@ -131,37 +131,25 @@ const Delta = ({ pct }: { pct: number }) => {
   );
 };
 
-// Real logos for BVMT names (no logo API for TN) — company site favicon via
-// DuckDuckGo's icon service (no key, permissive CORS). Unmapped tickers and
-// failed loads fall back to the initials placeholder.
-export const TN_DOMAINS: Record<string, string> = {
-  // Banks
-  BIAT: 'biat.com.tn', BT: 'bt.com.tn', ATB: 'atb.com.tn', STB: 'stb.com.tn', BH: 'bh.com.tn',
-  BNA: 'bna.com.tn', UIB: 'uib.com.tn', UBCI: 'ubci.tn', AB: 'amenbank.com.tn', TJARI: 'attijaribank.com.tn',
-  WIFAK: 'wifakbank.com', BTE: 'bte.com.tn',
-  // Leasing / finance
-  ATL: 'atl.com.tn', CIL: 'cil.com.tn', TLS: 'tunisieleasing.tn', BL: 'bestlease.com.tn', TJL: 'attijarileasing.com.tn',
-  // Insurance
-  STAR: 'star.com.tn', AST: 'astree.com.tn', ASSMA: 'maghrebia.com.tn', AMV: 'maghrebia.com.tn',
-  BHASS: 'bhassurance.com.tn', BNASS: 'bna-assurances.com.tn', TRE: 'tunisre.com.tn',
-  // Consumer / holdings / industrials
-  SFBT: 'sfbt.tn', PGH: 'poulinagroupholding.com', DH: 'delice.tn', SAH: 'sah.com.tn', TLNET: 'telnet.tn',
-  ARTES: 'artesautomobile.com', MNP: 'monoprix.tn', TAIR: 'tunisair.com', SOTUV: 'sotuver.tn',
-  ALKIM: 'alkimia.com.tn', NAKL: 'ennakl.com.tn', CC: 'carthagecement.com.tn', CITY: 'citycars.com.tn',
-  SOTET: 'sotetel.com.tn', MGR: 'sotumag.com.tn', OTH: 'onetech-group.com', AL: 'airliquide.com',
-  MAG: 'magasingeneral.tn', LNDOR: 'landor.com.tn', ECYCL: 'eurocycles.com.tn', ASSAD: 'assad.com.tn',
-  CELL: 'cellcom.tn', SMART: 'smart.com.tn', TPR: 'tpr.com.tn', UMED: 'unimed.com.tn',
-  SIPHA: 'siphat.com.tn', SITEX: 'sitex.com.tn', SIAME: 'siame.com.tn', SMD: 'sanimed.com.tn',
-  STIP: 'stip.com.tn', SCB: 'cimentsdebizerte.com.tn', MPBS: 'mpbs.com.tn', SOTEM: 'sotemail.com.tn',
-  ICF: 'icf.com.tn', SOKNA: 'essoukna.com.tn', PLAST: 'officeplast.com.tn', AETEC: 'aetech.com.tn',
-  HL: 'hannibalease.com.tn',
-};
+// Real BVMT company logos, harvested once from each issuer's own website and
+// served from /public — there is no logo API for Tunisian equities, and the
+// favicon services return a generic glyph with HTTP 200 for unknown hosts,
+// which is indistinguishable from a real icon and renders as a fake logo.
+// A ticker absent here has no verified logo and shows its monogram instead.
+// To extend coverage: drop <TICKER>.png in public/logos/tn and add it here.
+const TN_LOGO_TICKERS = new Set([
+  'AB', 'ALKIM', 'AMV', 'ASSMA', 'BL', 'BTE', 'CC', 'CELL', 'DH', 'MNP', 'MPBS', 'NAKL', 'NBL',
+  'OTH', 'PGH', 'SIMPA', 'SITS', 'SMART', 'SMD', 'SOTET', 'SOTUV', 'STAR', 'STPAP', 'TAIR',
+  'TPR', 'TRE', 'UBCI', 'UMED', 'WIFAK',
+]);
+
+export const tnLogo = (sym: string): string | undefined =>
+  TN_LOGO_TICKERS.has(sym) ? `/logos/tn/${sym}.png` : undefined;
 
 const AssetIcon = ({ r, size = 6 }: { r: AssetRow; size?: 5 | 6 }) => {
   const cls = size === 5 ? 'w-5 h-5' : 'w-6 h-6';
   const sym = r.symbol.replace('^', '');
-  const domain = TN_DOMAINS[sym];
-  const src = r.logo || (domain ? `https://icons.duckduckgo.com/ip3/${domain}.ico` : null);
+  const src = r.logo || tnLogo(sym) || null;
   const [failed, setFailed] = useState(false);
   return src && !failed ? (
     <img src={src} alt={r.symbol} className={`${cls} rounded-full border border-[color:var(--line)] shrink-0 bg-white object-contain`} onError={() => setFailed(true)} />
