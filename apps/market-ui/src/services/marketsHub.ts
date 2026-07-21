@@ -30,7 +30,11 @@ export const fmtCompact = (n: number) => {
   return n.toFixed(2);
 };
 
-export const fmtPrice = (n: number, unit: Unit) => {
+// Null-tolerant: a missing quote must render as "—", never crash the page it
+// is on (a throw here escapes into React render and blanks the whole route).
+export const fmtPrice = (n: number | null | undefined, unit: Unit) => {
+  if (!Number.isFinite(n as number)) return '—';
+  n = n as number;
   if (unit === 'PCT') return `${n.toFixed(2)}%`;
   if (unit === 'RATE') return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   const digits = Math.abs(n) < 1 ? (Math.abs(n) < 0.01 ? 6 : 4) : 2;
@@ -38,7 +42,8 @@ export const fmtPrice = (n: number, unit: Unit) => {
   return unit === 'TND' ? `${v} TND` : `$${v}`;
 };
 
-export const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+export const fmtPct = (n: number | null | undefined) =>
+  Number.isFinite(n as number) ? `${(n as number) >= 0 ? '+' : ''}${(n as number).toFixed(2)}%` : '—';
 
 // ── Sources ───────────────────────────────────────────────────
 async function fetchCrypto(): Promise<AssetRow[]> {
@@ -155,7 +160,12 @@ export async function fetchTnIndex(): Promise<{ level: number; changePct: number
     const res = await fetch('/api/tn/index');
     if (!res.ok) return null;
     const j = await res.json();
-    return j?.tunindex ? { level: j.tunindex.level, changePct: j.tunindex.changePct } : null;
+    // BVMT publishes the object with null level/changePct before the session
+    // opens — that is "no live level", not a zero.
+    const t = j?.tunindex;
+    return Number.isFinite(t?.level) && Number.isFinite(t?.changePct)
+      ? { level: t.level, changePct: t.changePct }
+      : null;
   } catch {
     return null;
   }
