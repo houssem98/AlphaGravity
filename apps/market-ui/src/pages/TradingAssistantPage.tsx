@@ -543,7 +543,7 @@ export default function TradingAssistantPage() {
           railOpen={railOpen}
           onToggleRail={() => setRailOpen((o) => !o)}
           onSelectMarket={(id) => { setActiveMarket(id); setCurrentView('markets'); }}
-          onSelectAsset={(asset) => { setCurrentAsset(asset); setCurrentView('chart'); }}
+          onSelectAsset={(asset, market) => { setActiveMarket(market); setCurrentAsset(asset); setCurrentView('chart'); }}
         />
       ) : currentView === 'markets' ? (
         activeMarket === 'crypto' ? (

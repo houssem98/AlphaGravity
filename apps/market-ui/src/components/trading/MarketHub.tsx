@@ -8,7 +8,9 @@ import { useCryptoStore, ensureCryptoFeed, livePrice } from '../../stores/crypto
 
 interface MarketHubProps {
   onSelectMarket: (id: MarketId) => void;
-  onSelectAsset: (symbol: string) => void;
+  // The market MUST travel with the symbol: the chart, info panel, news and
+  // social panels all branch on it, and "back" returns to that market's list.
+  onSelectAsset: (symbol: string, market: MarketId) => void;
   railOpen?: boolean;
   onToggleRail?: () => void;
 }
@@ -39,7 +41,7 @@ function MarketCard({
   rows: AssetRow[];
   series: { v: number }[];
   onSelectMarket: (id: MarketId) => void;
-  onSelectAsset: (symbol: string) => void;
+  onSelectAsset: (symbol: string, market: MarketId) => void;
 }) {
   const lead = rows[0];
   const up = (lead?.changePct ?? 0) >= 0;
@@ -99,7 +101,7 @@ function MarketCard({
         {rows.slice(1, 5).map((r) => (
           <button
             key={r.symbol}
-            onClick={() => onSelectAsset(r.symbol)}
+            onClick={() => onSelectAsset(r.symbol, def.id)}
             className="w-full flex items-center justify-between px-2 py-1.5 -mx-2 rounded-sm hover:bg-[color:var(--surface-2)] transition-colors"
           >
             <div className="flex items-center gap-2 min-w-0">
@@ -176,7 +178,7 @@ export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAs
   }));
 
   // Ticker tape across the top (headline instruments from every market).
-  const tape = MARKETS.flatMap((m) => liveRows(m.id, (rowsByMarket[m.id] || []).slice(0, 3)).map((r) => ({ ...r, currency: m.currency })));
+  const tape = MARKETS.flatMap((m) => liveRows(m.id, (rowsByMarket[m.id] || []).slice(0, 3)).map((r) => ({ ...r, currency: m.currency, market: m.id })));
 
   return (
     <div className="flex-1 bg-[color:var(--bg)] overflow-y-auto">
@@ -187,7 +189,7 @@ export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAs
             {[0, 1].map((copy) => (
               <div key={copy} className="flex items-center gap-6 pl-6" aria-hidden={copy === 1}>
                 {tape.map((r, i) => (
-                  <button key={`${r.symbol}-${i}`} onClick={() => onSelectAsset(r.symbol)} tabIndex={copy === 1 ? -1 : 0} className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
+                  <button key={`${r.symbol}-${i}`} onClick={() => onSelectAsset(r.symbol, r.market)} tabIndex={copy === 1 ? -1 : 0} className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
                     <span className="text-data font-semibold text-[color:var(--text)]">{r.symbol.replace('^', '')}</span>
                     <span className="font-mono text-data text-[color:var(--text-2)]">{fmtPrice(r.price, r.currency)}</span>
                     <Delta pct={r.changePct} />
