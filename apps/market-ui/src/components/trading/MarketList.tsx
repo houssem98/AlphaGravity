@@ -454,7 +454,10 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
           case 'open': body = numTd(oh?.open, (v) => fmtPrice(v, r.currency)); break;
           case 'high': body = numTd(oh?.high, (v) => fmtPrice(v, r.currency)); break;
           case 'low': body = numTd(oh?.low, (v) => fmtPrice(v, r.currency)); break;
-          case 'per': body = numTd(fu?.per, (v) => v.toFixed(2)); break;
+          // TNC-3: computed from the price in the row beside it, never from the
+          // server's own snapshot — the two cache on different clocks, and a PER
+          // that contradicts the Price cell is a claim about a price we never showed.
+          case 'per': body = numTd(fu?.eps && r.price ? r.price / fu.eps : null, (v) => v.toFixed(2)); break;
           case 'eps': body = numTd(fu?.eps, (v) => v.toFixed(3)); break;
           case 'pb': body = numTd(fu?.pb, (v) => v.toFixed(2)); break;
           case 'netIncome': body = numTd(fu?.netIncome, (v) => <>{fmtCompact(v)} TND</>); break;

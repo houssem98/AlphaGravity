@@ -53,7 +53,7 @@ how a constant-emitting factor gives itself away.
 | 7d % | 70/75 (93%) — was 0/75 for the whole of the 2026-07-22 re-measure | 67 | **FIXED** — TNC-1 |
 | Volume, Turnover | 43/77 (56%) | 43 | **OK, honest** — 43 stocks traded |
 | Open, High, Low | 41/77 (53%) | 41/40/41 | **SUSPECT** — TNC-4 |
-| PER, EPS, Net Income, Equity | 49/77 (64%) | 49 | **OK coverage**, PER inconsistent — TNC-3 |
+| PER, EPS, Net Income, Equity | 49/75 (65%) | 49 | **FIXED** — PER now exact vs Price, TNC-3 |
 | P/B | 49/77 (64%) | 45 | **BROKEN VALUES** — TNC-5 |
 | Div Yield | 32/77 (42%) | 31 | **OK, honest** — declared at AGM only |
 | Score, Signal, Momentum, Vol Factor, Liq/Trend | 69/75, 69/75, 54/75, 75/75, 64/75 | 40/3/27/55/44 | **FIXED** — TNC-2 |
@@ -105,6 +105,19 @@ how a constant-emitting factor gives itself away.
   49** disagree with `boardPrice / eps` by >5% (AL 11.94 vs 12.90; AMV 8.75 vs
   11.29; ASSMA 18.33 vs 23.05). The two endpoints are pricing off different
   snapshots, so PER contradicts the Price cell rendered beside it.
+  **Corrected 2026-07-22 (TNC-3)**: the reprice at `[fn].ts:755` runs *only* in
+  the `?symbol=` branch, and the table fetches the **bulk** payload
+  (`MarketList.tsx:508`, no symbol) — so the table's PER was never repriced at
+  all; it was the offline extraction's own value. Re-measured: **24/49** off by
+  >5%, **37/49** off by >1%, worst ATL `15.64` vs `21.05` (25.7%). The
+  per-symbol branch was always correct (BIAT 18.85, TJARI 17.63, SFBT 14.87 all
+  equal `boardPrice/eps`). Fixed by computing the cell from `r.price / eps`, so
+  it cannot drift from the Price beside it whatever the two caches do.
+  Same root cause governs **TNC-5**: the P/B sanity bound at `[fn].ts:757` also
+  sits inside the `?symbol=` branch and so never reaches the bulk payload.
+- **Div Yield** carries the same shape PER did: bulk serves the extraction-time
+  `yield` on **32** rows with no reprice. Not covered by any §4 task — measured
+  here so it is not lost.
 - **P/B**: `[fn].ts:735` claims to null anything outside 0.2–12, but the served
   payload contains **STB = 152 348.21** and renders **TJARI = 14.59**. The guard
   is not reaching the response.
@@ -131,7 +144,7 @@ so the harness cannot read it. Its data source is the same `closes` array as
   and `label` are null and the columns render `—`.
   Accept: `News` distinct > 1 or fill < 100%; the 7 zero-evidence symbols carry
   no score or label; `tnColumnAudit` constant-factor assertion passes.
-- [ ] **TNC-3 — PER must be computed from the price the table displays.**
+- [x] **TNC-3 — PER must be computed from the price the table displays.**
   Either serve PER from the same snapshot as the board, or return `eps` only and
   compute PER client-side from `r.price`.
   Accept: for all rows with both, `|PER − price/eps| / (price/eps) ≤ 0.01`.
@@ -156,3 +169,4 @@ so the harness cannot read it. Its data source is the same `closes` array as
 | 2026-07-22 | audit | Baseline captured: 77 rows; News 75/77 fill, distinct=1 (=50); 7d% 0/75 → 71/77 within 12 min; PER 23/49 inconsistent; P/B STB=152348; O/H/L 19/64 contradict price. `tnColumnAudit` fails on `News=50` as designed. |
 | 2026-07-22 | TNC-1 | Closes query measured at 22.0 s / 60 d (30 d 14.2 s, 14 d 5.6 s, `ingested_at` variant 21.8 s) over 684 096 raw_market rows — the 15 s bound aborted every call, so prod served `closes:[]` on 3/3 cache-busted reads at 15.8 s each. Closes moved to their own `tn_closes.json` blob (1800 s, never written empty), bound raised to 45 s, `historyOk` added to the payload. Prod after deploy: 75 rows, `historyOk=true`, closes>1 **70/75**, closes==0 **2**, 7d% fill **70** distinct **67**, closes lengths {0,1,7}; first call 12.5 s (blob seed), then 1.56 s / 1.10 s / 0.98 s. 3 new unit tests in `tnBoard.test.ts` (dead query + cached closes → served, not overwritten; dead query + no blob → `historyOk:false`, 0 blob writes; live query → both blobs written, untraded AST stays null). `npx tsc -b` clean; `npx vitest run` 220 pass / 0 fail / 5 skipped; `tnNullFeed` pass; `tnColumnAudit` still fails only on `News=50` (TNC-2). |
 | 2026-07-22 | TNC-2 | Every factor now emits `null` with no input and drops out of the composite; below 0.5 surviving weight `score` and `label` are null too, and the payload carries `covered`. Prod, 75/75 engines: News fill **0/75** (was 75/77 all exactly 50) — Firecrawl answers HTTP 200 with an empty result set, so "0 sources" is honest, and a real failure now reads `news source unavailable`. Momentum **54/75** distinct 27 (21 null, all with board `volume = 0`); liquidity **64/75** distinct 44; trend **68/75** d40; reversal **72/75** d44; nearHigh **74/75** d44; illiquidity **73/75** d45; volume **75/75** d55; score **69/75** distinct 40; label **69/75** distinct 3. Of §3's 7 zero-evidence rows, ALKIM/PLTU/UADH/AETEC (covered 0.40/0.30/0.40/0.10) now carry no score or label; AST/SITS/STIP (0.70/0.60/0.75) keep one on real historical bars — §3 corrected rather than the threshold bent. `npx tsc -b` clean; `npx vitest run` 224 pass / 0 fail / 5 skipped (4 new in `tnEngine.test.ts`); `npx playwright test tnColumnAudit tnNullFeed` **2 pass / 0 fail** — the constant-factor assertion that has failed since the baseline now passes. |
+| 2026-07-22 | TNC-3 | The reprice at `[fn].ts:755` only ever ran in the `?symbol=` branch, while the table reads the bulk payload — so its PER was the offline extraction value, never repriced. Measured before: **37/49** rows off the board's own `price/eps` by >1%, **24/49** by >5%, worst ATL 15.64 vs 21.05 (25.7%); the per-symbol branch already matched exactly (BIAT 18.85, TJARI 17.63, SFBT 14.87). Bulk now ships `eps` and no `per` (prod: **0/53** symbols carry `per`, **49** carry `eps`), and the cell computes `r.price / eps`, so disagreement is 0 by construction. `audit_tn_columns.mjs` measured `per` off the removed field and read 0/75 — the instrument was corrected to the same price/eps rule and reads **49/75**, equal to `eps` coverage. `npx tsc -b` clean; `npx vitest run` 227 pass / 0 fail / 5 skipped (3 new in `tnFundamentals.test.ts`); `npx playwright test tnColumnAudit tnNullFeed` 2 pass / 0 fail. |

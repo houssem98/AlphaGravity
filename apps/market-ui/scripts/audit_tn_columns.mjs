@@ -40,7 +40,8 @@ const cols = {
   sector:     ['Company', (s) => !!ref[s]?.sector],
   isin:       ['Company', (s, b) => !!(b.isin || ref[s]?.isin)],
   shares:     ['Company', (s, b) => isNum(b.shares) || isNum(ref[s]?.shares)],
-  per:        ['Valuation', (s) => isNum(fund[s]?.per)],
+  // TNC-3: the cell is price/eps off the row it sits in, not a served `per`.
+  per:        ['Valuation', (s, b) => isNum(fund[s]?.eps) && fund[s].eps !== 0 && isNum(b.price) && b.price > 0],
   eps:        ['Valuation', (s) => isNum(fund[s]?.eps)],
   pb:         ['Valuation', (s) => isNum(fund[s]?.pb)],
   netIncome:  ['Valuation', (s) => isNum(fund[s]?.netIncome)],

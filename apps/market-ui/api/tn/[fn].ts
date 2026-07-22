@@ -758,7 +758,13 @@ async function fundamentals(req: any, res: any) {
     }
     return res.json({ symbol, fundamentals: f });
   }
-  res.json({ fundamentals: blob });
+  // TNC-3: the bulk payload has no price to price against — only the per-symbol
+  // branch above refreshes ratios. Serving the extraction-time `per` had 37/49
+  // rows disagreeing with the board's own price/eps (ATL 15.64 vs 21.05). Ship
+  // `eps` and let the caller divide by the price it actually displays.
+  const bulk = Object.fromEntries(
+    Object.entries(blob as Record<string, any>).map(([s, f]) => [s, { ...f, per: undefined }]));
+  res.json({ fundamentals: bulk });
 }
 
 // One bulk query for every stock's last ~10 sessions (grouped by isin+date), instead
