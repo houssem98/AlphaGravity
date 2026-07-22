@@ -450,8 +450,16 @@ async function engineCompute(symbol: string): Promise<any> {
 
   // Volume activity: this stock's turnover percentile across today's board.
   const turnovers = (g?.markets || []).map((m: any) => m.caps || 0).filter((t: number) => t > 0).sort((a: number, b: number) => a - b);
-  const rank = turnovers.length ? turnovers.filter((t: number) => t <= turnover).length / turnovers.length : 0;
+  const below = turnovers.filter((t: number) => t <= turnover).length;
+  const rank = turnovers.length ? below / turnovers.length : 0;
   const volumeScore = clamp(rank * 100);
+  // TNC-6: "top 98%" is true of the thinnest name on the board and reads like
+  // praise; an ordinal cannot be misread in either direction. A stock that did
+  // not trade is not in the ranked set at all — "top 100% of board by turnover"
+  // was a vacuous statement wearing a percentile's clothes.
+  const volumeDetail = turnover > 0 && turnovers.length
+    ? `#${turnovers.length - below + 1} of ${turnovers.length} by turnover`
+    : 'no turnover today';
 
   // Liquidity: tight spread = liquid. 0% spread→100, ≥4%→0. TNC-2: no book is
   // not "somewhat illiquid" (the old 25) — it is no measurement at all.
@@ -500,7 +508,7 @@ async function engineCompute(symbol: string): Promise<any> {
   const W = { momentum: 0.15, volume: 0.1, news: 0.15, liquidity: 0.1, trend: 0.2, reversal: 0.1, nearHigh: 0.1, illiquidity: 0.1 };
   const factors = {
     momentum:    { score: momentumScore, detail: traded ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}% today` : 'did not trade today' },
-    volume:      { score: volumeScore,   detail: `top ${Math.max(1, Math.round(100 - rank * 100))}% of board by turnover` },
+    volume:      { score: volumeScore,   detail: volumeDetail },
     news:        { score: newsScore,     detail: newsDown ? 'news source unavailable' : `${bulls} bull / ${bears} bear of ${headlines} ${FIRECRAWL ? 'sources' : 'headlines'} (7d)${enriched ? `, ${enriched} full-text` : ''}${newsReason ? ` — ${newsReason}` : ''}` },
     liquidity:   { score: liquidity,     detail: spreadPct === null ? 'no live book' : `${spreadPct.toFixed(2)}% spread` },
     trend:       { score: trend,         detail: m20 === null && m60 === null ? 'insufficient history' : `${m20 === null ? '—' : pct(m20)} 20d / ${m60 === null ? '—' : pct(m60)} 60d` },

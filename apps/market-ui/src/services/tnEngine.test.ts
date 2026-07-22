@@ -111,6 +111,19 @@ describe('api/tn/engine — no evidence, no score (TNC-2)', () => {
         expect(res.body.factors.news.detail).toBe('news source unavailable');
     });
 
+    it('volume reads as an ordinal rank, and an untraded stock is not ranked (TNC-6)', async () => {
+        stubFetch(RICH_BARS, []);
+        const biat = await engine('BIAT'); // the only stock with turnover on this board
+        const ast = await engine('AST');   // turnover 0
+
+        expect(biat.factors.volume.detail).toBe('#1 of 1 by turnover');
+        expect(ast.factors.volume.detail).toBe('no turnover today');
+        // The old wording called the board's thinnest name "top 98%" and an
+        // untraded one "top 100%"; neither string survives.
+        expect(biat.factors.volume.detail).not.toContain('top');
+        expect(ast.factors.volume.detail).not.toContain('top');
+    });
+
     it('with evidence on every factor the composite is the plain weighted mean', async () => {
         stubFetch(RICH_BARS, ['BIAT en forte hausse, bénéfice record']);
         const d = await engine('BIAT');
