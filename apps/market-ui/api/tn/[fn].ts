@@ -744,17 +744,21 @@ async function fundamentals(req: any, res: any) {
 // come back fast. Returns isin -> closes (oldest→newest, capped to the last 7).
 async function fetchRecentCloses(): Promise<Record<string, number[]>> {
   // Date-bound the scan: raw_market accumulates months of ticks and the
-  // unbounded aggregation crossed the fetch timeout (25s measured 2026-07-16),
-  // silently emptying every row's closes. 60 days (2.9s measured) so thinly
-  // traded names still collect 7 TRADED sessions (JS slices last 7 below);
-  // 15s timeout for margin; blob SWR hides it.
+  // unbounded aggregation crossed the fetch timeout, silently emptying every
+  // row's closes. 60 days so thinly traded names still collect 7 TRADED
+  // sessions (JS slices last 7 below). TNC-1: the 60-day form costs 22.0s over
+  // 684k rows (measured 2026-07-22 — the 2.9s in the roadmap no longer holds,
+  // and ingested_at, though indexed, is no cheaper: the cost is the per-row
+  // jsonb extraction, not the predicate), so the old 15s bound aborted every
+  // call. 45s fits inside maxDuration=60, and board() caches the result in its
+  // own blob, so only the first call after a cold blob ever waits on it.
   const sql =
     `SELECT codeisin, d, (array_agg(price ORDER BY t DESC))[1] cl FROM (` +
     `SELECT raw_data->>'codeIsin' codeisin, raw_data->>'dateSeance' d, raw_data->>'time' t, (raw_data->>'lastTradePrice')::float price ` +
     `FROM raw_market WHERE raw_data->>'lastTradePrice' IS NOT NULL ` +
     `AND raw_data->>'dateSeance' >= to_char(now() - interval '60 days','YYYY-MM-DD')` +
     `) x GROUP BY codeisin, d ORDER BY codeisin, d`;
-  const rows = await gqueryTable(sql, 15000);
+  const rows = await gqueryTable(sql, 45000);
   const byIsin = new Map<string, { d: string; cl: number }[]>();
   for (const r of rows) {
     if (!r.codeisin || r.cl == null) continue;
@@ -781,11 +785,20 @@ async function board(_req: any, res: any) {
   const out = await cached('tn_board.json', 180, async () => {
     const [d, closesByIsin, sharesByTicker] = await Promise.all([
       groups(),
-      fetchRecentCloses().catch(() => ({} as Record<string, number[]>)),
+      // TNC-1: gqueryTable swallows its own timeout and returns [], so an empty
+      // map means the history query died — not that no stock traded in 60 days.
+      // Serving it blanks 7d % and the sparkline on every row; caching it blanks
+      // them for the whole TTL. Its own blob (never written empty) survives the
+      // board's 180s refresh, so a dead query keeps serving the last real closes.
+      cached('tn_closes.json', 1800, fetchRecentCloses, (m: any) => Object.keys(m || {}).length > 0),
       fetchShares().catch(() => ({} as Record<string, number>)),
     ]);
+    // False only while no closes blob has ever been written; the board still
+    // renders, and the client can say "history unavailable" rather than the —
+    // that means "this stock did not trade".
+    const historyOk = Object.keys(closesByIsin).length > 0;
     const rows = (d?.markets || []).filter((m: any) => m?.referentiel?.ticker && m.last);
-    return rows.map((m: any) => {
+    return { historyOk, rows: rows.map((m: any) => {
       const closes = closesByIsin[m.isin] || [];
       // TNC-2: null, never 0 — a fabricated 0.00% is fake data; UI renders — for null.
       const change7d = closes.length > 1 ? ((closes[closes.length - 1] - closes[0]) / closes[0]) * 100 : null;
@@ -797,9 +810,9 @@ async function board(_req: any, res: any) {
         turnover: m.caps || 0, shares, isin: m.isin,
         closes,
       };
-    }).sort((a: any, b: any) => (b.marketCap || 0) - (a.marketCap || 0));
-  }, (x) => x.length > 0);
-  res.json({ board: out });
+    }).sort((a: any, b: any) => (b.marketCap || 0) - (a.marketCap || 0)) };
+  }, (x: any) => x?.rows?.length > 0 && x.historyOk);
+  res.json({ board: out.rows, historyOk: out.historyOk });
 }
 
 // ── Firecrawl web search (deep-research web sourcing) ───────────────────────

@@ -50,7 +50,7 @@ how a constant-emitting factor gives itself away.
 | Column | Fill | Distinct | Verdict |
 |---|---|---|---|
 | Name, Price, 24h %, ISIN, Sector, Market Cap, Circulating | 77/77 | high | **OK** |
-| 7d % | 71/77 (92%) — **but 0/75 measured 12 min earlier** | 70 | **INTERMITTENT** — TNC-1 |
+| 7d % | 70/75 (93%) — was 0/75 for the whole of the 2026-07-22 re-measure | 67 | **FIXED** — TNC-1 |
 | Volume, Turnover | 43/77 (56%) | 43 | **OK, honest** — 43 stocks traded |
 | Open, High, Low | 41/77 (53%) | 41/40/41 | **SUSPECT** — TNC-4 |
 | PER, EPS, Net Income, Equity | 49/77 (64%) | 49 | **OK coverage**, PER inconsistent — TNC-3 |
@@ -78,6 +78,14 @@ how a constant-emitting factor gives itself away.
   timeout "silently empt[ies] every row's closes"; the 60-day bound did not end
   it. The empty result is then written to the blob and served for its full TTL.
   There is no fallback: `/api/spark` is never called for TN.
+  **Corrected 2026-07-22 (TNC-1)**: not intermittent — the 60-day aggregation
+  costs **22.0 s** over raw_market's 684 096 rows (30 d 14.2 s, 14 d 5.6 s;
+  filtering on the indexed `ingested_at` instead of the `dateSeance` string is
+  no cheaper — 21.8 s — so the cost is the per-row jsonb extraction, not the
+  predicate). The roadmap's "2.9 s measured 2026-07-16" no longer holds, so the
+  15 s bound aborted *every* call and the 71/77 read was the last good blob
+  still inside its TTL. Fixed by giving the closes map its own blob and a 45 s
+  bound; row count is **75**, not 77 — `board()` drops rows with no `last`.
 - **PER**: recomputed server-side as `price / eps` (`[fn].ts:733`), yet **23 of
   49** disagree with `boardPrice / eps` by >5% (AL 11.94 vs 12.90; AMV 8.75 vs
   11.29; ASSMA 18.33 vs 23.05). The two endpoints are pricing off different
@@ -95,7 +103,7 @@ so the harness cannot read it. Its data source is the same `closes` array as
 
 ## §4 Ledger — one task per loop pass, in order
 
-- [ ] **TNC-1 — `board` must not serve, or cache, an empty 7-day history.**
+- [x] **TNC-1 — `board` must not serve, or cache, an empty 7-day history.**
   `fetchRecentCloses()` returning `{}`/partial must be treated as a failure:
   do not write that result to the blob, keep serving the previous good blob,
   and mark the payload so the UI can say "history unavailable" instead of `—`.
@@ -131,3 +139,4 @@ so the harness cannot read it. Its data source is the same `closes` array as
 | Date | Task | Result (real numbers) |
 |---|---|---|
 | 2026-07-22 | audit | Baseline captured: 77 rows; News 75/77 fill, distinct=1 (=50); 7d% 0/75 → 71/77 within 12 min; PER 23/49 inconsistent; P/B STB=152348; O/H/L 19/64 contradict price. `tnColumnAudit` fails on `News=50` as designed. |
+| 2026-07-22 | TNC-1 | Closes query measured at 22.0 s / 60 d (30 d 14.2 s, 14 d 5.6 s, `ingested_at` variant 21.8 s) over 684 096 raw_market rows — the 15 s bound aborted every call, so prod served `closes:[]` on 3/3 cache-busted reads at 15.8 s each. Closes moved to their own `tn_closes.json` blob (1800 s, never written empty), bound raised to 45 s, `historyOk` added to the payload. Prod after deploy: 75 rows, `historyOk=true`, closes>1 **70/75**, closes==0 **2**, 7d% fill **70** distinct **67**, closes lengths {0,1,7}; first call 12.5 s (blob seed), then 1.56 s / 1.10 s / 0.98 s. 3 new unit tests in `tnBoard.test.ts` (dead query + cached closes → served, not overwritten; dead query + no blob → `historyOk:false`, 0 blob writes; live query → both blobs written, untraded AST stays null). `npx tsc -b` clean; `npx vitest run` 220 pass / 0 fail / 5 skipped; `tnNullFeed` pass; `tnColumnAudit` still fails only on `News=50` (TNC-2). |
