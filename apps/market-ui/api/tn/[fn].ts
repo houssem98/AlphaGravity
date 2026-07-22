@@ -336,9 +336,11 @@ async function firecrawlScrape(url: string): Promise<string | null> {
     return (await r.json())?.data?.markdown || null;
   } catch { return null; }
 }
-// Firecrawl web search → real article URLs + snippets. [] without a key / on failure.
-async function firecrawlSearch(query: string, limit = 6): Promise<Array<{ title: string; url: string; content: string }>> {
-  if (!FIRECRAWL || !query) return [];
+// Firecrawl web search → real article URLs + snippets. TNC-2: null when we could
+// not look (no key, HTTP failure), [] when we looked and the press had nothing —
+// the news factor reports those differently instead of collapsing both to "0 sources".
+async function firecrawlSearch(query: string, limit = 6): Promise<Array<{ title: string; url: string; content: string }> | null> {
+  if (!FIRECRAWL || !query) return null;
   try {
     const r = await fetch('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
@@ -346,11 +348,11 @@ async function firecrawlSearch(query: string, limit = 6): Promise<Array<{ title:
       body: JSON.stringify({ query, limit }),
       signal: AbortSignal.timeout(12000),
     });
-    if (!r.ok) return [];
+    if (!r.ok) return null;
     return ((await r.json())?.data || [])
       .map((d: any) => ({ title: d.title || d.url, url: d.url, content: d.description || d.markdown || '' }))
       .filter((x: any) => x.url);
-  } catch { return []; }
+  } catch { return null; }
 }
 // Net lexicon tone of a text blob → +1 bull / -1 bear / 0 neutral.
 function toneSign(text: string): number {
@@ -393,8 +395,13 @@ async function engine(req: any, res: any) {
   if (!/^[A-Z0-9]{1,12}$/.test(symbol)) return res.status(400).json({ error: 'symbol required' });
   // Per-symbol blob: the news chain (Firecrawl search + scrapes + DeepSeek) runs
   // 10-30s cold — that's a background refresh now, never a click-blocking wait.
-  const data = await cached(`tn_engine_${symbol}.json`, 900, () => engineCompute(symbol), (x: any) => typeof x?.score === 'number');
-  if (typeof data?.score !== 'number') return res.status(404).json({ error: `unknown ticker ${symbol}` });
+  // Cacheable on isin, not on score: TNC-2 makes a null score a legitimate answer
+  // for a stock with no evidence, and recomputing that on every click would run
+  // the news chain forever.
+  // `covered` also dates the blob: pre-TNC-2 payloads lack it and carry the old
+  // neutral-50 fabrications, so they are re-derived rather than served.
+  const data = await cached(`tn_engine_${symbol}.json`, 900, () => engineCompute(symbol), (x: any) => !!x?.isin && typeof x.covered === 'number');
+  if (!data?.isin) return res.status(404).json({ error: `unknown ticker ${symbol}` });
   res.json(data);
 }
 
@@ -408,12 +415,16 @@ async function engineCompute(symbol: string): Promise<any> {
   const turnover = row.caps || 0;
   const { bid, ask } = book(row.limit);
 
-  // Momentum: ±3% day move maps to 0..100 around 50.
-  const momentumScore = clamp(50 + (changePct / 3) * 50);
+  // Momentum: ±3% day move maps to 0..100 around 50. TNC-2: a stock that did not
+  // trade has no day move — its changePct is 0 because nothing happened, not
+  // because the price held, so the factor is null rather than a neutral 50.
+  const traded = (row.volume || 0) > 0;
+  const momentumScore = traded ? clamp(50 + (changePct / 3) * 50) : null;
 
   // V2.2 historical factors from the factor library above (daily bars out of
-  // raw_market). Any factor with too little history stays neutral 50 and its
-  // detail says so — deterministic, no renormalizing.
+  // raw_market). TNC-2: a factor with no input is null and drops out of the
+  // composite below — a score computed from zero evidence is a fabrication even
+  // when the arithmetic is sound.
   let bars: Bar[] = [];
   try { bars = await fetchDailyBars(isin); } catch { /* neutral factors */ }
   const m20 = momentum(bars, 20), m60 = momentum(bars, 60);
@@ -426,36 +437,41 @@ async function engineCompute(symbol: string): Promise<any> {
   const t20 = m20 === null ? null : clamp(50 + (m20 / 20) * 50);
   const t60 = m60 === null ? null : clamp(50 + (m60 / 30) * 50);
   const tParts = [t20, t60].filter((v): v is number => v !== null);
-  const trend = tParts.length ? clamp(tParts.reduce((a, b) => a + b) / tParts.length) : 50;
+  const trend = tParts.length ? clamp(tParts.reduce((a, b) => a + b) / tParts.length) : null;
 
   // Reversal (Jegadeesh 1990): INVERTED — high trailing 5d return scores low. ±8% → 100..0.
-  const reversal = rev === null ? 50 : clamp(50 - (rev / 8) * 50);
+  const reversal = rev === null ? null : clamp(50 - (rev / 8) * 50);
 
   // Near-high (George & Hwang 2004): 80% of period high → 0, at the high → 100.
-  const nearHigh = hp === null ? 50 : clamp(((hp - 0.8) / 0.2) * 100);
+  const nearHigh = hp === null ? null : clamp(((hp - 0.8) / 0.2) * 100);
 
   // Illiquidity (Amihud 2002): log-scale — 1e-8 (deep book) → 100, 1e-4 (thin) → 0.
-  const illiquidity = illiq === null || illiq <= 0 ? 50 : clamp(((-Math.log10(illiq) - 4) / 4) * 100);
+  const illiquidity = illiq === null || illiq <= 0 ? null : clamp(((-Math.log10(illiq) - 4) / 4) * 100);
 
   // Volume activity: this stock's turnover percentile across today's board.
   const turnovers = (g?.markets || []).map((m: any) => m.caps || 0).filter((t: number) => t > 0).sort((a: number, b: number) => a - b);
   const rank = turnovers.length ? turnovers.filter((t: number) => t <= turnover).length / turnovers.length : 0;
   const volumeScore = clamp(rank * 100);
 
-  // Liquidity: tight spread = liquid. 0% spread→100, ≥4%→0; no book→25.
+  // Liquidity: tight spread = liquid. 0% spread→100, ≥4%→0. TNC-2: no book is
+  // not "somewhat illiquid" (the old 25) — it is no measurement at all.
   const spreadPct = bid && ask && price ? ((ask - bid) / price) * 100 : null;
-  const liquidity = spreadPct === null ? 25 : clamp(100 - (spreadPct / 4) * 100);
+  const liquidity = spreadPct === null ? null : clamp(100 - (spreadPct / 4) * 100);
 
   // News tone: last-7d Tunisian press. Headlines always; when Firecrawl is
   // configured, scrape the top few article bodies and score the full text (a much
   // stronger signal than title keywords). Falls back to titles on any failure.
-  let newsScore = 50, bulls = 0, bears = 0, headlines = 0, enriched = 0, newsReason = '';
+  // TNC-2: null until at least one source is read — 0 sources is not neutral tone.
+  let newsScore: number | null = null;
+  let bulls = 0, bears = 0, headlines = 0, enriched = 0, newsReason = '', newsDown = false;
   try {
     if (FIRECRAWL) {
       // Firecrawl search → real article URLs (Google News RSS links are google.com
       // redirect stubs that don't scrape), then scrape the top few bodies for
       // full-text tone; DeepSeek judges overall tone when configured.
-      const top = (await firecrawlSearch(`${name} Bourse Tunis actualité`, 6)).slice(0, 4);
+      const found = await firecrawlSearch(`${name} Bourse Tunis actualité`, 6);
+      newsDown = found === null;
+      const top = (found || []).slice(0, 4);
       const bodies = await Promise.all(top.map((f) => firecrawlScrape(f.url)));
       top.forEach((f, i) => {
         if (bodies[i]) enriched++;
@@ -476,28 +492,34 @@ async function engineCompute(symbol: string): Promise<any> {
       for (const t of titles) { const s = toneSign(t); if (s > 0) bulls++; else if (s < 0) bears++; }
       if (headlines) newsScore = clamp(50 + ((bulls - bears) / headlines) * 50);
     }
-  } catch { /* keep neutral 50 */ }
+  } catch { /* no sources read → news stays null */ }
 
   // Composite (V2.2): 4 live + 4 historical factors. Trend carries the most
   // weight (Carhart momentum is the best-documented of the set); live day
   // factors shrink to make room but still sum to half the score.
   const W = { momentum: 0.15, volume: 0.1, news: 0.15, liquidity: 0.1, trend: 0.2, reversal: 0.1, nearHigh: 0.1, illiquidity: 0.1 };
-  const score = clamp(
-    momentumScore * W.momentum + volumeScore * W.volume + newsScore * W.news + liquidity * W.liquidity +
-    trend * W.trend + reversal * W.reversal + nearHigh * W.nearHigh + illiquidity * W.illiquidity);
+  const factors = {
+    momentum:    { score: momentumScore, detail: traded ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}% today` : 'did not trade today' },
+    volume:      { score: volumeScore,   detail: `top ${Math.max(1, Math.round(100 - rank * 100))}% of board by turnover` },
+    news:        { score: newsScore,     detail: newsDown ? 'news source unavailable' : `${bulls} bull / ${bears} bear of ${headlines} ${FIRECRAWL ? 'sources' : 'headlines'} (7d)${enriched ? `, ${enriched} full-text` : ''}${newsReason ? ` — ${newsReason}` : ''}` },
+    liquidity:   { score: liquidity,     detail: spreadPct === null ? 'no live book' : `${spreadPct.toFixed(2)}% spread` },
+    trend:       { score: trend,         detail: m20 === null && m60 === null ? 'insufficient history' : `${m20 === null ? '—' : pct(m20)} 20d / ${m60 === null ? '—' : pct(m60)} 60d` },
+    reversal:    { score: reversal,      detail: rev === null ? 'insufficient history' : `${pct(rev)} 5d trailing (inverted)` },
+    nearHigh:    { score: nearHigh,      detail: hp === null ? 'insufficient history' : `${(hp * 100).toFixed(1)}% of period high` },
+    illiquidity: { score: illiquidity,   detail: illiq === null ? 'insufficient history' : `Amihud ${illiq.toExponential(2)}` },
+  };
+
+  // TNC-2: a null factor drops out and its weight is redistributed over the
+  // survivors. Below half the model's weight there is not enough left to call
+  // the result a measurement of anything, so score and label are null too.
+  const live = Object.entries(factors).filter(([, f]) => f.score !== null);
+  const covered = live.reduce((a, [k]) => a + W[k as keyof typeof W], 0);
+  const score = covered < 0.5 ? null
+    : clamp(live.reduce((a, [k, f]) => a + f.score! * W[k as keyof typeof W], 0) / covered);
   return {
-    symbol, name, isin, price, changePct, score,
-    label: score >= 65 ? 'bullish' : score <= 35 ? 'bearish' : 'neutral',
-    factors: {
-      momentum:    { score: momentumScore, detail: `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}% today` },
-      volume:      { score: volumeScore,   detail: `top ${Math.max(1, Math.round(100 - rank * 100))}% of board by turnover` },
-      news:        { score: newsScore,     detail: `${bulls} bull / ${bears} bear of ${headlines} ${FIRECRAWL ? 'sources' : 'headlines'} (7d)${enriched ? `, ${enriched} full-text` : ''}${newsReason ? ` — ${newsReason}` : ''}` },
-      liquidity:   { score: liquidity,     detail: spreadPct === null ? 'no live book' : `${spreadPct.toFixed(2)}% spread` },
-      trend:       { score: trend,         detail: m20 === null && m60 === null ? 'insufficient history' : `${m20 === null ? '—' : pct(m20)} 20d / ${m60 === null ? '—' : pct(m60)} 60d` },
-      reversal:    { score: reversal,      detail: rev === null ? 'insufficient history' : `${pct(rev)} 5d trailing (inverted)` },
-      nearHigh:    { score: nearHigh,      detail: hp === null ? 'insufficient history' : `${(hp * 100).toFixed(1)}% of period high` },
-      illiquidity: { score: illiquidity,   detail: illiq === null ? 'insufficient history' : `Amihud ${illiq.toExponential(2)}` },
-    },
+    symbol, name, isin, price, changePct, score, covered: Math.round(covered * 100) / 100,
+    label: score === null ? null : score >= 65 ? 'bullish' : score <= 35 ? 'bearish' : 'neutral',
+    factors,
     weights: W,
   };
 }
@@ -822,7 +844,7 @@ async function websearch(req: any, res: any) {
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=1800');
   const q = String(req.query.q || '');
   const limit = Math.min(10, Math.max(1, +req.query.limit || 6));
-  const results = (await firecrawlSearch(q, limit)).map((d) => ({ ...d, score: 0.6 }));
+  const results = ((await firecrawlSearch(q, limit)) || []).map((d) => ({ ...d, score: 0.6 }));
   res.json({ results });
 }
 

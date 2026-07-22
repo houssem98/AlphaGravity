@@ -5,7 +5,7 @@ import { safeUrl } from '../../lib/safeUrl';
 // ── Engine score card (deterministic multi-factor, /api/tn/engine) ──────────
 interface EngineData {
   score: number; label: 'bullish' | 'bearish' | 'neutral';
-  factors: Record<string, { score: number; detail: string }>;
+  factors: Record<string, { score: number | null; detail: string }>;
 }
 const FACTOR_LABELS: Record<string, string> = {
   momentum: 'Momentum', volume: 'Volume', news: 'News tone', liquidity: 'Liquidity',
@@ -55,8 +55,11 @@ const EngineCard: React.FC<{ asset: string }> = ({ asset }) => {
                 <span className="text-[#8A92A6]">{FACTOR_LABELS[k] || k}</span>
                 <span className="text-[#5A6478]">{f.detail}</span>
               </div>
+              {/* TNC-2: a factor with no evidence has no bar to draw. */}
               <div className="h-1 rounded-full bg-[#1B2236]">
-                <div className="h-full rounded-full" style={{ width: `${f.score}%`, background: f.score >= 65 ? '#00C853' : f.score <= 35 ? '#FF3D3D' : '#5A6478' }} />
+                {f.score !== null && (
+                  <div className="h-full rounded-full" style={{ width: `${f.score}%`, background: f.score >= 65 ? '#00C853' : f.score <= 35 ? '#FF3D3D' : '#5A6478' }} />
+                )}
               </div>
             </div>
           ))}

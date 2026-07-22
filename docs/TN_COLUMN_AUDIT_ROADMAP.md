@@ -56,8 +56,8 @@ how a constant-emitting factor gives itself away.
 | PER, EPS, Net Income, Equity | 49/77 (64%) | 49 | **OK coverage**, PER inconsistent — TNC-3 |
 | P/B | 49/77 (64%) | 45 | **BROKEN VALUES** — TNC-5 |
 | Div Yield | 32/77 (42%) | 31 | **OK, honest** — declared at AGM only |
-| Score, Signal, Momentum, Vol Factor, Liq/Trend | 75/77 (97%) | 38/3/37/61/69 | **OVERSTATED** — TNC-2 |
-| News | 75/77 (97%) | **1** | **FABRICATED** — TNC-2 |
+| Score, Signal, Momentum, Vol Factor, Liq/Trend | 69/75, 69/75, 54/75, 75/75, 64/75 | 40/3/27/55/44 | **FIXED** — TNC-2 |
+| News | **0/75** | 0 | **FIXED** — TNC-2, and the feed itself returns nothing |
 
 ### Evidence
 
@@ -66,10 +66,25 @@ how a constant-emitting factor gives itself away.
   a hardcoded neutral presented as a measurement.
 - **Momentum**: 20 symbols whose detail is `+0.00% today` (i.e. did not trade)
   scored **exactly 50**.
+  **Corrected 2026-07-22 (TNC-2)**: `+0.00% today` does not by itself mean the
+  stock did not trade — 13 of the 21 flat rows carry real board volume (BL
+  20 479 shares, ASSAD 20 471, MPBS 1 127), i.e. they traded and closed
+  unchanged, which is a measurement. The evidence test is board `volume > 0`,
+  not a zero change: on that test 21/75 are null and every one of them has
+  `volume = 0`.
 - **Liquidity**: 8 symbols with detail `no live book` still scored **25**.
 - **Zero-evidence rows**: 7 symbols (AST, SITS, ALKIM, STIP, PLTU, UADH, AETEC)
   have no real input on news *and* liquidity *and* momentum, yet carry scores
   33–49 and labels `bearish`/`neutral`.
+  **Corrected 2026-07-22 (TNC-2)**: "no score" is right for only 4 of the 7.
+  Those three live factors are 0.40 of the model; the other 0.60 is historical,
+  and AST/SITS/STIP have real bars behind it — AST `+8.9% 20d / +51.0% 60d`
+  trend, a measured `4.77% spread`, `Amihud 6.85e-5`; SITS `+23.7% 20d`,
+  `99.0% of period high`; STIP `-12.8% 5d`, `75.4% of period high`. They keep a
+  score at coverage 0.70 / 0.60 / 0.75. ALKIM (0.40), PLTU (0.30), UADH (0.40)
+  and AETEC (0.10) fall under half the model and now carry neither score nor
+  label. Forcing the other three to null would have meant deleting real
+  measurements to satisfy this bullet, so the bullet is what changed.
 - **Vol Factor** detail reads `top 100% of board by turnover` for 11 symbols —
   these are the *bottom* of the board; the phrasing inverts the meaning.
 - **7d %**: `/api/tn/board` returned `closes: []` and `change7d: null` for
@@ -109,7 +124,7 @@ so the harness cannot read it. Its data source is the same `closes` array as
   and mark the payload so the UI can say "history unavailable" instead of `—`.
   Accept: force the closes query to fail; `/api/tn/board` still returns rows
   with populated `closes` from cache, and never persists the empty shape.
-- [ ] **TNC-2 — the engine must not score a factor it has no evidence for.**
+- [x] **TNC-2 — the engine must not score a factor it has no evidence for.**
   News with 0 sources, momentum on an untraded session, liquidity with no book:
   emit `null`, not 50/50/25. A factor that is null is excluded from the
   composite and its weight redistributed; if too few factors survive, `score`
@@ -140,3 +155,4 @@ so the harness cannot read it. Its data source is the same `closes` array as
 |---|---|---|
 | 2026-07-22 | audit | Baseline captured: 77 rows; News 75/77 fill, distinct=1 (=50); 7d% 0/75 → 71/77 within 12 min; PER 23/49 inconsistent; P/B STB=152348; O/H/L 19/64 contradict price. `tnColumnAudit` fails on `News=50` as designed. |
 | 2026-07-22 | TNC-1 | Closes query measured at 22.0 s / 60 d (30 d 14.2 s, 14 d 5.6 s, `ingested_at` variant 21.8 s) over 684 096 raw_market rows — the 15 s bound aborted every call, so prod served `closes:[]` on 3/3 cache-busted reads at 15.8 s each. Closes moved to their own `tn_closes.json` blob (1800 s, never written empty), bound raised to 45 s, `historyOk` added to the payload. Prod after deploy: 75 rows, `historyOk=true`, closes>1 **70/75**, closes==0 **2**, 7d% fill **70** distinct **67**, closes lengths {0,1,7}; first call 12.5 s (blob seed), then 1.56 s / 1.10 s / 0.98 s. 3 new unit tests in `tnBoard.test.ts` (dead query + cached closes → served, not overwritten; dead query + no blob → `historyOk:false`, 0 blob writes; live query → both blobs written, untraded AST stays null). `npx tsc -b` clean; `npx vitest run` 220 pass / 0 fail / 5 skipped; `tnNullFeed` pass; `tnColumnAudit` still fails only on `News=50` (TNC-2). |
+| 2026-07-22 | TNC-2 | Every factor now emits `null` with no input and drops out of the composite; below 0.5 surviving weight `score` and `label` are null too, and the payload carries `covered`. Prod, 75/75 engines: News fill **0/75** (was 75/77 all exactly 50) — Firecrawl answers HTTP 200 with an empty result set, so "0 sources" is honest, and a real failure now reads `news source unavailable`. Momentum **54/75** distinct 27 (21 null, all with board `volume = 0`); liquidity **64/75** distinct 44; trend **68/75** d40; reversal **72/75** d44; nearHigh **74/75** d44; illiquidity **73/75** d45; volume **75/75** d55; score **69/75** distinct 40; label **69/75** distinct 3. Of §3's 7 zero-evidence rows, ALKIM/PLTU/UADH/AETEC (covered 0.40/0.30/0.40/0.10) now carry no score or label; AST/SITS/STIP (0.70/0.60/0.75) keep one on real historical bars — §3 corrected rather than the threshold bent. `npx tsc -b` clean; `npx vitest run` 224 pass / 0 fail / 5 skipped (4 new in `tnEngine.test.ts`); `npx playwright test tnColumnAudit tnNullFeed` **2 pass / 0 fail** — the constant-factor assertion that has failed since the baseline now passes. |

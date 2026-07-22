@@ -465,8 +465,11 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
           case 'fMomentum': body = numTd(en?.factors?.momentum?.score, (v) => v); break;
           case 'fVolume': body = numTd(en?.factors?.volume?.score, (v) => v); break;
           case 'fNews': body = numTd(en?.factors?.news?.score, (v) => v); break;
-          case 'fLiqTrend': body = (en?.factors?.liquidity || en?.factors?.trend)
-            ? <>{en.factors.liquidity?.score ?? '—'}/{en.factors.trend?.score ?? '—'}</> : dash; break;
+          case 'fLiqTrend': {
+            const l = en?.factors?.liquidity?.score, t = en?.factors?.trend?.score;
+            body = (typeof l === 'number' || typeof t === 'number') ? <>{l ?? '—'}/{t ?? '—'}</> : dash;
+            break;
+          }
         }
         return <td key={kk} className={`py-2.5 px-4 font-mono text-data text-[color:var(--text-2)] ${f.cls}`}>{body}</td>;
       }
@@ -529,7 +532,9 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
     if (!miss.length) return;
     let alive = true;
     Promise.all(miss.map((s) =>
-      fetch(`/api/tn/engine?symbol=${encodeURIComponent(s)}`).then((r) => r.json()).then((d) => (d?.score != null ? [s, d] as const : null)).catch(() => null),
+      // Keyed on isin: a null score is a real answer (TNC-2), and the factors
+      // that did survive still belong in their columns.
+      fetch(`/api/tn/engine?symbol=${encodeURIComponent(s)}`).then((r) => r.json()).then((d) => (d?.isin ? [s, d] as const : null)).catch(() => null),
     )).then((rows) => {
       if (!alive) return;
       const add = Object.fromEntries(rows.filter(Boolean) as [string, any][]);
