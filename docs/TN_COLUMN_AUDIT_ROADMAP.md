@@ -38,9 +38,22 @@ the two: an empty cell tells the user nothing is known, a made-up one lies.
   until the blob has rolled — re-read the endpoint, do not trust one call.
 - Deploy is `vercel --prod` from **repo root** (project root is `apps/market-ui`).
 - `apps/market-ui/public/**` must stay exempt in `.vercelignore` (bare `*.png`).
-- Verification per task: `npx tsc -b` clean, `npx vitest run` no new failures,
-  `npx playwright test tnColumnAudit tnNullFeed` — and the audit numbers quoted
-  in the progress log must come from an actual run.
+- Verification per task: **`npm run check:tn`** from `apps/market-ui` (TNC-8) —
+  `npx tsc -b` then `npx playwright test tnColumnAudit tnNullFeed`. It prints the
+  column table, writes `e2e/tn-column-baseline.txt`, and emits a ready-to-paste
+  §5 row. Commit the baseline: a change in any column's fill or distinctness then
+  shows up as a git diff rather than having to be caught by eye.
+- Also run `npx vitest run` per task. It is **not** in `check:tn` and cannot be:
+  vitest is not a declared dependency (npx fetches it), so its default include
+  sweeps up 14 files that are not vitest suites — the five Playwright specs under
+  `e2e/`, `eval/liveProbe.test.ts`, and eight older files that assert at import
+  through their own `check()` harness. All 14 fail collection, so `npx vitest run`
+  exits 1 on a healthy tree. **The tests are unaffected: 234 pass, 0 fail, 5
+  skipped.** Read the `Tests` line, not the `Test Files` line, and note that a
+  test-counting summary (RTK's included) reports this as "PASS (234) FAIL (0)".
+  Fixing it properly means adding `vitest` to devDependencies so it can be
+  configured by file — which this section forbids, so it is left for the owner.
+- The audit numbers quoted in the progress log must come from an actual run.
 
 ## §3 Measured state — 2026-07-22, prod, 77-row board
 
@@ -190,7 +203,7 @@ so the harness cannot read it. Its data source is the same `closes` array as
 - [x] **TNC-7 — distinguish "did not trade" from "unknown"** for Volume,
   Turnover and O/H/L: a stock with a real 0 should not render the same `—` as a
   stock whose data failed to load.
-- [ ] **TNC-8 — wire `tnColumnAudit` into the repeatable check** and record a
+- [x] **TNC-8 — wire `tnColumnAudit` into the repeatable check** and record a
   baseline row in §5 each pass, so regressions in fill or distinctness surface.
 
 ## §5 Progress log
@@ -205,3 +218,4 @@ so the harness cannot read it. Its data source is the same `closes` array as
 | 2026-07-22 | TNC-5 | The bound was never broken, it was unreachable: it sat in the `?symbol=` branch, which the table does not call (the TNC-3 root cause again). Measured before: **3/49** served P/B outside 0.2–12 — STB 152 348.21, SFBT 14.59, ATL 12.25. §3 credited the 14.59 to TJARI; TJARI is 3.42 and was always in bound, corrected. Both branches now pass the record through one `sane()`, so the rule belongs to the datum and not to a route. Prod after deploy: **46** symbols with a numeric P/B, **0** out of bound, served range **0.591–8.287**, STB/SFBT/ATL all `null`; `pb` fill 46/75 against `eps` 49/75 — the three-row gap is the extraction failures being refused. `npx tsc -b` clean; `npx vitest run` 232 pass / 0 fail / 5 skipped (2 new in `tnFundamentals.test.ts`, one of which pins that a per-symbol read no longer writes through to the shared blob); `npx playwright test tnColumnAudit tnNullFeed` 2 pass / 0 fail. |
 | 2026-07-22 | TNC-6 | Re-measured: **21** rows carried `top 100% of board by turnover`, not 11, and all 21 have `turnover == 0`. The percentile itself was never inverted — AB (turnover 1 273 815) read `top 1%` and STIP (9.37) read `top 98%`, both correct — so §3's diagnosis is corrected: the faults are that `top 98%` describes the board's worst name in words that read like praise, and that an untraded stock is not in the ranked set at all. Now an ordinal: prod sweep of all 75, **0** rows still saying `top N%`, **54** ranked (every one with turnover > 0, ordinals 1..54 unique and monotonic against turnover) and **21** reading `no turnover today` (every one with turnover = 0). Known thin name verified: STIP `#54 of 54 by turnover`; heaviest AB `#1 of 54`. Verification note: the engine route is CDN-cached `s-maxage=900, SWR 3600`, so a sweep without a cache-buster replayed the old body for 7 rounds while the blob was already fresh — re-read with `&cb=`. `npx tsc -b` clean; `npx vitest run` 233 pass / 0 fail / 5 skipped (1 new in `tnEngine.test.ts`); `npx playwright test tnColumnAudit tnNullFeed` 2 pass / 0 fail. |
 | 2026-07-22 | TNC-7 | The collapse was in the row mapper: `volume: r.volume \|\| undefined` in `marketsHub.ts` turned a real 0 into "unknown", so a stock that did not trade rendered the same `—` as one whose feed failed. Volume and Turnover now keep the 0 and render it (title `did not trade today`); Open/High/Low render `·` for a session that had no trade, reserving `—` for an absent datum. Measured in the rendered DOM, 75 rows: Volume **75/75** known with **21** a real 0, Turnover **75/75** with **21** zeros, Open/High/Low **54/75** values plus **21** `·` and **0** dashes — every cell on the board now says which of the two it means. The instrument was taught the difference in the same pass: `tnColumnAudit` no longer counts `·` as filled and reports `noTrade`/`zeros` per column, so the distinction cannot silently inflate a fill number. `npx tsc -b` clean; `npx vitest run` 234 pass / 0 fail / 5 skipped (1 new in `marketsHub.test.ts`); `npx playwright test tnColumnAudit tnNullFeed` 2 pass / 0 fail. |
+| 2026-07-22 | TNC-8 | `npm run check:tn` added (`npx tsc -b && npx playwright test tnColumnAudit tnNullFeed`), exit 0 verified. The audit now writes `e2e/tn-column-baseline.txt` — committed, so fill/distinct regressions appear as a git diff — and prints a ready-to-paste §5 row. Baseline this run, **77 rows** (a later session than the 75-row runs above, 14 untraded rather than 21): Price 77/77 d77; 7d % 71/77 d70; Volume 77/77 d64 (**14 zeros**); Turnover 77/77 d63 (14 zeros); Open 54/77 d54 (**14 no-trade, 9 genuinely unknown**); High 63/77 d62 (14 no-trade, **0 unknown**); Low 63/77 d61; PER 49/77 d47; EPS 49/77 d49; P/B 46/77 d42; Div Yield 32/77 d31; Score 69/77 d40; Signal 69/77 d3; Momentum 54/77 d27; Vol Factor 75/77 d55; News 0/77 d0; Liq/Trend 69/77 d65. Found while wiring this up: `npx vitest run` has been exiting 1 the whole time — 14 files fail *collection* (Playwright specs and script-style files caught by vitest's default include), while **234 tests pass and 0 fail**. Every earlier progress-log line in this section quoted the test count, which is correct but does not mention the file count; §2 now records the distinction and why `check:tn` cannot include vitest without a new devDependency. |

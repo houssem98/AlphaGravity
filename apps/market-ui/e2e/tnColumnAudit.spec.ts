@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { writeFileSync } from 'node:fs';
 
 // Measuring instrument for docs/TN_COLUMN_AUDIT_ROADMAP.md. Turns every TN
 // column on, renders the whole board, and reports how many rows actually paint
@@ -56,9 +57,27 @@ test('every Tunisian column paints real data', async ({ page }) => {
     const line = (c: { head: string; filled: number; n: number; noTrade: number; zeros: number; distinct: number; sample: string[] }) =>
         `${c.head.padEnd(14)} ${String(c.filled).padStart(3)}/${c.n}  ${String(Math.round((100 * c.filled) / c.n)).padStart(3)}%  distinct=${String(c.distinct).padStart(3)}` +
         `  noTrade=${String(c.noTrade).padStart(2)} zeros=${String(c.zeros).padStart(2)}  ${JSON.stringify(c.sample).slice(0, 40)}`;
-    console.log(`\nTN COLUMN AUDIT — ${rep!.rows} rows\n` + rep!.cols.filter((c) => c.head).map(line).join('\n'));
+    const body = rep!.cols.filter((c) => c.head).map(line).join('\n');
+    console.log(`\nTN COLUMN AUDIT — ${rep!.rows} rows\n` + body);
+
+    // TNC-8: the table is also written to a committed file, so a change in any
+    // column's fill or distinctness shows up as a git diff on the next run
+    // instead of having to be spotted by eye in the console.
+    writeFileSync(
+        new URL('tn-column-baseline.txt', import.meta.url),
+        `TN COLUMN AUDIT — ${rep!.rows} rows\n` +
+        `column         filled     %  distinct  noTrade zeros\n${body}\n`,
+    );
 
     const named = (h: string) => rep!.cols.find((c) => c.head === h);
+
+    // A ready-to-paste §5 progress-log row, so each pass records the same shape.
+    const cell = (h: string) => { const c = named(h); return c ? `${h} ${c.filled}/${c.n} d${c.distinct}` : `${h} —`; };
+    console.log(
+        `\n§5 ROW → | ${new Date().toISOString().slice(0, 10)} | <task> | ` +
+        ['Price', '7d %', 'Volume', 'Open', 'High', 'Low', 'PER', 'P/B', 'Div Yield',
+            'Score', 'Signal', 'Momentum', 'Vol Factor', 'News', 'Liq/Trend'].map(cell).join('; ') + '. |',
+    );
     const dead = MUST_HAVE_DATA.filter((h) => (named(h)?.filled ?? 0) === 0);
     expect(dead, `columns rendering nothing for the whole board: ${dead.join(', ')}`).toEqual([]);
 

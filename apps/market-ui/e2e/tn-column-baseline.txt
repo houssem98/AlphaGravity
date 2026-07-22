@@ -1,0 +1,29 @@
+TN COLUMN AUDIT — 77 rows
+column         filled     %  distinct  noTrade zeros
+#               77/77  100%  distinct= 77  noTrade= 0 zeros= 0  ["1","2","3"]
+Name            77/77  100%  distinct= 77  noTrade= 0 zeros= 0  ["BIBIATBIAT","POULINA GP HOLDINGPGH","T
+Price           77/77  100%  distinct= 77  noTrade= 0 zeros= 0  ["178.94 TND","27.90 TND","97.40 TND"]
+24h %           77/77  100%  distinct= 16  noTrade= 0 zeros= 0  ["+0.53%","+0.00%","-0.02%"]
+7d %            71/77   92%  distinct= 70  noTrade= 0 zeros= 0  ["+5.26%","-1.24%","+1.46%"]
+Volume          77/77  100%  distinct= 64  noTrade= 0 zeros=14  ["287.78K TND1.62K BIAT","49.84K TND1.78
+Market Cap      77/77  100%  distinct= 77  noTrade= 0 zeros= 0  ["7.30B TND","5.02B TND","4.09B TND"]
+Circulating     77/77  100%  distinct= 77  noTrade= 0 zeros= 0  ["40.80M BIAT","180.00M PGH","42.00M TJA
+Last 7 Days     77/77  100%  distinct=  2  noTrade= 0 zeros= 0  ["TRADE","TRADE","TRADE"]
+Sector          77/77  100%  distinct= 16  noTrade= 0 zeros= 0  ["BANQUES","AGRO ALIMENTAIRE ET BOISSONS
+ISIN            77/77  100%  distinct= 77  noTrade= 0 zeros= 0  ["TN0001800457","TN0005700018","TN000160
+Turnover        77/77  100%  distinct= 63  noTrade= 0 zeros=14  ["287.78K TND","49.84K TND","112.60K TND
+Open            54/77   70%  distinct= 54  noTrade=14 zeros= 0  ["177.60 TND","28.00 TND","97.50 TND"]
+High            63/77   82%  distinct= 62  noTrade=14 zeros= 0  ["179.00 TND","28.00 TND","97.50 TND"]
+Low             63/77   82%  distinct= 61  noTrade=14 zeros= 0  ["177.60 TND","27.80 TND","97.40 TND"]
+PER             49/77   64%  distinct= 47  noTrade= 0 zeros= 0  ["18.95","17.63","14.87"]
+EPS             49/77   64%  distinct= 49  noTrade= 0 zeros= 0  ["9.443","5.526","0.997"]
+P/B             46/77   60%  distinct= 42  noTrade= 0 zeros= 0  ["2.92","3.42","1.54"]
+Net Income      49/77   64%  distinct= 48  noTrade= 0 zeros= 0  ["385.26M TND","232.10M TND","267.20M TN
+Equity          49/77   64%  distinct= 47  noTrade= 0 zeros= 0  ["2.37B TND","1.13B TND","270.97M TND"]
+Div Yield       32/77   42%  distinct= 31  noTrade= 0 zeros= 0  ["3.24%","4.13%","5.98%"]
+Score           69/77   90%  distinct= 40  noTrade= 0 zeros= 0  ["67","64","68"]
+Signal          69/77   90%  distinct=  3  noTrade= 0 zeros= 0  ["bullish","neutral","bullish"]
+Momentum        54/77   70%  distinct= 27  noTrade= 0 zeros= 1  ["33","50","40"]
+Vol Factor      75/77   97%  distinct= 55  noTrade= 0 zeros=21  ["83","63","35"]
+News             0/77    0%  distinct=  0  noTrade= 0 zeros= 0  []
+Liq/Trend       69/77   90%  distinct= 65  noTrade= 0 zeros= 0  ["88/85","66/58","53/99"]

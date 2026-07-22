@@ -14,7 +14,8 @@
     "eval:synthetic": "node scripts/run-eval.mjs synthetic",
     "eval:loop": "vitest run eval/loopSelfImprove.test.ts",
     "probe": "tsx scripts/grid-numeric-probe.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "check:tn": "npx tsc -b && npx playwright test tnColumnAudit tnNullFeed"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
