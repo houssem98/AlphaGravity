@@ -234,7 +234,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   const [refMap, setRefMap] = useState<Record<string, any>>({});
   const [fundMap, setFundMap] = useState<Record<string, any>>({});
   const [engineMap, setEngineMap] = useState<Record<string, any>>({});
-  const [ohlMap, setOhlMap] = useState<Record<string, { open: number; high: number; low: number }>>({});
+  const [ohlMap, setOhlMap] = useState<Record<string, { open: number }>>({});
   const WKEY = `hub_watchlist_${market.id}`;
   const [watchlist, setWatchlist] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(WKEY) || '[]'); } catch { return []; }
@@ -451,9 +451,12 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
           case 'sector': body = rf?.sector ? <span className="text-[color:var(--text-2)] truncate">{rf.sector}</span> : dash; break;
           case 'isin': body = (r.isin || rf?.isin) ? <span className="text-[color:var(--text-3)]">{r.isin || rf.isin}</span> : dash; break;
           case 'turnover': body = r.turnover ? <>{fmtCompact(r.turnover)} {r.currency}</> : dash; break;
+          // TNC-4: high/low ride the same row as Price so they cannot contradict
+          // it. Open still comes from intraday — BVMT's board row sends open=0 on
+          // every stock, so the session's first traded price only exists there.
           case 'open': body = numTd(oh?.open, (v) => fmtPrice(v, r.currency)); break;
-          case 'high': body = numTd(oh?.high, (v) => fmtPrice(v, r.currency)); break;
-          case 'low': body = numTd(oh?.low, (v) => fmtPrice(v, r.currency)); break;
+          case 'high': body = numTd(r.dayHigh, (v) => fmtPrice(v, r.currency)); break;
+          case 'low': body = numTd(r.dayLow, (v) => fmtPrice(v, r.currency)); break;
           // TNC-3: computed from the price in the row beside it, never from the
           // server's own snapshot — the two cache on different clocks, and a PER
           // that contradicts the Price cell is a claim about a price we never showed.
@@ -500,7 +503,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   const visibleSet = new Set(visibleCols);
   const needRef = isTN && (visibleSet.has('sector') || visibleSet.has('isin'));
   const needFund = isTN && ['per', 'eps', 'pb', 'netIncome', 'equity', 'divYield'].some((k) => visibleSet.has(k as ColKey));
-  const needOHL = isTN && (visibleSet.has('open') || visibleSet.has('high') || visibleSet.has('low'));
+  const needOHL = isTN && visibleSet.has('open'); // high/low ride the board row (TNC-4)
   const needEngine = isTN && ['engScore', 'engLabel', 'fMomentum', 'fVolume', 'fNews', 'fLiqTrend'].some((k) => visibleSet.has(k as ColKey));
   useEffect(() => {
     if (!needRef || Object.keys(refMap).length) return;
@@ -519,7 +522,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
       fetch(`/api/tn/intraday?symbol=${encodeURIComponent(s)}`).then((r) => r.json()).then((d) => {
         const cs = d?.candles || [];
         if (!cs.length) return null;
-        return [s, { open: cs[0].open, high: Math.max(...cs.map((c: any) => c.high)), low: Math.min(...cs.map((c: any) => c.low)) }] as const;
+        return [s, { open: cs[0].open }] as const;
       }).catch(() => null),
     )).then((rows) => {
       if (!alive) return;

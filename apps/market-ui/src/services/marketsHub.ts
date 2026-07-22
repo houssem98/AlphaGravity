@@ -16,6 +16,8 @@ export interface AssetRow {
   logo?: string;
   isin?: string; // BVMT listings — used for official fiche-valeur links
   sevenDayCloses?: number[]; // TN: bundled with the row fetch (no per-symbol spark call)
+  dayHigh?: number; // TN: same row as price, so the range always contains it (TNC-4)
+  dayLow?: number;
   turnover?: number; // TN: session trading value in TND (volume column headline)
   circulating?: number; // TN: shares outstanding (CMC-style circulating column)
 }
@@ -117,6 +119,8 @@ async function fetchTunisia(_defs: SymbolDef[]): Promise<AssetRow[]> {
     isin: r.isin || undefined,
     currency: 'TND' as const,
     sevenDayCloses: r.closes || undefined,
+    dayHigh: r.high ?? undefined,
+    dayLow: r.low ?? undefined,
   }));
 }
 

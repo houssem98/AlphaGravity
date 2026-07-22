@@ -831,11 +831,20 @@ async function board(_req: any, res: any) {
       // TNC-2: null, never 0 — a fabricated 0.00% is fake data; UI renders — for null.
       const change7d = closes.length > 1 ? ((closes[closes.length - 1] - closes[0]) / closes[0]) * 100 : null;
       const shares = sharesByTicker[m.referentiel.ticker] || 0;
+      // TNC-4: the day range travels with the price it must contain. Taken off
+      // this same row, `last` is inside [low, high] by the exchange's own
+      // construction — 0/75 violations — where the intraday feed is a separate
+      // snapshot on a separate cache clock. A stock that did not trade has no
+      // range at all: BVMT still sends high == low == last (yesterday's close
+      // carried forward), which would paint a day range that never happened.
+      const traded = (m.volume || 0) > 0;
       return {
         symbol: m.referentiel.ticker, name: m.referentiel.stockName || m.referentiel.ticker,
         price: m.last || 0, changePct: m.change || 0, change7d,
         marketCap: shares ? (m.last || 0) * shares : 0, volume: m.volume || 0,
         turnover: m.caps || 0, shares, isin: m.isin,
+        high: traded && m.high > 0 ? m.high : null,
+        low: traded && m.low > 0 ? m.low : null,
         closes,
       };
     }).sort((a: any, b: any) => (b.marketCap || 0) - (a.marketCap || 0)) };

@@ -34,9 +34,10 @@ const cols = {
   volume:     ['Market', (s, b) => isNum(b.volume) && b.volume > 0],
   turnover:   ['Market', (s, b) => isNum(b.turnover) && b.turnover > 0],
   marketCap:  ['Market', (s, b) => isNum(b.marketCap) && b.marketCap > 0],
+  // TNC-4: high/low ride the board row; only open still comes from intraday.
   open:       ['Market', (s) => (intradays[s]?.candles?.length || 0) > 0],
-  high:       ['Market', (s) => (intradays[s]?.candles?.length || 0) > 0],
-  low:        ['Market', (s) => (intradays[s]?.candles?.length || 0) > 0],
+  high:       ['Market', (s, b) => isNum(b.high)],
+  low:        ['Market', (s, b) => isNum(b.low)],
   sector:     ['Company', (s) => !!ref[s]?.sector],
   isin:       ['Company', (s, b) => !!(b.isin || ref[s]?.isin)],
   shares:     ['Company', (s, b) => isNum(b.shares) || isNum(ref[s]?.shares)],

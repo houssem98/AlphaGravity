@@ -52,7 +52,7 @@ how a constant-emitting factor gives itself away.
 | Name, Price, 24h %, ISIN, Sector, Market Cap, Circulating | 77/77 | high | **OK** |
 | 7d % | 70/75 (93%) — was 0/75 for the whole of the 2026-07-22 re-measure | 67 | **FIXED** — TNC-1 |
 | Volume, Turnover | 43/77 (56%) | 43 | **OK, honest** — 43 stocks traded |
-| Open, High, Low | 41/77 (53%) | 41/40/41 | **SUSPECT** — TNC-4 |
+| Open, High, Low | 52/75, 54/75, 54/75 | — | **FIXED** — range contains price by construction, TNC-4 |
 | PER, EPS, Net Income, Equity | 49/75 (65%) | 49 | **FIXED** — PER now exact vs Price, TNC-3 |
 | P/B | 49/77 (64%) | 45 | **BROKEN VALUES** — TNC-5 |
 | Div Yield | 32/77 (42%) | 31 | **OK, honest** — declared at AGM only |
@@ -124,6 +124,19 @@ how a constant-emitting factor gives itself away.
 - **Open/High/Low**: sourced from `/api/tn/intraday`, price from the board. On
   the 64-symbol sample where both existed, **19** had the board price outside
   `[low, high]` (ATB 3.88 vs [4.24, 4.28]; TJARI 97.5 vs [100.32, 102]).
+  **Corrected 2026-07-22 (TNC-4)**: re-measured post-close the same day and the
+  contradiction was **0/54** — the two sources agree once the session settles,
+  so the 19/64 was mid-session cache skew (intraday 60 s vs board 180 s), not a
+  standing error. A reading taken after the close cannot clear this, so it was
+  fixed by construction instead of by measurement: the BVMT board row already
+  carries `high`/`low` beside `last`, and on that row `last` is inside
+  `[low, high]` for **0/75** violations. High/Low now travel on the board row.
+  Two things the row cannot do: `open` is **0 on all 75 rows** in this feed, so
+  Open still comes from `/api/tn/intraday` (52/75, the session's real first
+  traded price); and the 21 untraded rows arrive as `high == low == last ==
+  close` — yesterday's close carried forward, which would paint a day range
+  that never happened, so they are `null`. Range coverage is exactly the traded
+  set: **54/75**.
 
 Not measured, not claimed: the **Last 7 Days** sparkline is an SVG with no text,
 so the harness cannot read it. Its data source is the same `closes` array as
@@ -148,7 +161,7 @@ so the harness cannot read it. Its data source is the same `closes` array as
   Either serve PER from the same snapshot as the board, or return `eps` only and
   compute PER client-side from `r.price`.
   Accept: for all rows with both, `|PER − price/eps| / (price/eps) ≤ 0.01`.
-- [ ] **TNC-4 — Day range must not contradict the price.** Reconcile the
+- [x] **TNC-4 — Day range must not contradict the price.** Reconcile the
   intraday source with the board session, or drop O/H/L when they disagree.
   Accept: 0 rows with board price outside `[low, high]`.
 - [ ] **TNC-5 — make the P/B sanity bound actually apply.** Find why `[fn].ts:735`
@@ -170,3 +183,4 @@ so the harness cannot read it. Its data source is the same `closes` array as
 | 2026-07-22 | TNC-1 | Closes query measured at 22.0 s / 60 d (30 d 14.2 s, 14 d 5.6 s, `ingested_at` variant 21.8 s) over 684 096 raw_market rows — the 15 s bound aborted every call, so prod served `closes:[]` on 3/3 cache-busted reads at 15.8 s each. Closes moved to their own `tn_closes.json` blob (1800 s, never written empty), bound raised to 45 s, `historyOk` added to the payload. Prod after deploy: 75 rows, `historyOk=true`, closes>1 **70/75**, closes==0 **2**, 7d% fill **70** distinct **67**, closes lengths {0,1,7}; first call 12.5 s (blob seed), then 1.56 s / 1.10 s / 0.98 s. 3 new unit tests in `tnBoard.test.ts` (dead query + cached closes → served, not overwritten; dead query + no blob → `historyOk:false`, 0 blob writes; live query → both blobs written, untraded AST stays null). `npx tsc -b` clean; `npx vitest run` 220 pass / 0 fail / 5 skipped; `tnNullFeed` pass; `tnColumnAudit` still fails only on `News=50` (TNC-2). |
 | 2026-07-22 | TNC-2 | Every factor now emits `null` with no input and drops out of the composite; below 0.5 surviving weight `score` and `label` are null too, and the payload carries `covered`. Prod, 75/75 engines: News fill **0/75** (was 75/77 all exactly 50) — Firecrawl answers HTTP 200 with an empty result set, so "0 sources" is honest, and a real failure now reads `news source unavailable`. Momentum **54/75** distinct 27 (21 null, all with board `volume = 0`); liquidity **64/75** distinct 44; trend **68/75** d40; reversal **72/75** d44; nearHigh **74/75** d44; illiquidity **73/75** d45; volume **75/75** d55; score **69/75** distinct 40; label **69/75** distinct 3. Of §3's 7 zero-evidence rows, ALKIM/PLTU/UADH/AETEC (covered 0.40/0.30/0.40/0.10) now carry no score or label; AST/SITS/STIP (0.70/0.60/0.75) keep one on real historical bars — §3 corrected rather than the threshold bent. `npx tsc -b` clean; `npx vitest run` 224 pass / 0 fail / 5 skipped (4 new in `tnEngine.test.ts`); `npx playwright test tnColumnAudit tnNullFeed` **2 pass / 0 fail** — the constant-factor assertion that has failed since the baseline now passes. |
 | 2026-07-22 | TNC-3 | The reprice at `[fn].ts:755` only ever ran in the `?symbol=` branch, while the table reads the bulk payload — so its PER was the offline extraction value, never repriced. Measured before: **37/49** rows off the board's own `price/eps` by >1%, **24/49** by >5%, worst ATL 15.64 vs 21.05 (25.7%); the per-symbol branch already matched exactly (BIAT 18.85, TJARI 17.63, SFBT 14.87). Bulk now ships `eps` and no `per` (prod: **0/53** symbols carry `per`, **49** carry `eps`), and the cell computes `r.price / eps`, so disagreement is 0 by construction. `audit_tn_columns.mjs` measured `per` off the removed field and read 0/75 — the instrument was corrected to the same price/eps rule and reads **49/75**, equal to `eps` coverage. `npx tsc -b` clean; `npx vitest run` 227 pass / 0 fail / 5 skipped (3 new in `tnFundamentals.test.ts`); `npx playwright test tnColumnAudit tnNullFeed` 2 pass / 0 fail. |
+| 2026-07-22 | TNC-4 | Re-measured post-close: board price outside `[low, high]` was **0/54**, not the baseline's 19/64 — that was mid-session skew between a 60 s intraday blob and a 180 s board blob. A quiet-market reading cannot clear this, so it was fixed by construction: BVMT's board row carries `high`/`low` beside `last`, where `last` sits inside the range on **0/75** violations. High/Low now ride that row; prod after the blob rolled: 75 rows, **54** with a range, **0** outside it, and range coverage equals the traded set exactly (54 traded). The 21 untraded rows send `high == low == last == close` (yesterday's close carried forward) and are now `null` rather than a day range that never happened. `open` is **0 on all 75 rows** in this feed, so Open stays on `/api/tn/intraday` at **52/75**. `audit_tn_columns.mjs` high/low moved to the board row to match. `npx tsc -b` clean; `npx vitest run` 230 pass / 0 fail / 5 skipped (3 new in `tnDayRange.test.ts`); `npx playwright test tnColumnAudit tnNullFeed` 2 pass / 0 fail. |
