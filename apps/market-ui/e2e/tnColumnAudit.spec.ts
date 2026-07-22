@@ -38,8 +38,14 @@ test('every Tunisian column paints real data', async ({ page }) => {
             rows: rows.length,
             cols: heads.map((h, i) => {
                 const vals = rows.map((tr) => (tr.querySelectorAll('td')[i].textContent || '').trim());
-                const filled = vals.filter((v) => v && !/^[—\-–]+$/.test(v));
-                return { head: h, n: vals.length, filled: filled.length, distinct: new Set(filled).size, sample: filled.slice(0, 3) };
+                // TNC-7: '·' means "known: this stock did not trade", '—' means
+                // "no datum". Neither is a value, but they are not the same
+                // answer, so the instrument counts them apart. A rendered 0 is a
+                // real measurement and does count as filled.
+                const filled = vals.filter((v) => v && v !== '·' && !/^[—\-–]+$/.test(v));
+                const noTrade = vals.filter((v) => v === '·').length;
+                const zeros = filled.filter((v) => /^0(\s|$)/.test(v)).length;
+                return { head: h, n: vals.length, filled: filled.length, noTrade, zeros, distinct: new Set(filled).size, sample: filled.slice(0, 3) };
             }),
         };
     });
@@ -47,8 +53,9 @@ test('every Tunisian column paints real data', async ({ page }) => {
     expect(rep, 'TN table did not render').not.toBeNull();
     expect(rep!.rows).toBeGreaterThan(50);
 
-    const line = (c: { head: string; filled: number; n: number; distinct: number; sample: string[] }) =>
-        `${c.head.padEnd(14)} ${String(c.filled).padStart(3)}/${c.n}  ${String(Math.round((100 * c.filled) / c.n)).padStart(3)}%  distinct=${String(c.distinct).padStart(3)}  ${JSON.stringify(c.sample).slice(0, 46)}`;
+    const line = (c: { head: string; filled: number; n: number; noTrade: number; zeros: number; distinct: number; sample: string[] }) =>
+        `${c.head.padEnd(14)} ${String(c.filled).padStart(3)}/${c.n}  ${String(Math.round((100 * c.filled) / c.n)).padStart(3)}%  distinct=${String(c.distinct).padStart(3)}` +
+        `  noTrade=${String(c.noTrade).padStart(2)} zeros=${String(c.zeros).padStart(2)}  ${JSON.stringify(c.sample).slice(0, 40)}`;
     console.log(`\nTN COLUMN AUDIT — ${rep!.rows} rows\n` + rep!.cols.filter((c) => c.head).map(line).join('\n'));
 
     const named = (h: string) => rep!.cols.find((c) => c.head === h);

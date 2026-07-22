@@ -113,8 +113,10 @@ async function fetchTunisia(_defs: SymbolDef[]): Promise<AssetRow[]> {
     changePct: r.changePct,
     changePct7d: r.change7d ?? undefined,
     marketCap: r.marketCap || undefined,
-    volume: r.volume || undefined,
-    turnover: r.turnover || undefined,
+    // TNC-7: `|| undefined` turned a real 0 into "unknown", so a stock that did
+    // not trade rendered the same dash as one whose feed failed. 0 is an answer.
+    volume: r.volume ?? undefined,
+    turnover: r.turnover ?? undefined,
     circulating: r.shares || undefined,
     isin: r.isin || undefined,
     currency: 'TND' as const,

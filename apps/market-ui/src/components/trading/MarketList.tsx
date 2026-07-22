@@ -407,6 +407,10 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
               <span>{fmtCompact(r.turnover)} {r.currency}</span>
               <span className="text-label text-[color:var(--text-3)]">{fmtCompact(r.volume || 0)} {r.symbol.replace('^', '')}</span>
             </div>
+          ) : isTN && r.volume === 0 ? (
+            // TNC-7: the board loaded and says nothing changed hands. That is an
+            // answer — 0 — and must not look like the dash that means "no data".
+            <span title="did not trade today">0</span>
           ) : r.volume ? fmtCompact(r.volume) : '—'}
         </td>
       );
@@ -444,19 +448,23 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
         const rf = refMap[sym]; const fu = fundMap[sym]; const en = engineMap[sym]; const oh = ohlMap[sym];
         const f = COLMETA[kk];
         const dash = <span className="text-[color:var(--text-3)]">—</span>;
+        // TNC-7: a session with no trade has no open, high or low — that is known,
+        // not missing, so it reads as a distinct mark rather than the "no data" dash.
+        const noTrade = <span className="text-[color:var(--text-3)]" title="did not trade today">·</span>;
+        const untraded = isTN && r.volume === 0;
         let body: React.ReactNode = dash;
         const numTd = (n: number | null | undefined, fmt: (x: number) => React.ReactNode) =>
           (typeof n === 'number' && isFinite(n) ? fmt(n) : dash);
         switch (kk) {
           case 'sector': body = rf?.sector ? <span className="text-[color:var(--text-2)] truncate">{rf.sector}</span> : dash; break;
           case 'isin': body = (r.isin || rf?.isin) ? <span className="text-[color:var(--text-3)]">{r.isin || rf.isin}</span> : dash; break;
-          case 'turnover': body = r.turnover ? <>{fmtCompact(r.turnover)} {r.currency}</> : dash; break;
+          case 'turnover': body = r.turnover ? <>{fmtCompact(r.turnover)} {r.currency}</> : untraded ? <span title="did not trade today">0</span> : dash; break;
           // TNC-4: high/low ride the same row as Price so they cannot contradict
           // it. Open still comes from intraday — BVMT's board row sends open=0 on
           // every stock, so the session's first traded price only exists there.
-          case 'open': body = numTd(oh?.open, (v) => fmtPrice(v, r.currency)); break;
-          case 'high': body = numTd(r.dayHigh, (v) => fmtPrice(v, r.currency)); break;
-          case 'low': body = numTd(r.dayLow, (v) => fmtPrice(v, r.currency)); break;
+          case 'open': body = untraded ? noTrade : numTd(oh?.open, (v) => fmtPrice(v, r.currency)); break;
+          case 'high': body = untraded ? noTrade : numTd(r.dayHigh, (v) => fmtPrice(v, r.currency)); break;
+          case 'low': body = untraded ? noTrade : numTd(r.dayLow, (v) => fmtPrice(v, r.currency)); break;
           // TNC-3: computed from the price in the row beside it, never from the
           // server's own snapshot — the two cache on different clocks, and a PER
           // that contradicts the Price cell is a claim about a price we never showed.
