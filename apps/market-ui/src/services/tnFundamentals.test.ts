@@ -17,7 +17,15 @@ const jsonOk = (body: unknown) => ({ ok: true, status: 200, json: async () => bo
 
 const MARKETS = { markets: [{ isin: 'TN0007250012', last: 100, change: 0, volume: 10, caps: 1000, referentiel: { ticker: 'BIAT', stockName: 'BIAT' } }] };
 // `per` here is what the offline extraction wrote at a price of 80, not today's 100.
-const BLOB = { BIAT: { eps: 5, per: 16, pb: 1.4, dividend: 2, yield: 2.5 } };
+// STB/SFBT/ATL carry the P/B values prod actually served past the bound.
+const BLOB = {
+    BIAT: { eps: 5, per: 16, pb: 1.4, dividend: 2, yield: 2.5 },
+    STB: { eps: 1, pb: 152348.2142857143 },
+    SFBT: { eps: 1, pb: 14.585452389165507 },
+    ATL: { eps: 1, pb: 12.25 },
+    LOW: { eps: 1, pb: 0.1 },
+    EDGE: { eps: 1, pb: 12 },
+};
 
 const stub = () => {
     vi.stubEnv('SUPABASE_URL', 'https://x.supabase.co');
@@ -57,6 +65,36 @@ describe('api/tn/fundamentals — PER agrees with the displayed price (TNC-3)', 
         expect(per).toBe(20);
         // The stale blob value would have been 16 — a 20% lie about a price never shown.
         expect(Math.abs(per - price / 5) / (price / 5)).toBeLessThanOrEqual(0.01);
+    });
+
+    it('the P/B bound applies to the bulk payload the table reads (TNC-5)', async () => {
+        stub();
+        const res = mkRes();
+        await handler({ query: { fn: 'fundamentals' } }, res);
+
+        const f = res.body.fundamentals;
+        expect(f.STB.pb).toBeNull();   // 152 348.21 reached the board before this
+        expect(f.SFBT.pb).toBeNull();  // 14.59
+        expect(f.ATL.pb).toBeNull();   // 12.25
+        expect(f.LOW.pb).toBeNull();   // 0.1
+        // In-bound values, including the boundary itself, are untouched.
+        expect(f.BIAT.pb).toBe(1.4);
+        expect(f.EDGE.pb).toBe(12);
+        const served = Object.values(f).map((x: any) => x.pb).filter((v) => typeof v === 'number');
+        expect(served.filter((v) => v < 0.2 || v > 12)).toEqual([]);
+    });
+
+    it('the same bound applies per-symbol, and does not mutate the shared blob', async () => {
+        stub();
+        const one = mkRes();
+        await handler({ query: { fn: 'fundamentals', symbol: 'STB' } }, one);
+        expect(one.body.fundamentals.pb).toBeNull();
+
+        // A second read must see the original blob, not a value an earlier call wrote through.
+        const all = mkRes();
+        await handler({ query: { fn: 'fundamentals' } }, all);
+        expect(all.body.fundamentals.BIAT.pb).toBe(1.4);
+        expect('per' in JSON.parse(JSON.stringify(all.body.fundamentals.BIAT))).toBe(false);
     });
 
     it('the per-symbol branch still reprices against the live quote', async () => {

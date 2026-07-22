@@ -54,7 +54,7 @@ how a constant-emitting factor gives itself away.
 | Volume, Turnover | 43/77 (56%) | 43 | **OK, honest** — 43 stocks traded |
 | Open, High, Low | 52/75, 54/75, 54/75 | — | **FIXED** — range contains price by construction, TNC-4 |
 | PER, EPS, Net Income, Equity | 49/75 (65%) | 49 | **FIXED** — PER now exact vs Price, TNC-3 |
-| P/B | 49/77 (64%) | 45 | **BROKEN VALUES** — TNC-5 |
+| P/B | 46/75 (61%) | 46 | **FIXED** — bound applies on every route, TNC-5 |
 | Div Yield | 32/77 (42%) | 31 | **OK, honest** — declared at AGM only |
 | Score, Signal, Momentum, Vol Factor, Liq/Trend | 69/75, 69/75, 54/75, 75/75, 64/75 | 40/3/27/55/44 | **FIXED** — TNC-2 |
 | News | **0/75** | 0 | **FIXED** — TNC-2, and the feed itself returns nothing |
@@ -121,6 +121,15 @@ how a constant-emitting factor gives itself away.
 - **P/B**: `[fn].ts:735` claims to null anything outside 0.2–12, but the served
   payload contains **STB = 152 348.21** and renders **TJARI = 14.59**. The guard
   is not reaching the response.
+  **Corrected 2026-07-22 (TNC-5)**: the 14.59 is **SFBT**, not TJARI — TJARI's
+  P/B is 3.42 and was always in bound. Exactly **3** of 49 breached it: STB
+  152 348.21, SFBT 14.59, ATL 12.25. The guard was real but sat inside the
+  `?symbol=` branch — the one route the table never calls (same root cause as
+  TNC-3). It is now a rule about the datum rather than about a route: both
+  branches pass the record through one `sane()` on the way out. Served range is
+  now 0.591–8.287 across 46 symbols, **0** out of bound, and the three dropped
+  names render `—`. P/B fill is 46/75, three below `eps`, which is the honest
+  cost of refusing an extraction failure.
 - **Open/High/Low**: sourced from `/api/tn/intraday`, price from the board. On
   the 64-symbol sample where both existed, **19** had the board price outside
   `[low, high]` (ATB 3.88 vs [4.24, 4.28]; TJARI 97.5 vs [100.32, 102]).
@@ -164,7 +173,7 @@ so the harness cannot read it. Its data source is the same `closes` array as
 - [x] **TNC-4 — Day range must not contradict the price.** Reconcile the
   intraday source with the board session, or drop O/H/L when they disagree.
   Accept: 0 rows with board price outside `[low, high]`.
-- [ ] **TNC-5 — make the P/B sanity bound actually apply.** Find why `[fn].ts:735`
+- [x] **TNC-5 — make the P/B sanity bound actually apply.** Find why `[fn].ts:735`
   does not reach the served payload; STB must be `—`, not 152 348.
   Accept: no served `pb` outside 0.2–12; STB renders `—`.
 - [ ] **TNC-6 — fix the inverted Vol Factor wording** (`top 100%` → the correct
@@ -184,3 +193,4 @@ so the harness cannot read it. Its data source is the same `closes` array as
 | 2026-07-22 | TNC-2 | Every factor now emits `null` with no input and drops out of the composite; below 0.5 surviving weight `score` and `label` are null too, and the payload carries `covered`. Prod, 75/75 engines: News fill **0/75** (was 75/77 all exactly 50) — Firecrawl answers HTTP 200 with an empty result set, so "0 sources" is honest, and a real failure now reads `news source unavailable`. Momentum **54/75** distinct 27 (21 null, all with board `volume = 0`); liquidity **64/75** distinct 44; trend **68/75** d40; reversal **72/75** d44; nearHigh **74/75** d44; illiquidity **73/75** d45; volume **75/75** d55; score **69/75** distinct 40; label **69/75** distinct 3. Of §3's 7 zero-evidence rows, ALKIM/PLTU/UADH/AETEC (covered 0.40/0.30/0.40/0.10) now carry no score or label; AST/SITS/STIP (0.70/0.60/0.75) keep one on real historical bars — §3 corrected rather than the threshold bent. `npx tsc -b` clean; `npx vitest run` 224 pass / 0 fail / 5 skipped (4 new in `tnEngine.test.ts`); `npx playwright test tnColumnAudit tnNullFeed` **2 pass / 0 fail** — the constant-factor assertion that has failed since the baseline now passes. |
 | 2026-07-22 | TNC-3 | The reprice at `[fn].ts:755` only ever ran in the `?symbol=` branch, while the table reads the bulk payload — so its PER was the offline extraction value, never repriced. Measured before: **37/49** rows off the board's own `price/eps` by >1%, **24/49** by >5%, worst ATL 15.64 vs 21.05 (25.7%); the per-symbol branch already matched exactly (BIAT 18.85, TJARI 17.63, SFBT 14.87). Bulk now ships `eps` and no `per` (prod: **0/53** symbols carry `per`, **49** carry `eps`), and the cell computes `r.price / eps`, so disagreement is 0 by construction. `audit_tn_columns.mjs` measured `per` off the removed field and read 0/75 — the instrument was corrected to the same price/eps rule and reads **49/75**, equal to `eps` coverage. `npx tsc -b` clean; `npx vitest run` 227 pass / 0 fail / 5 skipped (3 new in `tnFundamentals.test.ts`); `npx playwright test tnColumnAudit tnNullFeed` 2 pass / 0 fail. |
 | 2026-07-22 | TNC-4 | Re-measured post-close: board price outside `[low, high]` was **0/54**, not the baseline's 19/64 — that was mid-session skew between a 60 s intraday blob and a 180 s board blob. A quiet-market reading cannot clear this, so it was fixed by construction: BVMT's board row carries `high`/`low` beside `last`, where `last` sits inside the range on **0/75** violations. High/Low now ride that row; prod after the blob rolled: 75 rows, **54** with a range, **0** outside it, and range coverage equals the traded set exactly (54 traded). The 21 untraded rows send `high == low == last == close` (yesterday's close carried forward) and are now `null` rather than a day range that never happened. `open` is **0 on all 75 rows** in this feed, so Open stays on `/api/tn/intraday` at **52/75**. `audit_tn_columns.mjs` high/low moved to the board row to match. `npx tsc -b` clean; `npx vitest run` 230 pass / 0 fail / 5 skipped (3 new in `tnDayRange.test.ts`); `npx playwright test tnColumnAudit tnNullFeed` 2 pass / 0 fail. |
+| 2026-07-22 | TNC-5 | The bound was never broken, it was unreachable: it sat in the `?symbol=` branch, which the table does not call (the TNC-3 root cause again). Measured before: **3/49** served P/B outside 0.2–12 — STB 152 348.21, SFBT 14.59, ATL 12.25. §3 credited the 14.59 to TJARI; TJARI is 3.42 and was always in bound, corrected. Both branches now pass the record through one `sane()`, so the rule belongs to the datum and not to a route. Prod after deploy: **46** symbols with a numeric P/B, **0** out of bound, served range **0.591–8.287**, STB/SFBT/ATL all `null`; `pb` fill 46/75 against `eps` 49/75 — the three-row gap is the extraction failures being refused. `npx tsc -b` clean; `npx vitest run` 232 pass / 0 fail / 5 skipped (2 new in `tnFundamentals.test.ts`, one of which pins that a per-symbol read no longer writes through to the shared blob); `npx playwright test tnColumnAudit tnNullFeed` 2 pass / 0 fail. |

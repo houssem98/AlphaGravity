@@ -734,6 +734,16 @@ async function highs(_req: any, res: any) {
   res.json({ byIsin: out });
 }
 
+// Equity extraction is noisier than net income, so a P/B outside 0.2–12 is an
+// extraction failure, not a valuation. TNC-5: this used to live inside the
+// `?symbol=` branch, which is the one the table never calls — STB reached the
+// board at 152 348.21. It is a rule about the datum, not about one route, so
+// every branch runs it on the way out.
+function sane<T extends Record<string, any> | null>(f: T): T {
+  if (f && f.pb != null && (f.pb < 0.2 || f.pb > 12)) return { ...f, pb: null };
+  return f && { ...f } as T;
+}
+
 // ── Fundamentals (PER/EPS/dividend/yield) from the extraction blob ───────────
 // Populated offline by scripts/tn_fundamentals.py (PDF → LLM → ratios). Empty
 // until that runs; PER/yield are recomputed here against the live price.
@@ -746,15 +756,13 @@ async function fundamentals(req: any, res: any) {
     { headers: { apikey: key, Authorization: `Bearer ${key}` } });
   const blob = r.ok ? await r.json() : {};
   if (symbol) {
-    const f = blob[symbol] || null;
+    const f = sane(blob[symbol] || null);
     if (f && f.eps) {
       // Refresh price-relative ratios against today's quote.
       const g = await groups();
       const row = (g?.markets || []).find((m: any) => m?.referentiel?.ticker?.toUpperCase() === symbol);
       const price = row?.last || row?.close || 0;
       if (price) { f.per = f.eps ? price / f.eps : null; if (f.dividend) f.yield = (f.dividend / price) * 100; }
-      // Equity extraction is noisier than net income — drop implausible P/B.
-      if (f.pb != null && (f.pb < 0.2 || f.pb > 12)) f.pb = null;
     }
     return res.json({ symbol, fundamentals: f });
   }
@@ -763,7 +771,7 @@ async function fundamentals(req: any, res: any) {
   // rows disagreeing with the board's own price/eps (ATL 15.64 vs 21.05). Ship
   // `eps` and let the caller divide by the price it actually displays.
   const bulk = Object.fromEntries(
-    Object.entries(blob as Record<string, any>).map(([s, f]) => [s, { ...f, per: undefined }]));
+    Object.entries(blob as Record<string, any>).map(([s, f]) => [s, { ...sane(f), per: undefined }]));
   res.json({ fundamentals: bulk });
 }
 
