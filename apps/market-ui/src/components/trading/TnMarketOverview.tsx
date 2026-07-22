@@ -47,7 +47,11 @@ const TunindexMacro: React.FC = () => {
   );
 };
 
-interface Idx { name: string; level: number; changePct: number; yearPct: number | null }
+// The BVMT feed nulls a level or a change for any index that has not traded
+// yet — pre-open, a halted sector, a sector with no listed volume that day.
+// These types said `number` while the feed sent null, so nothing forced the
+// guards below and a single null sector blanked the whole Tunisian route.
+interface Idx { name: string; level: number | null; changePct: number | null; yearPct: number | null }
 interface Stats { marketCap: number | null; advancers: number | null; decliners: number | null; turnover: number | null; trades: number | null; active: number | null; listed: number | null }
 interface Mover { symbol: string; changePct: number; price: number }
 interface Brief {
@@ -59,14 +63,17 @@ interface Brief {
   text: string;
 }
 
-const fmtLevel = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtCap = (n: number) => n >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : String(Math.round(n));
+const num = (n: number | null | undefined): n is number => Number.isFinite(n as number);
+const fmtLevel = (n: number | null | undefined) =>
+  num(n) ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+const fmtCap = (n: number | null | undefined) =>
+  !num(n) ? '—' : n >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : String(Math.round(n));
 const shortName = (n: string) => {
   const s = n.replace(/^INDICE\s+(DE\s+|DES\s+|DE\s+LA\s+|D['’])?/i, '').trim();
   return s.charAt(0) + s.slice(1).toLowerCase();
 };
-const pctColor = (p: number) => (p > 0 ? 'var(--up)' : p < 0 ? 'var(--down)' : 'var(--flat)');
-const pct = (p: number) => `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
+const pctColor = (p: number | null | undefined) => (!num(p) || p === 0 ? 'var(--flat)' : p > 0 ? 'var(--up)' : 'var(--down)');
+const pct = (p: number | null | undefined) => (num(p) ? `${p >= 0 ? '+' : ''}${p.toFixed(2)}%` : '—');
 
 export const TnMarketOverview: React.FC = () => {
   const [indices, setIndices] = useState<Idx[]>([]);
@@ -105,7 +112,8 @@ export const TnMarketOverview: React.FC = () => {
               {fmtLevel(idx.level)}
             </span>
             <span className="text-body font-mono font-semibold" style={{ color: pctColor(idx.changePct) }}>
-              {idx.changePct >= 0 ? <TrendingUp className="inline w-3 h-3 mr-0.5" /> : <TrendingDown className="inline w-3 h-3 mr-0.5" />}
+              {/* No arrow at all when the index has not moved yet: `null >= 0` is true. */}
+              {num(idx.changePct) && (idx.changePct >= 0 ? <TrendingUp className="inline w-3 h-3 mr-0.5" /> : <TrendingDown className="inline w-3 h-3 mr-0.5" />)}
               {pct(idx.changePct)}
             </span>
             {idx.yearPct != null && <span className="text-label text-[color:var(--text-3)]">1Y {pct(idx.yearPct)}</span>}
