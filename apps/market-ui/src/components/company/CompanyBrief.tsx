@@ -15,6 +15,7 @@ import type { Citation, ResearchModelId } from '../../services/deepResearchServi
 import { queryGravityRAG } from '../../services/gravitySearchService';
 import { saveGridRun, loadTodaysRunByName } from '../../services/gridStore';
 import { useBackgroundStore } from '../../stores/backgroundStore';
+import { useCompanyBriefStore, briefDefault, briefAborts } from '../../stores/companyBriefStore';
 
 const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/llm/chat`;
 
@@ -130,21 +131,21 @@ function BriefSection({ label, answer, citations, running }: {
 }
 
 export default function CompanyBrief({ ticker }: { ticker: string }) {
-    const [state, setState] = useState<GridState | null>(null);
-    const [running, setRunning] = useState(false);
-    const [cached, setCached] = useState(false);
-    const [model, setModel] = useState<ModelKey>('deepseek');
-    const abortRef = useRef<AbortController | null>(null);
+    // Live brief state lives in the store, keyed by ticker — so this component
+    // is a pure view over it and can leave/return without dropping the run.
+    const entry = useCompanyBriefStore((s) => s.byTicker[ticker]) ?? briefDefault;
+    const { state, running, cached, model } = entry;
+    const patch = useCompanyBriefStore((s) => s.patch);
+    const setModel = (m: ModelKey) => patch(ticker, { model: m });
     const startBgJob = useBackgroundStore((s) => s.startJob);
     const endBgJob = useBackgroundStore((s) => s.endJob);
 
     const briefName = `${ticker} Company Brief`;
 
     const run = useCallback(async () => {
-        abortRef.current?.abort();
+        briefAborts[ticker]?.abort();
         const controller = new AbortController();
-        abortRef.current = controller;
-        setCached(false);
+        briefAborts[ticker] = controller;
         const def = {
             id: `brief-${ticker}`,
             name: briefName,
@@ -152,8 +153,7 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
             prompts: SEED_GRID_PROMPTS,
         };
         const initial = initializeGrid(def);
-        setState(initial);
-        setRunning(true);
+        patch(ticker, { state: initial, running: true, cached: false });
         // Background job so the brief keeps running (and caches) after the user
         // leaves the company page, and shows in the global activity indicator.
         const jobId = `brief-${ticker}-${Date.now()}`;
@@ -169,40 +169,40 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
             const final = await runGrid(initial, deps, {
                 concurrency: 3,
                 signal: controller.signal,
-                onCellUpdate: s => setState({ ...s }),
+                onCellUpdate: s => patch(ticker, { state: { ...s } }),
             });
             if (!controller.signal.aborted) {
-                setState(final);
+                patch(ticker, { state: final });
                 // Cache the completed brief for the rest of the day.
                 saveGridRun(final).catch(() => { /* non-blocking */ });
             }
         } finally {
             endBgJob(jobId);
-            if (abortRef.current === controller) setRunning(false);
+            if (briefAborts[ticker] === controller) patch(ticker, { running: false });
         }
-    }, [ticker, briefName, model, startBgJob, endBgJob]);
+    }, [ticker, briefName, model, patch, startBgJob, endBgJob]);
 
-    // On ticker change only: serve today's cached brief if present, else run
-    // fresh. Model changes must NOT re-trigger this (they apply on Regenerate).
+    // On ticker change: if the store already holds a live or finished session
+    // for this ticker, resume it (render the store) — do NOT restart. Otherwise
+    // serve today's cache, else run fresh. Model changes don't re-trigger this.
     const runRef = useRef(run);
     runRef.current = run;
     useEffect(() => {
+        const cur = useCompanyBriefStore.getState().byTicker[ticker];
+        if (cur && (cur.running || cur.state)) return; // already running / done → resume
         let alive = true;
         (async () => {
             const hit = await loadTodaysRunByName(briefName).catch(() => null);
             if (!alive) return;
-            if (hit) {
-                setState(hit);
-                setCached(true);
-            } else {
-                runRef.current();
-            }
+            // A run may have begun for this ticker while we awaited the cache.
+            const now = useCompanyBriefStore.getState().byTicker[ticker];
+            if (now && (now.running || now.state)) return;
+            if (hit) patch(ticker, { state: hit, cached: true });
+            else runRef.current();
         })();
-        // Do NOT abort on unmount: let an in-flight brief finish and cache in the
-        // background so navigating away no longer throws the work away. A new run
-        // (Regenerate / ticker change) still aborts the previous one in run().
+        // Do NOT abort on unmount: the run lives in the store and keeps going.
         return () => { alive = false; };
-    }, [briefName]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [ticker, briefName, patch]);
 
     const hasAnswers = !!state && Object.values(state.cells).some(c => c.status === 'done' && c.answer);
 
@@ -246,7 +246,7 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
                         <Download className="w-3 h-3" /> Memo
                     </button>
                     <button
-                        onClick={() => (running ? abortRef.current?.abort() : run())}
+                        onClick={() => (running ? briefAborts[ticker]?.abort() : run())}
                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/[0.08] text-[11px] text-[#A7B0C8] hover:text-white hover:border-white/20 transition-colors"
                     >
                         {running ? <><Square className="w-3 h-3" /> Stop</> : <><RefreshCw className="w-3 h-3" /> Regenerate</>}
