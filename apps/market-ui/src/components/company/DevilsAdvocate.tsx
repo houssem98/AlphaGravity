@@ -4,11 +4,13 @@
 // bull→bear→risk→PM debate distilled to the challenge half (the brief's Thesis
 // section already carries the bull case).
 
-import { useState, Children, type ReactNode } from 'react';
+import { Children, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Scale } from 'lucide-react';
 import { queryGravityRAG } from '../../services/gravitySearchService';
+import { useCompanyBriefStore, briefDefault } from '../../stores/companyBriefStore';
+import { useBackgroundStore } from '../../stores/backgroundStore';
 
 const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/llm/chat`;
 
@@ -33,19 +35,32 @@ const PROMPT = (ticker: string, facts: string) =>
     + `VERIFIED DATA:\n${facts}`;
 
 export default function DevilsAdvocate({ ticker }: { ticker: string }) {
-    const [answer, setAnswer] = useState<string | null>(null);
-    const [running, setRunning] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    // Run state lives in the ticker-keyed store, so leaving the company page no
+    // longer drops the challenge: the loop keeps writing here and the UI picks
+    // the SAME run (or its finished result) back up on return.
+    const entry = useCompanyBriefStore((s) => s.byTicker[ticker]) ?? briefDefault;
+    const { devilAnswer: answer, devilRunning: running, devilError: error } = entry;
+    const patch = useCompanyBriefStore((s) => s.patch);
+    const startBgJob = useBackgroundStore((s) => s.startJob);
+    const endBgJob = useBackgroundStore((s) => s.endJob);
 
     const run = async () => {
-        setRunning(true); setError(null); setAnswer(null);
+        patch(ticker, { devilRunning: true, devilError: null, devilAnswer: null });
+        const jobId = `devil-${ticker}-${Date.now()}`;
+        startBgJob({
+            id: jobId, label: `${ticker} Devil's Advocate`, kind: 'brief',
+            href: `/companies/${ticker}`, startedAt: Date.now(),
+        });
         try {
             const rag = await queryGravityRAG(
                 `${ticker} investment thesis growth drivers risks bear case valuation`,
                 { companies: [ticker] },
             ).catch(() => null);
             const facts = rag?.available && rag.answer ? rag.answer : '';
-            if (!facts) { setError('No filing data available to challenge for this ticker.'); return; }
+            if (!facts) {
+                patch(ticker, { devilError: 'No filing data available to challenge for this ticker.' });
+                return;
+            }
 
             const res = await fetch(LLM_PROXY_URL, {
                 method: 'POST',
@@ -54,11 +69,12 @@ export default function DevilsAdvocate({ ticker }: { ticker: string }) {
             });
             if (!res.ok) throw new Error(`LLM proxy ${res.status}`);
             const data = await res.json();
-            setAnswer(data.text || '');
+            patch(ticker, { devilAnswer: data.text || '' });
         } catch (e) {
-            setError(e instanceof Error ? e.message : 'Failed');
+            patch(ticker, { devilError: e instanceof Error ? e.message : 'Failed' });
         } finally {
-            setRunning(false);
+            endBgJob(jobId);
+            patch(ticker, { devilRunning: false });
         }
     };
 

@@ -61,7 +61,7 @@ Empirically audited each long-running feature's state model (grep + live e2e):
 | Research Grid | GridView | `gridRunStore` + `gridAbort` | **YES** — reference |
 | Company AI Brief | CompanyBrief | `companyBriefStore` (per ticker) | **YES** — fixed 2026-07-23, e2e proven |
 | Quick Answer | SearchPage (qa) | `qaStore` (per conversation) | **YES** — fixed 2026-07-23, e2e proven |
-| Devil's Advocate | DevilsAdvocate | local `answer`/`running` useState | **NO** — dropped on nav |
+| Devil's Advocate | DevilsAdvocate | `companyBriefStore` `devil*` (per ticker) | **YES** — fixed 2026-07-23, e2e proven |
 | Transcript summary | TranscriptSummary | local useState | measure — single fetch, likely low value |
 | Latest quarter | LatestQuarterCard | local useState | measure — single fetch, likely low value |
 
@@ -70,7 +70,7 @@ this campaign, aborted the run in its unmount cleanup — so leaving the company
 page dropped the run. Now proven fixed: `e2e/featureContinuity.spec.ts` starts a
 brief, visits /trading, returns via the indicator, and the SAME run is still in
 flight (one job, still "Stop", no duplicate). Deep Research and Grid were already
-store-backed. Devil's Advocate remains component-local.
+store-backed.
 
 Quick Answer re-measured 2026-07-23 against the code before FI-2: the row above
 understated it — not only was `chatHistory`/`currentQuery` component `useState`,
@@ -88,10 +88,10 @@ Lifted in FI-2 to `qaStore` (execution, socket and thread all module-level).
   lifted into `qaStore` keyed by conversation id; the WebSocket is module-level
   and closed only by Cancel / a new question. Registers a bg job per turn.
   Done 2026-07-23; `qaContinuity.spec.ts` green.
-- [ ] **FI-3 — Devil's Advocate** survives navigation. Lift `answer`/`running`
-  into a store keyed by ticker (or fold into `companyBriefStore` as a second
-  entry field). Never abort on unmount; register a bg job.
-  Accept: run it, navigate away and back, the same result/run is shown, not restarted.
+- [x] **FI-3 — Devil's Advocate** survives navigation. `answer`/`running`/`error`
+  folded into `companyBriefStore` as `devil*` fields on the ticker's entry; never
+  aborts on unmount; registers a bg job.
+  Done 2026-07-23; `devilsAdvocateContinuity.spec.ts` green.
 - [ ] **FI-4 — Measure Transcript & Latest-Quarter.** Time the fetch. If it is a
   single sub-second call, document it as not worth lifting and mark done with the
   measurement. If it can run long, lift it like the others.
@@ -112,4 +112,5 @@ Lifted in FI-2 to `qaStore` (execution, socket and thread all module-level).
 |---|---|---|
 | 2026-07-23 | audit | 7 long-running features mapped. Already store-backed: Deep Research, Research Grid. Component-local (bug): Company Brief, Quick Answer, Devil's Advocate. |
 | 2026-07-23 | FI-1 | Company Brief lifted to companyBriefStore (per ticker); unmount no longer aborts; resumes same session. tsc 0; featureContinuity + backgroundActivity + tnNullFeed + hubAssetMarket green. |
+| 2026-07-23 | FI-3 | Devil's Advocate folded into companyBriefStore as devil* fields on the ticker entry (measured first: answer/running/error were component useState, no unmount abort, so the run continued but wrote to a dead component and the result was lost). Registers a bg job. tsc -b 0 errors; deployed prod (dpl_4kcxn9ax; `vercel --prod` died on ECONNRESET while polling — deployment itself was Ready and aliased, verified with `vercel inspect`). devilsAdvocateContinuity + qaContinuity + featureContinuity + backgroundActivity + tnNullFeed + hubAssetMarket 6 passed 38.9s in one parallel run. Spec fix during the run: asserting the TOTAL job count was racy (the page's own brief job registers asynchronously), so it now asserts exactly 1 Devil's Advocate job. |
 | 2026-07-23 | FI-2 | Quick Answer lifted to qaStore (per conversation): WS + thread + persistence module-level; SearchPage QA is a pure view; useGravitySearch reduced to types/cleanAnswer; bg job kind 'qa'. tsc -b 0 errors; vite build 0 errors; deployed prod (market-ui-self.vercel.app). qaContinuity 1 passed 5.3s; featureContinuity + backgroundActivity + tnNullFeed + hubAssetMarket 4 passed 34.0s. Spec fix during the run: probe text matched 2 nodes in the indicator, so the job click is scoped to `li button`. |

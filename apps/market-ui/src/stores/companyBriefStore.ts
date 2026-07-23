@@ -14,9 +14,17 @@ export interface BriefEntry {
     running: boolean;
     cached: boolean;
     model: BriefModel;
+    // Devil's Advocate — the company page's other long-running call, keyed by the
+    // same ticker so it too survives leaving the page (FI-3).
+    devilAnswer: string | null;
+    devilRunning: boolean;
+    devilError: string | null;
 }
 
-export const briefDefault: BriefEntry = { state: null, running: false, cached: false, model: 'deepseek' };
+export const briefDefault: BriefEntry = {
+    state: null, running: false, cached: false, model: 'deepseek',
+    devilAnswer: null, devilRunning: false, devilError: null,
+};
 
 interface CompanyBriefState {
     byTicker: Record<string, BriefEntry>;
