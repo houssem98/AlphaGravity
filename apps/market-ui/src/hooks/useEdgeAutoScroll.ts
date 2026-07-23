@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react';
 
-// Attach to a horizontally-scrollable container: hovering within `zone` px of
-// the left or right edge auto-scrolls that way, so off-screen columns come into
-// view without touching the wheel or the scrollbar. Only scrolls when there is
-// actually overflow in that direction, so the edges are inert once fully
-// scrolled. rAF-driven; cleans itself up.
+// Attach to a horizontally-scrollable container: moving the pointer within
+// `zone` px of the left or right edge auto-scrolls that way, so off-screen
+// columns come into view without touching the wheel or the scrollbar. Fires on
+// both hover (mousemove) and column drag (dragover) — a native drag suppresses
+// mousemove, so dragging a header to the edge would otherwise never scroll.
+// Only scrolls when there is actual overflow that direction, so the edges are
+// inert once fully scrolled. rAF-driven; cleans itself up.
 export function useEdgeAutoScroll<T extends HTMLElement>(zone = 64, speed = 16) {
   const ref = useRef<T>(null);
   useEffect(() => {
@@ -26,12 +28,20 @@ export function useEdgeAutoScroll<T extends HTMLElement>(zone = 64, speed = 16) 
       dir = next;
       if (dir && !raf) raf = requestAnimationFrame(step);
     };
-    const onLeave = () => { dir = 0; };
+    const stop = () => { dir = 0; };
     el.addEventListener('mousemove', onMove);
-    el.addEventListener('mouseleave', onLeave);
+    el.addEventListener('mouseleave', stop);
+    el.addEventListener('dragover', onMove); // DragEvent is a MouseEvent — clientX is present
+    el.addEventListener('dragleave', stop);
+    el.addEventListener('drop', stop);
+    el.addEventListener('dragend', stop);
     return () => {
       el.removeEventListener('mousemove', onMove);
-      el.removeEventListener('mouseleave', onLeave);
+      el.removeEventListener('mouseleave', stop);
+      el.removeEventListener('dragover', onMove);
+      el.removeEventListener('dragleave', stop);
+      el.removeEventListener('drop', stop);
+      el.removeEventListener('dragend', stop);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [zone, speed]);
