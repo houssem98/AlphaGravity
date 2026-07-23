@@ -151,11 +151,15 @@ SEC EDGAR source polls every 60 seconds using edgartools + raw fallback. Redis d
 
 ### WebSocket Streaming (`apps/gravity-ui/`)
 
-`src/lib/ws.ts` — creates an EventSource/WebSocket session, calls the gravity-api `/v1/search/ws` endpoint, and fires typed callbacks (`onStatus`, `onSources`, `onToken`, `onAnswer`, `onMetadata`, `onAgentTrace`).
+This is the **only client of the gravity-api streaming search API in the repo** — market-ui has no WebSocket path to gravity-api. Keep it runnable if you touch the streaming contract.
 
-`src/hooks/useSearch.ts` — orchestrates a search session, populates Zustand stores (`searchStore`, `uiStore`).
+`src/lib/ws.ts` — creates a WebSocket session against the gravity-api `/v1/search/stream` endpoint (`@router.websocket("/search/stream")` in `app/api/routes/search.py`) and fires typed callbacks (`onStatus`, `onSources`, `onToken`, `onAnswer`, `onMetadata`, `onAgentTrace`). Falls back to `searchRest()` for non-streaming.
 
-`src/stores/searchStore.ts` — Zustand store holding the current query, status, sources, answer, citations, structured data, and agent trace log.
+`src/hooks/useSearch.ts` — orchestrates a search session, populates the Zustand store.
+
+`src/store/searchStore.ts` — Zustand store holding the current query, status, sources, answer, citations, structured data, and agent trace log.
+
+Deployment: no repo config or CI workflow builds it, but Vercel project `gravity-ui` serves a stale production build at `gravity-ui-ashy.vercel.app` (deployed 2026-03-26, never refreshed). It ships **no auth**.
 
 ### Market UI (`apps/market-ui/`)
 
@@ -167,8 +171,8 @@ All gravity-api settings in `app/config.py` (Pydantic Settings). Key env vars in
 - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`
 - `VOYAGE_API_KEY`, `COHERE_API_KEY`
 - `DATABASE_URL`, `REDIS_URL`, `QDRANT_URL`, `ELASTICSEARCH_URL`, `NEO4J_URI`
-- `CLERK_SECRET_KEY` (for gravity-ui auth)
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY` (for market-ui)
+- gravity-ui has no auth dependency — it reads `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_WS_URL` only
 
 ## graphify
 

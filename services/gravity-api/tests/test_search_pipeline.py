@@ -20,7 +20,18 @@ class TestSearchEvent:
 
 
 class TestShouldUseAgentic:
-    """Test the agentic routing decision logic."""
+    """Test the agentic routing decision logic.
+
+    The orchestrator ships gated off (settings.agentic_orchestrator_enabled=False),
+    which makes _should_use_agentic short-circuit to False for every input. These
+    tests cover the routing rules themselves, so they enable the flag explicitly —
+    without this they assert the gate, not the logic, and fail.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _enable_agentic(self):
+        with patch("app.core.search_pipeline.settings.agentic_orchestrator_enabled", True):
+            yield
 
     @pytest.fixture
     def pipeline(self):

@@ -1,7 +1,8 @@
 /**
  * AlphaGravity — Shared TypeScript Types
  *
- * Types shared between market-ui, market-server, and gravity-ui.
+ * Types shared between market-ui and market-server.
+ * (gravity-ui does not consume this package — it carries its own src/lib/types.ts.)
  * Import with: import { SearchResult, ResearchReport } from 'shared-types'
  */
 

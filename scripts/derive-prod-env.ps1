@@ -8,7 +8,7 @@ param(
     [switch]$DryRun = $false,
     [string]$FlyApp = "gravity-api-prod",
     [string]$VercelMarketProject = "market-ui",
-    [string]$VercelGravityProject = "alphagravity-gravity-ui"
+    [string]$VercelGravityProject = "gravity-ui"
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,7 +47,7 @@ $marketUiUrl = Get-VercelProductionUrl -ProjectName $VercelMarketProject
 $gravityUiUrl = Get-VercelProductionUrl -ProjectName $VercelGravityProject
 
 if (-not $marketUiUrl) { $marketUiUrl = "https://market-ui-self.vercel.app" }
-if (-not $gravityUiUrl) { $gravityUiUrl = "https://alphagravity-gravity-ui.vercel.app" }
+if (-not $gravityUiUrl) { $gravityUiUrl = "https://gravity-ui-ashy.vercel.app" }
 
 Write-Host "  market-ui:  $marketUiUrl" -ForegroundColor Green
 Write-Host "  gravity-ui: $gravityUiUrl" -ForegroundColor Green

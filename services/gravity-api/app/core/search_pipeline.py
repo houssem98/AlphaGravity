@@ -1445,6 +1445,29 @@ class SearchPipeline:
                 except Exception as _gerr:
                     logger.debug("numeric_grounding_check_failed", error=str(_gerr)[:120])
 
+            # ── Temporal grounding gate ─────────────────────────────────
+            # verify_temporal_consistency ran at Stage 7a but was log-only: an answer
+            # quoting an FY21 passage for an FY23 question still shipped as HIGH with a
+            # clean caveat list. Wrong-period figures are the documented failure mode
+            # (AAPL FY23 revenue answered $313.7B from an older filing), and the numeric
+            # grounding check above cannot catch it — the figure IS in a passage, just
+            # the wrong one. Cap confidence and tell the user which periods disagree.
+            if temporal_mismatches:
+                if confidence_out == "HIGH":
+                    confidence_out = "MEDIUM"
+                _tm = temporal_mismatches[0]
+                _cav_t = (
+                    f"Period mismatch: the answer references "
+                    f"{_format_periods(_tm.answer_temporal_refs)} but [Source {_tm.source_id}] "
+                    f"covers {_format_periods(_tm.source_temporal_refs)}. Verify the fiscal period."
+                )
+                if isinstance(caveats, list):
+                    caveats = caveats + [_cav_t]
+                logger.info(
+                    "temporal_grounding_violation", trace_id=trace_id,
+                    n=len(temporal_mismatches), confidence=confidence_out,
+                )
+
             # ── Stage 8b: ALiiCE Proposition Attribution ────────────────
             # Upgrade chunk-level citations → sentence-level attributed propositions.
             # Runs only for MEDIUM/COMPLEX queries to avoid latency on simple lookups.
@@ -1779,6 +1802,11 @@ def _auto_chart_specs(structured_data: list[dict]) -> list[dict]:
                 })
 
     return charts[:4]  # Cap at 4 charts per answer
+
+
+def _format_periods(refs: list[tuple[int, int | None]]) -> str:
+    """Render TemporalMismatch (year, quarter) refs as 'Q3 2025, 2024'."""
+    return ", ".join(f"Q{q} {y}" if q else str(y) for y, q in refs[:3]) or "an unstated period"
 
 
 def _extract_confidence(answer: str) -> str:

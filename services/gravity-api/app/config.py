@@ -18,7 +18,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # ── App ──────────────────────────────────────────────────────────────
-    app_env: Environment = Environment.DEVELOPMENT
+    # Fail closed. require_auth() bypasses authentication entirely in DEVELOPMENT,
+    # so an unset APP_ENV must NOT mean "development" — any deploy that forgets the
+    # var would serve every route unauthenticated. Every .env in the repo sets
+    # APP_ENV=development explicitly, so local dev is unaffected.
+    app_env: Environment = Environment.PRODUCTION
     app_name: str = "Gravity Search"
     app_version: str = "0.1.0"
     log_level: str = "DEBUG"

@@ -9,7 +9,28 @@ on:
   workflow_dispatch:
 
 jobs:
+  gate:
+    name: Import + syntax check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/gravity-api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m compileall -q app/
+
+      - name: Ruff (errors only)
+        run: |
+          pip install ruff
+          ruff check --select E9,F63,F7,F82 app/
+
   deploy:
+    needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

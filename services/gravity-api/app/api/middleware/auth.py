@@ -31,8 +31,10 @@ async def require_auth(
         async def search(auth: dict = Depends(require_auth)):
             user_id = auth["user_id"]
     """
-    # Development bypass
+    # Development bypass. Only reachable when APP_ENV is explicitly "development";
+    # the settings default is PRODUCTION so an unset env fails closed.
     if settings.app_env == Environment.DEVELOPMENT:
+        logger.warning("auth_bypassed_development_mode", path=request.url.path)
         return {
             "user_id": "dev_user",
             "tier": "unlimited",
