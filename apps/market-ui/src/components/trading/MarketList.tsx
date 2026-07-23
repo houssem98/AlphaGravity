@@ -848,8 +848,8 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
 
         {/* Table */}
         <div className="bg-[color:var(--surface)] border border-t-0 border-[color:var(--line)] overflow-hidden">
-          <div ref={tableScrollRef} className="overflow-x-auto">
-            <table className="w-full text-left border-collapse whitespace-nowrap">
+          <div ref={tableScrollRef} className="overflow-auto max-h-[70vh] overscroll-contain">
+            <table className="sticky-head w-full text-left border-collapse whitespace-nowrap">
               <thead>
                 <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
                   <th className="py-2 px-4 w-8" />
