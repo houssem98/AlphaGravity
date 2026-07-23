@@ -5,12 +5,13 @@ import { useState, useRef, useEffect, useCallback, Children, type ReactNode } fr
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useResearchStore } from '../stores/researchStore';
-import { safeUrl } from '../lib/safeUrl';
+import { useBackgroundStore } from '../stores/backgroundStore';
+import EdgarLink, { parseFilingTitle } from '../components/EdgarLink';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
     Search, Zap, FileText, Database, ChevronRight, CheckCircle, Clock, Cpu,
     Sparkles, ChevronDown, Check, Feather, Plus, Trash2, ArrowUp, Edit3,
-    Settings as SettingsIcon, Bookmark, BookmarkCheck, X, ExternalLink, Grid3x3, Building2,
+    Settings as SettingsIcon, Bookmark, BookmarkCheck, X, Grid3x3, Building2,
 } from 'lucide-react';
 import GridView from '../components/grid/GridView';
 import CompanyPage from './CompanyPage';
@@ -635,55 +636,6 @@ function SourceContext({ citation }: { citation: GravityCitation }) {
     );
 }
 
-// Deep-link to the actual EDGAR filing document (resolved via the backend,
-// which matches ticker + form + filing date against the SEC submissions API).
-// While resolving — and whenever resolution fails — falls back to the EDGAR
-// company search page. Appends a #:~:text= fragment so supporting browsers
-// scroll to and highlight the cited passage inside the filing itself.
-function EdgarLink({ citation, filingType, filingDate }: { citation: GravityCitation; filingType: string; filingDate: string }) {
-    const [resolved, setResolved] = useState<string | null>(null);
-
-    useEffect(() => {
-        let alive = true;
-        setResolved(null);
-        if (!citation.ticker) return;
-        (async () => {
-            try {
-                const tok = await getAccessToken();
-                const qs = new URLSearchParams({ ticker: citation.ticker, filing_type: filingType, filing_date: filingDate });
-                const res = await fetch(`${GRAVITY_API}/v1/documents/filing-url?${qs}`, {
-                    headers: tok ? { Authorization: `Bearer ${tok}` } : {},
-                });
-                const data = res.ok ? await res.json() : null;
-                if (alive && data?.url) setResolved(data.url);
-            } catch { /* keep fallback */ }
-        })();
-        return () => { alive = false; };
-    }, [citation.ticker, filingType, filingDate]);
-
-    if (!citation.ticker) return null;
-
-    const fallback = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(citation.ticker)}&type=${encodeURIComponent(filingType || '10-K')}&dateb=&owner=include&count=40`;
-    let href = resolved ?? fallback;
-    // Scroll-to-text fragment: only for verbatim prose citations (synthesized
-    // XBRL snippets like "[EXACT FILING FIGURE] ..." don't exist in the filing).
-    const snip = (citation.text ?? '').trim();
-    if (resolved && snip && !snip.startsWith('[')) {
-        const frag = snip.split(/\s+/).slice(0, 10).join(' ');
-        href += `#:~:text=${encodeURIComponent(frag).replace(/-/g, '%2D')}`;
-    }
-    return (
-        <a
-            href={safeUrl(href)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-xs text-[var(--accent)] hover:text-[var(--accent)] transition-colors"
-        >
-            <ExternalLink className="w-3.5 h-3.5" />
-            {resolved ? 'View filing on SEC EDGAR' : 'View on SEC EDGAR'}
-        </a>
-    );
-}
 
 function CitationPanel({ citation, onClose }: { citation: GravityCitation; onClose: () => void }) {
     return (
@@ -736,10 +688,8 @@ function CitationPanel({ citation, onClose }: { citation: GravityCitation; onClo
                     highlight of the cited passage where the browser supports
                     text fragments. */}
                 {(() => {
-                    const docTitle = citation.document_title ?? '';
-                    const fm = docTitle.match(/\b(10-K|10-Q|8-K|DEF 14A|S-1|20-F|6-K|40-F|13F-HR|SC 13[DG]|4)\b/);
-                    const dm = docTitle.match(/\d{4}-\d{2}-\d{2}/);
-                    return <EdgarLink citation={citation} filingType={fm?.[0] ?? ''} filingDate={dm?.[0] ?? ''} />;
+                    const { filingType, filingDate } = parseFilingTitle(citation.document_title);
+                    return <EdgarLink ticker={citation.ticker} snippet={citation.text} filingType={filingType} filingDate={filingDate} />;
                 })()}
             </div>
         </div>
@@ -860,6 +810,8 @@ export default function SearchPage() {
     const prependHistory     = useResearchStore((s) => s.prependHistory);
     const removeFromHistory  = useResearchStore((s) => s.removeFromHistory);
     const resetResearch      = useResearchStore((s) => s.resetResearch);
+    const startBgJob         = useBackgroundStore((s) => s.startJob);
+    const endBgJob           = useBackgroundStore((s) => s.endJob);
 
     // ── Shared ────────────────────────────────────────────────────────────────
     const [searchParams, setSearchParams] = useSearchParams();
@@ -1082,6 +1034,10 @@ export default function SearchPage() {
         if (textareaRef.current) textareaRef.current.style.height = 'auto';
         const controller = new AbortController();
         researchAbortRef.current = controller;
+        // Register a background job so the global indicator shows this research
+        // is still running after the user navigates to another route.
+        const jobId = crypto.randomUUID();
+        startBgJob({ id: jobId, label: searchQuery, kind: 'research', href: '/search?mode=research', startedAt: Date.now() });
         try {
             // Build optional HITL callback — present only when the toggle is on.
             // The callback stashes the drafted blueprint into component state and
@@ -1149,6 +1105,7 @@ export default function SearchPage() {
             blueprintResolverRef.current = null;
             setPendingBlueprint(null);
             setIsResearching(false);
+            endBgJob(jobId);
         }
     };
 

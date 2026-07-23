@@ -14,6 +14,7 @@ import { downloadBlob } from '../../services/gridExcel';
 import type { Citation, ResearchModelId } from '../../services/deepResearchService';
 import { queryGravityRAG } from '../../services/gravitySearchService';
 import { saveGridRun, loadTodaysRunByName } from '../../services/gridStore';
+import { useBackgroundStore } from '../../stores/backgroundStore';
 
 const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/llm/chat`;
 
@@ -134,6 +135,8 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
     const [cached, setCached] = useState(false);
     const [model, setModel] = useState<ModelKey>('deepseek');
     const abortRef = useRef<AbortController | null>(null);
+    const startBgJob = useBackgroundStore((s) => s.startJob);
+    const endBgJob = useBackgroundStore((s) => s.endJob);
 
     const briefName = `${ticker} Company Brief`;
 
@@ -151,6 +154,10 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
         const initial = initializeGrid(def);
         setState(initial);
         setRunning(true);
+        // Background job so the brief keeps running (and caches) after the user
+        // leaves the company page, and shows in the global activity indicator.
+        const jobId = `brief-${ticker}-${Date.now()}`;
+        startBgJob({ id: jobId, label: briefName, kind: 'brief', href: `/companies/${ticker}`, startedAt: Date.now() });
         const deps: CellRunnerDeps = {
             callLLM: makeCallLLM(model),
             searchGravity: (q, t, signal) => {
@@ -170,9 +177,10 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
                 saveGridRun(final).catch(() => { /* non-blocking */ });
             }
         } finally {
+            endBgJob(jobId);
             if (abortRef.current === controller) setRunning(false);
         }
-    }, [ticker, briefName, model]);
+    }, [ticker, briefName, model, startBgJob, endBgJob]);
 
     // On ticker change only: serve today's cached brief if present, else run
     // fresh. Model changes must NOT re-trigger this (they apply on Regenerate).
@@ -190,7 +198,10 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
                 runRef.current();
             }
         })();
-        return () => { alive = false; abortRef.current?.abort(); };
+        // Do NOT abort on unmount: let an in-flight brief finish and cache in the
+        // background so navigating away no longer throws the work away. A new run
+        // (Regenerate / ticker change) still aborts the previous one in run().
+        return () => { alive = false; };
     }, [briefName]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const hasAnswers = !!state && Object.values(state.cells).some(c => c.status === 'done' && c.answer);

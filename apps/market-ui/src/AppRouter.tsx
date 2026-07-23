@@ -9,6 +9,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { getSession, startSessionManager, subscribeAuth } from './services/supabase';
 import { lazyWithReload, RouteErrorBoundary } from './lib/lazyWithReload';
 import AppLayout from './components/AppLayout';
+import BackgroundActivity from './components/BackgroundActivity';
 import LandingPage from './pages/LandingPage';
 
 // Route components are code-split so the landing/auth first paint no longer
@@ -204,6 +205,8 @@ export default function AppRouter() {
             </Routes>
             </Suspense>
             </RouteErrorBoundary>
+            {/* Global: shows tasks still running after their view unmounted. */}
+            <BackgroundActivity />
         </>
     );
 }
