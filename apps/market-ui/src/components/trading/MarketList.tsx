@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useEdgeAutoScroll } from '../../hooks/useEdgeAutoScroll';
 import { Search, ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Star, Trophy, Activity, ArrowUpDown, BarChart2, ExternalLink, ArrowUp, ArrowDown, ArrowRight, ChevronsLeft, ChevronsRight, Trash2, Plus, Check, ChevronLeft, Building2, Landmark } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { MarketDef } from '../../lib/markets';
@@ -238,6 +239,8 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   // Column being dragged, and the column the pointer is over — for the drop line.
   const [dragCol, setDragCol] = useState<ColKey | null>(null);
   const [dragOverCol, setDragOverCol] = useState<ColKey | null>(null);
+  // Hover the table's left/right edge to reveal off-screen columns.
+  const tableScrollRef = useEdgeAutoScroll<HTMLDivElement>();
   // TNV-7 grouped chooser + lazy data maps (fetched only when a group's col is on).
   const [colMenu, setColMenu] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
@@ -845,7 +848,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
 
         {/* Table */}
         <div className="bg-[color:var(--surface)] border border-t-0 border-[color:var(--line)] overflow-hidden">
-          <div className="overflow-x-auto">
+          <div ref={tableScrollRef} className="overflow-x-auto">
             <table className="w-full text-left border-collapse whitespace-nowrap">
               <thead>
                 <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
