@@ -2,11 +2,13 @@
 // transcript. Only mounts when the company page found a transcript filing, so
 // tickers without one show nothing (no empty promise).
 
-import { useState, useEffect, useRef, Children, type ReactNode } from 'react';
+import { useEffect, Children, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Mic } from 'lucide-react';
 import { queryGravityRAG } from '../../services/gravitySearchService';
+import { useCompanyBriefStore, briefDefault } from '../../stores/companyBriefStore';
+import { useBackgroundStore } from '../../stores/backgroundStore';
 
 // True when the RAG answer is a "no transcript content" disclaimer rather than a
 // real call summary. Exported for the self-check.
@@ -26,21 +28,32 @@ function citeChildren(children: ReactNode): ReactNode {
 }
 
 export default function TranscriptSummary({ ticker, date }: { ticker: string; date?: string | null }) {
-    const [answer, setAnswer] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [failed, setFailed] = useState(false);
-    const done = useRef(false);
+    // The RAG call runs 1.7–14.7s (measured, FI-4), so its state lives in the
+    // ticker-keyed store: leaving the company page mid-read no longer discards
+    // the result and returning shows the SAME read rather than starting another.
+    const entry = useCompanyBriefStore((s) => s.byTicker[ticker]) ?? briefDefault;
+    const { transcriptAnswer: answer, transcriptFailed: failed } = entry;
+    const patch = useCompanyBriefStore((s) => s.patch);
+    const startBgJob = useBackgroundStore((s) => s.startJob);
+    const endBgJob = useBackgroundStore((s) => s.endJob);
+    // Before the effect has run there is no entry yet — that frame is loading too.
+    const loading = entry.transcriptLoading || (answer === null && !failed);
 
     useEffect(() => {
-        done.current = false;
-        setAnswer(null); setLoading(true); setFailed(false);
-        let alive = true;
+        const cur = useCompanyBriefStore.getState().byTicker[ticker];
+        // Already reading, or already read → resume the store, never re-run.
+        if (cur && (cur.transcriptLoading || cur.transcriptAnswer !== null || cur.transcriptFailed)) return;
+        patch(ticker, { transcriptLoading: true, transcriptAnswer: null, transcriptFailed: false });
+        const jobId = `transcript-${ticker}-${Date.now()}`;
+        startBgJob({
+            id: jobId, label: `${ticker} Earnings Call Summary`, kind: 'brief',
+            href: `/companies/${ticker}`, startedAt: Date.now(),
+        });
         (async () => {
             const res = await queryGravityRAG(`${ticker} earnings call summary`, {
                 companies: [ticker],
                 document_types: ['earnings_transcript'],
             }).catch(() => null);
-            if (!alive) return;
             // ponytail: string-match guard, known ceiling. Prod's document_types
             // filter isn't enforced on the structured channel, so a thin/absent
             // transcript makes RAG fall back to 10-K figures and disclaim the
@@ -48,12 +61,13 @@ export default function TranscriptSummary({ ticker, date }: { ticker: string; da
             // financials. Upgrade: enforce document_types server-side in the
             // structured channel, then drop this guard.
             const ans = res?.available ? (res.answer || '') : '';
-            if (ans && !isTranscriptDisclaimer(ans)) setAnswer(ans);
-            else setFailed(true);
-            setLoading(false);
+            if (ans && !isTranscriptDisclaimer(ans)) patch(ticker, { transcriptAnswer: ans });
+            else patch(ticker, { transcriptFailed: true });
+            endBgJob(jobId);
+            patch(ticker, { transcriptLoading: false });
         })();
-        return () => { alive = false; };
-    }, [ticker]);
+        // Do NOT cancel on unmount: the read lives in the store and keeps going.
+    }, [ticker, patch, startBgJob, endBgJob]);
 
     // Nothing useful and not loading → hide entirely.
     if (failed && !loading) return null;

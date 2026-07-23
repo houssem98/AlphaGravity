@@ -34,7 +34,7 @@ test('a company brief resumes the same session after a trading detour', async ({
     if (/Regenerate/.test((await regen.textContent()) || '')) await regen.click();
     await page.waitForTimeout(2500);
     await expect(page.getByRole('button', { name: /Stop/ })).toBeVisible({ timeout: 15_000 });
-    const jobsBefore = await page.getByText(/\d+ running/).textContent();
+    await expect(page.getByText(/\d+ running/)).toBeVisible({ timeout: 15_000 });
 
     // Client-side nav to trading — the run and indicator must persist.
     await page.locator('a[href="/trading"]').first().click();
@@ -47,6 +47,10 @@ test('a company brief resumes the same session after a trading detour', async ({
     await page.waitForURL('**/companies/AAPL', { timeout: 15_000 });
     await page.waitForTimeout(3000);
     await expect(page.getByRole('button', { name: /Stop/ })).toBeVisible({ timeout: 10_000 });
-    // Same job count on return proves it resumed rather than starting a duplicate.
-    expect(await page.getByText(/\d+ running/).textContent()).toBe(jobsBefore);
+    // Still exactly one Company Brief job → it resumed rather than starting a
+    // duplicate. (The total is not asserted: the page's transcript read registers
+    // its own job, so the total legitimately varies.)
+    await page.getByText(/\d+ running/).click();
+    await expect(page.getByText('Running in background')).toBeVisible({ timeout: 10_000 });
+    expect(await page.locator('li button', { hasText: 'AAPL Company Brief' }).count()).toBe(1);
 });

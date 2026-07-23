@@ -19,11 +19,17 @@ export interface BriefEntry {
     devilAnswer: string | null;
     devilRunning: boolean;
     devilError: string | null;
+    // Earnings-call summary — one RAG call, measured at 1.7–14.7s (FI-4), so it
+    // is a real long-run and lives here too rather than in the component.
+    transcriptAnswer: string | null;
+    transcriptLoading: boolean;
+    transcriptFailed: boolean;
 }
 
 export const briefDefault: BriefEntry = {
     state: null, running: false, cached: false, model: 'deepseek',
     devilAnswer: null, devilRunning: false, devilError: null,
+    transcriptAnswer: null, transcriptLoading: false, transcriptFailed: false,
 };
 
 interface CompanyBriefState {

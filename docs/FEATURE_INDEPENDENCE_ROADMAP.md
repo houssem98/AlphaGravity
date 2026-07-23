@@ -62,8 +62,8 @@ Empirically audited each long-running feature's state model (grep + live e2e):
 | Company AI Brief | CompanyBrief | `companyBriefStore` (per ticker) | **YES** — fixed 2026-07-23, e2e proven |
 | Quick Answer | SearchPage (qa) | `qaStore` (per conversation) | **YES** — fixed 2026-07-23, e2e proven |
 | Devil's Advocate | DevilsAdvocate | `companyBriefStore` `devil*` (per ticker) | **YES** — fixed 2026-07-23, e2e proven |
-| Transcript summary | TranscriptSummary | local useState | measure — single fetch, likely low value |
-| Latest quarter | LatestQuarterCard | local useState | measure — single fetch, likely low value |
+| Transcript summary | TranscriptSummary | `companyBriefStore` `transcript*` (per ticker) | **YES** — fixed 2026-07-23, e2e proven |
+| Latest quarter | LatestQuarterCard | none — pure fn of the `metrics` prop | **N/A** — no async, nothing to lift |
 
 Evidence: `CompanyBrief` used component `useState` for grid state and, before
 this campaign, aborted the run in its unmount cleanup — so leaving the company
@@ -92,11 +92,12 @@ Lifted in FI-2 to `qaStore` (execution, socket and thread all module-level).
   folded into `companyBriefStore` as `devil*` fields on the ticker's entry; never
   aborts on unmount; registers a bg job.
   Done 2026-07-23; `devilsAdvocateContinuity.spec.ts` green.
-- [ ] **FI-4 — Measure Transcript & Latest-Quarter.** Time the fetch. If it is a
-  single sub-second call, document it as not worth lifting and mark done with the
-  measurement. If it can run long, lift it like the others.
-  Accept: a recorded timing in §5 and either a lift + spec, or a written no-op
-  justification.
+- [x] **FI-4 — Measured Transcript & Latest-Quarter.** Timed against prod:
+  the transcript's RAG call is 1.7s / 9.4s / 14.7s — not sub-second, so it was
+  lifted into `companyBriefStore` as `transcript*` fields (+ bg job, resumes on
+  remount). Latest-Quarter needed no lift and no measurement: it issues no fetch
+  at all — it is a pure function of the `metrics` prop the company page already
+  has. Done 2026-07-23; `transcriptContinuity.spec.ts` green.
 - [ ] **FI-5 — Sweep for remaining component-local async.** Grep the app for
   `useState` run/loading/streaming flags paired with `await`/`fetch`/`EventSource`
   in a component that a route can unmount, excluding the ones already lifted.
@@ -112,5 +113,6 @@ Lifted in FI-2 to `qaStore` (execution, socket and thread all module-level).
 |---|---|---|
 | 2026-07-23 | audit | 7 long-running features mapped. Already store-backed: Deep Research, Research Grid. Component-local (bug): Company Brief, Quick Answer, Devil's Advocate. |
 | 2026-07-23 | FI-1 | Company Brief lifted to companyBriefStore (per ticker); unmount no longer aborts; resumes same session. tsc 0; featureContinuity + backgroundActivity + tnNullFeed + hubAssetMarket green. |
+| 2026-07-23 | FI-4 | Measured, then lifted. Transcript RAG call (POST prod /v1/search, fast depth, AAPL) timed 3x: 9.43s / 14.71s / 1.69s (the 1.7s is a semantic-cache hit) — not sub-second, so lifted to companyBriefStore transcript* fields + bg job + resume-on-remount. Latest-Quarter re-measured and §3 was wrong about it: it has NO fetch and NO state, it is a pure function of the metrics prop, so there is nothing to lift (no-op, recorded). tsc -b 0 errors; deployed prod (market-grxnadfw3, aliased). transcriptContinuity + devilsAdvocate + qa + featureContinuity + backgroundActivity + tnNullFeed + hubAssetMarket 7 passed 1.1m. featureContinuity hardened in the same pass: it compared TOTAL job counts, which the new auto-running transcript job would have made racy, so it now asserts exactly 1 "AAPL Company Brief" job. |
 | 2026-07-23 | FI-3 | Devil's Advocate folded into companyBriefStore as devil* fields on the ticker entry (measured first: answer/running/error were component useState, no unmount abort, so the run continued but wrote to a dead component and the result was lost). Registers a bg job. tsc -b 0 errors; deployed prod (dpl_4kcxn9ax; `vercel --prod` died on ECONNRESET while polling — deployment itself was Ready and aliased, verified with `vercel inspect`). devilsAdvocateContinuity + qaContinuity + featureContinuity + backgroundActivity + tnNullFeed + hubAssetMarket 6 passed 38.9s in one parallel run. Spec fix during the run: asserting the TOTAL job count was racy (the page's own brief job registers asynchronously), so it now asserts exactly 1 Devil's Advocate job. |
 | 2026-07-23 | FI-2 | Quick Answer lifted to qaStore (per conversation): WS + thread + persistence module-level; SearchPage QA is a pure view; useGravitySearch reduced to types/cleanAnswer; bg job kind 'qa'. tsc -b 0 errors; vite build 0 errors; deployed prod (market-ui-self.vercel.app). qaContinuity 1 passed 5.3s; featureContinuity + backgroundActivity + tnNullFeed + hubAssetMarket 4 passed 34.0s. Spec fix during the run: probe text matched 2 nodes in the indicator, so the job click is scoped to `li button`. |
