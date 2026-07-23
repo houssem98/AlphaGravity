@@ -7,7 +7,7 @@ import { create } from 'zustand';
 export interface BgJob {
     id: string;
     label: string;                 // what is running, e.g. the research query
-    kind: 'research' | 'brief';
+    kind: 'research' | 'brief' | 'qa';
     href: string;                  // where clicking the job takes you back to
     startedAt: number;
 }

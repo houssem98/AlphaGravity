@@ -15,7 +15,8 @@ import {
 } from 'lucide-react';
 import GridView from '../components/grid/GridView';
 import CompanyPage from './CompanyPage';
-import { useGravitySearch, cleanAnswer, type GravityCitation, type GravitySource, type GravityMetric, type ChartSpec, type SearchFilters } from '../hooks/useGravitySearch';
+import { cleanAnswer, type GravityCitation, type GravitySource, type GravityMetric, type ChartSpec, type SearchFilters } from '../hooks/useGravitySearch';
+import { useQaStore, qaDefault, runQa, cancelQa } from '../stores/qaStore';
 import {
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer, Legend,
@@ -35,8 +36,7 @@ import BlueprintReview from '../components/research/BlueprintReview';
 import QaSearchProgress from '../components/qa/QaSearchProgress';
 import { supabase, getAccessToken } from '../services/supabase';
 import {
-    listQaConversations, createQaConversation, loadQaTurns, saveQaTurn,
-    deleteQaConversation, conversationTitle,
+    listQaConversations, loadQaTurns, deleteQaConversation,
     type QaConversationMeta,
 } from '../services/qaHistory';
 
@@ -44,14 +44,7 @@ import {
 
 type SearchMode = 'grid' | 'company' | 'qa' | 'research';
 
-interface ChatTurn {
-    role: 'user' | 'assistant';
-    content: string;
-    citations?: GravityCitation[];
-    sources?: GravitySource[];
-    structuredData?: GravityMetric[];
-    chartSpecs?: ChartSpec[];
-}
+// ChatTurn lives in qaStore (imported above).
 
 // HistoryItem is defined in researchStore.ts
 import type { HistoryItem } from '../stores/researchStore';
@@ -754,9 +747,18 @@ export default function SearchPage() {
     const [mode, setMode] = useState<SearchMode>('qa');
 
     // ── QA state ──────────────────────────────────────────────────────────────
+    // The live thread + in-flight stream live in qaStore (module-level, keyed by
+    // conversation), so leaving /search and returning resumes the SAME session.
+    // This component is a pure view over the active conversation's entry.
     const [qaInput, setQaInput] = useState('');
-    const [conversationId, setConversationId] = useState<string>(() => crypto.randomUUID());
-    const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
+    const activeConvId = useQaStore((s) => s.activeConvId);
+    const entry = useQaStore((s) => s.byConv[s.activeConvId]) ?? qaDefault;
+    const qaState = entry.search;
+    const chatHistory = entry.thread;
+    const currentQuery = entry.currentQuery;
+    const activeQaId = entry.supabaseId;
+    const displayAnswer = qaState.finalAnswer || qaState.streamingAnswer;
+    const qaCancel = () => cancelQa(activeConvId);
     const [activeTab, setActiveTab] = useState<'answer' | 'sources' | 'data'>('answer');
     const [activeSource, setActiveSource] = useState<SourceFilterId>('all');
     const filingTypes = useFilingTypes();
@@ -770,14 +772,10 @@ export default function SearchPage() {
     const [openCitation, setOpenCitation] = useState<GravityCitation | null>(null);
     const [savedSearches, setSavedSearches] = useState<Set<string>>(new Set());
     const qaInputRef = useRef<HTMLInputElement>(null);
-    const { state: qaState, displayAnswer, search: qaSearch, cancel: qaCancel, reset: qaReset } = useGravitySearch();
 
     // ── QA history (persistent — Supabase qa_conversations/qa_turns) ──────────
     const [qaConversations, setQaConversations] = useState<QaConversationMeta[]>([]);
-    const [activeQaId, setActiveQaId] = useState<string | null>(null);
     const [qaSidebarSearch, setQaSidebarSearch] = useState('');
-    const [currentQuery, setCurrentQuery] = useState<string | null>(null); // live exchange question
-    const completedRef = useRef(false);                     // dedupe the complete→persist effect
     const threadEndRef = useRef<HTMLDivElement>(null);
 
     // ── Research state (global store — survives route changes) ────────────────
@@ -849,25 +847,6 @@ export default function SearchPage() {
     const handleQaSubmit = (q: string) => {
         if (!q.trim() || isQaSearching) return;
 
-        // Commit the previous finished exchange into the thread before starting
-        // a new one. The live block always renders only the current exchange.
-        if (currentQuery && qaState.finalAnswer) {
-            const finished = currentQuery;
-            const finishedAnswer = qaState.finalAnswer;
-            setChatHistory(prev => [
-                ...prev,
-                { role: 'user', content: finished },
-                {
-                    role: 'assistant',
-                    content: finishedAnswer,
-                    citations: qaState.citations,
-                    sources: qaState.sources,
-                    structuredData: qaState.structuredData,
-                    chartSpecs: qaState.chartSpecs,
-                },
-            ]);
-        }
-
         // Build filters from active source selection. For SEC Filings, honor the
         // user's filing-type sub-selection (falls back to the default set if none).
         const filterConf = SOURCE_FILTERS.find(f => f.id === activeSource);
@@ -879,12 +858,12 @@ export default function SearchPage() {
             ? { document_types: docTypes }
             : undefined;
 
-        setCurrentQuery(q.trim());
-        completedRef.current = false;
         setQaInput('');
         setActiveTab('answer');
         setOpenCitation(null);
-        qaSearch(q.trim(), conversationId, filters);
+        // The store commits the prior finished exchange, starts the stream, and
+        // registers the bg job — all keyed by the active conversation.
+        runQa(activeConvId, q.trim(), filters);
         requestAnimationFrame(() => threadEndRef.current?.scrollIntoView({ behavior: 'smooth' }));
     };
 
@@ -895,62 +874,31 @@ export default function SearchPage() {
         setQaConversations(rows);
     }, []);
 
-    // On completion, persist the exchange (create the conversation row on first
-    // answer). Display is handled by the live block — this only touches the DB.
+    // The store persists each finished turn (creating the conversation row on the
+    // first answer). When that row appears, refresh the sidebar so it lists.
     useEffect(() => {
-        if (qaState.status !== 'complete' || completedRef.current) return;
-        const answer = qaState.finalAnswer;
-        const userQ = currentQuery;
-        if (!answer || !userQ) return;
-        completedRef.current = true;
+        if (activeQaId) loadQaConversations();
+    }, [activeQaId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-        const assistantTurn = {
-            role: 'assistant' as const,
-            content: answer,
-            citations: qaState.citations,
-            sources: qaState.sources,
-            structuredData: qaState.structuredData,
-            chartSpecs: qaState.chartSpecs,
-            followUpQueries: qaState.followUpQueries,
-        };
-
-        (async () => {
-            let convId = activeQaId;
-            if (!convId) {
-                convId = await createQaConversation(conversationTitle(userQ));
-                if (convId) {
-                    setActiveQaId(convId);
-                    setConversationId(convId);
-                    await loadQaConversations();
-                }
-            }
-            if (!convId) return;
-            await saveQaTurn(convId, { role: 'user', content: userQ });
-            await saveQaTurn(convId, assistantTurn);
-        })();
-
+    // Keep the thread pinned to the newest exchange as it streams / completes.
+    useEffect(() => {
         requestAnimationFrame(() => threadEndRef.current?.scrollIntoView({ behavior: 'smooth' }));
-    }, [qaState.status]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [qaState.status, chatHistory.length]);
 
+    // A fresh conversation id → an empty entry. Any in-flight run keeps going in
+    // the background (still shown in the indicator); this just switches the view.
     const handleNewQa = () => {
-        qaReset();
-        setChatHistory([]);
-        setActiveQaId(null);
-        setConversationId(crypto.randomUUID());
-        setCurrentQuery(null);
+        useQaStore.getState().setActiveConv(crypto.randomUUID());
         setQaInput('');
-        completedRef.current = false;
         setOpenCitation(null);
         setTimeout(() => qaInputRef.current?.focus(), 50);
     };
 
     const handleLoadQaConversation = async (id: string) => {
-        if (activeQaId === id) return;
-        qaReset();
+        if (activeConvId === id) return;
         setOpenCitation(null);
-        setCurrentQuery(null);
         const turns = await loadQaTurns(id);
-        setChatHistory(turns.map(t => ({
+        useQaStore.getState().loadThread(id, turns.map(t => ({
             role: t.role,
             content: t.content,
             citations: t.citations,
@@ -958,16 +906,14 @@ export default function SearchPage() {
             structuredData: t.structuredData,
             chartSpecs: t.chartSpecs,
         })));
-        setActiveQaId(id);
-        setConversationId(id);
-        completedRef.current = false;
+        useQaStore.getState().setActiveConv(id);
     };
 
     const handleDeleteQaConversation = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         await deleteQaConversation(id);
         setQaConversations(prev => prev.filter(c => c.id !== id));
-        if (activeQaId === id) handleNewQa();
+        if (activeConvId === id) handleNewQa();
     };
 
     // Group QA conversations by recency for the sidebar.

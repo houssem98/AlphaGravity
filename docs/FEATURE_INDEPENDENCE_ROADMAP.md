@@ -32,6 +32,7 @@ and/or aborting the run in a `useEffect` cleanup.
 | Reference store #1 (research) | `src/stores/researchStore.ts`, `src/pages/SearchPage.tsx` (research mode) |
 | Reference store #2 (grid) | `src/stores/gridRunStore.ts`, `src/components/grid/GridView.tsx` |
 | Done this campaign (brief) | `src/stores/companyBriefStore.ts`, `src/components/company/CompanyBrief.tsx` |
+| Done this campaign (QA) | `src/stores/qaStore.ts`, `src/pages/SearchPage.tsx` (qa mode) |
 | Global activity indicator | `src/stores/backgroundStore.ts`, `src/components/BackgroundActivity.tsx` |
 | Acceptance harness | `e2e/featureContinuity.spec.ts` |
 
@@ -59,7 +60,7 @@ Empirically audited each long-running feature's state model (grep + live e2e):
 | Deep Research | SearchPage (research) | `researchStore` (module-level) | **YES** — reference |
 | Research Grid | GridView | `gridRunStore` + `gridAbort` | **YES** — reference |
 | Company AI Brief | CompanyBrief | `companyBriefStore` (per ticker) | **YES** — fixed 2026-07-23, e2e proven |
-| Quick Answer | SearchPage (qa) | local `chatHistory` useState; turns persisted to Supabase | **NO** — in-flight stream lost; reloadable after | 
+| Quick Answer | SearchPage (qa) | `qaStore` (per conversation) | **YES** — fixed 2026-07-23, e2e proven |
 | Devil's Advocate | DevilsAdvocate | local `answer`/`running` useState | **NO** — dropped on nav |
 | Transcript summary | TranscriptSummary | local useState | measure — single fetch, likely low value |
 | Latest quarter | LatestQuarterCard | local useState | measure — single fetch, likely low value |
@@ -69,21 +70,24 @@ this campaign, aborted the run in its unmount cleanup — so leaving the company
 page dropped the run. Now proven fixed: `e2e/featureContinuity.spec.ts` starts a
 brief, visits /trading, returns via the indicator, and the SAME run is still in
 flight (one job, still "Stop", no duplicate). Deep Research and Grid were already
-store-backed. QA / Devil's Advocate remain component-local.
+store-backed. Devil's Advocate remains component-local.
+
+Quick Answer re-measured 2026-07-23 against the code before FI-2: the row above
+understated it — not only was `chatHistory`/`currentQuery` component `useState`,
+the whole stream lived in `useGravitySearch`'s `useState` + `wsRef`, and
+`conversationId` was re-seeded with a fresh `crypto.randomUUID()` on every mount,
+so a remount could not have re-attached to the in-flight run even in principle.
+Lifted in FI-2 to `qaStore` (execution, socket and thread all module-level).
 
 ## §4 Ledger — one task per loop pass, in order
 
 - [x] **FI-1 — Company AI Brief** lifted to `companyBriefStore` (per ticker),
   never aborts on unmount, resumes the same session, registers a bg job.
   Done 2026-07-23; `featureContinuity.spec.ts` green.
-- [ ] **FI-2 — Quick Answer** survives navigation. Lift the QA thread + in-flight
-  answer stream out of SearchPage `useState` into a `qaStore` keyed by
-  conversation id (the id already exists). The stream must keep writing to the
-  store after SearchPage unmounts; returning shows the same thread still
-  streaming. Register a bg job for the in-flight turn.
-  Accept: a new continuity spec — ask a question, navigate to /trading mid-stream,
-  return via the indicator, the same answer is still streaming into the same
-  thread; no duplicate turn, no lost thread.
+- [x] **FI-2 — Quick Answer** survives navigation. QA thread + in-flight stream
+  lifted into `qaStore` keyed by conversation id; the WebSocket is module-level
+  and closed only by Cancel / a new question. Registers a bg job per turn.
+  Done 2026-07-23; `qaContinuity.spec.ts` green.
 - [ ] **FI-3 — Devil's Advocate** survives navigation. Lift `answer`/`running`
   into a store keyed by ticker (or fold into `companyBriefStore` as a second
   entry field). Never abort on unmount; register a bg job.
@@ -108,3 +112,4 @@ store-backed. QA / Devil's Advocate remain component-local.
 |---|---|---|
 | 2026-07-23 | audit | 7 long-running features mapped. Already store-backed: Deep Research, Research Grid. Component-local (bug): Company Brief, Quick Answer, Devil's Advocate. |
 | 2026-07-23 | FI-1 | Company Brief lifted to companyBriefStore (per ticker); unmount no longer aborts; resumes same session. tsc 0; featureContinuity + backgroundActivity + tnNullFeed + hubAssetMarket green. |
+| 2026-07-23 | FI-2 | Quick Answer lifted to qaStore (per conversation): WS + thread + persistence module-level; SearchPage QA is a pure view; useGravitySearch reduced to types/cleanAnswer; bg job kind 'qa'. tsc -b 0 errors; vite build 0 errors; deployed prod (market-ui-self.vercel.app). qaContinuity 1 passed 5.3s; featureContinuity + backgroundActivity + tnNullFeed + hubAssetMarket 4 passed 34.0s. Spec fix during the run: probe text matched 2 nodes in the indicator, so the job click is scoped to `li button`. |

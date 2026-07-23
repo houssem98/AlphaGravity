@@ -5,7 +5,7 @@
 // its elapsed time, and click a job to jump back to the view that owns it.
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, X, Search, Building2 } from 'lucide-react';
+import { Loader2, X, Search, Building2, Zap } from 'lucide-react';
 import { useBackgroundStore } from '../stores/backgroundStore';
 
 const elapsed = (ms: number) => {
@@ -49,7 +49,7 @@ export default function BackgroundActivity() {
                                     onClick={() => { navigate(j.href); setOpen(false); }}
                                     className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-[color:var(--surface-2)] transition-colors"
                                 >
-                                    {j.kind === 'research' ? <Search className="w-4 h-4 shrink-0 text-[color:var(--accent)]" /> : <Building2 className="w-4 h-4 shrink-0 text-[color:var(--accent)]" />}
+                                    {j.kind === 'research' ? <Search className="w-4 h-4 shrink-0 text-[color:var(--accent)]" /> : j.kind === 'qa' ? <Zap className="w-4 h-4 shrink-0 text-[color:var(--accent)]" /> : <Building2 className="w-4 h-4 shrink-0 text-[color:var(--accent)]" />}
                                     <span className="flex-1 min-w-0 truncate text-sm text-[color:var(--text)]">{j.label}</span>
                                     <span className="shrink-0 text-xs font-mono text-[color:var(--text-3)] tabular-nums">{elapsed(now - j.startedAt)}</span>
                                 </button>
