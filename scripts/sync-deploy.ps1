@@ -131,7 +131,6 @@ if ($DryRun) {
 
 if ($Target -eq "all" -or $Target -eq "vercel") {
     Sync-Vercel -AppPath (Join-Path $repoRoot "apps\market-ui") -AppName "market-ui"
-    Sync-Vercel -AppPath (Join-Path $repoRoot "apps\gravity-ui") -AppName "gravity-ui"
 }
 
 if ($Target -eq "all" -or $Target -eq "fly") {

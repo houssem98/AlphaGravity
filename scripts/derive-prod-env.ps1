@@ -7,8 +7,7 @@
 param(
     [switch]$DryRun = $false,
     [string]$FlyApp = "gravity-api-prod",
-    [string]$VercelMarketProject = "market-ui",
-    [string]$VercelGravityProject = "gravity-ui"
+    [string]$VercelMarketProject = "market-ui"
 )
 
 $ErrorActionPreference = "Stop"
@@ -44,16 +43,14 @@ function Get-VercelProductionUrl {
 }
 
 $marketUiUrl = Get-VercelProductionUrl -ProjectName $VercelMarketProject
-$gravityUiUrl = Get-VercelProductionUrl -ProjectName $VercelGravityProject
 
 if (-not $marketUiUrl) { $marketUiUrl = "https://market-ui-self.vercel.app" }
-if (-not $gravityUiUrl) { $gravityUiUrl = "https://gravity-ui-ashy.vercel.app" }
 
 Write-Host "  market-ui:  $marketUiUrl" -ForegroundColor Green
-Write-Host "  gravity-ui: $gravityUiUrl" -ForegroundColor Green
 
-# CORS origins
-$corsOrigins = "$marketUiUrl,$gravityUiUrl,https://*.vercel.app"
+# CORS origins. gravity-ui has no deployment (its Vercel projects were deleted
+# 2026-07-23); it runs locally only, and localhost is not a prod CORS origin.
+$corsOrigins = "$marketUiUrl,https://*.vercel.app"
 
 # Overrides
 $overrides = @{
