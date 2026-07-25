@@ -138,8 +138,8 @@ check('anthropic/lite -> haiku-4-5', defaultModelFor('anthropic', 'lite') === 'c
 check('gemini/premium -> 2.5-pro', defaultModelFor('gemini', 'premium') === 'gemini-2.5-pro');
 check('gemini/standard -> 2.5-flash', defaultModelFor('gemini', 'standard') === 'gemini-2.5-flash');
 check('gemini/lite -> 2.0-flash-lite', defaultModelFor('gemini', 'lite') === 'gemini-2.0-flash-lite');
-check('deepseek/premium -> reasoner', defaultModelFor('deepseek', 'premium') === 'deepseek-reasoner');
-check('deepseek/lite -> chat', defaultModelFor('deepseek', 'lite') === 'deepseek-chat');
+check('deepseek/premium -> reasoner', defaultModelFor('deepseek', 'premium') === 'deepseek-v4-pro');
+check('deepseek/lite -> chat', defaultModelFor('deepseek', 'lite') === 'deepseek-v4-flash');
 check('groq/lite -> llama-3.1-8b', defaultModelFor('groq', 'lite') === 'llama-3.1-8b-instant');
 
 // ─── Report ──────────────────────────────────────────────────────────────────

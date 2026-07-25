@@ -87,7 +87,7 @@ async function judgeCall(prompt: string): Promise<string> {
     const res = await fetch(`${API}/api/llm/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: 'deepseek', model: 'deepseek-chat', prompt, max_tokens: 2000 }),
+        body: JSON.stringify({ provider: 'deepseek', model: 'deepseek-v4-flash', prompt, max_tokens: 2000 }),
     });
     if (!res.ok) throw new Error(`judge call failed: HTTP ${res.status}`);
     return (await res.json()).text ?? '';

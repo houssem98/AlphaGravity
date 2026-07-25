@@ -36,7 +36,7 @@ describe('gridResearch — AC-2 instrumentation (rows 4, 9)', () => {
 
     it('RAG throws → soft-fail preserved (honest no-data cell) + failed step recorded', async () => {
         const deps: CellRunnerDeps = {
-            callLLM: async () => ({ text: 'x', model: 'deepseek-chat' as never }),
+            callLLM: async () => ({ text: 'x', model: 'deepseek-v4-flash' as never }),
             searchGravity: async () => { throw new Error('HTTP 503'); },
         };
         const cell = await runGridCell(DEF, 'AAPL', 'valuation', deps);
@@ -49,7 +49,7 @@ describe('gridResearch — AC-2 instrumentation (rows 4, 9)', () => {
 
     it('LLM fallback path — rag step empty + llm step ok, answer unchanged', async () => {
         const deps: CellRunnerDeps = {
-            callLLM: async () => ({ text: 'Margin held at 46% [1].', model: 'deepseek-chat' as never }),
+            callLLM: async () => ({ text: 'Margin held at 46% [1].', model: 'deepseek-v4-flash' as never }),
             searchGravity: async () => rag({
                 available: false,
                 sources: [{ id: 's1', title: 'AAPL 10-K', section: 'MD&A', text: 'Margin 46%', ticker: 'AAPL', date: '2026-01-01', document_type: '10-K', source_quality: 1, score: 1 }],
@@ -65,7 +65,7 @@ describe('gridResearch — AC-2 instrumentation (rows 4, 9)', () => {
     it('row 3: one tool rejects → failed step with real error, cell still done from the rest', async () => {
         let llmPrompt = '';
         const deps: CellRunnerDeps = {
-            callLLM: async (p) => { llmPrompt = p; return { text: 'P/E is 40.5 [1].', model: 'deepseek-chat' as never }; },
+            callLLM: async (p) => { llmPrompt = p; return { text: 'P/E is 40.5 [1].', model: 'deepseek-v4-flash' as never }; },
             searchGravity: async () => rag({ available: false, sources: [] }),
             tools: {
                 marketQuote: async () => { throw new Error('HTTP 502'); },
@@ -129,7 +129,7 @@ describe('gridResearch — AC-2 instrumentation (rows 4, 9)', () => {
 
     it('row 10: tool evidence never changes the earned grade of a grounded cell', async () => {
         const bare: CellRunnerDeps = {
-            callLLM: async () => ({ text: 'x', model: 'deepseek-chat' as never }),
+            callLLM: async () => ({ text: 'x', model: 'deepseek-v4-flash' as never }),
             searchGravity: async () => GROUNDED,
         };
         const withTools: CellRunnerDeps = {
@@ -145,7 +145,7 @@ describe('gridResearch — AC-2 instrumentation (rows 4, 9)', () => {
     // ── AC-6: persistence (row 5) ───────────────────────────────────────────
     it('row 5: steps survive a JSON round-trip exactly (JSONB save/load)', async () => {
         const deps: CellRunnerDeps = {
-            callLLM: async () => ({ text: 'x', model: 'deepseek-chat' as never }),
+            callLLM: async () => ({ text: 'x', model: 'deepseek-v4-flash' as never }),
             searchGravity: async () => GROUNDED,
             tools: {
                 marketQuote: async () => ({ text: 'AAPL price $333.74' }),

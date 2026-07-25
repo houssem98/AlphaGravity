@@ -46,7 +46,7 @@ const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const GRAVITY_API = import.meta.env.VITE_GRAVITY_API_URL || 'http://localhost:8000';
 
 const MODEL_CONFIG: Record<string, { provider: string; model: string }> = {
-    deepseek: { provider: 'deepseek', model: 'deepseek-chat' },
+    deepseek: { provider: 'deepseek', model: 'deepseek-v4-flash' },
     claude: { provider: 'anthropic', model: 'claude-sonnet-4-6' },
     gemini: { provider: 'gemini', model: 'gemini-2.5-flash' },
 };

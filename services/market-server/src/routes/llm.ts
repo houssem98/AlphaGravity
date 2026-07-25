@@ -159,8 +159,8 @@ llmRouter.get('/providers', (_req, res) => {
         { id: 'claude-sonnet-4-6',         provider: 'anthropic', name: 'Claude Sonnet 4.6',    tier: 'standard', available: providers.anthropic.available },
         { id: 'claude-haiku-4-5-20251001', provider: 'anthropic', name: 'Claude Haiku 4.5',     tier: 'lite',     available: providers.anthropic.available },
         // DeepSeek
-        { id: 'deepseek-chat',      provider: 'deepseek',  name: 'DeepSeek V3',    tier: 'standard', available: providers.deepseek.available },
-        { id: 'deepseek-reasoner',  provider: 'deepseek',  name: 'DeepSeek R1',    tier: 'premium',  available: providers.deepseek.available },
+        { id: 'deepseek-v4-flash',  provider: 'deepseek',  name: 'DeepSeek V4 Flash', tier: 'standard', available: providers.deepseek.available },
+        { id: 'deepseek-v4-pro',    provider: 'deepseek',  name: 'DeepSeek V4 Pro',   tier: 'premium',  available: providers.deepseek.available },
         // Groq
         { id: 'openai/gpt-oss-120b',                       provider: 'groq', name: 'GPT-OSS 120B (Groq)',      tier: 'premium',  available: providers.groq.available },
         { id: 'qwen/qwen3-32b',                            provider: 'groq', name: 'Qwen3 32B (Groq)',         tier: 'premium',  available: providers.groq.available },

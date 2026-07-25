@@ -37,7 +37,7 @@ function mkDeps(log: MockLog, overrides?: { verify?: (q: string) => Promise<Grav
         callLLM: async (prompt) => {
             log.llmPrompts.push(prompt);
             if (overrides?.llmThrowOn?.test(prompt)) throw new Error('mock LLM failure');
-            return { text: 'Comparison verdict: GOOD wins.', model: 'deepseek-chat' as never };
+            return { text: 'Comparison verdict: GOOD wins.', model: 'deepseek-v4-flash' as never };
         },
         searchGravity: async (query) => {
             log.gravityQueries.push(query);

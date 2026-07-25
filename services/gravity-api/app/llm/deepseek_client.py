@@ -15,13 +15,13 @@ from app.llm.base import BaseLLMClient, LLMConfig, LLMMessage, LLMResponse, Mode
 
 logger = structlog.get_logger()
 
-PRICING = {"deepseek-chat": {"input": 0.28, "output": 0.42}}
+PRICING = {"deepseek-v4-flash": {"input": 0.28, "output": 0.42}}
 
 
 class DeepSeekClient(BaseLLMClient):
     provider = ModelProvider.DEEPSEEK
 
-    def __init__(self, model_id: str = "deepseek-chat"):
+    def __init__(self, model_id: str = "deepseek-v4-flash"):
         self.model_id = model_id
         self.client = openai.AsyncOpenAI(
             api_key=settings.deepseek_api_key,

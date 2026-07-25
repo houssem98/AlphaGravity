@@ -373,7 +373,7 @@ async function deepseekTone(name: string, text: string): Promise<{ tone: number;
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${DEEPSEEK}` },
       body: JSON.stringify({
-        model: 'deepseek-chat', temperature: 0.2, max_tokens: 60,
+        model: 'deepseek-v4-flash', temperature: 0.2, max_tokens: 60,
         response_format: { type: 'json_object' },
         messages: [{ role: 'user', content:
           `Overall investor sentiment for ${name} (Tunis Stock Exchange) from these press excerpts. ` +
@@ -900,11 +900,11 @@ async function ask(req: any, res: any) {
             const r = await fetch(`${MKT}/api/llm/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provider: 'deepseek', model: 'deepseek-chat', prompt, max_tokens: 2048 }),
+                body: JSON.stringify({ provider: 'deepseek', model: 'deepseek-v4-flash', prompt, max_tokens: 2048 }),
             });
             if (!r.ok) throw new Error(`LLM proxy ${r.status}`);
             const d: any = await r.json();
-            return { text: d.text ?? '', model: d.model ?? 'deepseek-chat' };
+            return { text: d.text ?? '', model: d.model ?? 'deepseek-v4-flash' };
         },
         searchGravity: async (query: string) => {
             const r = await fetch(`${GRAVITY}/v1/search`, {

@@ -115,7 +115,7 @@ class LLMRouter:
 
         if settings.deepseek_api_key:
             from app.llm.deepseek_client import DeepSeekClient
-            self._clients["deepseek"] = DeepSeekClient("deepseek-chat")
+            self._clients["deepseek"] = DeepSeekClient("deepseek-v4-flash")
 
         if settings.groq_api_key:
             from app.llm.groq_client import GroqClient

@@ -47,7 +47,7 @@ def ask(question, facts):
         "using ONLY the facts JSON below — never use outside knowledge, never guess. "
         'Reply ONLY JSON: {"answer": <number-or-string>}\n\n'
         f"Facts: {json.dumps(facts, ensure_ascii=False)}\n\nQuestion: {question}")
-    m = client.chat.completions.create(model="deepseek-chat", max_tokens=150, temperature=0,
+    m = client.chat.completions.create(model="deepseek-v4-flash", max_tokens=150, temperature=0,
                                        response_format={"type": "json_object"},
                                        messages=[{"role": "user", "content": prompt}])
     return json.loads(m.choices[0].message.content).get("answer")

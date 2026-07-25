@@ -85,7 +85,7 @@ PRICES_PER_1M: dict[str, dict[str, float]] = {
     "claude-haiku-4-5-20251001": {"input": 0.8,   "output": 4.0},
     "gemini-2.5-pro":            {"input": 1.25,  "output": 10.0},
     "gemini-2.5-flash":          {"input": 0.30,  "output": 2.5},
-    "deepseek-chat":             {"input": 0.27,  "output": 1.10},
+    "deepseek-v4-flash":             {"input": 0.27,  "output": 1.10},
     "llama-3.3-70b-versatile":   {"input": 0.60,  "output": 0.60},
 }
 

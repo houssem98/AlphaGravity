@@ -1350,8 +1350,8 @@ class SearchPipeline:
                 # LLM returns JSON per FINANCIAL_ANALYST_SYSTEM prompt.
                 # Strip markdown code fences if LLM wrapped the output
                 _raw = validated_answer.strip()
-                # Strip <thinking> preamble that Gemini adds before JSON output
-                _raw = re.sub(r"<thinking>[\s\S]*?</thinking>", "", _raw, flags=re.IGNORECASE).strip()
+                # Strip the reasoning preamble models emit before the JSON output
+                _raw = _strip_thinking(_raw)
                 if _raw.startswith("```"):
                     _raw = re.sub(r"^```(?:json)?\s*", "", _raw)
                     _raw = re.sub(r"\s*```$", "", _raw.rstrip())
@@ -1399,6 +1399,14 @@ class SearchPipeline:
                     _salv2 = _extract_partial_answer(parsed_answer)
                     if _salv2 and _salv2.strip():
                         parsed_answer = _salv2
+                # Reasoning can also appear inside the parsed "answer" value
+                # itself, which the pre-parse strip above never sees. Assign
+                # unconditionally: a response that was *entirely* reasoning
+                # (generation truncated before the envelope) leaves nothing, and
+                # empty is correct — it falls through to the refusal path below
+                # rather than leaking chain-of-thought to the user.
+                if "<thinking" in parsed_answer.lower() or "<think>" in parsed_answer.lower():
+                    parsed_answer = _strip_thinking(parsed_answer)
 
             # ── Numeric grounding validator (Phase B) ───────────────────
             # Deterministic anti-hallucination: every $ / % / large figure stated in
@@ -2077,6 +2085,23 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
 _ANSWER_KEY_RE = re.compile(r'"answer"\s*:\s*"')
 
 
+def _strip_thinking(raw: str) -> str:
+    """
+    Remove the model's reasoning preamble so it never reaches the UI.
+
+    Handles both the closed form (``<thinking>...</thinking>``) and the
+    truncated form (an opening tag the generation ran out of tokens before
+    closing) — the prompt puts reasoning strictly *before* the JSON envelope,
+    so an unclosed tag means everything after it is reasoning. ``<think>`` is
+    the same thing under the name reasoning models emit.
+    """
+    if not raw:
+        return raw
+    s = re.sub(r"<(thinking|think)>[\s\S]*?</\1>", "", raw, flags=re.IGNORECASE)
+    s = re.sub(r"<(thinking|think)>[\s\S]*$", "", s, flags=re.IGNORECASE)
+    return s.strip()
+
+
 def _extract_partial_answer(raw: str) -> str:
     """
     Pull the prose value of the JSON ``"answer"`` field out of a possibly
@@ -2086,7 +2111,12 @@ def _extract_partial_answer(raw: str) -> str:
     never stream that envelope to the client. Given the response accumulated so
     far, return the clean answer text available so far. If the response is plain
     text (not a JSON envelope), return it unchanged.
+
+    The reasoning preamble is stripped first: it precedes the envelope, so
+    leaving it in would both hide the ``{`` from the check below and leak raw
+    chain-of-thought into the answer.
     """
+    raw = _strip_thinking(raw)
     s = raw.lstrip()
     if not s.startswith("{"):
         return raw  # plain-text answer — stream as-is

@@ -33,7 +33,7 @@ describe('tierPeer (P0c tier-down)', () => {
         expect(tierPeer('claude-opus-4-6', 'standard')).toBe('claude-sonnet-4-6');
         expect(tierPeer('claude-opus-4-6', 'lite')).toBe('claude-haiku-4-5-20251001');
         expect(tierPeer('gemini-2.5-pro', 'lite')).toBe('gemini-2.0-flash-lite');
-        expect(tierPeer('deepseek-reasoner', 'standard')).toBe('deepseek-chat');
+        expect(tierPeer('deepseek-v4-pro', 'standard')).toBe('deepseek-v4-flash');
     });
 
     it('passes through undefined and unknown ids', () => {

@@ -45,8 +45,8 @@ export const RESEARCH_MODELS = [
     { id: 'claude-sonnet-4-6',    name: 'Claude Sonnet 4.6',    provider: 'anthropic', desc: 'Fast & sharp — analysis and extraction',             tier: 'standard' },
     { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', provider: 'anthropic', desc: 'Lightweight Claude — fastest, lowest cost',        tier: 'lite'     },
     // ── DeepSeek ────────────────────────────────────────────────────────────
-    { id: 'deepseek-chat',        name: 'DeepSeek V3',          provider: 'deepseek',  desc: 'Strong reasoning — cost-efficient at scale',         tier: 'standard' },
-    { id: 'deepseek-reasoner',    name: 'DeepSeek R1',          provider: 'deepseek',  desc: 'Chain-of-thought reasoning — best for bull/bear',    tier: 'premium'  },
+    { id: 'deepseek-v4-flash',    name: 'DeepSeek V4 Flash',    provider: 'deepseek',  desc: 'Strong reasoning — cost-efficient at scale',         tier: 'standard' },
+    { id: 'deepseek-v4-pro',      name: 'DeepSeek V4 Pro',      provider: 'deepseek',  desc: 'Chain-of-thought reasoning — best for bull/bear',    tier: 'premium'  },
     // ── Groq (fast inference, free tier) ────────────────────────────────────
     { id: 'openai/gpt-oss-120b',                       name: 'GPT-OSS 120B (Groq)',      provider: 'groq', desc: 'Open-weights 120B — deep synthesis, free tier',     tier: 'premium'  },
     { id: 'qwen/qwen3-32b',                            name: 'Qwen3 32B (Groq)',         provider: 'groq', desc: 'Chain-of-thought reasoning — free tier bull/bear',  tier: 'premium'  },
@@ -599,8 +599,8 @@ export const MODEL_COSTS_USD: Record<string, { input: number; output: number; ca
     'gemini-2.5-flash':              { input: 0.0003,  output: 0.0025  },
     'gemini-2.0-flash':              { input: 0.0001,  output: 0.0004  },
     'gemini-2.0-flash-lite':         { input: 0.000075,output: 0.0003  },
-    'deepseek-chat':                 { input: 0.00027, output: 0.0011  },
-    'deepseek-reasoner':             { input: 0.00055, output: 0.0022  },
+    'deepseek-v4-flash':             { input: 0.00027, output: 0.0011  },
+    'deepseek-v4-pro':               { input: 0.00055, output: 0.0022  },
     // Groq — public free tier; placeholder costs to avoid division by zero
     'openai/gpt-oss-120b':                        { input: 0.002,   output: 0.002   },
     'qwen/qwen3-32b':                              { input: 0.0006,  output: 0.0006  },
@@ -1100,8 +1100,8 @@ export function defaultModelFor(provider: Provider, tier: Tier): ResearchModelId
         return 'gemini-2.0-flash-lite';
     }
     if (provider === 'deepseek') {
-        if (tier === 'premium') return 'deepseek-reasoner';
-        return 'deepseek-chat';
+        if (tier === 'premium') return 'deepseek-v4-pro';
+        return 'deepseek-v4-flash';
     }
     // groq
     if (tier === 'premium') return 'openai/gpt-oss-120b';

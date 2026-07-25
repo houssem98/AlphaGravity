@@ -65,7 +65,7 @@ export default function DevilsAdvocate({ ticker }: { ticker: string }) {
             const res = await fetch(LLM_PROXY_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provider: 'deepseek', model: 'deepseek-chat', prompt: PROMPT(ticker, facts), max_tokens: 1600 }),
+                body: JSON.stringify({ provider: 'deepseek', model: 'deepseek-v4-flash', prompt: PROMPT(ticker, facts), max_tokens: 1600 }),
             });
             if (!res.ok) throw new Error(`LLM proxy ${res.status}`);
             const data = await res.json();

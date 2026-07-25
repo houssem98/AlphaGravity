@@ -84,7 +84,7 @@ def extract(name, excerpt):
         "explicitly stated per share (else null). Numbers only, no thousands-separators.\n\n" + excerpt)
     try:
         m = client.chat.completions.create(
-            model="deepseek-chat", max_tokens=300, temperature=0,
+            model="deepseek-v4-flash", max_tokens=300, temperature=0,
             response_format={"type": "json_object"},
             messages=[{"role": "user", "content": prompt}])
         return json.loads(m.choices[0].message.content)

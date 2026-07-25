@@ -51,7 +51,7 @@ describe.skipIf(process.env.RUN_DR_EVAL !== '1')('W0a live smoke', () => {
                 query,
                 (p) => progressLog.push({ t: Date.now() - t0, stage: p.stage, msg: p.message, pct: p.progress }),
                 // Only live provider (probed 2026-07-10): anthropic 401, groq 401, gemini keyless.
-                'deepseek-chat',
+                'deepseek-v4-flash',
             );
         } catch (e: any) {
             error = e?.message ?? String(e);
@@ -61,7 +61,7 @@ describe.skipIf(process.env.RUN_DR_EVAL !== '1')('W0a live smoke', () => {
         const summary = {
             ranAt: new Date().toISOString(),
             query,
-            model: 'deepseek-chat',
+            model: 'deepseek-v4-flash',
             ok: !!report,
             error,
             wallMs,

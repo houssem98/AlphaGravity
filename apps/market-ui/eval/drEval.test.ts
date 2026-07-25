@@ -17,7 +17,7 @@ import {
 
 const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), 'out');
 const API = process.env.VITE_API_URL || 'http://localhost:3002';
-const MODEL = 'deepseek-chat'; // only live provider (probed 2026-07-10)
+const MODEL = 'deepseek-v4-flash'; // only live provider (probed 2026-07-10)
 
 function shimLocalStorage() {
     const store = new Map<string, string>();

@@ -64,7 +64,7 @@ def extract_dps(company, excerpt):
         "dividend_per_share_tnd = dividend per share in dinars as voted/approved (null if the AGM "
         "declared no dividend or the lines don't state a per-share amount). If the excerpt is empty, "
         "everything is null. Never guess.\n\n" + excerpt)
-    m = client.chat.completions.create(model="deepseek-chat", max_tokens=200, temperature=0,
+    m = client.chat.completions.create(model="deepseek-v4-flash", max_tokens=200, temperature=0,
                                        response_format={"type": "json_object"},
                                        messages=[{"role": "user", "content": prompt}])
     return json.loads(m.choices[0].message.content)

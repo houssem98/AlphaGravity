@@ -145,7 +145,7 @@ def write_paragraph(facts):
         "citing the single strongest (most bullish or bearish) source by its title. "
         "Plain prose, no markdown, no bullet points.\n\n"
         + json.dumps(facts, ensure_ascii=False))
-    m = client.chat.completions.create(model="deepseek-chat", max_tokens=220, temperature=0.3,
+    m = client.chat.completions.create(model="deepseek-v4-flash", max_tokens=220, temperature=0.3,
                                        messages=[{"role": "user", "content": prompt}])
     return m.choices[0].message.content.strip()
 

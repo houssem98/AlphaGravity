@@ -5621,7 +5621,7 @@ console.log('\n[83] Prompt caching — MODEL_COSTS_USD cacheRead + BudgetTracker
     }
 
     // Non-Anthropic models intentionally omit cacheRead
-    const nonAnthropicModels = ['gemini-2.5-pro', 'deepseek-chat', 'llama-3.3-70b-versatile'];
+    const nonAnthropicModels = ['gemini-2.5-pro', 'deepseek-v4-flash', 'llama-3.3-70b-versatile'];
     for (const id of nonAnthropicModels) {
         check(`MODEL_COSTS_USD[${id}] cacheRead is undefined (no cache pricing)`,
             MODEL_COSTS_USD[id]?.cacheRead === undefined);

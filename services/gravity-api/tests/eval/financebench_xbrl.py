@@ -37,7 +37,7 @@ CONCURRENCY = int(os.getenv("XBRL_CONCURRENCY", "4"))
 PROVIDER = os.getenv("XBRL_PROVIDER", "deepseek").lower()
 
 _PROVIDERS = {
-    "deepseek": ("https://api.deepseek.com/chat/completions", "deepseek-chat", "DEEPSEEK_API_KEY"),
+    "deepseek": ("https://api.deepseek.com/chat/completions", "deepseek-v4-flash", "DEEPSEEK_API_KEY"),
     "groq": ("https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile", "GROQ_API_KEY"),
     # Ollama: free, unlimited, local. No API key. Model via XBRL_ANSWER_MODEL.
     "ollama": ("http://localhost:11434/v1/chat/completions", "qwen2.5-coder:7b", "OLLAMA_NO_KEY"),

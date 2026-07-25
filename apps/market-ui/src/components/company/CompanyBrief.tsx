@@ -23,7 +23,7 @@ const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'
 // answer). Model choice mirrors GridView's picker.
 type ModelKey = 'deepseek' | 'claude' | 'gemini';
 const MODEL_CONFIG: Record<ModelKey, { provider: string; model: string; label: string }> = {
-    deepseek: { provider: 'deepseek', model: 'deepseek-chat', label: 'DeepSeek' },
+    deepseek: { provider: 'deepseek', model: 'deepseek-v4-flash', label: 'DeepSeek' },
     claude:   { provider: 'anthropic', model: 'claude-sonnet-4-6', label: 'Claude' },
     gemini:   { provider: 'gemini', model: 'gemini-2.5-flash', label: 'Gemini' },
 };

@@ -122,7 +122,7 @@ export async function answerWithContext(
     opts: AnswerOptions = {},
 ): Promise<{ text: string; latencyMs: number; model: string }> {
     const provider = opts.provider ?? 'anthropic';
-    const model = opts.model ?? (provider === 'anthropic' ? 'claude-sonnet-4-6' : provider === 'gemini' ? 'gemini-2.5-flash' : 'deepseek-chat');
+    const model = opts.model ?? (provider === 'anthropic' ? 'claude-sonnet-4-6' : provider === 'gemini' ? 'gemini-2.5-flash' : 'deepseek-v4-flash');
     const ctx = toLlmContext(result, 16000);
     const ask = question.trim() || 'Summarise this page in 5 bullets, then list 3 questions a financial analyst would still want answered.';
     const prompt = `You are an institutional research assistant. Use the web page below as your only source. Quote facts inline and cite the source URL in parentheses.\n\n${ctx}\n\n---\n\nQuestion: ${ask}`;

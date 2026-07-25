@@ -35,7 +35,7 @@ def compile_rule(nl):
         "A phrase like 'prints > N shares' maps to volume. Percent thresholds are plain numbers "
         "(1% -> 1). Never invent a ticker; use exactly what's named.\n\n"
         f"Alert: {nl}")
-    m = client.chat.completions.create(model="deepseek-chat", max_tokens=150, temperature=0,
+    m = client.chat.completions.create(model="deepseek-v4-flash", max_tokens=150, temperature=0,
                                        response_format={"type": "json_object"},
                                        messages=[{"role": "user", "content": prompt}])
     return json.loads(m.choices[0].message.content)

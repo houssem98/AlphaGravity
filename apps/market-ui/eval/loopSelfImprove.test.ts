@@ -1,6 +1,6 @@
 // Self-improvement loop test harness.
 // Usage:
-//   LOOP_QUERY="query" LOOP_MODEL="deepseek-chat" npm run eval:loop
+//   LOOP_QUERY="query" LOOP_MODEL="deepseek-v4-flash" npm run eval:loop
 //   or via LOOP_SELF_IMPROVE.sh
 
 import { describe, it, beforeAll } from 'vitest';
@@ -37,7 +37,7 @@ describe.skipIf(!process.env.LOOP_QUERY)('self-improvement harness', () => {
 
     it('runs self-improvement loop until pass or max iterations', async () => {
         const query = process.env.LOOP_QUERY || 'Default test query';
-        const model = (process.env.LOOP_MODEL || 'deepseek-chat') as ResearchModelId;
+        const model = (process.env.LOOP_MODEL || 'deepseek-v4-flash') as ResearchModelId;
         const maxIter = parseInt(process.env.LOOP_MAX_ITER || '3', 10);
         const minScore = parseFloat(process.env.LOOP_MIN_SCORE || '7.0');
 
