@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     validateDesignSpec, runDesignLoop, defaultDesignSpec, ALLOWED_ACCENTS,
-    computeColumnFlex,
+    computeColumnFlex, sectionLayoutDigest,
 } from './pdfDesigner';
 
 const MARKDOWN = [
@@ -26,6 +26,65 @@ const GOOD_SPEC = {
     pullQuotes: [{ section: 'Investment Thesis', text: VERBATIM }],
     exhibitTitles: ['Revenue growth vs peers'],
 };
+
+// G1c — per-section layout overrides. The report needs sections whose
+// structure genuinely differs, so the preconditions have something to bite on.
+const LAYOUT_MD = [
+    '# Report',
+    '',
+    '## Financial Performance',
+    'Revenue reached $130.5B in FY2025 [1]. Gross margin was 73.0% in Q4 [2]. Inventory turnover sat at ~2.5x [3].',
+    '',
+    '## Narrative Outlook',
+    'We expect the cycle to persist, though conviction is lower than last year.',
+].join('\n');
+
+describe('G1c — per-section layout overrides', () => {
+    it('accepts an override the section structure can carry', () => {
+        const { spec, violations } = validateDesignSpec(
+            { ...GOOD_SPEC, pullQuotes: [], sections: [{ heading: 'Financial Performance', layout: 'prose' }] },
+            LAYOUT_MD, 1);
+        expect(violations).toHaveLength(0);
+        expect(spec.sections).toEqual([{ heading: 'Financial Performance', layout: 'prose' }]);
+    });
+
+    it('rejects a layout the section cannot support', () => {
+        // No cited figures in the narrative section → stat-row is impossible.
+        const { spec, violations } = validateDesignSpec(
+            { ...GOOD_SPEC, pullQuotes: [], sections: [{ heading: 'Narrative Outlook', layout: 'stat-row' }] },
+            LAYOUT_MD, 1);
+        expect(spec.sections).toHaveLength(0);
+        expect(violations.join(' ')).toMatch(/cannot be stat-row/);
+    });
+
+    it('rejects a layout that is not in the enum — no invented layouts', () => {
+        const { spec, violations } = validateDesignSpec(
+            { ...GOOD_SPEC, pullQuotes: [], sections: [{ heading: 'Financial Performance', layout: 'hero-collage' }] },
+            LAYOUT_MD, 1);
+        expect(spec.sections).toHaveLength(0);
+        expect(violations.join(' ')).toMatch(/not a known layout/);
+    });
+
+    it('rejects an override for a section that does not exist', () => {
+        const { spec, violations } = validateDesignSpec(
+            { ...GOOD_SPEC, pullQuotes: [], sections: [{ heading: 'Invented Section', layout: 'prose' }] },
+            LAYOUT_MD, 1);
+        expect(spec.sections).toHaveLength(0);
+        expect(violations.join(' ')).toMatch(/not a heading in this report/);
+    });
+
+    it('defaults to no overrides when the designer omits the field', () => {
+        expect(validateDesignSpec({ ...GOOD_SPEC, pullQuotes: [] }, LAYOUT_MD, 1).spec.sections).toEqual([]);
+    });
+
+    it('tells the designer which layouts each section can legally take', () => {
+        const digest = sectionLayoutDigest(LAYOUT_MD);
+        expect(digest).toMatch(/"Financial Performance" → stat-row/);
+        expect(digest).toMatch(/"Narrative Outlook" → prose/);
+        // The narrative section must not be offered stat-row.
+        expect(digest.split('\n').find(l => l.includes('Narrative Outlook'))).not.toMatch(/stat-row/);
+    });
+});
 
 describe('validator — the bounded design surface', () => {
     it('accepts a valid spec unchanged', () => {

@@ -10,6 +10,11 @@
 import { parseJudgeJson } from './evalRubric';
 import { llmChat } from './selfImprovementHarness';
 import type { ExhibitSpec } from './reportQaGates';
+import {
+    SECTION_LAYOUTS, isSectionLayout, splitSections, classifySection, computeSignals,
+    layoutPrecondition,
+} from './sectionLayout';
+import type { SectionLayout } from './sectionLayout';
 
 // ─── The bounded design surface ─────────────────────────────────────────────
 
@@ -29,7 +34,16 @@ export interface TableDesign {
 
 export type ExhibitStyle = 'monochrome' | 'categorical';
 
+// G1c — the designer's per-section lever. It may only pick another value
+// from the layout enum, and only for a section whose structure can carry it;
+// it can never describe a layout of its own.
+export interface SectionLayoutChoice {
+    heading: string;
+    layout: SectionLayout;
+}
+
 export interface DesignSpec {
+    sections: SectionLayoutChoice[]; // overrides; sections absent keep the classifier's pick
     tone: ReportTone;
     accent: string;              // hex from ALLOWED_ACCENTS only
     density: Density;
@@ -52,6 +66,7 @@ const TONE_ACCENT: Record<ReportTone, string> = {
 
 export function defaultDesignSpec(tone: ReportTone = 'neutral'): DesignSpec {
     return {
+        sections: [],
         tone,
         accent: TONE_ACCENT[tone],
         density: 'comfortable',
@@ -164,9 +179,36 @@ export function validateDesignSpec(
         }
     }
 
+    // Per-section layout overrides (G1c). Three gates, in order: the section
+    // must exist, the layout must be in the enum, and the section's structure
+    // must actually support it — a designer cannot turn a section with no
+    // dates into a timeline, or one with no cited figures into a stat row.
+    const sections: SectionLayoutChoice[] = [];
+    if (Array.isArray(r.sections)) {
+        const real = splitSections(markdown);
+        for (const raw of (r.sections as Array<Record<string, unknown>>).slice(0, 20)) {
+            const heading = sanitizeLine(raw?.heading, 80);
+            const match = real.find(s => s.heading.toLowerCase() === heading.toLowerCase());
+            if (!match) {
+                violations.push(`section "${heading}" is not a heading in this report`);
+                continue;
+            }
+            if (!isSectionLayout(raw?.layout)) {
+                violations.push(`layout "${String(raw?.layout)}" for "${heading}" is not a known layout`);
+                continue;
+            }
+            const failed = layoutPrecondition(raw.layout, computeSignals(match.heading, match.body));
+            if (failed) {
+                violations.push(`"${heading}" cannot be ${raw.layout}: ${failed}`);
+                continue;
+            }
+            sections.push({ heading: match.heading, layout: raw.layout });
+        }
+    }
+
     return {
         spec: {
-            tone, accent, density, coverKicker, abstract, pullQuotes, exhibitTitles,
+            sections, tone, accent, density, coverKicker, abstract, pullQuotes, exhibitTitles,
             tableDesign, exhibitStyle, exhibitPick,
         },
         violations,
@@ -174,6 +216,17 @@ export function validateDesignSpec(
 }
 
 // ─── Prompts ─────────────────────────────────────────────────────────────────
+
+// What each section was classified as, and which other layouts its structure
+// could legally carry. Showing the legal set up front means the designer
+// spends its judgment choosing, not guessing at what will be rejected.
+export function sectionLayoutDigest(markdown: string): string {
+    return splitSections(markdown).slice(0, 14).map(({ heading, body }) => {
+        const signals = computeSignals(heading, body);
+        const allowed = SECTION_LAYOUTS.filter(l => layoutPrecondition(l, signals) === null);
+        return `- "${heading}" → ${classifySection(heading, body).layout} (allowed: ${allowed.join(', ')})`;
+    }).join('\n');
+}
 
 function reportDigest(markdown: string, exhibits: ExhibitSpec[]): string {
     const sections = [...markdown.matchAll(/^## (.+)$/gm)].map(m => m[1]).slice(0, 14);
@@ -205,13 +258,17 @@ Your ONLY levers (anything else is ignored):
 - tableDesign: {"headerAccent": bool (tint table headers with the accent — good when tables carry the thesis), "zebra": bool (row striping — good for wide tables), "highlightColumns": up to 2 column header names whose cells deserve emphasis (e.g. "Target", "Upside")}
 - exhibitStyle: "monochrome" (all bars in the accent — one story) | "categorical" (one color per entity — comparison story)
 - exhibitPick: array of exhibit indices (0-based, from the EXHIBITS list) to include, in display order, ≤3 — drop exhibits that don't advance the thesis; empty array = keep all
+- sections: per-section layout OVERRIDES, only where you disagree with the automatic classification below. Each entry is {"heading": exact heading text, "layout": one of the ALLOWED layouts listed for that section}. Omit a section to accept its current layout. A layout not listed as allowed for that section WILL be rejected — the section's structure cannot carry it.
+
+SECTION LAYOUTS (current classification → layouts this section's structure can support):
+${sectionLayoutDigest(markdown)}
 
 REPORT TITLE: ${title}
 
 ${reportDigest(markdown, exhibits)}
 ${feedback ? `\n--- REVISION FEEDBACK (fix these) ---\n${feedback}\n` : ''}
 Return ONLY valid JSON:
-{"tone": "...", "accent": "#......", "density": "...", "coverKicker": "...", "abstract": "...", "pullQuotes": [{"section": "...", "text": "..."}], "exhibitTitles": ["..."], "tableDesign": {"headerAccent": false, "zebra": true, "highlightColumns": ["..."]}, "exhibitStyle": "categorical", "exhibitPick": [0]}`;
+{"tone": "...", "accent": "#......", "density": "...", "coverKicker": "...", "abstract": "...", "pullQuotes": [{"section": "...", "text": "..."}], "exhibitTitles": ["..."], "tableDesign": {"headerAccent": false, "zebra": true, "highlightColumns": ["..."]}, "exhibitStyle": "categorical", "exhibitPick": [0], "sections": [{"heading": "...", "layout": "..."}]}`;
 }
 
 export interface DesignCritique {
@@ -228,7 +285,7 @@ export function buildDesignCriticPrompt(spec: DesignSpec, title: string, section
 SPEC:
 ${JSON.stringify(spec, null, 2)}
 
-Score 1-10 each: hierarchy (do the choices sharpen what matters most?), tone_fit (accent/kicker/abstract match the report's actual stance?), scannability (would a skimming PM get the story faster?), restraint (nothing decorative, pull quotes genuinely load-bearing?).
+Score 1-10 each: hierarchy (do the choices sharpen what matters most? do the per-section layouts in "sections" match what each section actually contains?), tone_fit (accent/kicker/abstract match the report's actual stance?), scannability (would a skimming PM get the story faster?), restraint (nothing decorative, pull quotes genuinely load-bearing, layout overrides used only where they earn their keep?).
 
 Return ONLY valid JSON:
 {"hierarchy": n, "tone_fit": n, "scannability": n, "restraint": n, "fixes": ["specific fix", "..."]}`;

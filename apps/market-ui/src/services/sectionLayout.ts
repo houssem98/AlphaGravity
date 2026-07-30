@@ -333,14 +333,22 @@ export interface SectionView {
     markdown: string;   // body to render; the verdict line is removed once promoted
 }
 
+// `overrides` come from the design loop and are already precondition-checked
+// by the validator; anything unknown here is ignored rather than trusted.
 export function buildSectionViews(
     markdown: string,
+    overrides: Array<{ heading: string; layout: SectionLayout }> = [],
 ): { preamble: string; sections: SectionView[] } {
     const first = markdown.search(/^##\s+/m);
+    const byHeading = new Map(overrides.map(o => [o.heading.toLowerCase(), o.layout]));
     return {
         preamble: first > 0 ? markdown.slice(0, first).trim() : first === 0 ? '' : markdown.trim(),
         sections: splitSections(markdown).map(({ heading, body }) => {
-            const { layout } = classifySection(heading, body);
+            const override = byHeading.get(heading.toLowerCase());
+            const layout =
+                override && layoutPrecondition(override, computeSignals(heading, body)) === null
+                    ? override
+                    : classifySection(heading, body).layout;
             const lifted = layout === 'quote-led' ? extractVerdict(body, heading) : null;
             return {
                 heading,
