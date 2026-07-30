@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useEdgeAutoScroll } from '../../hooks/useEdgeAutoScroll';
 import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight, Plus, Check, Info, Database, Gauge, Trash2 } from 'lucide-react';
 import { Sparkline } from './Sparkline';
 import { motion, AnimatePresence } from 'motion/react';
@@ -52,11 +53,6 @@ type ColKey = 'rank' | 'change' | 'p14d' | 'p30d' | 'p1y' | 'athVal' | 'athPct' 
 
 // ?view=meta row shape (CX-6 server).
 interface MetaData { symbol: string; tvl: number | null; categories: string[]; trending: number | null }
-
-// Column chooser is retired with the table (card rows carry a fixed field
-// set). Typed `boolean`, not the literal `false`: a literal makes the JSX
-// unreachable, and TypeScript skips narrowing in unreachable code.
-const SHOW_COLUMN_CHOOSER: boolean = false;
 
 const META_KEYS: ColKey[] = ['catCol', 'trendCol', 'tvlCol', 'mcapTvl'];
 
@@ -213,8 +209,11 @@ const TF_LONG: Record<ChangeTf, string> = {
 };
 
 // Column prefs survive reloads (CS-4).
+// Key bumped to _v2: saved column sets from the wide-table era kept overriding
+// DEFAULT_COLS on every load, which is what made the screener run off screen.
+// The bump retires those saved sets once, back to the default columns.
 const loadPrefs = (): { tf?: ChangeTf; cols?: Partial<Record<ColKey, boolean>>; order?: string[] } => {
-  try { return JSON.parse(localStorage.getItem('nexus_crypto_cols') || '{}'); } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem('nexus_crypto_cols_v2') || '{}'); } catch { return {}; }
 };
 
 // CH-1: movable data-column order (star/#/Rank/Name/Price stay pinned).
@@ -326,8 +325,10 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     });
   };
   useEffect(() => {
-    localStorage.setItem('nexus_crypto_cols', JSON.stringify({ tf: changeTf, cols, order: colOrder }));
+    localStorage.setItem('nexus_crypto_cols_v2', JSON.stringify({ tf: changeTf, cols, order: colOrder }));
   }, [changeTf, cols, colOrder]);
+  // Hover the table's left/right edge to reveal off-screen columns.
+  const tableScrollRef = useEdgeAutoScroll<HTMLDivElement>();
 
   useEffect(() => {
     localStorage.setItem('nexus_watchlist', JSON.stringify(watchlist));
@@ -677,7 +678,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   };
 
   return (
-    <div className="flex-1 bg-[color:var(--bg)] overflow-y-auto">
+    <div ref={tableScrollRef} className="flex-1 bg-[color:var(--bg)] overflow-auto">
       {/* Global market stats bar */}
       <div className="border-b border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 flex flex-wrap items-center gap-x-5 gap-y-1">
         <Stat label="CRYPTOS" value={markets.length} />
@@ -780,12 +781,10 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
               );
             })}
           </div>
-          {/* Column chooser — retired with the table. Card rows carry a fixed
-              field set, so toggling a column had nothing left to show or hide;
-              leaving the control would have been a button that does nothing.
-              The column machinery (cols / orderedCols / cellFor) is kept so the
-              layout can be restored without rebuilding it. */}
-          {SHOW_COLUMN_CHOOSER && (
+          {/* Column chooser — lives outside the tab scroll container so the
+              popover isn't clipped and the button never scrolls off-screen
+              (it used to sit in the far-right header cell of a wide table). */}
+          {(activeTab === 'all' || activeTab === 'watchlist') && (
             <div className="relative shrink-0 mb-1 ml-2">
               <button
                 onClick={() => setColMenu((v) => !v)}
@@ -886,11 +885,24 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                 </div>
               </div>
             ) : (
-              <div>
-                {paginatedMarkets.length === 0 ? (
-                    <div className="py-10 text-center text-body text-[color:var(--text-3)]">
-                      {activeTab === 'watchlist' ? 'Your watchlist is empty. Star assets to add them.' : 'No markets found.'}
-                    </div>
+              <table className="sticky-head w-full text-left border-collapse whitespace-nowrap">
+                <thead>
+                  <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
+                    <th className="py-2 px-4 label w-8" />
+                    <th className="py-2 px-4 label w-10">#</th>
+                    {cols.rank && sortTh('rank', 'Rank', 'w-10 hidden sm:table-cell')}
+                    {sortTh('name', 'Name', '')}
+                    {sortTh('priceUsd', 'Price', 'text-right')}
+                    {orderedCols.map((k) => <React.Fragment key={k}>{headerFor(k)}</React.Fragment>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedMarkets.length === 0 ? (
+                    <tr>
+                      <td colSpan={colCount} className="py-10 text-center text-body text-[color:var(--text-3)]">
+                        {activeTab === 'watchlist' ? 'Your watchlist is empty. Star assets to add them.' : 'No markets found.'}
+                      </td>
+                    </tr>
                   ) : (
                     paginatedMarkets.map((market, index) => {
                       // CT-5: '' / absent timeframe % is not 0 — render '—'.
@@ -901,8 +913,6 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                       const mcapNum = parseFloat(market.marketCapUsd || '0');
                       const change7d = parseFloat(market.changePercent7d || '0');
                       const isPositive7d = change7d >= 0;
-                      // Same CT-5 honesty as the timeframe %: absent 7d is not 0.
-                      const has7d = market.changePercent7d !== undefined && market.changePercent7d !== '';
                       const isStarred = watchlist.includes(market.symbol);
                       const isExpanded = expandedCoin === market.id;
 
@@ -1186,82 +1196,56 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
 
                       return (
                         <React.Fragment key={market.id || index}>
-                          <div
+                          <tr
                             className={`border-b border-[color:var(--line)] transition-colors hover:bg-[color:var(--surface-2)] group cursor-pointer ${isExpanded ? 'bg-[color:var(--surface-2)]' : ''}`}
                             onClick={() => setExpandedCoin(isExpanded ? null : market.id)}
                           >
-                            <div className="flex items-center gap-3 px-4 py-2.5">
-                              <button
-                                type="button"
-                                aria-label={isStarred ? 'Remove from watchlist' : 'Add to watchlist'}
-                                className="shrink-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (market.symbol) toggleWatchlist(e, market.symbol);
-                                }}
-                              >
-                                <Star className={`w-3.5 h-3.5 transition-colors ${isStarred ? 'text-[color:var(--accent)] fill-[color:var(--accent)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text)]'}`} />
-                              </button>
-                              <span className="font-mono text-data text-[color:var(--text-3)] w-7 shrink-0">
-                                {(currentPage - 1) * itemsPerPage + index + 1}
-                              </span>
-                              <img
-                                src={market.image || `https://assets.coincap.io/assets/icons/${(market.symbol || 'btc').toLowerCase()}@2x.png`}
-                                alt={market.name}
-                                className="w-7 h-7 rounded-full border border-[color:var(--line)] shrink-0"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = 'https://assets.coincap.io/assets/icons/btc@2x.png';
-                                }}
-                              />
-                              <div className="min-w-0 flex-1">
+                            <td className="py-2.5 px-4" onClick={(e) => {
+                              e.stopPropagation();
+                              if (market.symbol) toggleWatchlist(e, market.symbol);
+                            }}>
+                              <Star className={`w-3.5 h-3.5 transition-colors ${isStarred ? 'text-[color:var(--accent)] fill-[color:var(--accent)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text)]'}`} />
+                            </td>
+                            <td className="py-2.5 px-4 font-mono text-data text-[color:var(--text-3)]">
+                              {(currentPage - 1) * itemsPerPage + index + 1}
+                            </td>
+                            {cols.rank && (
+                              <td className="py-2.5 px-4 font-mono text-data text-[color:var(--text-3)] hidden sm:table-cell">
+                                {market.rank}
+                              </td>
+                            )}
+                            <td className="py-2.5 px-4">
+                              <div className="flex items-center gap-2.5">
+                                <img
+                                  src={market.image || `https://assets.coincap.io/assets/icons/${(market.symbol || 'btc').toLowerCase()}@2x.png`}
+                                  alt={market.name}
+                                  className="w-6 h-6 rounded-full border border-[color:var(--line)]"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://assets.coincap.io/assets/icons/btc@2x.png';
+                                  }}
+                                />
                                 <div className="flex items-center gap-2">
-                                  <span className="text-body font-semibold text-[color:var(--text)] truncate">{market.name || 'Unknown'}</span>
-                                  <span className="font-mono text-label text-[color:var(--text-3)] bg-[color:var(--bg)] border border-[color:var(--line)] px-1.5 py-0.5 rounded-sm shrink-0">{market.symbol || '???'}</span>
-                                </div>
-                                {/* Secondary line carries what the columns used to: the
-                                    figures are labelled inline, so nothing depends on a
-                                    header row that no longer exists. */}
-                                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-label text-[color:var(--text-3)]">
-                                  <span>MCAP <span className="text-[color:var(--text-2)]">{mcapNum > 0 ? `$${formatNumber(market.marketCapUsd || '0')}` : '—'}</span></span>
-                                  <span>VOL <span className="text-[color:var(--text-2)]">{parseFloat(market.volumeUsd24Hr || '0') > 0 ? `$${formatNumber(market.volumeUsd24Hr || '0')}` : '—'}</span></span>
-                                  <span>7D <span className={has7d ? (isPositive7d ? 'up' : 'down') : 'text-[color:var(--text-3)]'}>
-                                    {has7d ? `${isPositive7d ? '+' : ''}${change7d.toFixed(2)}%` : '—'}
-                                  </span></span>
+                                  <span className="text-body font-semibold text-[color:var(--text)]">{market.name || 'Unknown'}</span>
+                                  <span className="font-mono text-label text-[color:var(--text-3)] bg-[color:var(--bg)] border border-[color:var(--line)] px-1.5 py-0.5 rounded-sm">{market.symbol || '???'}</span>
                                 </div>
                               </div>
-                              <div className="hidden sm:block w-24 h-9 shrink-0">
-                                <Sparkline id={market.symbol} color={isPositive7d ? 'var(--up)' : 'var(--down)'} />
-                              </div>
-                              <div className="w-28 text-right shrink-0">
-                                <div className="font-mono text-body text-[color:var(--text)]">
-                                  ${(livePrice(market, spot[market.symbol]) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
-                                </div>
-                                <div className={`font-mono text-label ${isNaN(chg) ? 'text-[color:var(--text-3)]' : chgPos ? 'up' : 'down'}`}>
-                                  {isNaN(chg) ? '—' : `${chgPos ? '+' : ''}${chg.toFixed(2)}%`}
-                                </div>
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onAssetSelect(market.symbol);
-                                }}
-                                className="shrink-0 bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 px-3 py-1 rounded-sm text-label font-semibold opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity shiny chrome cta-glow press"
-                                style={{ letterSpacing: '0.06em' }}
-                              >
-                                TRADE
-                              </button>
-                            </div>
-                          </div>
+                            </td>
+                            <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text)]">
+                              ${(livePrice(market, spot[market.symbol]) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                            </td>
+                            {orderedCols.map((k) => <React.Fragment key={k}>{cellFor(k)}</React.Fragment>)}
+                            <td className="py-2.5 px-4" />
+                          </tr>
 
                           <AnimatePresence>
                             {isExpanded && (
-                              <motion.div
+                              <motion.tr
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
                                 className="bg-[color:var(--bg)] border-b border-[color:var(--line)] overflow-hidden"
                               >
-                                <div className="p-0">
+                                <td colSpan={colCount} className="p-0">
                                   <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <div className="space-y-3">
                                       <div className="flex items-center gap-2.5">
@@ -1356,15 +1340,16 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                       </div>
                                     </div>
                                   </div>
-                                </div>
-                              </motion.div>
+                                </td>
+                              </motion.tr>
                             )}
                           </AnimatePresence>
                         </React.Fragment>
                       );
                     })
                   )}
-              </div>
+                </tbody>
+              </table>
             )}
           </div>
 
