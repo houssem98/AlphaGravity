@@ -14,6 +14,18 @@ node_modules
 /apps/market-ui/dist
 /apps/market-ui/eval
 /apps/market-ui/scripts
+# Cloned third-party repos + the hyperresearch venv living in the repo root.
+# None are build inputs; together they blew past Vercel's 15k-file upload cap
+# (16,576 received) and made every deploy need --archive=tgz.
+/TradingAgents-main
+/personal-website
+/FinceptTerminal-main
+/financial-services-main
+/.venv-hr
+/.venv
+/caveman
+/.hyperresearch
+/research
 *.png
 # ...but public/ is shipped assets, not stray screenshots — the bare *.png above
 # matches at any depth and silently stripped the TN company logos from the build.
