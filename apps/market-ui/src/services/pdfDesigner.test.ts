@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     validateDesignSpec, runDesignLoop, defaultDesignSpec, ALLOWED_ACCENTS,
-    computeColumnFlex, sectionLayoutDigest,
+    computeColumnFlex, sectionLayoutDigest, buildExemplarBlock, buildDesignerPrompt,
 } from './pdfDesigner';
 
 const MARKDOWN = [
@@ -38,6 +38,50 @@ const LAYOUT_MD = [
     '## Narrative Outlook',
     'We expect the cycle to persist, though conviction is lower than last year.',
 ].join('\n');
+
+describe('G3b — few-shot exemplar seeding', () => {
+    const exemplar = {
+        ranAt: '2026-07-30T00:00:00.000Z',
+        title: 'Some Other Report',
+        tone: 'bearish' as const,
+        theme: 'mono' as const,
+        score: 9,
+        iterations: 1,
+        spec: {
+            ...defaultDesignSpec('bearish'),
+            theme: 'mono' as const,
+            // Content fields the bank strips — asserted here as a backstop in
+            // case a caller ever hands buildExemplarBlock an unstripped spec.
+            abstract: 'Margins compressed 240bp at this specific issuer.',
+            pullQuotes: [{ section: 'Thesis', text: 'A verbatim sentence from a different report entirely.' }],
+            exhibitTitles: ['Revenue vs peers'],
+        },
+    };
+
+    it('is empty when there is nothing banked yet', () => {
+        expect(buildExemplarBlock([])).toBe('');
+    });
+
+    it('shows the decisions and the score they earned', () => {
+        const block = buildExemplarBlock([exemplar]);
+        expect(block).toContain('scored 9/10');
+        expect(block).toContain('bearish');
+        expect(block).toContain('mono');
+    });
+
+    it('never leaks another report\'s content into the prompt', () => {
+        const block = buildExemplarBlock([exemplar]);
+        expect(block).not.toContain('240bp');
+        expect(block).not.toContain('A verbatim sentence');
+        expect(block).not.toContain('Revenue vs peers');
+    });
+
+    it('reaches the designer prompt only when exemplars are supplied', () => {
+        expect(buildDesignerPrompt('T', LAYOUT_MD, [])).not.toContain('PAST DESIGNS');
+        expect(buildDesignerPrompt('T', LAYOUT_MD, [], undefined, [exemplar]))
+            .toContain('PAST DESIGNS THAT SCORED WELL');
+    });
+});
 
 describe('G2.5a — theme is enum-bounded', () => {
     it('accepts a built-in theme', () => {

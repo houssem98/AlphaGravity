@@ -16,6 +16,7 @@ import {
 } from './sectionLayout';
 import type { SectionLayout } from './sectionLayout';
 import { REPORT_THEMES, isReportTheme, DEFAULT_THEME, type ReportTheme } from './reportTheme';
+import type { DesignExemplar } from './designExemplars';
 
 // ─── The bounded design surface ─────────────────────────────────────────────
 
@@ -247,11 +248,32 @@ function reportDigest(markdown: string, exhibits: ExhibitSpec[]): string {
     ].join('\n');
 }
 
+// G3b — few-shot seed. Shows only the DECISION fields of past specs and the
+// score each earned. Content fields are already stripped by the bank, so a
+// seed can suggest a look but can never supply a sentence.
+export function buildExemplarBlock(exemplars: DesignExemplar[]): string {
+    if (exemplars.length === 0) return '';
+    const lines = exemplars.map(e => {
+        const { tone, accent, density, theme, tableDesign, exhibitStyle } = e.spec;
+        return `- scored ${e.score}/10 on a ${tone} report: ${JSON.stringify({
+            tone, accent, density, theme, exhibitStyle,
+            tableDesign: { headerAccent: tableDesign.headerAccent, zebra: tableDesign.zebra },
+        })}`;
+    });
+    return [
+        '',
+        "PAST DESIGNS THAT SCORED WELL (your own earlier work — reuse what fits THIS report, ignore what does not; never copy a choice that contradicts this report's thesis):",
+        ...lines,
+        '',
+    ].join('\n');
+}
+
 export function buildDesignerPrompt(
     title: string,
     markdown: string,
     exhibits: ExhibitSpec[],
     feedback?: string,
+    exemplars: DesignExemplar[] = [],
 ): string {
     return `You are the design director of an institutional research desk (Goldman Sachs Research / Bloomberg Intelligence quality bar). Read the report below like a human expert and make design decisions for its PDF.
 
@@ -273,7 +295,7 @@ SECTION LAYOUTS (current classification → layouts this section's structure can
 ${sectionLayoutDigest(markdown)}
 
 REPORT TITLE: ${title}
-
+${buildExemplarBlock(exemplars)}
 ${reportDigest(markdown, exhibits)}
 ${feedback ? `\n--- REVISION FEEDBACK (fix these) ---\n${feedback}\n` : ''}
 Return ONLY valid JSON:
@@ -314,9 +336,13 @@ export async function runDesignLoop(
     title: string,
     markdown: string,
     exhibits: ExhibitSpec[],
-    options: { maxIter?: number; minScore?: number; chat?: (p: string) => Promise<string> } = {},
+    options: {
+        maxIter?: number; minScore?: number;
+        chat?: (p: string) => Promise<string>;
+        exemplars?: DesignExemplar[];
+    } = {},
 ): Promise<DesignLoopResult> {
-    const { maxIter = 2, minScore = 8, chat = llmChat } = options;
+    const { maxIter = 2, minScore = 8, chat = llmChat, exemplars = [] } = options;
     const sectionTitles = [...markdown.matchAll(/^## (.+)$/gm)].map(m => m[1]).slice(0, 14);
 
     let best: { spec: DesignSpec; score: number } | null = null;
@@ -326,7 +352,7 @@ export async function runDesignLoop(
     try {
         for (let iter = 1; iter <= maxIter; iter++) {
             const raw = parseJudgeJson<Record<string, unknown>>(
-                await chat(buildDesignerPrompt(title, markdown, exhibits, feedback)));
+                await chat(buildDesignerPrompt(title, markdown, exhibits, feedback, exemplars)));
             const { spec, violations } = validateDesignSpec(raw, markdown, exhibits.length);
             violationsFixed += violations.length;
 
