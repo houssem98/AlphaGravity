@@ -15,6 +15,7 @@ import {
     layoutPrecondition,
 } from './sectionLayout';
 import type { SectionLayout } from './sectionLayout';
+import { REPORT_THEMES, isReportTheme, DEFAULT_THEME, type ReportTheme } from './reportTheme';
 
 // ─── The bounded design surface ─────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ export interface SectionLayoutChoice {
 }
 
 export interface DesignSpec {
+    theme: ReportTheme;              // global token set; content-independent
     sections: SectionLayoutChoice[]; // overrides; sections absent keep the classifier's pick
     tone: ReportTone;
     accent: string;              // hex from ALLOWED_ACCENTS only
@@ -66,6 +68,7 @@ const TONE_ACCENT: Record<ReportTone, string> = {
 
 export function defaultDesignSpec(tone: ReportTone = 'neutral'): DesignSpec {
     return {
+        theme: DEFAULT_THEME,
         sections: [],
         tone,
         accent: TONE_ACCENT[tone],
@@ -206,9 +209,14 @@ export function validateDesignSpec(
         }
     }
 
+    const theme = isReportTheme(r.theme) ? r.theme : DEFAULT_THEME;
+    if (r.theme !== undefined && !isReportTheme(r.theme)) {
+        violations.push(`theme "${String(r.theme)}" is not a known theme`);
+    }
+
     return {
         spec: {
-            sections, tone, accent, density, coverKicker, abstract, pullQuotes, exhibitTitles,
+            theme, sections, tone, accent, density, coverKicker, abstract, pullQuotes, exhibitTitles,
             tableDesign, exhibitStyle, exhibitPick,
         },
         violations,
@@ -258,6 +266,7 @@ Your ONLY levers (anything else is ignored):
 - tableDesign: {"headerAccent": bool (tint table headers with the accent — good when tables carry the thesis), "zebra": bool (row striping — good for wide tables), "highlightColumns": up to 2 column header names whose cells deserve emphasis (e.g. "Target", "Upside")}
 - exhibitStyle: "monochrome" (all bars in the accent — one story) | "categorical" (one color per entity — comparison story)
 - exhibitPick: array of exhibit indices (0-based, from the EXHIBITS list) to include, in display order, ≤3 — drop exhibits that don't advance the thesis; empty array = keep all
+- theme: ONE of ${JSON.stringify(REPORT_THEMES)} — "institutional" (sans, blue, the house look), "editorial" (serif, warmer, more air — long narrative reports), "mono" (monospace, near-monochrome, tight — data-first screens). This is a global look, independent of content.
 - sections: per-section layout OVERRIDES, only where you disagree with the automatic classification below. Each entry is {"heading": exact heading text, "layout": one of the ALLOWED layouts listed for that section}. Omit a section to accept its current layout. A layout not listed as allowed for that section WILL be rejected — the section's structure cannot carry it.
 
 SECTION LAYOUTS (current classification → layouts this section's structure can support):
@@ -268,7 +277,7 @@ REPORT TITLE: ${title}
 ${reportDigest(markdown, exhibits)}
 ${feedback ? `\n--- REVISION FEEDBACK (fix these) ---\n${feedback}\n` : ''}
 Return ONLY valid JSON:
-{"tone": "...", "accent": "#......", "density": "...", "coverKicker": "...", "abstract": "...", "pullQuotes": [{"section": "...", "text": "..."}], "exhibitTitles": ["..."], "tableDesign": {"headerAccent": false, "zebra": true, "highlightColumns": ["..."]}, "exhibitStyle": "categorical", "exhibitPick": [0], "sections": [{"heading": "...", "layout": "..."}]}`;
+{"tone": "...", "accent": "#......", "density": "...", "coverKicker": "...", "abstract": "...", "pullQuotes": [{"section": "...", "text": "..."}], "exhibitTitles": ["..."], "tableDesign": {"headerAccent": false, "zebra": true, "highlightColumns": ["..."]}, "exhibitStyle": "categorical", "exhibitPick": [0], "theme": "institutional", "sections": [{"heading": "...", "layout": "..."}]}`;
 }
 
 export interface DesignCritique {

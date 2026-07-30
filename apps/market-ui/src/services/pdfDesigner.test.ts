@@ -39,6 +39,28 @@ const LAYOUT_MD = [
     'We expect the cycle to persist, though conviction is lower than last year.',
 ].join('\n');
 
+describe('G2.5a — theme is enum-bounded', () => {
+    it('accepts a built-in theme', () => {
+        const { spec, violations } = validateDesignSpec(
+            { ...GOOD_SPEC, pullQuotes: [], theme: 'editorial' }, LAYOUT_MD, 1);
+        expect(spec.theme).toBe('editorial');
+        expect(violations).toHaveLength(0);
+    });
+
+    it('rejects an invented theme and falls back to the house look', () => {
+        const { spec, violations } = validateDesignSpec(
+            { ...GOOD_SPEC, pullQuotes: [], theme: 'cyberpunk' }, LAYOUT_MD, 1);
+        expect(spec.theme).toBe('institutional');
+        expect(violations.join(' ')).toMatch(/not a known theme/);
+    });
+
+    it('defaults silently when the designer omits it', () => {
+        const { spec, violations } = validateDesignSpec({ ...GOOD_SPEC, pullQuotes: [] }, LAYOUT_MD, 1);
+        expect(spec.theme).toBe('institutional');
+        expect(violations).toHaveLength(0);
+    });
+});
+
 describe('G1c — per-section layout overrides', () => {
     it('accepts an override the section structure can carry', () => {
         const { spec, violations } = validateDesignSpec(
