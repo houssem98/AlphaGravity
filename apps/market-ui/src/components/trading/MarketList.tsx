@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useEdgeAutoScroll } from '../../hooks/useEdgeAutoScroll';
 import { Search, ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Star, Trophy, Activity, ArrowUpDown, BarChart2, ExternalLink, ArrowUp, ArrowDown, ArrowRight, ChevronsLeft, ChevronsRight, Trash2, Plus, Check, ChevronLeft, Building2, Landmark } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { MarketDef } from '../../lib/markets';
@@ -228,19 +227,6 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   useEffect(() => {
     if (isTN) localStorage.setItem('tn-cols', JSON.stringify({ order: tnOrder, hidden: tnHidden }));
   }, [isTN, tnOrder, tnHidden]);
-  // Non-TN markets get their own persisted column order so drag-to-reorder
-  // works everywhere, not just TN. TN keeps tnOrder (it also carries hide state).
-  const [genOrder, setGenOrder] = useState<ColKey[]>(() => {
-    try { return sanitizeOrder(JSON.parse(localStorage.getItem(`hub_colorder_${market.id}`) || 'null')); } catch { return DEFAULT_ORDER; }
-  });
-  useEffect(() => {
-    if (!isTN) localStorage.setItem(`hub_colorder_${market.id}`, JSON.stringify(genOrder));
-  }, [isTN, market.id, genOrder]);
-  // Column being dragged, and the column the pointer is over — for the drop line.
-  const [dragCol, setDragCol] = useState<ColKey | null>(null);
-  const [dragOverCol, setDragOverCol] = useState<ColKey | null>(null);
-  // Hover the table's left/right edge to reveal off-screen columns.
-  const tableScrollRef = useEdgeAutoScroll<HTMLDivElement>();
   // TNV-7 grouped chooser + lazy data maps (fetched only when a group's col is on).
   const [colMenu, setColMenu] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
@@ -317,13 +303,12 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   const availableCol = (k: ColKey): boolean =>
     TN_ONLY_KEYS.has(k) ? isTN
       : k === 'volume' ? hasVol : k === 'marketCap' ? hasMcap : k === 'circulating' ? hasCirc : k === 'spark' ? showSpark : true;
-  const order = isTN ? tnOrder : genOrder;
-  const setOrder = isTN ? setTnOrder : setGenOrder;
+  const order = isTN ? tnOrder : DEFAULT_ORDER;
   const visibleCols = order.filter((k) => availableCol(k) && !(isTN && tnHidden[k]));
   const nColSpan = 2 + visibleCols.length; // star + # + data columns
 
   const moveColumn = (kk: ColKey, where: 'left' | 'right' | 'start' | 'end') => {
-    setOrder((prev) => {
+    setTnOrder((prev) => {
       const o = [...prev];
       const i = o.indexOf(kk);
       if (i < 0) return prev;
@@ -331,51 +316,18 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
       if (where === 'end') { o.splice(i, 1); o.push(kk); return o; }
       const dir = where === 'left' ? -1 : 1;
       let j = i + dir;
-      while (j >= 0 && j < o.length && !(availableCol(o[j]) && !(isTN && tnHidden[o[j]]))) j += dir;
+      while (j >= 0 && j < o.length && !(availableCol(o[j]) && !tnHidden[o[j]])) j += dir;
       if (j < 0 || j >= o.length) return prev;
       [o[i], o[j]] = [o[j], o[i]];
       return o;
     });
   };
 
-  // Drag-to-reorder: drop `from` into `to`'s slot, shifting the rest. Works on
-  // the active order array (TN or generic), so the visible column sequence moves
-  // even though the underlying array also holds hidden/unavailable keys.
-  const reorderColumn = (from: ColKey, to: ColKey) => {
-    if (from === to) return;
-    setOrder((prev) => {
-      const o = [...prev];
-      const fi = o.indexOf(from); const ti = o.indexOf(to);
-      if (fi < 0 || ti < 0) return prev;
-      o.splice(fi, 1);
-      o.splice(o.indexOf(to) + (ti > fi ? 1 : 0), 0, from);
-      return o;
-    });
-  };
-  // Shared drag handlers for every header cell, both th variants.
-  const dragProps = (kk: ColKey) => ({
-    draggable: true,
-    // Source lives in dataTransfer, not just state: the drop handler must read
-    // the dragged key without depending on a React re-render having flushed.
-    onDragStart: (e: React.DragEvent) => { setDragCol(kk); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/col', kk); },
-    onDragOver: (e: React.DragEvent) => { e.preventDefault(); setDragOverCol((c) => (c === kk ? c : kk)); },
-    onDragLeave: () => setDragOverCol((c) => (c === kk ? null : c)),
-    onDrop: (e: React.DragEvent) => { e.preventDefault(); const from = e.dataTransfer.getData('text/col') as ColKey; if (from) reorderColumn(from, kk); setDragCol(null); setDragOverCol(null); },
-    onDragEnd: () => { setDragCol(null); setDragOverCol(null); },
-  });
-  // Drop-line goes on the side the dragged column is coming from.
-  const dropCls = (kk: ColKey) => {
-    if (dragOverCol !== kk || !dragCol || dragCol === kk) return '';
-    const before = order.indexOf(dragCol) > order.indexOf(kk);
-    // Inset shadow, not a border, so the drop line never shifts the header row.
-    return `${before ? 'shadow-[inset_2px_0_0_0_var(--accent)]' : 'shadow-[inset_-2px_0_0_0_var(--accent)]'} bg-[color:var(--surface-2)]`;
-  };
-
   // TN per-column header menu (crypto menuTh parity): sort / move / hide.
   const menuTh = (kk: ColKey) => {
     const m = COLMETA[kk];
     return (
-      <th key={kk} {...dragProps(kk)} className={`py-2 px-4 label cursor-grab active:cursor-grabbing hover:text-[color:var(--text)] transition-colors group relative ${dragCol === kk ? 'opacity-40' : ''} ${dropCls(kk)} ${m.cls}`} onClick={() => setHeadMenu(headMenu === kk ? null : kk)}>
+      <th key={kk} className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group relative ${m.cls}`} onClick={() => setHeadMenu(headMenu === kk ? null : kk)}>
         <div className={`flex items-center gap-1 ${m.cls.includes('text-right') ? 'justify-end' : ''}`}>
           {m.label}
           <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -414,9 +366,8 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
     return (
       <th
         key={kk}
-        {...dragProps(kk)}
         onClick={() => m.sort && toggleSort(m.sort)}
-        className={`py-2 px-4 label transition-colors group cursor-grab active:cursor-grabbing hover:text-[color:var(--text)] ${dragCol === kk ? 'opacity-40' : ''} ${dropCls(kk)} ${m.cls}`}
+        className={`py-2 px-4 label transition-colors group ${m.cls} ${m.sort ? 'cursor-pointer hover:text-[color:var(--text)]' : ''}`}
       >
         <div className={`flex items-center gap-1 ${m.cls.includes('text-right') ? 'justify-end' : ''}`}>
           {m.label}
@@ -848,8 +799,8 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
 
         {/* Table */}
         <div className="bg-[color:var(--surface)] border border-t-0 border-[color:var(--line)] overflow-hidden">
-          <div ref={tableScrollRef} className="overflow-auto max-h-[70vh] overscroll-contain">
-            <table className="sticky-head w-full text-left border-collapse whitespace-nowrap">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
               <thead>
                 <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
                   <th className="py-2 px-4 w-8" />

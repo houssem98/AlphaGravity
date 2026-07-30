@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useEdgeAutoScroll } from '../../hooks/useEdgeAutoScroll';
 import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight, Plus, Check, Info, Database, Gauge, Trash2 } from 'lucide-react';
 import { Sparkline } from './Sparkline';
 import { motion, AnimatePresence } from 'motion/react';
@@ -325,37 +324,6 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     localStorage.setItem('nexus_crypto_cols', JSON.stringify({ tf: changeTf, cols, order: colOrder }));
   }, [changeTf, cols, colOrder]);
 
-  // Drag-to-reorder headers (CH-4). Same native-DnD approach as MarketList.
-  const [dragCol, setDragCol] = useState<ColKey | null>(null);
-  const [dragOverCol, setDragOverCol] = useState<ColKey | null>(null);
-  const reorderColumn = (from: ColKey, to: ColKey) => {
-    if (from === to) return;
-    setColOrder((prev) => {
-      const o = [...prev];
-      const fi = o.indexOf(from); const ti = o.indexOf(to);
-      if (fi < 0 || ti < 0) return prev;
-      o.splice(fi, 1);
-      o.splice(o.indexOf(to) + (ti > fi ? 1 : 0), 0, from);
-      return o;
-    });
-  };
-  const dragProps = (kk: ColKey) => ({
-    draggable: true,
-    // Source in dataTransfer so the drop reads it without a React re-render.
-    onDragStart: (e: React.DragEvent) => { setDragCol(kk); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/col', kk); },
-    onDragOver: (e: React.DragEvent) => { e.preventDefault(); setDragOverCol((c) => (c === kk ? c : kk)); },
-    onDragLeave: () => setDragOverCol((c) => (c === kk ? null : c)),
-    onDrop: (e: React.DragEvent) => { e.preventDefault(); const from = e.dataTransfer.getData('text/col') as ColKey; if (from) reorderColumn(from, kk); setDragCol(null); setDragOverCol(null); },
-    onDragEnd: () => { setDragCol(null); setDragOverCol(null); },
-  });
-  const dropCls = (kk: ColKey) => {
-    if (dragOverCol !== kk || !dragCol || dragCol === kk) return '';
-    const before = colOrder.indexOf(dragCol) > colOrder.indexOf(kk);
-    return `${before ? 'shadow-[inset_2px_0_0_0_var(--accent)]' : 'shadow-[inset_-2px_0_0_0_var(--accent)]'} bg-[color:var(--surface-2)]`;
-  };
-  // Hover the table's left/right edge to reveal off-screen columns.
-  const tableScrollRef = useEdgeAutoScroll<HTMLDivElement>();
-
   useEffect(() => {
     localStorage.setItem('nexus_watchlist', JSON.stringify(watchlist));
   }, [watchlist]);
@@ -578,7 +546,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     else setTechSort({ field, dir });
   };
   const menuTh = (kk: ColKey, label: string, cls: string, kind: 'base' | 'tech' | 'none', field?: string) => (
-    <th {...dragProps(kk)} className={`py-2 px-4 label cursor-grab active:cursor-grabbing hover:text-[color:var(--text)] transition-colors group relative ${dragCol === kk ? 'opacity-40' : ''} ${dropCls(kk)} ${cls}`} onClick={() => setHeadMenu(headMenu === kk ? null : kk)}>
+    <th className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group relative ${cls}`} onClick={() => setHeadMenu(headMenu === kk ? null : kk)}>
       <div className={`flex items-center gap-1 ${cls.includes('text-right') ? 'justify-end' : ''}`}>
         {label}
         {kind !== 'none' && <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />}
@@ -888,7 +856,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
 
         {/* Table container */}
         <div className="bg-[color:var(--surface)] border border-t-0 border-[color:var(--line)] overflow-hidden">
-          <div ref={tableScrollRef} className="overflow-auto max-h-[70vh] overscroll-contain">
+          <div className="overflow-x-auto">
             {activeTab === 'categories' ? (
               <CategoriesTab />
             ) : activeTab === 'exchanges' ? (
@@ -908,7 +876,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                 </div>
               </div>
             ) : (
-              <table className="sticky-head w-full text-left border-collapse whitespace-nowrap">
+              <table className="w-full text-left border-collapse whitespace-nowrap">
                 <thead>
                   <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
                     <th className="py-2 px-4 label w-8" />
