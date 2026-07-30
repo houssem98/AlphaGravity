@@ -42,7 +42,7 @@ const formatCurrency = (num: string | number) => {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-type ColKey = 'rank' | 'change' | 'p14d' | 'p30d' | 'p1y' | 'athVal' | 'athPct' | 'volume'
+type ColKey = 'change' | 'p14d' | 'p30d' | 'p1y' | 'athVal' | 'athPct' | 'volume'
   | 'marketCap' | 'fdv' | 'volMcap' | 'circulating' | 'tsupply' | 'msupply' | 'spark'
   | 'rating' | 'rsi' | 'ema20' | 'ema50' | 'ema200' | 'sma20' | 'sma50' | 'sma200' | 'macd' | 'bbU' | 'bbL' | 'atr'
   | 'funding' | 'oi' | 'oiVol'
@@ -95,7 +95,6 @@ const fmtTech = (n: number | null | undefined) =>
 const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }[] }[] = [
   {
     label: 'Coin info', icon: Info, cols: [
-      { k: 'rank', label: 'Rank #' },
       { k: 'catCol', label: 'Category' },
       { k: 'trendCol', label: 'Trending' },
     ],
@@ -186,7 +185,7 @@ const COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: string }
 ];
 
 const DEFAULT_COLS: Record<ColKey, boolean> = {
-  rank: true, change: true, p14d: false, p30d: false, p1y: false, athVal: false, athPct: false,
+  change: true, p14d: false, p30d: false, p1y: false, athVal: false, athPct: false,
   marketCap: true, fdv: false, volume: true,
   volMcap: false, circulating: true, tsupply: false, msupply: false, spark: true,
   rating: false, rsi: false, ema20: false, ema50: false, ema200: false,
@@ -217,7 +216,7 @@ const loadPrefs = (): { tf?: ChangeTf; cols?: Partial<Record<ColKey, boolean>>; 
   try { return JSON.parse(localStorage.getItem('nexus_crypto_cols_v2') || '{}'); } catch { return {}; }
 };
 
-// CH-1: movable data-column order (star/#/Rank/Name/Price stay pinned).
+// CH-1: movable data-column order (star/#/Name/Price stay pinned).
 const DEFAULT_ORDER: ColKey[] = ['change', 'marketCap', 'fdv', 'volume', 'volMcap', 'circulating', 'tsupply', 'msupply', 'p14d', 'p30d', 'p1y', 'athVal', 'athPct', 'openC', 'highC', 'lowC', 'cfoPct', 'gapPct', 'volaPct', 'chgAbs', 'volD', 'catCol', 'trendCol', 'tvlCol', 'mcapTvl', 'rating', 'rsi', 'ema20', 'ema50', 'ema200', 'sma20', 'sma50', 'sma200', 'macd', 'bbU', 'bbL', 'atr', 'maR', 'oscR', 'stoch', 'stochRsi', 'willR', 'cci', 'adxK', 'roc', 'mom', 'ao', 'psarK', 'aroon', 'hmaK', 'ichi', 'donch', 'kelt', 'bbp', 'candle', 'piv', 'fib', 'atrPct', 'funding', 'oi', 'oiVol', 'oiChg', 'lsRatio', 'takerR', 'spark'];
 const sanitizeOrder = (o?: string[]): ColKey[] => {
   const known = (o || []).filter((k): k is ColKey => (DEFAULT_ORDER as string[]).includes(k));
@@ -898,7 +897,6 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                   <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
                     <th className="py-2 px-4 label w-8" />
                     <th className="py-2 px-4 label w-10">#</th>
-                    {cols.rank && sortTh('rank', 'Rank', 'w-10 hidden sm:table-cell')}
                     {sortTh('name', 'Name', '')}
                     {sortTh('priceUsd', 'Price', 'text-right')}
                     {orderedCols.map((k) => <React.Fragment key={k}>{headerFor(k)}</React.Fragment>)}
@@ -1217,11 +1215,6 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             <td className="py-2.5 px-4 font-mono text-data text-[color:var(--text-3)]">
                               {(currentPage - 1) * itemsPerPage + index + 1}
                             </td>
-                            {cols.rank && (
-                              <td className="py-2.5 px-4 font-mono text-data text-[color:var(--text-3)] hidden sm:table-cell">
-                                {market.rank}
-                              </td>
-                            )}
                             <td className="py-2.5 px-4">
                               <div className="flex items-center gap-2.5">
                                 <img
