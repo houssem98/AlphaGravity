@@ -691,10 +691,14 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
           </div>
         )}
 
-        {/* Tabs (mirrors the crypto tab bar) */}
-        {/* No border-b: the table box below owns that line now, so it runs the
-            full table width instead of stopping at the viewport edge. */}
-        <div className="flex items-center gap-0 mb-0">
+        {/* Tabs (mirrors the crypto tab bar) — inside the table box, so the row
+            is as wide as the table and its two clusters have room to stick: the
+            tabs pin to the left of the viewport and the column tools to the
+            right, instead of drifting off with the columns when the page scrolls
+            sideways. */}
+        <div className="w-max min-w-full bg-[color:var(--surface)] border border-[color:var(--line)]">
+        <div className="flex items-center gap-0 mb-0 border-b border-[color:var(--line)]">
+          <div className="flex items-center sticky left-0 max-w-[100vw]">
           {([
             { id: false, label: market.label },
             { id: true, label: `Watchlist (${watchlist.length})` },
@@ -716,11 +720,12 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
               </button>
             );
           })}
+          </div>
           {isTN && (
-            <>
+            <div className="ml-auto sticky right-0 flex items-center">
               {/* TNV-7: column chooser lives in the toolbar — the table scrolls
                   horizontally, so a header-cell button would sit off-screen. */}
-              <div className="relative ml-auto mb-1">
+              <div className="relative mb-1">
                 <button
                   onClick={() => setColMenu((v) => !v)}
                   title="Add or remove columns"
@@ -800,19 +805,15 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
               >
                 <ArrowUpDown className="w-3.5 h-3.5" /> Compare
               </button>
-            </>
+            </div>
           )}
         </div>
 
-        {/* Table */}
-        {/* No overflow-hidden here: an overflow!=visible ancestor becomes the
-            scroll container that a sticky <th> pins inside, which would trap the
-            header in this box instead of the page scroller.
-            w-max: the page is the horizontal scroller, so a plain block would be
-            viewport-wide and its right border would land in the middle of the
-            table with the columns running past it. Sizing the box to the table
-            keeps the border and the surface on the table's real edge. */}
-        <div className="w-max min-w-full bg-[color:var(--surface)] border border-[color:var(--line)]">
+        {/* Table — no overflow-hidden on the way down: an overflow!=visible
+            ancestor becomes the scroll container that a sticky <th> pins inside,
+            which would trap the header in this box instead of the page
+            scroller. The box itself is w-max (see above) so its border sits on
+            the table's real edge rather than the viewport's. */}
           <div>
             <table className="sticky-head w-full text-left border-collapse whitespace-nowrap">
               <thead>

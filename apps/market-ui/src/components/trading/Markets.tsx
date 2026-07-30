@@ -757,11 +757,13 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
           </div>
         )}
 
-        {/* Tabs */}
-        {/* No border-b: the table box below owns that line now, so it runs the
-            full table width instead of stopping at the viewport edge. */}
-        <div className="flex items-center gap-0 mb-0">
-          <div className="flex items-center gap-0 overflow-x-auto flex-1 min-w-0">
+        {/* Tabs — inside the table box, so the row is as wide as the table and
+            its two clusters have room to stick: the tabs pin to the left of the
+            viewport and the column chooser to the right, instead of drifting off
+            with the columns when the page scrolls sideways. */}
+        <div className="w-max min-w-full bg-[color:var(--surface)] border border-[color:var(--line)]">
+        <div className="flex items-center gap-0 mb-0 border-b border-[color:var(--line)]">
+          <div className="flex items-center gap-0 overflow-x-auto flex-none sticky left-0 max-w-[100vw]">
             {['all', 'watchlist', 'categories', 'portfolio', 'exchanges', 'nfts', 'converter'].map((tab) => {
               const isActive = activeTab === tab;
               const label = tab === 'watchlist' ? `Watchlist (${watchlist.length})` : tab === 'all' ? 'Cryptocurrencies' : tab;
@@ -788,7 +790,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
               popover isn't clipped and the button never scrolls off-screen
               (it used to sit in the far-right header cell of a wide table). */}
           {(activeTab === 'all' || activeTab === 'watchlist') && (
-            <div className="relative shrink-0 mb-1 ml-2">
+            <div className="relative shrink-0 mb-1 ml-auto sticky right-0">
               <button
                 onClick={() => setColMenu((v) => !v)}
                 title="Add or remove columns"
@@ -863,15 +865,11 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
           )}
         </div>
 
-        {/* Table container */}
-        {/* No overflow-hidden here: an overflow!=visible ancestor becomes the
-            scroll container that a sticky <th> pins inside, which would trap the
-            header in this box instead of the page scroller.
-            w-max: the page is the horizontal scroller, so a plain block would be
-            viewport-wide and its right border would land in the middle of the
-            table with the columns running past it. Sizing the box to the table
-            keeps the border and the surface on the table's real edge. */}
-        <div className="w-max min-w-full bg-[color:var(--surface)] border border-[color:var(--line)]">
+        {/* Table — no overflow-hidden on the way down: an overflow!=visible
+            ancestor becomes the scroll container that a sticky <th> pins inside,
+            which would trap the header in this box instead of the page
+            scroller. The box itself is w-max (see above) so its border sits on
+            the table's real edge rather than the viewport's. */}
           <div>
             {activeTab === 'categories' ? (
               <CategoriesTab />
@@ -900,6 +898,9 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                     {sortTh('name', 'Name', '')}
                     {sortTh('priceUsd', 'Price', 'text-right')}
                     {orderedCols.map((k) => <React.Fragment key={k}>{headerFor(k)}</React.Fragment>)}
+                    {/* Matches the rows' trailing spacer cell — without it the
+                        header row is one cell short and ends before the table. */}
+                    <th className="py-2 px-4" />
                   </tr>
                 </thead>
                 <tbody>
