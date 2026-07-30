@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
     splitSections, extractStats, computeSignals, classifySection, classifyReport,
     layoutPrecondition, layoutVariety, isSectionLayout, SECTION_LAYOUTS,
+    pickStatCards, extractVerdict, buildSectionViews, isVerdictLine,
 } from './sectionLayout';
 
 const RISK_TABLE = `Risk is concentrated in two places.
@@ -61,11 +62,25 @@ describe('extractStats — extractor-only, verbatim', () => {
         expect(values).toContain('$130.5B');
         expect(values).toContain('73.0%');
         expect(values).toContain('~2.5x');
+        // value + citation are strictly verbatim; the label is the report's
+        // own words with markdown syntax stripped.
+        const plain = STAT_PROSE.replace(/[*`_]/g, '');
         for (const s of stats) {
             expect(STAT_PROSE).toContain(s.value);
             if (s.citation) expect(STAT_PROSE).toContain(s.citation);
-            if (s.label) expect(STAT_PROSE).toContain(s.label);
+            if (s.label) expect(plain).toContain(s.label);
         }
+    });
+
+    it('does not cut a label out of the middle of a decimal', () => {
+        const stats = extractStats('Microsoft trades at a P/E of 22.84x and a market cap of $2.855 trillion [Ref].');
+        const cap = stats.find(s => s.value.includes('2.855'))!;
+        expect(cap.label).not.toMatch(/^84x/);
+    });
+
+    it('strips markdown syntax out of labels', () => {
+        const stats = extractStats('Revenue grew to **$8–12 billion** across the segment [Ref].');
+        expect(stats.every(s => !s.label.includes('*'))).toBe(true);
     });
 
     it('leaves numbers uncited when the sentence has no citation tag', () => {
@@ -78,6 +93,54 @@ describe('extractStats — extractor-only, verbatim', () => {
 
     it('does not invent a number that is not in the text', () => {
         expect(extractStats('Growth was strong and margins held up.')).toHaveLength(0);
+    });
+});
+
+describe('pickStatCards', () => {
+    it('returns only cited stats, one per distinct label', () => {
+        const cards = pickStatCards(STAT_PROSE);
+        expect(cards.length).toBeGreaterThan(0);
+        expect(cards.every(c => c.citation !== '')).toBe(true);
+        const labels = cards.map(c => c.label.toLowerCase());
+        expect(new Set(labels).size).toBe(labels.length);
+    });
+
+    it('returns nothing for uncited prose — a stat card must be attributable', () => {
+        expect(pickStatCards(UNCITED_PROSE)).toHaveLength(0);
+    });
+
+    it('respects the max', () => {
+        expect(pickStatCards(STAT_PROSE, 2).length).toBeLessThanOrEqual(2);
+    });
+});
+
+describe('extractVerdict', () => {
+    it('lifts the bold line and removes it from the remaining prose', () => {
+        const v = extractVerdict(VERDICT)!;
+        expect(v.verdict).toBe('Conviction Rating: Neutral (Sector Weight)');
+        expect(v.rest).not.toContain('**Conviction Rating');
+        expect(v.rest).toContain('Relative to the sector');
+    });
+
+    it('returns null when there is no verdict line', () => {
+        expect(extractVerdict(UNCITED_PROSE)).toBeNull();
+    });
+
+    it('does not lift a table caption', () => {
+        expect(extractVerdict(`Intro.\n\n**Scorecard**\n\n| A | B |\n|---|---|\n| 1 | 2 |`)).toBeNull();
+    });
+
+    it('does not lift a bold subhead as a verdict', () => {
+        // Real misfires from the archived corpus.
+        expect(isVerdictLine('AMD-Specific Risks')).toBe(false);
+        expect(isVerdictLine('Near-Term Catalysts (Next 12 Months):')).toBe(false);
+        expect(isVerdictLine('Side-by-Side Financial Comparison', 'Side-by-Side Financial Comparison'))
+            .toBe(false);
+        expect(isVerdictLine('Conviction Rating: Neutral (Sector Weight)')).toBe(true);
+    });
+
+    it('returns null when the only bold line is a subhead', () => {
+        expect(extractVerdict('Intro prose here.\n\n**AMD-Specific Risks**\n\nMore prose.')).toBeNull();
     });
 });
 
@@ -198,5 +261,42 @@ describe('classifyReport + layoutVariety', () => {
 
     it('exposes exactly 7 whitelisted layouts', () => {
         expect(SECTION_LAYOUTS).toHaveLength(7);
+    });
+});
+
+describe('buildSectionViews — the render view model', () => {
+    const REPORT = [
+        '# Nvidia', 'Prepared for the desk.', '',
+        '## Financial Performance', STAT_PROSE, '',
+        '## Conclusion & Conviction Rating', VERDICT,
+    ].join('\n\n');
+
+    it('keeps the pre-heading preamble', () => {
+        expect(buildSectionViews(REPORT).preamble).toContain('# Nvidia');
+    });
+
+    it('attaches stat cards only to stat-row sections', () => {
+        const { sections } = buildSectionViews(REPORT);
+        expect(sections[0].layout).toBe('stat-row');
+        expect(sections[0].statCards.length).toBeGreaterThan(0);
+        expect(sections[1].statCards).toHaveLength(0);
+    });
+
+    it('promotes the verdict once — lifted out of the body it renders', () => {
+        const conclusion = buildSectionViews(REPORT).sections[1];
+        expect(conclusion.verdict).toBe('Conviction Rating: Neutral (Sector Weight)');
+        expect(conclusion.markdown).not.toContain('**Conviction Rating');
+    });
+
+    it('renders every stat card verbatim from the source markdown', () => {
+        for (const s of buildSectionViews(REPORT).sections) {
+            for (const c of s.statCards) expect(REPORT).toContain(c.value);
+        }
+    });
+
+    it('handles a document with no headings at all', () => {
+        const v = buildSectionViews('Just a paragraph.');
+        expect(v.sections).toHaveLength(0);
+        expect(v.preamble).toBe('Just a paragraph.');
     });
 });

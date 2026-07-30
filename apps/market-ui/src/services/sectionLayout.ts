@@ -42,8 +42,8 @@ export function splitSections(markdown: string): ReportSection[] {
 // structurally impossible, same rule as the pull-quote validator.
 
 export interface StatCandidate {
-    value: string;      // verbatim, e.g. "$130.5B", "70.6%", "~2.5x"
-    label: string;      // verbatim context preceding the number, ≤60 chars
+    value: string;      // VERBATIM, e.g. "$130.5B", "70.6%", "~2.5x" — never rewritten
+    label: string;      // the report's own words around it, markdown syntax stripped, ≤60 chars
     citation: string;   // verbatim tag, e.g. "[Analyst Synthesis]" — '' if uncited
 }
 
@@ -54,11 +54,46 @@ const CITATION_TAG = /\[[^\]\n]{1,120}\]/g;
 
 const PERIOD_TOKEN = /\b(?:Q[1-4]\s?(?:FY)?\s?\d{2,4}|FY\s?\d{2,4}|H[12]\s?\d{4}|[12]\d{3})\b/;
 
-function labelFor(sentence: string, at: number): string {
-    const before = sentence.slice(0, at);
-    const clause = before.split(/[,;:—(]/).pop() ?? before;
-    const words = clause.trim().split(/\s+/).filter(Boolean).slice(-8).join(' ');
-    return words.slice(-60).trim();
+// Words that describe nothing on their own. A label made only of these
+// ("representing roughly", "nearly") tells a reader what the number is not.
+const FILLER = new Set([
+    'the', 'and', 'of', 'to', 'in', 'a', 'an', 'for', 'with', 'that', 'this', 'which',
+    'from', 'at', 'by', 'is', 'was', 'are', 'were', 'be', 'been', 'it', 'its', 'as',
+    'we', 'our', 'they', 'their', 'has', 'have', 'had', 'will', 'would', 'could',
+    'should', 'may', 'might', 'than', 'then', 'but', 'or', 'on', 'up', 'down', 'more',
+    'less', 'about', 'roughly', 'nearly', 'approximately', 'estimated', 'estimate',
+    'reported', 'representing', 'while', 'when', 'where', 'all', 'some', 'most',
+    'both', 'over', 'under', 'above', 'below', 'around', 'just', 'only', 'also',
+]);
+
+function hasContentWord(text: string): boolean {
+    return text
+        .split(/\s+/)
+        .some(w => {
+            const clean = w.replace(/[^A-Za-z]/g, '');
+            return clean.length >= 4 && !FILLER.has(clean.toLowerCase());
+        });
+}
+
+// A period only ends a clause when followed by space or end-of-string;
+// splitting on every '.' cuts "22.84x" in half and yields labels like
+// "84x and market capitalization".
+function clauseWords(text: string, take: 'last' | 'first'): string {
+    const parts = text.split(/[,;:—()]|\.(?=\s|$)/).filter(w => w.trim());
+    const clause = (take === 'last' ? parts.pop() : parts.shift()) ?? '';
+    const words = clause.replace(/[*`_]/g, '').trim().split(/\s+/).filter(Boolean);
+    return (take === 'last' ? words.slice(-8) : words.slice(0, 7)).join(' ').slice(0, 60).trim();
+}
+
+// The metric a number describes sits either before it ("Gross margin was 73%")
+// or after it ("22% of total revenue"). Prefer the leading clause, fall back
+// to the trailing one, and return '' when neither actually names anything —
+// a card with a meaningless label is worse than no card.
+function labelFor(sentence: string, at: number, matchLength: number): string {
+    const before = clauseWords(sentence.slice(0, at), 'last');
+    if (hasContentWord(before)) return before;
+    const after = clauseWords(sentence.slice(at + matchLength), 'first');
+    return hasContentWord(after) ? after : '';
 }
 
 function isTableLine(line: string): boolean {
@@ -85,10 +120,55 @@ export function extractStats(body: string): StatCandidate[] {
             const key = `${value}|${citation}`;
             if (seen.has(key)) continue;
             seen.add(key);
-            out.push({ value, label: labelFor(sentence, m.index), citation });
+            out.push({ value, label: labelFor(sentence, m.index, m[0].length), citation });
         }
     }
     return out;
+}
+
+// Stat cards for the `stat-row` layout. Cited only, one card per distinct
+// label so a row cannot become four restatements of the same metric.
+export function pickStatCards(body: string, max = 4): StatCandidate[] {
+    const seen = new Set<string>();
+    const out: StatCandidate[] = [];
+    for (const s of extractStats(body)) {
+        if (!s.citation || !s.label) continue;
+        const key = s.label.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        out.push(s);
+        if (out.length >= max) break;
+    }
+    return out;
+}
+
+const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+// A bold line is a VERDICT only if it actually asserts something. Bold
+// subheads ("AMD-Specific Risks", "Near-Term Catalysts:") and headings
+// restated in bold are labels, and promoting them to a callout says nothing.
+export function isVerdictLine(text: string, heading = ''): boolean {
+    const t = text.trim();
+    if (t.endsWith(':')) return false;
+    if (heading && normalize(t) === normalize(heading)) return false;
+    return t.split(/\s+/).length >= 5 || /\d/.test(t);
+}
+
+// Lifts the verdict line out of a `quote-led` section so the renderer can
+// promote it to a callout without duplicating it in the prose below.
+export function extractVerdict(body: string, heading = ''): { verdict: string; rest: string } | null {
+    const paras = body.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+    const i = paras.findIndex(
+        (p, idx) =>
+            /^\*\*[^*]+\*\*$/.test(p) &&
+            !isTableLine(paras[idx + 1] ?? '') &&
+            isVerdictLine(p.replace(/^\*\*|\*\*$/g, ''), heading),
+    );
+    if (i < 0) return null;
+    return {
+        verdict: paras[i].replace(/^\*\*|\*\*$/g, '').trim(),
+        rest: paras.filter((_, idx) => idx !== i).join('\n\n'),
+    };
 }
 
 // ─── Structural signals ─────────────────────────────────────────────────────
@@ -239,6 +319,38 @@ export function classifySection(heading: string, body: string): SectionShape {
 
 export function classifyReport(markdown: string): SectionShape[] {
     return splitSections(markdown).map(sec => classifySection(sec.heading, sec.body));
+}
+
+// ─── Render-ready view model (G1b) ──────────────────────────────────────────
+// One pass over the report produces everything the renderer needs, so the
+// view layer never re-classifies and never sees anything but verbatim slices.
+
+export interface SectionView {
+    heading: string;
+    layout: SectionLayout;
+    statCards: StatCandidate[];
+    verdict: string | null;
+    markdown: string;   // body to render; the verdict line is removed once promoted
+}
+
+export function buildSectionViews(
+    markdown: string,
+): { preamble: string; sections: SectionView[] } {
+    const first = markdown.search(/^##\s+/m);
+    return {
+        preamble: first > 0 ? markdown.slice(0, first).trim() : first === 0 ? '' : markdown.trim(),
+        sections: splitSections(markdown).map(({ heading, body }) => {
+            const { layout } = classifySection(heading, body);
+            const lifted = layout === 'quote-led' ? extractVerdict(body, heading) : null;
+            return {
+                heading,
+                layout,
+                statCards: layout === 'stat-row' ? pickStatCards(body) : [],
+                verdict: lifted?.verdict ?? null,
+                markdown: lifted?.rest ?? body,
+            };
+        }),
+    };
 }
 
 // Layout diversity — the deterministic counterpart to the judge's
