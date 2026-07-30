@@ -66,13 +66,23 @@ const FILLER = new Set([
     'both', 'over', 'under', 'above', 'below', 'around', 'just', 'only', 'also',
 ]);
 
+// Words that open a subordinate clause. A label starting with one is a
+// fragment sliced out of the middle of a sentence ("which we assign a",
+// "where ASPs are up") — it reads as broken next to the number.
+const SUBORDINATOR = new Set([
+    'which', 'where', 'while', 'that', 'though', 'although', 'since', 'given',
+    'whereas', 'because', 'if', 'when', 'after', 'before', 'unless', 'and', 'but',
+]);
+
 function hasContentWord(text: string): boolean {
-    return text
-        .split(/\s+/)
-        .some(w => {
-            const clean = w.replace(/[^A-Za-z]/g, '');
-            return clean.length >= 4 && !FILLER.has(clean.toLowerCase());
-        });
+    const words = text.split(/\s+/).filter(Boolean);
+    // A single word names a metric only by accident ("increased").
+    if (words.length < 2) return false;
+    if (SUBORDINATOR.has(words[0].replace(/[^A-Za-z]/g, '').toLowerCase())) return false;
+    return words.some(w => {
+        const clean = w.replace(/[^A-Za-z]/g, '');
+        return clean.length >= 4 && !FILLER.has(clean.toLowerCase());
+    });
 }
 
 // A period only ends a clause when followed by space or end-of-string;
@@ -335,30 +345,76 @@ export interface SectionView {
 
 // `overrides` come from the design loop and are already precondition-checked
 // by the validator; anything unknown here is ignored rather than trusted.
+// A stat row promoted into every eligible section makes every section open
+// the same way, which is the opposite of layout variety. Promote only the
+// few densest sections and let the rest stay prose.
+const MAX_STAT_ROWS = 2;
+
 export function buildSectionViews(
     markdown: string,
     overrides: Array<{ heading: string; layout: SectionLayout }> = [],
 ): { preamble: string; sections: SectionView[] } {
     const first = markdown.search(/^##\s+/m);
     const byHeading = new Map(overrides.map(o => [o.heading.toLowerCase(), o.layout]));
+
+    const sections = splitSections(markdown).map(({ heading, body }) => {
+        const override = byHeading.get(heading.toLowerCase());
+        const layout =
+            override && layoutPrecondition(override, computeSignals(heading, body)) === null
+                ? override
+                : classifySection(heading, body).layout;
+        const lifted = layout === 'quote-led' ? extractVerdict(body, heading) : null;
+        return {
+            heading,
+            layout,
+            statCards: layout === 'stat-row' ? pickStatCards(body) : [],
+            verdict: lifted?.verdict ?? null,
+            markdown: lifted?.rest ?? body,
+        };
+    });
+
+    const promoted = new Set(
+        sections
+            .filter(s => s.statCards.length > 0)
+            .sort((a, b) => b.statCards.length - a.statCards.length)
+            .slice(0, MAX_STAT_ROWS)
+            .map(s => s.heading),
+    );
+    for (const s of sections) if (!promoted.has(s.heading)) s.statCards = [];
+
     return {
         preamble: first > 0 ? markdown.slice(0, first).trim() : first === 0 ? '' : markdown.trim(),
-        sections: splitSections(markdown).map(({ heading, body }) => {
-            const override = byHeading.get(heading.toLowerCase());
-            const layout =
-                override && layoutPrecondition(override, computeSignals(heading, body)) === null
-                    ? override
-                    : classifySection(heading, body).layout;
-            const lifted = layout === 'quote-led' ? extractVerdict(body, heading) : null;
-            return {
-                heading,
-                layout,
-                statCards: layout === 'stat-row' ? pickStatCards(body) : [],
-                verdict: lifted?.verdict ?? null,
-                markdown: lifted?.rest ?? body,
-            };
-        }),
+        sections,
     };
+}
+
+// Markdown rendering of the SAME view model the web renderer draws — stat
+// cards become a stat block, a verdict becomes a callout. Used to score the
+// layout pass offline: the design judge reads markdown, so the layout pass
+// has to be expressed in markdown to be measurable at all.
+//
+// Faithful to the screen, including its redundancy: promoted figures stay in
+// the prose below exactly as they do in the rendered document.
+export function renderLayoutMarkdown(
+    markdown: string,
+    overrides: Array<{ heading: string; layout: SectionLayout }> = [],
+): string {
+    const { preamble, sections } = buildSectionViews(markdown, overrides);
+    const parts = preamble ? [preamble] : [];
+    for (const s of sections) {
+        parts.push(`## ${s.heading}`);
+        // A card row, not a table. Encoding stat cards as a repeated
+        // three-column table made every section structurally identical —
+        // measured as a 2.8-point layout_variety regression in G1d.
+        if (s.statCards.length > 0) {
+            parts.push(s.statCards
+                .map(c => `**${c.value}** ${c.label} ${c.citation}`)
+                .join(' · '));
+        }
+        if (s.verdict) parts.push(`> **${s.verdict}**`);
+        parts.push(s.markdown);
+    }
+    return parts.join('\n\n') + '\n';
 }
 
 // Layout diversity — the deterministic counterpart to the judge's

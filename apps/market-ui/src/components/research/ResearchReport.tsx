@@ -22,8 +22,6 @@ import {
 import { exportReportToPptx } from '../../services/presentationExport';
 import type { ResearchReport as ReportType, Citation, TemplateKey } from '../../services/deepResearchService';
 import PdfPreview from './PdfPreview';
-import { StatRow, VerdictCallout, ComparisonFrame } from './SectionBlocks';
-import { buildSectionViews } from '../../services/sectionLayout';
 
 interface Props {
     report: ReportType;
@@ -275,10 +273,6 @@ export default function ResearchReport({ report, instant, onClose }: Props) {
     const displayedMarkdown = process(
         isFullyRevealed ? report.markdown : report.markdown.substring(0, revealedChars)
     );
-
-    /* G1b — classify once on the RAW markdown (before citation rewriting, so
-       stat cards keep the report's own citation tags). */
-    const sectionViews = useMemo(() => buildSectionViews(report.markdown), [report.markdown]);
 
     /* TOC extraction */
     const toc = (() => {
@@ -1085,43 +1079,10 @@ export default function ResearchReport({ report, instant, onClose }: Props) {
                     )}
 
                     {/* ─── Markdown body ─── */}
-                    {/* Streaming renders as one plain document; the Gamma
-                        blocks resolve once the full text has arrived, since
-                        a section cannot be classified from a half-written
-                        body. */}
                     <div>
-                        {isFullyRevealed ? (
-                            <>
-                                {sectionViews.preamble && (
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                                        {process(sectionViews.preamble)}
-                                    </ReactMarkdown>
-                                )}
-                                {sectionViews.sections.map((s, i) => {
-                                    const body = (
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                                            {process(s.markdown)}
-                                        </ReactMarkdown>
-                                    );
-                                    return (
-                                        <section key={i} data-layout={s.layout}>
-                                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                                                {`## ${s.heading}`}
-                                            </ReactMarkdown>
-                                            {s.statCards.length > 0 && <StatRow stats={s.statCards} />}
-                                            {s.verdict && <VerdictCallout text={s.verdict} />}
-                                            {s.layout === 'comparison'
-                                                ? <ComparisonFrame>{body}</ComparisonFrame>
-                                                : body}
-                                        </section>
-                                    );
-                                })}
-                            </>
-                        ) : (
-                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                                {displayedMarkdown}
-                            </ReactMarkdown>
-                        )}
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                            {displayedMarkdown}
+                        </ReactMarkdown>
 
                         {/* Blinking cursor during stream */}
                         {!isFullyRevealed && (

@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
     splitSections, extractStats, computeSignals, classifySection, classifyReport,
     layoutPrecondition, layoutVariety, isSectionLayout, SECTION_LAYOUTS,
-    pickStatCards, extractVerdict, buildSectionViews, isVerdictLine,
+    pickStatCards, extractVerdict, buildSectionViews, isVerdictLine, renderLayoutMarkdown,
 } from './sectionLayout';
 
 const RISK_TABLE = `Risk is concentrated in two places.
@@ -292,6 +292,20 @@ describe('buildSectionViews — the render view model', () => {
         for (const s of buildSectionViews(REPORT).sections) {
             for (const c of s.statCards) expect(REPORT).toContain(c.value);
         }
+    });
+
+    it('renders the layout pass back to markdown without losing prose', () => {
+        const rendered = renderLayoutMarkdown(REPORT);
+        expect(rendered).toContain('## Financial Performance');
+        expect(rendered).toMatch(/\*\*\$130\.5B\*\* /);
+        expect(rendered).toContain('> **Conviction Rating: Neutral (Sector Weight)**');
+        // Every original heading survives, and the prose is still there.
+        expect(rendered).toContain('Relative to the sector');
+        expect(rendered).toContain('Inventory turnover');
+    });
+
+    it('renders no stat block for a report with no cited figures', () => {
+        expect(renderLayoutMarkdown(`## Outlook\n\n${UNCITED_PROSE}`)).not.toContain('| Metric |');
     });
 
     it('handles a document with no headings at all', () => {
