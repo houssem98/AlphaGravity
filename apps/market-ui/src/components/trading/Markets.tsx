@@ -675,7 +675,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   };
 
   return (
-    <div className="flex-1 bg-[color:var(--bg)] overflow-y-auto">
+    <div ref={tableScrollRef} className="flex-1 bg-[color:var(--bg)] overflow-auto">
       {/* Global market stats bar */}
       <div className="border-b border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 flex flex-wrap items-center gap-x-5 gap-y-1">
         <Stat label="CRYPTOS" value={markets.length} />
@@ -858,8 +858,11 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
         </div>
 
         {/* Table container */}
-        <div className="bg-[color:var(--surface)] border border-t-0 border-[color:var(--line)] overflow-hidden">
-          <div ref={tableScrollRef} className="overflow-auto max-h-[70vh] overscroll-contain">
+        {/* No overflow-hidden here: an overflow!=visible ancestor becomes the
+            scroll container that a sticky <th> pins inside, which would trap the
+            header in this box instead of the page scroller. */}
+        <div className="bg-[color:var(--surface)] border border-t-0 border-[color:var(--line)]">
+          <div>
             {activeTab === 'categories' ? (
               <CategoriesTab />
             ) : activeTab === 'exchanges' ? (
