@@ -454,21 +454,6 @@
 
 ::selection { background: color-mix(in oklch, var(--accent) 30%, transparent); color: var(--text); }
 
-/* Sticky table header — pins the column labels while the table body scrolls.
-   Sticky lives on the <th> cells (reliable cross-browser, unlike <thead>); the
-   opaque --surface-2 matches the header row so rows scroll cleanly underneath.
-   Requires a scroll container ancestor with a height cap (the .overflow-auto
-   max-h wrapper), or there is nothing for the header to stick within. */
-.sticky-head thead th {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: var(--surface-2);
-  /* Draw the header/body divider on the cell, not the row, so it stays put
-     while sticky (a <tr> border-bottom scrolls out from under the pinned th). */
-  box-shadow: inset 0 -1px 0 var(--line);
-}
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

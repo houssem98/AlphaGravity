@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useEdgeAutoScroll } from '../../hooks/useEdgeAutoScroll';
 import { Search, ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Star, Trophy, Activity, ArrowUpDown, BarChart2, ExternalLink, ArrowUp, ArrowDown, ArrowRight, ChevronsLeft, ChevronsRight, Trash2, Plus, Check, ChevronLeft, Building2, Landmark } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { MarketDef } from '../../lib/markets';
@@ -101,6 +100,11 @@ const TN_COL_GROUPS: { label: string; icon: any; cols: { k: ColKey; label: strin
     { k: 'fVolume', label: 'Volume factor' }, { k: 'fNews', label: 'News' }, { k: 'fLiqTrend', label: 'Liquidity/Trend' },
   ] },
 ];
+// Column chooser is retired with the table (card rows carry a fixed field
+// set). Typed `boolean`, not the literal `false`: a literal makes the JSX
+// unreachable, and TypeScript skips narrowing in unreachable code.
+const SHOW_COLUMN_CHOOSER: boolean = false;
+
 const sanitizeOrder = (o?: string[]): ColKey[] => {
   const known = (o || []).filter((k): k is ColKey => (DEFAULT_ORDER as string[]).includes(k));
   return [...known, ...DEFAULT_ORDER.filter((k) => !known.includes(k))];
@@ -242,8 +246,6 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   });
   const [watchOnly, setWatchOnly] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
-  // Hover the table's left/right edge to reveal off-screen columns.
-  const tableScrollRef = useEdgeAutoScroll<HTMLDivElement>();
   const [tnHighs, setTnHighs] = useState<Record<string, { highRatio: number; high: number; last: number }>>({});
   useEffect(() => {
     if (market.id !== 'tunisia') return;
@@ -620,7 +622,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
   );
 
   return (
-    <div ref={tableScrollRef} className="flex-1 bg-[color:var(--bg)] overflow-auto">
+    <div className="flex-1 bg-[color:var(--bg)] overflow-y-auto">
       {/* Market stats bar (mirrors the crypto global bar) */}
       <div className="border-b border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 flex flex-wrap items-center gap-x-5 gap-y-1">
         {/* Registry count is a floor, not the truth: TN's registry list is a
@@ -712,7 +714,11 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
               </button>
             );
           })}
-          {isTN && (
+          {/* Column chooser retired with the table — card rows carry a fixed field
+              set, so toggling a column had nothing left to show or hide. The
+              column machinery (COLMETA / visibleCols / cellFor) is kept so the
+              table layout can be restored without rebuilding it. */}
+          {SHOW_COLUMN_CHOOSER && (
             <>
               {/* TNV-7: column chooser lives in the toolbar — the table scrolls
                   horizontally, so a header-cell button would sit off-screen. */}
@@ -806,40 +812,29 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
             header in this box instead of the page scroller. */}
         <div className="bg-[color:var(--surface)] border border-t-0 border-[color:var(--line)]">
           <div>
-            <table className="sticky-head w-full text-left border-collapse whitespace-nowrap">
-              <thead>
-                <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
-                  <th className="py-2 px-4 w-8" />
-                  <th className="py-2 px-4 label w-10 hidden sm:table-cell">#</th>
-                  {visibleCols.map(headerFor)}
-                </tr>
-              </thead>
-              <tbody>
+            <div>
                 {loading ? (
                   Array.from({ length: 10 }).map((_, i) => (
-                    <tr key={i} className="border-b border-[color:var(--line)]">
-                      <td className="py-3 px-4"><div className="w-3.5 h-3.5 rounded-sm bg-[color:var(--surface-2)] animate-pulse" /></td>
-                      <td className="py-3 px-4 hidden sm:table-cell"><div className="h-3 w-4 rounded bg-[color:var(--surface-2)] animate-pulse" /></td>
-                      {visibleCols.map((k) => (
-                        <td key={k} className={`py-3 px-4 ${COLMETA[k].cls}`}>
-                          {k === 'name'
-                            ? <div className="flex items-center gap-2.5"><div className="w-6 h-6 rounded-full bg-[color:var(--surface-2)] animate-pulse" /><div className="h-3 w-40 rounded bg-[color:var(--surface-2)] animate-pulse" /></div>
-                            : k === 'spark'
-                            ? <div className="h-6 w-24 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" />
-                            : <div className="h-3 w-16 rounded bg-[color:var(--surface-2)] animate-pulse ml-auto" />}
-                        </td>
-                      ))}
-                    </tr>
+                    <div key={i} className="border-b border-[color:var(--line)] flex items-center gap-3 px-4 py-3">
+                      <div className="w-3.5 h-3.5 rounded-sm bg-[color:var(--surface-2)] animate-pulse shrink-0" />
+                      <div className="w-6 h-6 rounded-full bg-[color:var(--surface-2)] animate-pulse shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3 w-40 rounded bg-[color:var(--surface-2)] animate-pulse" />
+                        <div className="h-2.5 w-56 rounded bg-[color:var(--surface-2)] animate-pulse" />
+                      </div>
+                      <div className="h-6 w-24 rounded bg-[color:var(--surface-2)] animate-pulse hidden sm:block" />
+                      <div className="h-3 w-20 rounded bg-[color:var(--surface-2)] animate-pulse" />
+                    </div>
                   ))
                 ) : error ? (
-                  <tr><td colSpan={nColSpan} className="py-10 text-center">
+                  <div className="py-10 text-center">
                     <div className="text-body text-[color:var(--text-3)] mb-2">Couldn't load {market.label}.</div>
                     <button onClick={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} className="px-3 py-1.5 rounded-sm text-label font-semibold bg-[color:var(--surface-2)] border border-[color:var(--line)] text-[color:var(--text-2)] hover:text-[color:var(--text)] hover:border-[color:var(--line-strong)] transition-colors">RETRY</button>
-                  </td></tr>
+                  </div>
                 ) : pageView.length === 0 ? (
-                  <tr><td colSpan={nColSpan} className="py-10 text-center text-body text-[color:var(--text-3)]">
+                  <div className="py-10 text-center text-body text-[color:var(--text-3)]">
                     {watchOnly ? 'Your watchlist is empty. Star assets to add them.' : 'No assets found.'}
-                  </td></tr>
+                  </div>
                 ) : (
                   pageView.map((r, i) => {
                     const loaded = r.price > 0;
@@ -850,28 +845,64 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                     const prevClose = loaded ? r.price / (1 + r.changePct / 100) : null;
                     return (
                       <React.Fragment key={r.symbol}>
-                      <tr
+                      <div
                         onClick={() => setExpanded(isExpanded ? null : r.symbol)}
                         className={`border-b border-[color:var(--line)] hover:bg-[color:var(--surface-2)] cursor-pointer transition-colors group ${isExpanded ? 'bg-[color:var(--surface-2)]' : ''}`}
                       >
-                        <td className="py-2.5 px-4" onClick={(e) => toggleWatch(e, r.symbol)}>
-                          <Star className={`w-3.5 h-3.5 transition-colors ${watchlist.includes(r.symbol) ? 'text-[color:var(--accent)] fill-[color:var(--accent)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text)]'}`} />
-                        </td>
-                        <td className="py-2.5 px-4 font-mono text-data text-[color:var(--text-3)] hidden sm:table-cell">
-                          {(page - 1) * perPage + i + 1}
-                        </td>
-                        {visibleCols.map((k) => cellFor(k, r, { loaded, up, p7, s }))}
-                      </tr>
+                        <div className="flex items-center gap-3 px-4 py-2.5">
+                          <button
+                            type="button"
+                            aria-label={watchlist.includes(r.symbol) ? 'Remove from watchlist' : 'Add to watchlist'}
+                            className="shrink-0"
+                            onClick={(e) => toggleWatch(e, r.symbol)}
+                          >
+                            <Star className={`w-3.5 h-3.5 transition-colors ${watchlist.includes(r.symbol) ? 'text-[color:var(--accent)] fill-[color:var(--accent)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text)]'}`} />
+                          </button>
+                          <span className="font-mono text-data text-[color:var(--text-3)] w-7 shrink-0 hidden sm:block">
+                            {(page - 1) * perPage + i + 1}
+                          </span>
+                          <AssetIcon r={r} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-body font-semibold text-[color:var(--text)] truncate">{r.name}</span>
+                              <span className="font-mono text-label text-[color:var(--text-3)] bg-[color:var(--bg)] border border-[color:var(--line)] px-1.5 py-0.5 rounded-sm shrink-0">{r.symbol.replace('^', '')}</span>
+                            </div>
+                            {/* The figures the columns used to carry, labelled inline
+                                so nothing depends on a header row that is gone. */}
+                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-label text-[color:var(--text-3)]">
+                              <span>MCAP <span className="text-[color:var(--text-2)]">{r.marketCap ? fmtCap(r.marketCap, r.currency) : '—'}</span></span>
+                              <span>VOL <span className="text-[color:var(--text-2)]">{r.volume ? fmtCompact(r.volume) : '—'}</span></span>
+                              <span>7D <span className={p7 === null ? 'text-[color:var(--text-3)]' : p7 >= 0 ? 'up' : 'down'}>{p7 !== null ? fmtPct(p7) : '—'}</span></span>
+                            </div>
+                          </div>
+                          <div className="hidden sm:block shrink-0">
+                            {s.length > 1 ? <MiniSpark data={s} /> : <span className="text-[color:var(--text-3)] text-label">—</span>}
+                          </div>
+                          <div className="w-28 text-right shrink-0">
+                            <div className="font-mono text-body text-[color:var(--text)]">{loaded ? fmtPrice(r.price, r.currency) : '—'}</div>
+                            <div className={`font-mono text-label ${loaded ? (up ? 'up' : 'down') : 'text-[color:var(--text-3)]'}`}>
+                              {loaded ? fmtPct(r.changePct) : '—'}
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onAssetSelect(r.symbol); }}
+                            className="shrink-0 bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 px-3 py-1 rounded-sm text-label font-semibold opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity shiny chrome cta-glow press"
+                            style={{ letterSpacing: '0.06em' }}
+                          >
+                            TRADE
+                          </button>
+                        </div>
+                      </div>
 
                       <AnimatePresence>
                         {isExpanded && (
-                          <motion.tr
+                          <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             className="bg-[color:var(--bg)] border-b border-[color:var(--line)]"
                           >
-                            <td colSpan={nColSpan} className="p-0">
+                            <div className="p-0">
                               <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div className="space-y-3">
                                   <div className="flex items-center gap-2.5">
@@ -945,16 +976,15 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
                                   </div>
                                 </div>
                               </div>
-                            </td>
-                          </motion.tr>
+                            </div>
+                          </motion.div>
                         )}
                       </AnimatePresence>
                       </React.Fragment>
                     );
                   })
                 )}
-              </tbody>
-            </table>
+            </div>
           </div>
 
           {/* Pagination (crypto-style footer) */}
