@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-    parseCellNumber, parseMarkdownTables, extractExhibits, exhibitValueViolations,
+    parseCellNumber, parseMarkdownTables, extractExhibits, exhibitValueViolations, barGeometry,
 } from './exhibitExtract';
 
 const SCORECARD = `**Financial Scorecard**
@@ -104,6 +104,33 @@ describe('extractExhibits', () => {
         const specs = extractExhibits(`${SCORECARD}\n\n${SCREEN}`, 2);
         expect(specs).toHaveLength(2);
         expect(specs[0].bars.length).toBeGreaterThanOrEqual(specs[1].bars.length);
+    });
+});
+
+describe('barGeometry', () => {
+    it('puts the baseline at the left edge when nothing is negative', () => {
+        const g = barGeometry([10, 5], 100);
+        expect(g.zeroX).toBe(0);
+        expect(g.bars[0]).toEqual({ x: 0, width: 100 });
+        expect(g.bars[1]).toEqual({ x: 0, width: 50 });
+    });
+
+    it('grows negative bars leftward from the baseline', () => {
+        const g = barGeometry([-4, -16], 100);
+        expect(g.zeroX).toBe(100);
+        expect(g.bars[1]).toEqual({ x: 0, width: 100 });
+        expect(g.bars[0].x + g.bars[0].width).toBe(100);
+    });
+
+    it('places the baseline between a mixed series', () => {
+        const g = barGeometry([-50, 50], 100);
+        expect(g.zeroX).toBe(50);
+        expect(g.bars[0]).toEqual({ x: 0, width: 50 });
+        expect(g.bars[1]).toEqual({ x: 50, width: 50 });
+    });
+
+    it('does not divide by zero on a flat series', () => {
+        expect(barGeometry([0, 0], 100).bars.every(b => Number.isFinite(b.width))).toBe(true);
     });
 });
 

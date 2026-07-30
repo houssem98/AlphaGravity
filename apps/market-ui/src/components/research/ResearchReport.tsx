@@ -22,6 +22,8 @@ import {
 import { exportReportToPptx } from '../../services/presentationExport';
 import type { ResearchReport as ReportType, Citation, TemplateKey } from '../../services/deepResearchService';
 import PdfPreview from './PdfPreview';
+import { ExhibitStrip } from './ExhibitChart';
+import { extractExhibits, exhibitValueViolations } from '../../services/exhibitExtract';
 
 interface Props {
     report: ReportType;
@@ -273,6 +275,13 @@ export default function ResearchReport({ report, instant, onClose }: Props) {
     const displayedMarkdown = process(
         isFullyRevealed ? report.markdown : report.markdown.substring(0, revealedChars)
     );
+
+    /* G2b — charts come from the report's own tables. Any exhibit whose value
+       cannot be found in the report text is dropped rather than drawn. */
+    const exhibits = useMemo(() => {
+        const specs = extractExhibits(report.markdown);
+        return exhibitValueViolations(report.markdown, specs).length === 0 ? specs : [];
+    }, [report.markdown]);
 
     /* TOC extraction */
     const toc = (() => {
@@ -1090,6 +1099,9 @@ export default function ResearchReport({ report, instant, onClose }: Props) {
                                 style={{ background: '#3D7FF6' }} />
                         )}
                     </div>
+
+                    {/* ─── Exhibits (G2b) ─── */}
+                    {isFullyRevealed && <ExhibitStrip specs={exhibits} />}
 
                     {/* ─── Sources grid ─── */}
                     {isFullyRevealed && report.citations.length > 0 && (

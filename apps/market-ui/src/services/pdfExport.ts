@@ -5,6 +5,7 @@ import type { ResearchReport } from './deepResearchService';
 import PdfDocument from '../components/research/PdfDocument';
 import { runDesignLoop, type DesignSpec } from './pdfDesigner';
 import { buildExhibits } from './reportQaGates';
+import { extractExhibits, exhibitValueViolations } from './exhibitExtract';
 
 // Self-Improving Design Loop: an LLM design director reads the report and
 // makes bounded design decisions (tone/accent/density/kicker/abstract/pull
@@ -15,7 +16,13 @@ async function designForReport(report: ResearchReport): Promise<DesignSpec | und
   const env = (import.meta as any)?.env ?? {};
   if (env.VITE_PDF_DESIGN_LOOP === 'false') return undefined;
   try {
-    const exhibits = buildExhibits(report.metadata.numericClaims ?? []);
+    // The claim store only fills when the pipeline logged numeric claims;
+    // when it is empty the report's own tables are the next-best source.
+    let exhibits = buildExhibits(report.metadata.numericClaims ?? []);
+    if (exhibits.length === 0) {
+      const fromTables = extractExhibits(report.markdown);
+      if (exhibitValueViolations(report.markdown, fromTables).length === 0) exhibits = fromTables;
+    }
     const result = await runDesignLoop(report.title, report.markdown, exhibits);
     console.log(`[pdfDesigner] iterations=${result.iterations} score=${result.finalScore} fixed=${result.violationsFixed} fallback=${result.fellBack}`);
     return result.fellBack ? undefined : result.spec;

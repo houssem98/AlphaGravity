@@ -155,6 +155,26 @@ export function extractExhibits(markdown: string, max = 3): ExhibitSpec[] {
     return specs.sort((a, b) => b.bars.length - a.bars.length).slice(0, max);
 }
 
+// Bar geometry, kept out of the renderer so it can be tested without a DOM.
+// Series in this corpus go negative (bank NIM sensitivity runs to -16bps), so
+// the baseline is wherever zero falls, not the left edge.
+export interface BarBox { x: number; width: number }
+
+export function barGeometry(values: number[], width: number): { bars: BarBox[]; zeroX: number } {
+    const min = Math.min(0, ...values);
+    const max = Math.max(0, ...values);
+    const span = max - min || 1;
+    const scale = width / span;
+    const zeroX = min === 0 ? 0 : -min * scale;   // negating 0 yields -0
+    return {
+        zeroX,
+        bars: values.map(v => ({
+            x: v >= 0 ? zeroX : zeroX + v * scale,
+            width: Math.abs(v) * scale,
+        })),
+    };
+}
+
 // The QA gate: every plotted value must be findable in the report text.
 // Returns one message per violation, empty when the exhibits are clean.
 export function exhibitValueViolations(markdown: string, specs: ExhibitSpec[]): string[] {
