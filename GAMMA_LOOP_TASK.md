@@ -5,6 +5,16 @@
 
 Successor to WC_LOOP_TASK.md (closed 2026-07-10). Target: reports that look and read like a Gamma-designed document — visually structured, chart-rich, self-improving — with every claim of improvement MEASURED, never asserted.
 
+## What "Gamma-class" means here (gamma.app paradigm)
+Gamma's design intelligence is **not** prettier CSS. It is:
+1. **Cards, not a scroll** — content chunked into discrete units (deck/doc hybrid).
+2. **Per-card layout selection** — an AI picks a layout from a bounded BLOCK LIBRARY based on the *shape* of that card's content (2-col, image+text, stat row, timeline, comparison, callout, accordion). **This is the core move and the thing our pipeline lacks entirely.**
+3. **Themes** — global design tokens (font/color/spacing/accent) swappable without touching content.
+4. **Content-aware blocks** — numbers→stat cards, sequences→timelines, contrasts→side-by-side, key point→callout.
+5. Export parity (PDF/PPT) from the same structured representation.
+
+Our `DesignSpec` today is document-global (tone, accent, density, pull quotes). Gamma-class needs it **per-section**, choosing a layout from a whitelist. Same safety model — LLM picks from an enum, never emits CSS.
+
 ## Verified current state (audited 2026-07-10 — build on this, don't rebuild it)
 A parallel session already shipped the foundations (uncommitted in worktree — check `git status` first; coordinate, don't clobber):
 - `src/services/selfImprovementHarness.ts` — CONTENT loop: judge → feedback → re-run (`maybeRunQualityLoop`, wired into SearchPage), `llmChat` helper, `LOOP_SELF_IMPROVE.sh`.
@@ -15,6 +25,7 @@ A parallel session already shipped the foundations (uncommitted in worktree — 
 - Content baseline archived: `eval/out/v2-prew1/baseline.json` (judge 8.2/6.6/7.0/8.0, density 0.67, entail 0.97).
 
 ## Ruthless gap analysis (why this isn't Gamma-class yet)
+0. **No per-section layout selection.** The Gamma core move is absent: every section renders identically as prose. `DesignSpec` is document-global, no block library, no content-shape→layout mapping. This is gap #1 by impact.
 1. **Web view gets zero design.** The design loop only styles the PDF; the on-screen report (`ResearchReport.tsx`) is plain ReactMarkdown — and the screen is the primary surface. Gamma designs the live document, not the export.
 2. **No design baseline.** The design critic runs at export time but nothing scores design offline; rubric has zero design dimensions. Improvement claims are unmeasurable.
 3. **No charts on the web.** No chart lib installed (verified package.json); numbers live in prose/tables. Gamma auto-visualizes.
@@ -57,18 +68,22 @@ graph TD
 ## Plan
 
 ### G0 — Design baseline (quota-immune: scores the 5 ARCHIVED v2 reports)
-- **G0a** Extend `evalRubric.ts` with `race-lite-v2`: +4 design dims judged from markdown structure — `visual_hierarchy` (heading logic, section balance), `scannability` (tables/lists/bold where they help, para length), `exhibit_readiness` (numeric series that SHOULD be charts, are they chartable/marked), `narrative_flow` (exec-summary→evidence→risk arc). Judge prompt versioned; content dims unchanged so v1 scores stay comparable.
+- **G0a** Extend `evalRubric.ts` with `race-lite-v2`: +4 design dims judged from markdown structure — `visual_hierarchy` (heading logic, section balance), `scannability` (tables/lists/bold where they help, para length), `exhibit_readiness` (numeric series that SHOULD be charts/stat-cards, are they extractable), `layout_variety` (do sections differ in content shape enough to justify distinct Gamma-style layouts, or is it wall-to-wall prose). Content dims unchanged so v1 scores stay comparable.
 - **G0b** `eval/designEval.test.ts`: score the 5 archived reports in `eval/out/v2-prew1/*.md` (no pipeline run, no Tavily) → `eval/out/design-baseline.json`. This is THE design baseline. Cost ≈ 5 judge calls.
 
-### G1 — Web-surface design system (the Gamma look, on screen)
-- **G1a** Reuse `pdfDesigner.ts`'s DesignSpec on the web: run (or reuse the export-time) spec for the on-screen report; `ResearchReport.tsx` renders key-finding hero block, pull quotes, tone accent, density — same validator bounds, zero new free-form CSS from the LLM.
-- **G1b** Stat-callout row: deterministic extractor pulls 3-5 headline metrics ALREADY CITED in the report (verbatim numbers + their [n] tags) into Gamma-style stat cards. Invented numbers structurally impossible (extractor-only, no LLM generation).
-- **G1c** Re-run design eval on re-rendered archived reports → delta vs G0 baseline. Honest sign reported.
+### G1 — Block library + per-section layout selection (THE Gamma core)
+- **G1a** Block library + deterministic content-shape classifier: `sectionLayout.ts` — pure fns that read one section's markdown and detect shape (`prose | stat-row | comparison | timeline | table-heavy | quote-led | risk-list`). Whitelisted `SectionLayout` enum; classifier is deterministic (no LLM), tested. LLM's role comes in G1c — it may only OVERRIDE a classification with another enum value, never invent one.
+- **G1b** Web renderer honors layouts: `ResearchReport.tsx` renders each section per its layout — stat-row cards, side-by-side comparison, callout/quote-led, timeline rail — plus document-global DesignSpec (tone accent, density, hero). Stat numbers are EXTRACTED verbatim with their `[n]` tags (extractor-only; invented numbers structurally impossible).
+- **G1c** Designer proposes per-section overrides: extend the `pdfDesigner` loop so the DesignSpec carries `sections: {heading, layout}[]`; validator rejects any non-enum value and any layout whose preconditions fail (e.g. `stat-row` with <3 extractable cited numbers). Critic scores; same bounded loop.
+- **G1d** Design eval re-run on re-rendered archived reports → delta vs G0 baseline. Honest sign reported.
 
 ### G2 — Auto-exhibits (charts, both surfaces)
 - **G2a** Numeric-series extractor: tables/series in report markdown → bounded `ExhibitSpec` (reuse reportQaGates type). Pure fn + tests; values must match report text verbatim (QA gate).
 - **G2b** Web renderer: inline SVG bar/line components (NO new chart dep — none installed, keep it that way unless measurement demands); PDF side reuses existing exhibit path.
 - **G2c** Design eval re-run → delta (exhibit_readiness dim should move; if flat, say so).
+
+### G2.5 — Theme tokens (Gamma "themes")
+- **G2.5a** Extract hardcoded colors/fonts/spacing in the report surfaces into a `ReportTheme` token set (2-3 built-in themes: institutional / editorial / mono). Theme is a top-level DesignSpec field chosen from the enum — swappable without touching content. Ledger: purely structural, expect flat scores; ship only if it doesn't regress.
 
 ### G3 — Exemplar memory (the self-improvement flywheel)
 - **G3a** Persist every design-loop outcome: `{DesignSpec, critic score, report intent/tone}` → local JSON first (`eval/out/design-exemplars.json`); Supabase table only if cross-device needed later.
