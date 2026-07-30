@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useEdgeAutoScroll } from '../../hooks/useEdgeAutoScroll';
+import { useScrollChrome } from '../../hooks/useScrollChrome';
 import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight, Plus, Check, Info, Database, Gauge, Trash2 } from 'lucide-react';
 import { Sparkline } from './Sparkline';
 import { motion, AnimatePresence } from 'motion/react';
@@ -329,6 +330,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   }, [changeTf, cols, colOrder]);
   // Hover the table's left/right edge to reveal off-screen columns.
   const tableScrollRef = useEdgeAutoScroll<HTMLDivElement>();
+  useScrollChrome(tableScrollRef);
 
   useEffect(() => {
     localStorage.setItem('nexus_watchlist', JSON.stringify(watchlist));

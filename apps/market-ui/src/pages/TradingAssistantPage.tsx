@@ -443,7 +443,7 @@ export default function TradingAssistantPage() {
       <div className="flex flex-col flex-1 overflow-hidden">
       {/* Global Header — crypto views only */}
       {currentView !== 'hub' && activeMarket === 'crypto' && (
-      <header className="h-12 shrink-0 flex items-center px-3 justify-between z-50 bg-[color:var(--surface)] border-b border-[color:var(--line)]">
+      <header className="chrome-nav h-12 shrink-0 flex items-center px-3 justify-between z-50 bg-[color:var(--surface)] border-b border-[color:var(--line)]">
         <div className="flex items-center gap-4">
           <button
             onClick={() => setRailOpen((o) => !o)}
