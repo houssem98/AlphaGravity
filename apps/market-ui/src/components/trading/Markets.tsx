@@ -789,8 +789,10 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
           {/* Column chooser — lives outside the tab scroll container so the
               popover isn't clipped and the button never scrolls off-screen
               (it used to sit in the far-right header cell of a wide table). */}
+          {/* z-50: sticky makes the wrapper a stacking context, so without it
+              the table paints over the column popover it contains. */}
           {(activeTab === 'all' || activeTab === 'watchlist') && (
-            <div className="relative shrink-0 mb-1 ml-auto sticky right-0">
+            <div className="relative shrink-0 mb-1 ml-auto sticky right-0 z-50">
               <button
                 onClick={() => setColMenu((v) => !v)}
                 title="Add or remove columns"

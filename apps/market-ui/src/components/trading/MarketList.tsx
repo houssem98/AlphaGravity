@@ -721,8 +721,10 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
             );
           })}
           </div>
+          {/* z-50: sticky makes the wrapper a stacking context, so without it
+              the table paints over the column popover it contains. */}
           {isTN && (
-            <div className="ml-auto sticky right-0 flex items-center">
+            <div className="ml-auto sticky right-0 z-50 flex items-center">
               {/* TNV-7: column chooser lives in the toolbar — the table scrolls
                   horizontally, so a header-cell button would sit off-screen. */}
               <div className="relative mb-1">

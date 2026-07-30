@@ -6,6 +6,7 @@ import PdfDocument from '../components/research/PdfDocument';
 import { runDesignLoop, type DesignSpec } from './pdfDesigner';
 import { buildExhibits } from './reportQaGates';
 import { extractExhibits, exhibitValueViolations } from './exhibitExtract';
+import { recordDesignOutcome } from './designExemplars';
 
 // Self-Improving Design Loop: an LLM design director reads the report and
 // makes bounded design decisions (tone/accent/density/kicker/abstract/pull
@@ -25,6 +26,19 @@ async function designForReport(report: ResearchReport): Promise<DesignSpec | und
     }
     const result = await runDesignLoop(report.title, report.markdown, exhibits);
     console.log(`[pdfDesigner] iterations=${result.iterations} score=${result.finalScore} fixed=${result.violationsFixed} fallback=${result.fellBack}`);
+
+    // G3a — bank the outcome. The bank only ever grows from specs the critic
+    // actually rated, and recording must never affect the export.
+    if (!result.fellBack && typeof result.finalScore === 'number') {
+      recordDesignOutcome({
+        title: report.title,
+        tone: result.spec.tone,
+        theme: result.spec.theme,
+        score: result.finalScore,
+        iterations: result.iterations,
+        spec: result.spec,
+      });
+    }
     return result.fellBack ? undefined : result.spec;
   } catch {
     return undefined;   // design is an enhancement — export must never block
