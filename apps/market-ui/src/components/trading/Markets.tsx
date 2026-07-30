@@ -759,7 +759,9 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
         )}
 
         {/* Tabs */}
-        <div className="flex items-center gap-0 mb-0 border-b border-[color:var(--line)]">
+        {/* No border-b: the table box below owns that line now, so it runs the
+            full table width instead of stopping at the viewport edge. */}
+        <div className="flex items-center gap-0 mb-0">
           <div className="flex items-center gap-0 overflow-x-auto flex-1 min-w-0">
             {['all', 'watchlist', 'categories', 'portfolio', 'exchanges', 'nfts', 'converter'].map((tab) => {
               const isActive = activeTab === tab;
@@ -865,8 +867,12 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
         {/* Table container */}
         {/* No overflow-hidden here: an overflow!=visible ancestor becomes the
             scroll container that a sticky <th> pins inside, which would trap the
-            header in this box instead of the page scroller. */}
-        <div className="bg-[color:var(--surface)] border border-t-0 border-[color:var(--line)]">
+            header in this box instead of the page scroller.
+            w-max: the page is the horizontal scroller, so a plain block would be
+            viewport-wide and its right border would land in the middle of the
+            table with the columns running past it. Sizing the box to the table
+            keeps the border and the surface on the table's real edge. */}
+        <div className="w-max min-w-full bg-[color:var(--surface)] border border-[color:var(--line)]">
           <div>
             {activeTab === 'categories' ? (
               <CategoriesTab />
