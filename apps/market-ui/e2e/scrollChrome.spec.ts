@@ -19,9 +19,8 @@ async function settle(page: Page) {
   }, undefined, { timeout: 30_000 });
 }
 
-// Both bits of chrome hide only while the list is actually moving, and the idle
-// flag clears 180ms after the last scroll — so sampling once after a jump races
-// the recovery. Drive a continuous scroll and report the dimmest each got.
+// Drive a continuous scroll and report the dimmest a node got along the way —
+// used both to prove the nav fades and to prove the column labels never do.
 async function dimmestDuringScroll(page: Page, selector: string) {
   return page.evaluate(async (sel) => {
     const el = document.querySelector('.overflow-y-auto') as HTMLElement;
@@ -57,31 +56,37 @@ test('scrolling down publishes the nav state the chrome CSS listens for', async 
   await page.waitForFunction(() => document.documentElement.dataset.nav === 'up', undefined, { timeout: 5_000 });
 });
 
-test('the top nav hides while scrolling and returns when it stops', async ({ page }) => {
+test('the top nav goes away on the way down and stays away until you go back up', async ({ page }) => {
   await openCryptoList(page);
   await settle(page);
   const nav = page.locator('header.chrome-nav');
   await expect(nav).toBeVisible();
 
-  expect(await dimmestDuringScroll(page, 'header.chrome-nav')).toBeLessThan(0.5);
+  await scrollList(page, 900);
+  await expect.poll(async () => nav.evaluate((el) => getComputedStyle(el).opacity), { timeout: 5_000 }).toBe('0');
 
-  // Stopping brings it back without needing to scroll up.
-  await expect
-    .poll(async () => nav.evaluate((el) => getComputedStyle(el).opacity), { timeout: 5_000 })
-    .toBe('1');
+  // Pausing must not flick it back — that was the old behaviour and it made
+  // reading a long list feel twitchy.
+  await page.waitForTimeout(900); // well past the 180ms idle window
+  expect(await nav.evaluate((el) => getComputedStyle(el).opacity)).toBe('0');
+
+  // Heading back up is what returns it.
+  await scrollList(page, 0);
+  await expect.poll(async () => nav.evaluate((el) => getComputedStyle(el).opacity), { timeout: 5_000 }).toBe('1');
 });
 
-test('column labels hide while scrolling and return when it stops', async ({ page }) => {
+test('column labels survive the trip down — they never fade', async ({ page }) => {
   await openCryptoList(page);
   await settle(page);
   const sel = 'div.overflow-x-auto table.sticky-head thead th';
 
-  expect(await dimmestDuringScroll(page, sel)).toBeLessThan(0.5);
+  // The headings are the reason the header is pinned at all; if they dim, the
+  // numbers underneath lose their meaning.
+  expect(await dimmestDuringScroll(page, sel)).toBe(1);
 
-  await expect
-    .poll(async () => page.locator(sel).first().evaluate((el) => getComputedStyle(el).opacity), { timeout: 5_000 })
-    .toBe('1');
-  expect(await page.evaluate(() => document.documentElement.dataset.scrolling)).toBe('0');
+  await scrollList(page, 1500);
+  await page.waitForTimeout(600);
+  expect(await page.locator(sel).first().evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
 });
 
 // Hiding the nav collapses it by 48px, which reflows the list and emits a scroll
