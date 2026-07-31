@@ -472,6 +472,9 @@ async function engineCompute(symbol: string): Promise<any> {
   // TNC-2: null until at least one source is read — 0 sources is not neutral tone.
   let newsScore: number | null = null;
   let bulls = 0, bears = 0, headlines = 0, enriched = 0, newsReason = '', newsDown = false;
+  // Which source actually produced the tone, so the detail line can't claim
+  // 'sources' when it really fell back to RSS headlines.
+  let newsSrc = FIRECRAWL ? 'sources' : 'headlines';
   try {
     if (FIRECRAWL) {
       // Firecrawl search → real article URLs (Google News RSS links are google.com
@@ -490,15 +493,21 @@ async function engineCompute(symbol: string): Promise<any> {
       if (headlines) newsScore = clamp(50 + ((bulls - bears) / headlines) * 50);
       const llm = enriched ? await deepseekTone(name, bodies.filter(Boolean).join('\n\n')) : null;
       if (llm) { newsScore = clamp(50 + llm.tone * 50); newsReason = llm.reason; }
-    } else {
-      // No Firecrawl → Google News RSS headline tone (lexicon).
+    }
+    // Google News RSS is the fallback, not the else-branch: with a Firecrawl key
+    // set but exhausted, the old shape never reached it, so the news factor was
+    // dead for the whole board (0/75 fill in the TN column audit).
+    if (!headlines) {
       const q = encodeURIComponent(`${name} Bourse Tunis`);
-      const xml = await (await fetch(`https://news.google.com/rss/search?q=${q}&hl=fr&gl=TN&ceid=TN:fr`, { headers: UA })).text();
+      // Google 302s a gl=TN query to the nearest supported edition; fetch follows.
+      const xml = await (await fetch(`https://news.google.com/rss/search?q=${q}&hl=fr&gl=TN&ceid=TN:fr`,
+        { headers: UA, signal: AbortSignal.timeout(8000) })).text();
       const titles = (xml.match(/<item>[\s\S]*?<\/item>/g) || []).slice(0, 24)
         .map((b) => (b.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1'));
+      bulls = 0; bears = 0; // Firecrawl contributed nothing; score the headlines alone.
       headlines = titles.length;
       for (const t of titles) { const s = toneSign(t); if (s > 0) bulls++; else if (s < 0) bears++; }
-      if (headlines) newsScore = clamp(50 + ((bulls - bears) / headlines) * 50);
+      if (headlines) { newsScore = clamp(50 + ((bulls - bears) / headlines) * 50); newsDown = false; newsSrc = 'headlines'; }
     }
   } catch { /* no sources read → news stays null */ }
 
@@ -509,7 +518,7 @@ async function engineCompute(symbol: string): Promise<any> {
   const factors = {
     momentum:    { score: momentumScore, detail: traded ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}% today` : 'did not trade today' },
     volume:      { score: volumeScore,   detail: volumeDetail },
-    news:        { score: newsScore,     detail: newsDown ? 'news source unavailable' : `${bulls} bull / ${bears} bear of ${headlines} ${FIRECRAWL ? 'sources' : 'headlines'} (7d)${enriched ? `, ${enriched} full-text` : ''}${newsReason ? ` — ${newsReason}` : ''}` },
+    news:        { score: newsScore,     detail: newsDown ? 'news source unavailable' : `${bulls} bull / ${bears} bear of ${headlines} ${newsSrc} (7d)${enriched ? `, ${enriched} full-text` : ''}${newsReason ? ` — ${newsReason}` : ''}` },
     liquidity:   { score: liquidity,     detail: spreadPct === null ? 'no live book' : `${spreadPct.toFixed(2)}% spread` },
     trend:       { score: trend,         detail: m20 === null && m60 === null ? 'insufficient history' : `${m20 === null ? '—' : pct(m20)} 20d / ${m60 === null ? '—' : pct(m60)} 60d` },
     reversal:    { score: reversal,      detail: rev === null ? 'insufficient history' : `${pct(rev)} 5d trailing (inverted)` },
