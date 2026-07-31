@@ -8,7 +8,22 @@ import { useEffect, type RefObject } from 'react';
 // has to travel out of the component that owns the scroller.
 export function useScrollChrome(ref: RefObject<HTMLElement | null>) {
   useEffect(() => {
-    const el = ref.current;
+    const start = ref.current;
+    if (!start) return;
+    // The ref points at the table's horizontal scroller, which never scrolls
+    // vertically — climb to the ancestor that does, or no scroll event fires and
+    // the chrome never hides. Start above the ref: setting overflow-x forces
+    // overflow-y to compute as auto, so the ref would match itself. No height
+    // check either — rows arrive after mount, so it would be false here.
+    const el = (() => {
+      let node: HTMLElement | null = start.parentElement;
+      while (node) {
+        const oy = getComputedStyle(node).overflowY;
+        if (oy === 'auto' || oy === 'scroll') return node;
+        node = node.parentElement;
+      }
+      return null;
+    })();
     if (!el) return;
     const root = document.documentElement;
     let last = el.scrollTop;
