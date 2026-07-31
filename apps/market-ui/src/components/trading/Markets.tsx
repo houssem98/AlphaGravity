@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useEdgeAutoScroll } from '../../hooks/useEdgeAutoScroll';
+import { useFloatingTableHeader } from '../../hooks/useFloatingTableHeader';
 import { useScrollChrome } from '../../hooks/useScrollChrome';
 import { Search, TrendingUp, TrendingDown, Star, ArrowUpDown, ExternalLink, BarChart2, Flame, Trophy, AlertTriangle, Activity, ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight, Plus, Check, Info, Database, Gauge, Trash2 } from 'lucide-react';
 import { Sparkline } from './Sparkline';
@@ -329,6 +330,8 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   }, [changeTf, cols, colOrder]);
   // Hover the table's left/right edge to reveal off-screen columns.
   const tableScrollRef = useEdgeAutoScroll<HTMLDivElement>();
+  // Column labels stay readable after the real header scrolls away.
+  useFloatingTableHeader(tableScrollRef);
   useScrollChrome(tableScrollRef);
 
   useEffect(() => {
