@@ -257,17 +257,17 @@ const HighlightCard = ({ title, icon: Icon, data, onSelect }: { title: string, i
             <div
               key={coin.id}
               onClick={() => onSelect(coin.symbol)}
-              className="flex items-center justify-between px-2 py-1.5 -mx-2 rounded-sm cursor-pointer hover:bg-[color:var(--surface-2)] transition-colors"
+              className="flex items-center justify-between gap-2 px-2 py-1.5 -mx-2 rounded-sm cursor-pointer hover:bg-[color:var(--surface-2)] transition-colors"
             >
-              <div className="flex items-center gap-2.5">
-                <span className="font-mono text-data text-[color:var(--text-3)] w-3">{idx + 1}</span>
-                <img src={coin.image || `https://assets.coincap.io/assets/icons/${coin.symbol.toLowerCase()}@2x.png`} alt={coin.symbol} className="w-5 h-5 rounded-full" onError={(e) => { (e.target as HTMLImageElement).src = 'https://assets.coincap.io/assets/icons/btc@2x.png' }} />
-                <div className="flex flex-col leading-tight">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <span className="font-mono text-data text-[color:var(--text-3)] w-3 shrink-0">{idx + 1}</span>
+                <img src={coin.image || `https://assets.coincap.io/assets/icons/${coin.symbol.toLowerCase()}@2x.png`} alt={coin.symbol} className="w-5 h-5 rounded-full shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = 'https://assets.coincap.io/assets/icons/btc@2x.png' }} />
+                <div className="flex flex-col leading-tight min-w-0">
                   <span className="text-data font-semibold text-[color:var(--text)]">{coin.symbol}</span>
-                  <span className="text-label text-[color:var(--text-3)] truncate w-20">{coin.name}</span>
+                  <span className="text-label text-[color:var(--text-3)] truncate">{coin.name}</span>
                 </div>
               </div>
-              <div className="flex flex-col items-end leading-tight">
+              <div className="flex flex-col items-end leading-tight shrink-0">
                 <span className="font-mono text-data text-[color:var(--text)]">${formatCurrency(livePrice(coin, spot[coin.symbol]) ?? 0)}</span>
                 <span className={`font-mono text-label flex items-center ${isPositive ? 'up' : 'down'}`}>
                   {isPositive ? <TrendingUp className="w-2.5 h-2.5 mr-0.5" /> : <TrendingDown className="w-2.5 h-2.5 mr-0.5" />}
@@ -679,7 +679,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   };
 
   return (
-    <div ref={tableScrollRef} className="flex-1 bg-[color:var(--bg)] overflow-auto">
+    <div className="flex-1 bg-[color:var(--bg)] overflow-y-auto">
       {/* Global market stats bar */}
       <div className="border-b border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 flex flex-wrap items-center gap-x-5 gap-y-1">
         <Stat label="CRYPTOS" value={markets.length} />
@@ -761,7 +761,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
             its two clusters have room to stick: the tabs pin to the left of the
             viewport and the column chooser to the right, instead of drifting off
             with the columns when the page scrolls sideways. */}
-        <div className="w-max min-w-full bg-[color:var(--surface)] border border-[color:var(--line)]">
+        <div className="w-full bg-[color:var(--surface)] border border-[color:var(--line)]">
         <div className="flex items-center gap-0 mb-0 border-b border-[color:var(--line)]">
           <div className="flex items-center gap-0 overflow-x-auto flex-none sticky left-0 max-w-[100vw]">
             {['all', 'watchlist', 'categories', 'portfolio', 'exchanges', 'nfts', 'converter'].map((tab) => {
@@ -867,12 +867,13 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
           )}
         </div>
 
-        {/* Table — no overflow-hidden on the way down: an overflow!=visible
-            ancestor becomes the scroll container that a sticky <th> pins inside,
-            which would trap the header in this box instead of the page
-            scroller. The box itself is w-max (see above) so its border sits on
-            the table's real edge rather than the viewport's. */}
-          <div>
+        {/* Sticky <th> pins inside this container (the nearest scroll
+              ancestor), so the labels stay visible while the table scrolls
+              horizontally. */}
+          {/* Horizontal scroll belongs to the table, not the page: a
+              root-level x-scroll dragged the stats bar and cards sideways
+              with it. Edge auto-scroll rides this container too. */}
+          <div ref={tableScrollRef} className="w-full overflow-x-auto">
             {activeTab === 'categories' ? (
               <CategoriesTab />
             ) : activeTab === 'exchanges' ? (
@@ -892,7 +893,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                 </div>
               </div>
             ) : (
-              <table className="sticky-head w-full text-left border-collapse whitespace-nowrap">
+              <table className="sticky-head w-full min-w-[1200px] text-left border-collapse whitespace-nowrap">
                 <thead>
                   <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
                     <th className="py-2 px-4 label w-8" />
