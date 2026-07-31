@@ -20,7 +20,7 @@ const MUST_HAVE_DATA = ['7d %', 'Sector', 'ISIN', 'Market Cap', 'Circulating', '
 test('every Tunisian column paints real data', async ({ page }) => {
     test.setTimeout(400_000);
     await page.addInitScript((keys: string[]) => {
-        localStorage.setItem('tn-cols', JSON.stringify({ hidden: Object.fromEntries(keys.map((k) => [k, false])) }));
+        localStorage.setItem('tn-cols-v2', JSON.stringify({ hidden: Object.fromEntries(keys.map((k) => [k, false])) }));
     }, TN_ONLY);
 
     await page.goto('/trading');
