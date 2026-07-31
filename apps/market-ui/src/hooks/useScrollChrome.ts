@@ -31,6 +31,13 @@ export function useScrollChrome(ref: RefObject<HTMLElement | null>) {
 
     const onScroll = () => {
       const y = el.scrollTop;
+      // Hiding the nav collapses it by -3rem (48px), which reflows the list and
+      // fires a scroll event of its own. Read naively that is a direction
+      // reversal, so the nav springs back, reflows again, and the chrome
+      // oscillates forever — measured at 95 events in 3s, deltas up to 48px,
+      // with nobody touching the page. The floor has to clear that self-inflicted
+      // shift; movement below it is reflow noise, not the user scrolling.
+      if (Math.abs(y - last) < 64) return;
       if (y > last && y > 64) root.dataset.nav = 'down';
       else if (y < last) root.dataset.nav = 'up';
       root.dataset.scrolling = '1';
