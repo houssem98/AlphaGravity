@@ -471,11 +471,13 @@
 }
 
 /* Chrome that gets out of the way while scrolling. useScrollChrome publishes the
-   inner scroller's direction + idle state on <html>; the nav slides up (negative
-   margin, so the table takes the space) while scrolling down, and the pinned
-   column head fades out until scrolling stops. */
+   inner scroller's direction + idle state on <html>. Both the nav (slides up on a
+   negative margin, so the table takes the space) and the pinned column head hide
+   while the list is moving down, and both come back the moment it stops — the
+   idle flag clears 180ms after the last accepted scroll, so this is gated on
+   [data-scrolling="1"] rather than on direction alone. */
 .chrome-nav { transition: margin-top 220ms cubic-bezier(0.2,0.8,0.2,1), opacity 160ms ease; }
-[data-nav="down"] .chrome-nav { margin-top: -3rem; opacity: 0; pointer-events: none; }
+[data-nav="down"][data-scrolling="1"] .chrome-nav { margin-top: -3rem; opacity: 0; pointer-events: none; }
 [data-nav="down"][data-scrolling="1"] .sticky-head thead th { opacity: 0; }
 
 @media (prefers-reduced-motion: reduce) {

@@ -19,6 +19,23 @@ async function settle(page: Page) {
   }, undefined, { timeout: 30_000 });
 }
 
+// Both bits of chrome hide only while the list is actually moving, and the idle
+// flag clears 180ms after the last scroll — so sampling once after a jump races
+// the recovery. Drive a continuous scroll and report the dimmest each got.
+async function dimmestDuringScroll(page: Page, selector: string) {
+  return page.evaluate(async (sel) => {
+    const el = document.querySelector('.overflow-y-auto') as HTMLElement;
+    const node = document.querySelector(sel) as HTMLElement;
+    let dimmest = 1;
+    for (let i = 1; i <= 8; i++) {
+      el.scrollTop = i * 150;
+      await new Promise((r) => setTimeout(r, 50));
+      dimmest = Math.min(dimmest, parseFloat(getComputedStyle(node).opacity));
+    }
+    return dimmest;
+  }, selector);
+}
+
 // Scroll the container the hook resolves to, the same way a wheel would.
 async function scrollList(page: Page, top: number) {
   await page.evaluate((y) => {
@@ -40,33 +57,29 @@ test('scrolling down publishes the nav state the chrome CSS listens for', async 
   await page.waitForFunction(() => document.documentElement.dataset.nav === 'up', undefined, { timeout: 5_000 });
 });
 
-test('the top nav hides on the way down and comes back on the way up', async ({ page }) => {
+test('the top nav hides while scrolling and returns when it stops', async ({ page }) => {
   await openCryptoList(page);
   await settle(page);
   const nav = page.locator('header.chrome-nav');
   await expect(nav).toBeVisible();
 
-  await scrollList(page, 900);
-  await expect
-    .poll(async () => nav.evaluate((el) => getComputedStyle(el).opacity), { timeout: 5_000 })
-    .toBe('0');
+  expect(await dimmestDuringScroll(page, 'header.chrome-nav')).toBeLessThan(0.5);
 
-  await scrollList(page, 0);
+  // Stopping brings it back without needing to scroll up.
   await expect
     .poll(async () => nav.evaluate((el) => getComputedStyle(el).opacity), { timeout: 5_000 })
     .toBe('1');
 });
 
-test('column labels come back once scrolling stops', async ({ page }) => {
+test('column labels hide while scrolling and return when it stops', async ({ page }) => {
   await openCryptoList(page);
   await settle(page);
-  const th = page.locator('div.overflow-x-auto table.sticky-head thead th').first();
+  const sel = 'div.overflow-x-auto table.sticky-head thead th';
 
-  await scrollList(page, 900);
-  // The fade is transient by design — the idle flag clears 180ms after the last
-  // scroll event, so assert the resting state rather than racing the animation.
+  expect(await dimmestDuringScroll(page, sel)).toBeLessThan(0.5);
+
   await expect
-    .poll(async () => th.evaluate((el) => getComputedStyle(el).opacity), { timeout: 5_000 })
+    .poll(async () => page.locator(sel).first().evaluate((el) => getComputedStyle(el).opacity), { timeout: 5_000 })
     .toBe('1');
   expect(await page.evaluate(() => document.documentElement.dataset.scrolling)).toBe('0');
 });
