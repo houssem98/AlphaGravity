@@ -44,6 +44,12 @@ const HONEST_EMPTY_RE = new RegExp(
         'not available (?:yet )?for',
         'could not (?:reach|retrieve)',
         'feed unreachable',
+        // Found by probing prod: "I have no tool results to quote. No figures
+        // are available, and I won't estimate them." graded D and burned a
+        // verification round. That is textbook honesty being punished.
+        'no (?:\\w+ )?(?:results?|figures?|data|prices?) (?:are |is )?(?:to quote|available)',
+        "(?:won't|will not|refuse to) (?:estimate|guess|invent)",
+        'cannot call tools|can.t call tools|no tools? (?:are )?available',
     ].join('|'),
     'i',
 );

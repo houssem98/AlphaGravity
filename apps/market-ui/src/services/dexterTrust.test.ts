@@ -82,6 +82,20 @@ describe('row 10 — the grade is earned', () => {
         expect(chipPropsFor(t).label).toBe('B·honest');
     });
 
+    // Found by probing prod: this exact answer graded D and burned a
+    // verification round. Refusing to estimate is the behaviour the whole
+    // roadmap is chasing; grading it down taught the model the opposite.
+    it('treats a refusal to estimate as honesty, not as a thin answer', () => {
+        const t = scoreAnswerTrust({
+            answer: 'I can’t call tools in this environment, so I have no tool results to quote. No figures are available, and I won’t estimate them.',
+            citations: [],
+            steps: LLM_ONLY,
+        });
+        expect(t.honest).toBe(true);
+        expect(t.grade).toBe('B');
+        expect(needsVerification(t)).toBe(false);
+    });
+
     it('treats the draw gate refusing an invented level as honesty', () => {
         const t = scoreAnswerTrust({
             answer: '$1,000 is not a real support level on this chart, so nothing was drawn.',

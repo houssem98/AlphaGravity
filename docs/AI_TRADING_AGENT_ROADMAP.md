@@ -291,7 +291,7 @@ flowchart TB
   (`conditional_logic.py` pattern), default 1 round, cap 3, then a Research Manager verdict
   with confidence. → row 14
 
-- [ ] **DX-10 · Risk trio + Portfolio Manager.** Aggressive / Neutral / Conservative debate
+- [x] **DX-10 · Risk trio + Portfolio Manager.** Aggressive / Neutral / Conservative debate
   → Portfolio Manager emits BUY/SELL/HOLD **with** entry, stop, size, R:R. Missing risk block
   ⇒ output is downgraded to commentary. Disclosure appended. → rows 15, 22
 
@@ -569,3 +569,50 @@ the default path — which is exactly why DX-11 gates it behind an intent router
 and shows the spend before spending it.
 Tests: dexterDebate 20/20, 15 suites / 221 tests, `tsc -b` 0, build 0.
 Deployed `market-9r04lv9wz`.
+
+**DX-10** (2026-08-01) — `dexterRisk.ts`. Aggressive → Conservative → Neutral in
+TradingAgents' rotation (`conditional_logic.py:57`, `count >= 3 *
+max_risk_discuss_rounds`), then a portfolio manager who must open with
+`ACTION / ENTRY / STOP / TARGET / SIZE`. The block is **validated, not trusted**:
+the risk/reward ratio is computed from the levels rather than read from the
+model (a plan claiming 9:1 while its own numbers say 0.4:1 is the exact failure
+this gate exists for), a BUY must have `stop < entry < target` and a SELL the
+reverse, and a stop equal to entry is rejected as no defined risk. A BUY or SELL
+that fails any of these is **downgraded to commentary** — the plan is dropped,
+never quietly repaired, and the final prompt is told it may not present it as a
+trade. HOLD needs no numbers; it is a real answer. The disclosure (row 22) is
+appended by the handler, not left to the model, and the risk block the user sees
+is rendered from the validated numbers so the two cannot disagree.
+
+Prod, `mode:"decide"` on "Should I go long BTC here? Give me a plan.":
+debate `NEUTRAL 60%`, risk turns 3, `commentary: false`, plan `null` because the
+manager chose HOLD — and the answer said so explicitly: *"Action: HOLD — no
+trade… This is the manager's decision, not a trade in disguise."* Steps
+`aggressive/20816ms conservative/6019ms neutral/45098ms portfolio/3178ms`,
+grade **B score 76**, disclosure present. The neutral analyst produced the
+sharpest line in the run, and it came straight off DX-4's numbers: *"ATR(14) is
+1655.60, which is larger than the entire support-resistance range — price can
+whipsaw through both levels before a clean signal appears."*
+
+**Latency is now the headline problem: 158.7 s server time** for the full
+`decide` path (analysts ~19 s + debate ~32 s + risk ~75 s + answer ~20 s). That
+also revealed `maxDuration = 60` was being exceeded without a 504, i.e. the
+declared value was not biting; it is now declared honestly at 300. This is the
+strongest possible argument for DX-11 gating this path rather than defaulting to
+it.
+
+Two limits stated rather than papered over:
+- The commentary-downgrade path is **unit-verified, not prod-verified** (9 cases
+  in `dexterRisk.test.ts`). Forcing a real manager to emit a malformed block on
+  demand is not reliably reproducible, and faking one in prod would prove
+  nothing about the real prompt.
+- A smoke test found honest refusals grading **D** and burning a verification
+  round — "No figures are available, and I won't estimate them." The
+  honest-empty patterns were widened and the exact string is now pinned in a
+  test, but a re-probe produced *different* wording ("no tool-result figures to
+  report") that still misses. Phrase-matching honesty is brittle; a structural
+  signal (no figures claimed AND no tool ran ⇒ nothing to verify) is the real
+  fix and is **not** done. Over-punishing honesty is a mis-grade, not a safety
+  hole, so it is logged rather than rushed.
+Tests: dexterRisk 29/29, 16 suites / 251 tests, `tsc -b` 0, build 0.
+Deployed `market-aukfbiajl`.

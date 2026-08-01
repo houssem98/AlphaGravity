@@ -23,10 +23,17 @@ import { allCitations, renderReports, runAnalysts } from '../../src/services/dex
 import {
   clampRounds, renderTurns, runDebate, type DebateResult,
 } from '../../src/services/dexterDebate.js';
+import {
+  clampRiskRounds, renderPlan, runRisk, DISCLOSURE, type RiskResult,
+} from '../../src/services/dexterRisk.js';
 import type { Bar } from '../../src/services/taLevels.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
-export const maxDuration = 60;   // a tool round-trip plus a reasoning model exceeds the 10s default
+// A tool round-trip plus a reasoning model exceeds the 10s default. The full
+// `decide` path (analysts → debate → risk trio → answer) measured 158.7s in
+// prod, so 60 was already being exceeded without a 504 — the declared value was
+// not biting. Declared honestly at 300 rather than relying on that.
+export const maxDuration = 300;
 
 export const MAX_TOOL_LOOPS = 5;
 
@@ -37,7 +44,7 @@ export default async function handler(req: any, res: any) {
   if (fn !== 'chat') return res.status(404).json({ error: `Unknown agent route: ${fn}` });
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-  const { messages, asset, tools, mode, rounds } = req.body ?? {};
+  const { messages, asset, tools, mode, rounds, riskRounds } = req.body ?? {};
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages[] required' });
   }
@@ -123,6 +130,18 @@ export default async function handler(req: any, res: any) {
           { meta: d => `${d.rounds} round(s), ${d.turns.length} turns → ${d.stance}${d.confidence === null ? '' : ` ${d.confidence}%`}` });
       }
 
+      // DX-10: three risk views, then a portfolio manager who has to show the
+      // risk. A BUY/SELL whose block does not validate comes back as
+      // commentary — the plan is dropped, not quietly repaired.
+      let risk: RiskResult | null = null;
+      if (mode === 'decide') {
+        risk = await trace.step('Risk trio + portfolio manager', 'risk',
+          () => runRisk(ctx, reports, debate, { callLLM }, clampRiskRounds(riskRounds)),
+          { meta: r => r.plan
+              ? `${r.plan.action} ${r.plan.sizePct}% · stop ${r.plan.stop} · R:R ${r.plan.rr}:1`
+              : `no position (${r.commentary ? `downgraded: ${r.rejectReason}` : 'HOLD'})` });
+      }
+
       const final = await trace.step('Answering from the analyst reports', 'llm',
         () => chatWithFallback([
           ...messages as ChatMessage[],
@@ -143,6 +162,17 @@ export default async function handler(req: any, res: any) {
                   `${debate.stance}${debate.confidence === null ? '' : ` at ${debate.confidence}% confidence`}. ` +
                   `Lead with that verdict and the reason it won.\n\n` +
                   `Manager's verdict:\n${debate.verdict}\n\nDebate:\n${renderTurns(debate.turns)}`
+                : '') +
+              (risk
+                ? `\n\nPortfolio manager's decision:\n${risk.text}\n\n` +
+                  (risk.plan
+                    ? `The risk block validated. State it exactly as given and do not restate the ` +
+                      `numbers differently anywhere else.`
+                    : risk.commentary
+                      ? `The risk block did NOT validate (${risk.rejectReason}). You may NOT present ` +
+                        `this as a trade. Present it as commentary and say plainly that no ` +
+                        `executable plan was produced.`
+                      : `The manager chose HOLD, which is a real answer. Do not turn it into a trade.`)
                 : ''),
           },
         ], [], { keys }),
@@ -150,9 +180,16 @@ export default async function handler(req: any, res: any) {
       provider = final.provider;
       model = final.model;
 
+      // Row 22: the disclosure is appended here, not left to the model's
+      // discretion — and the validated risk block is rendered from the numbers
+      // that passed validation, so the two can never disagree.
+      let answer = final.text;
+      if (risk?.plan) answer = `${renderPlan(risk.plan, ctx)}\n\n${answer}`;
+      if (mode === 'decide') answer = `${answer}\n\n_${DISCLOSURE}_`;
+
       const deepTrust = scoreAnswerTrust({ answer: final.text, citations, steps: trace.done() });
       return res.json({
-        text: final.text,
+        text: answer,
         actions,
         steps: trace.done(),
         citations,
@@ -164,6 +201,11 @@ export default async function handler(req: any, res: any) {
           rounds: debate.rounds, stance: debate.stance, confidence: debate.confidence,
           verdict: debate.verdict, turns: debate.turns, steps: debate.steps,
         },
+        risk: risk && {
+          rounds: risk.rounds, plan: risk.plan, commentary: risk.commentary,
+          rejectReason: risk.rejectReason, turns: risk.turns, steps: risk.steps,
+        },
+        disclosure: mode === 'decide' ? DISCLOSURE : undefined,
         fabricatedCites: findUnmappedCites(final.text, citations),
         uncitedFigures: uncitedFigures(final.text),
         provider, model, ms: Date.now() - t0,
