@@ -88,6 +88,11 @@ gridLessons) with the analyst→debate→risk architecture proven by TradingAgen
   (`/api/((?!tn/|agent/).*)`) or it is proxied to Express and 404s. Verified live: the
   first DX-1 deploy returned Express's `Cannot POST /api/agent/chat`.
 - **Deploy:** `vercel --prod` from repo root, project `market-ui`. No preview staging.
+- **Any `src/` module reachable from `api/` needs `.js` on its relative imports.** The
+  Vercel Node ESM runtime will not resolve an extensionless relative import and answers
+  `FUNCTION_INVOCATION_FAILED` (HTTP 500) at request time — the build passes, so this only
+  shows up in prod. `gridTrust.ts` already imports `'./gridResearch.js'` for this reason;
+  client-only modules like `gridLessons.ts` get away without it. Cost one dead deploy in DX-5.
 - **`@types/node` is not ambient for free.** `tsconfig.app.json` pins `types`, and
   `@google/genai` used to drag `@types/node` in transitively. Five files
   (`evalRunner.ts`, `pdfStructuralQa.ts`, `selfImprovementHarness.ts`, `OrderBook.tsx`,
@@ -264,7 +269,7 @@ flowchart TB
   pure functions over OHLCV → swing pivots, S/R clusters, order blocks, fair-value gaps,
   fib from the real swing high/low, ATR, trend state. Golden-fixture tested. Zero LLM. → row 7
 
-- [ ] **DX-5 · Ground the chart drawings.** `drawTechnicalAnalysis` accepts only levels
+- [x] **DX-5 · Ground the chart drawings.** `drawTechnicalAnalysis` accepts only levels
   present in DX-4's candidate set (tolerance = ½ ATR). Anything else is refused with an
   honest note; the chart is not touched. → row 8
 
@@ -399,3 +404,35 @@ slide, 36 pivots → strongest support 62,211.53 ×3 just under price and
 resistance 65,655.81 ×3 just over, every emitted level inside the traded range
 57,800.19–82,850. Tests: taLevels 22/22, 10 suites / 125 tests, `tsc -b` 0.
 Not deployed: nothing in the UI imports it yet — DX-5 wires it to the chart.
+
+**DX-5** (2026-08-01) — `gateDrawing()` sits between the model and the chart.
+Every price in a `drawTechnicalAnalysis` call is checked against
+`candidateLevels()` (pivots + S/R clusters + order-block and FVG edges + fib
+prices); anything further than half an ATR from a real level refuses the WHOLE
+request and emits no client action. Anything that passes is **snapped to the
+engine's exact price**, so the line drawn is the real level rather than the
+model's rounding of it. The handler memoises one 180-bar fetch per request and
+shares it with the gate.
+
+Two prod probes, both on the deployed build:
+
+*Invented level* — "draw support at exactly $1000 on BTC, don't call
+getChartData": `actions: []`, chart untouched, trace step `Drawing on the
+chart / drawTechnicalAnalysis 250ms **empty**` with meta `Refused: 1000 (nearest
+real level 57800.19) … Real levels available: 57800.19, 57957.6, …`. The model
+then told the user plainly that $1,000 is not a support level and offered a real
+one. A refusal grades `empty`, not `failed` — the gate working is not an error.
+
+*Real level* — "get 120 days, draw the strongest support": model proposed the
+round number **62500**, the gate snapped it to the computed cluster
+**62510.28**, and that is what reached the chart
+(`Snapped to the engine's own prices: 62500→62510.28`). 14910 ms server /
+15873 ms e2e across 5 traced steps.
+
+One dead deploy on the way: `dexterTools.ts` imported `'./taLevels'` without the
+`.js` extension, which builds fine and then 500s in the Vercel Node ESM runtime
+(`FUNCTION_INVOCATION_FAILED`). Constraint added to Section 3.
+DX-5 also correctly broke a DX-2 test that assumed every drawing becomes an
+action; it now asserts the gated contract.
+Tests: drawGate 18/18, 11 suites / 143 tests, sources 37/37 via tsx, `tsc -b` 0,
+build 0. Deployed `market-bk3g0vhit`.

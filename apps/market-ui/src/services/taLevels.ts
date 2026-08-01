@@ -230,6 +230,35 @@ export function trendFromPivots(pivots: Pivot[]): 'up' | 'down' | 'range' {
     return 'range';
 }
 
+// DX-5: every price this engine legitimately produced, flattened. A level that
+// is not in here did not come from the market, and the draw gate refuses it.
+export function candidateLevels(ta: TaLevels): number[] {
+    const prices = [
+        ...ta.pivots.map(p => p.price),
+        ...ta.support.map(l => l.price),
+        ...ta.resistance.map(l => l.price),
+        ...ta.orderBlocks.flatMap(z => [z.top, z.bottom]),
+        ...ta.fairValueGaps.flatMap(z => [z.top, z.bottom]),
+        ...(ta.fib?.levels.map(l => l.price) ?? []),
+    ];
+    return [...new Set(prices)].sort((a, b) => a - b);
+}
+
+// How far a proposed level may sit from a real one and still count as the same
+// level. Half an ATR is the usual "same zone" heuristic; without an ATR (short
+// history) fall back to a fraction of price so the rule survives a 10 TND
+// listing as well as a 66,000 USD one.
+export function levelTolerance(ta: TaLevels, fraction = DEFAULTS.clusterAtrFraction): number {
+    if (ta.atr !== null) return ta.atr * fraction;
+    return Math.abs(ta.lastClose ?? 0) * 0.005;
+}
+
+export function nearestCandidate(price: number, candidates: number[]): number | null {
+    if (candidates.length === 0) return null;
+    return candidates.reduce((best, c) =>
+        Math.abs(c - price) < Math.abs(best - price) ? c : best);
+}
+
 export function taLevels(bars: Bar[], opts: TaOptions = {}): TaLevels {
     const o = { ...DEFAULTS, ...opts };
     const clean = bars.filter(b =>

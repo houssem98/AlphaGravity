@@ -50,15 +50,25 @@ describe('row 4 — typed tool contract', () => {
         expect(out.action).toBeUndefined();
     });
 
-    it('turns a draw request into a client action rather than a chart mutation here', async () => {
+    // DX-5 added the gate in front of this: a drawing becomes a client action
+    // only once its prices survive verification against the real bars. The
+    // refusal path and the snapping are covered in drawGate.test.ts.
+    it('turns a verified draw request into a client action rather than a chart mutation here', async () => {
+        const bars = [
+            { date: 'd1', open: 100, high: 104, low: 98, close: 103 },
+            { date: 'd2', open: 103, high: 106, low: 99, close: 105 },
+            { date: 'd3', open: 105, high: 112, low: 100, close: 110 },
+            { date: 'd4', open: 107, high: 108, low: 97, close: 99 },
+            { date: 'd5', open: 99, high: 107, low: 96, close: 105 },
+        ];
         const out = await executeTool(
             'drawTechnicalAnalysis',
-            { type: 'support_resistance', levels: [93000, 95000], reasoning: 'swing pivots' },
-            CRYPTO, deps({}),
+            { type: 'support_resistance', levels: [112], reasoning: 'swing pivots' },
+            CRYPTO, { ...deps({}), getBars: async () => bars },
         );
         expect(out.action).toEqual({
             type: 'support_resistance',
-            args: { type: 'support_resistance', levels: [93000, 95000], reasoning: 'swing pivots' },
+            args: { type: 'support_resistance', levels: [112], reasoning: 'swing pivots' },
         });
         expect(String(out.data)).toContain('support_resistance');
     });

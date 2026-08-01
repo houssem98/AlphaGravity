@@ -13,6 +13,15 @@
 // to apply. Nothing about a drawing is invented here; DX-5 will gate the levels
 // against the deterministic TA engine.
 
+// The .js extension is load-bearing: this module is reachable from
+// api/agent/[fn].ts, and the Vercel Node ESM runtime will not resolve a
+// extensionless relative import (it 500s with FUNCTION_INVOCATION_FAILED).
+// Same reason gridTrust.ts imports './gridResearch.js'.
+import {
+    taLevels, candidateLevels, levelTolerance, nearestCandidate,
+    type Bar, type TaLevels,
+} from './taLevels.js';
+
 export interface AssetContext {
     symbol: string;
     isTN: boolean;
@@ -48,7 +57,12 @@ export interface ToolOutcome {
 export const TOOL_DEFS = [
     {
         name: 'drawTechnicalAnalysis',
-        description: 'Draw technical analysis indicators on the chart.',
+        description:
+            'Draw technical analysis indicators on the chart. Every price you pass is verified ' +
+            'against levels computed from the actual bars (swing pivots, support/resistance ' +
+            'clusters, order blocks, fair-value gaps, fibonacci). A price further than half an ' +
+            'ATR from a real level is refused and nothing is drawn, so call getChartData first ' +
+            'and choose levels the data supports rather than estimating round numbers.',
         parameters: {
             type: 'object',
             properties: {
@@ -107,9 +121,97 @@ export const TOOL_DEFS = [
 export const TOOL_NAMES: readonly string[] = TOOL_DEFS.map(t => t.name);
 
 // Injected so tests never touch the network and the caller decides the origin
-// (`https://<deployment-host>` on Vercel, the dev server locally).
+// (`https://<deployment-host>` on Vercel, the dev server locally). `getBars` is
+// the memoised daily series the draw gate checks against — the handler shares
+// one fetch across every tool call in a run.
 export interface ToolDeps {
     getJson: (url: string) => Promise<any>;
+    getBars?: () => Promise<Bar[]>;
+}
+
+// chartData answers in three shapes (array for equities and crypto, an object
+// with dailyBars for BVMT). The gate needs one.
+export function normalizeBars(data: unknown): Bar[] {
+    const rows = Array.isArray(data)
+        ? data
+        : (data && typeof data === 'object' && Array.isArray((data as any).dailyBars))
+            ? (data as any).dailyBars
+            : [];
+    return rows.filter((b: any) =>
+        b && Number.isFinite(b.open) && Number.isFinite(b.high) &&
+        Number.isFinite(b.low) && Number.isFinite(b.close));
+}
+
+export interface DrawGate {
+    ok: boolean;
+    args?: Record<string, unknown>;   // snapped to the engine's own prices
+    reason?: string;
+    snapped?: Array<{ asked: number; drawn: number }>;
+}
+
+function proposedPrices(args: Record<string, unknown>): number[] {
+    const levels = Array.isArray(args.levels) ? args.levels.filter((n: unknown) => Number.isFinite(n)) as number[] : [];
+    const points = Array.isArray(args.points)
+        ? (args.points as any[]).map(p => p?.price).filter((n: unknown) => Number.isFinite(n)) as number[]
+        : [];
+    return [...levels, ...points];
+}
+
+// DX-5: the model may SELECT a level and explain it; it may not INVENT one.
+// Anything further than half an ATR from a price the engine actually computed
+// is refused and the chart is left alone. Anything that passes is snapped to the
+// engine's exact price, so the line on the chart is the real level rather than
+// the model's rounding of it.
+export function gateDrawing(args: Record<string, unknown>, ta: TaLevels): DrawGate {
+    const proposed = proposedPrices(args);
+    if (proposed.length === 0) {
+        // Nothing numeric to verify (e.g. a pure annotation) — nothing to fake.
+        return { ok: true, args };
+    }
+
+    const candidates = candidateLevels(ta);
+    if (candidates.length === 0) {
+        return {
+            ok: false,
+            reason: ta.bars === 0
+                ? 'No price bars available, so no level can be verified. Call getChartData first.'
+                : `Only ${ta.bars} bars available — not enough structure to verify a level against.`,
+        };
+    }
+
+    const tolerance = levelTolerance(ta);
+    const snapped: Array<{ asked: number; drawn: number }> = [];
+    const rejected: Array<{ asked: number; nearest: number }> = [];
+
+    for (const price of proposed) {
+        const nearest = nearestCandidate(price, candidates)!;
+        if (Math.abs(nearest - price) <= tolerance) snapped.push({ asked: price, drawn: nearest });
+        else rejected.push({ asked: price, nearest });
+    }
+
+    if (rejected.length > 0) {
+        const detail = rejected
+            .map(r => `${r.asked} (nearest real level ${r.nearest})`)
+            .join(', ');
+        return {
+            ok: false,
+            reason:
+                `Refused: ${detail}. Levels must come from the price data, not from estimation — ` +
+                `nothing was drawn. Real levels available: ${candidates.join(', ')}.`,
+        };
+    }
+
+    // Rewrite the args with the engine's prices, in the order they were asked.
+    const map = new Map(snapped.map(s => [s.asked, s.drawn]));
+    const out: Record<string, unknown> = { ...args };
+    if (Array.isArray(args.levels)) {
+        out.levels = (args.levels as number[]).map(n => map.get(n) ?? n);
+    }
+    if (Array.isArray(args.points)) {
+        out.points = (args.points as any[]).map(p =>
+            Number.isFinite(p?.price) ? { ...p, price: map.get(p.price) ?? p.price } : p);
+    }
+    return { ok: true, args: out, snapped };
 }
 
 const BINANCE_KLINES = 'https://api.binance.com/api/v3/klines';
@@ -234,11 +336,22 @@ export async function executeTool(
             return { data: await fundamentalData(ctx, deps) };
         case 'getFinancialStatements':
             return { data: await financialStatements(ctx, deps) };
-        case 'drawTechnicalAnalysis':
+        case 'drawTechnicalAnalysis': {
+            // DX-5: verified against the deterministic engine before it can
+            // touch the chart. A refusal is not a failure — it is the gate
+            // doing its job, and the model can retry with a real level.
+            const bars = deps.getBars ? await deps.getBars() : [];
+            const gate = gateDrawing(args, taLevels(bars));
+            if (!gate.ok) return { data: { error: gate.reason } };
+            const drawn = gate.args!;
+            const note = gate.snapped?.some(s => s.asked !== s.drawn)
+                ? ` Snapped to the engine's own prices: ${gate.snapped.filter(s => s.asked !== s.drawn).map(s => `${s.asked}→${s.drawn}`).join(', ')}.`
+                : '';
             return {
-                data: `Drawing dispatched to the chart: ${args.type}.`,
-                action: { type: String(args.type ?? ''), args },
+                data: `Drawing dispatched to the chart: ${args.type}.${note}`,
+                action: { type: String(args.type ?? ''), args: drawn },
             };
+        }
         default:
             return { data: { error: `Unknown tool: ${name}` } };
     }

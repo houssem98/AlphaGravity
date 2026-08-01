@@ -11,9 +11,10 @@ import {
   type ChatMessage, type ProviderId, type ToolDef,
 } from '../../src/services/dexterLlm.js';
 import {
-  executeTool, isEmptyToolData, toolMeta, TOOL_DEFS, TOOL_LABEL,
-  type AssetContext, type ClientAction, type ToolOutcome,
+  executeTool, isEmptyToolData, normalizeBars, toolMeta, TOOL_DEFS, TOOL_LABEL,
+  type AssetContext, type ClientAction, type ToolDeps, type ToolOutcome,
 } from '../../src/services/dexterTools.js';
+import type { Bar } from '../../src/services/taLevels.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
 export const maxDuration = 60;   // a tool round-trip plus a reasoning model exceeds the 10s default
@@ -53,6 +54,21 @@ export default async function handler(req: any, res: any) {
     });
     if (!r.ok) throw new Error(`${url} → HTTP ${r.status}`);
     return r.json();
+  };
+
+  // DX-5: the draw gate needs the same bars the analysis ran on. Fetched at
+  // most once per request and shared by every tool call in the loop.
+  let barsPromise: Promise<Bar[]> | null = null;
+  const deps: ToolDeps = {
+    getJson,
+    getBars: () => {
+      barsPromise ??= ctx
+        ? executeTool('getChartData', { days: 180 }, ctx, { getJson })
+            .then(o => normalizeBars(o.data))
+            .catch(() => [])
+        : Promise.resolve([]);
+      return barsPromise;
+    },
   };
 
   const history: ChatMessage[] = [...messages];
@@ -107,7 +123,7 @@ export default async function handler(req: any, res: any) {
             TOOL_LABEL[call.name] ?? `Running ${call.name}`,
             call.name,
             () => ctx
-              ? executeTool(call.name, call.args, ctx, { getJson })
+              ? executeTool(call.name, call.args, ctx, deps)
               : Promise.resolve({ data: { error: 'No asset context — tools are unavailable for this request.' } }),
             {
               isEmpty: o => isEmptyToolData(o.data),
