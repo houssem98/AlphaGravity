@@ -16,7 +16,8 @@
     "probe": "tsx scripts/grid-numeric-probe.mjs",
     "e2e": "playwright test",
     "check:tn": "npx tsc -b && npx playwright test tnColumnAudit tnNullFeed",
-    "check:dexter": "tsx scripts/capture-dexter-fixtures.mjs && playwright test e2e/dexterNarrow.spec.ts"
+    "check:dexter": "tsx scripts/capture-dexter-fixtures.mjs && playwright test e2e/dexterNarrow.spec.ts",
+    "check:ship": "tsx scripts/capture-dexter-ship.mjs && playwright test e2e/dexterShip.spec.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

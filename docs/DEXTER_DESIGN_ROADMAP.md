@@ -263,7 +263,7 @@ flowchart TD
       their own container, no horizontal body scroll, old `localStorage` replies render
       cleanly with no empty panels.
       Rows 12, 16.
-- [ ] **DD-14 — Ship and prove.** `vercel --prod`, live probe with a real asset payload,
+- [x] **DD-14 — Ship and prove.** `vercel --prod`, live probe with a real asset payload,
       screenshot the panel, record grade / citation count / step timings in §8.
       Row 17.
 
@@ -487,3 +487,61 @@ measured ms, screenshot path. No adjectives.)_
   `6 steps · 37216ms · 1 failed`. Repeatable via `npm run check:dexter`
   (captures the live CSS, then measures). Tests +29 (rows 12, 16). `npx vitest run`
   PASS 857 / FAIL 0 / skipped 7. `tsc --noEmit` 0 errors.
+- 2026-08-01 — **DD-14 done. Ledger complete, 14/14.** `vercel --prod` →
+  `market-lmsiqwkcp`, aliased `market-ui-self.vercel.app`, chunk
+  `TradingAssistantPage-hSGzTHvf.js`. **Live streaming probe** → 200 in 40.82s:
+  wire opened `plan intent=deep stages=[memory,analysts,llm]`, then memory 533ms
+  / analysts 17927ms / llm 21535ms, then done — `deepseek/deepseek-v4-flash`,
+  ms 40250, 1917 chars, **17 citations, 38 markers → 38 chips, 0 fabricated,
+  0 uncited, trust B/80** with 4 reasons incl. "33/33 figures sit in a cited
+  sentence", levels block present, 0 actions. That reply is frozen as
+  `__fixtures__/dexter-prod-ship.json` and is the subject of the ship gate
+  `e2e/dexterShip.spec.ts` (8 assertions, all green) which renders it through the
+  panel's own `Turn` under the **prod CSS bundle** at a 420px rail: 38 chips each
+  resolving to a real source row, 0 dangling anchors, no `[N]` left as literal
+  text in the answer, `data-trust-grade="B"` with 80/100 + 1 round + 4 `<li>`
+  reasons, levels ladder as a component (no raw JSON), 17 untruncated source
+  cards, 0 fabricated banners, 0 uncited marks, 3 timeline bars with 21535ms and
+  the provider meta, and `scrollWidth == clientWidth`. Screenshot:
+  `e2e/fixtures/dexter-ship.png` (420×2690). Repeatable via `npm run check:ship`.
+  Final state: `npx vitest run` **PASS 857 / FAIL 0 / skipped 7** (from 693 at
+  ledger open, +164), `tsc --noEmit -p tsconfig.app.json` **0 errors**, playwright
+  **11 passed** (3 narrow + 8 ship), and a diff scan for `#hex` / `text-[Npx]` /
+  `rounded-2xl` / typography-plugin classes across the whole ledger: **0 hits**.
+
+---
+
+## 9. What shipped
+
+All 12 faults closed, each proven against a live prod reply rather than a fixture:
+
+| Fault | Closed by | Proof |
+|-------|-----------|-------|
+| F1 inert markdown | DD-2 | 19-node component map; live answer renders headings/lists/tables |
+| F2 the footer lied | DD-1 | footer prints `deepseek/deepseek-v4-flash` from the reply |
+| F3 no design system | DD-1, DD-12 | 0 hex / 0 `text-[Npx]` / 0 off-scale radius in the Dexter tree |
+| F4 inert citations | DD-4 | 38 markers → 38 chips, 0 dangling anchors |
+| F5 truncated evidence | DD-5 | 17 source cards, full payloads, 0 clipped |
+| F6 unlocated figures | DD-6 | marks at their own position; cited occurrences left clean |
+| F7 tiny trust verdict | DD-7 | strip with grade, 80/100, rounds, 4 visible reasons |
+| F8 collapsed pipeline | DD-9 | timeline with proportional bars + provider meta |
+| F9 chat-bubble research | DD-3 | assistant turns are full-width documents |
+| F10 no structured render | DD-8 | server-emitted levels ladder + plan card |
+| F11 one-line loading | DD-10 | stage checklist from a server-sent plan |
+| F12 silent chart edits | DD-11 | "support / resistance · 9 levels" from `reply.actions` |
+
+**Two deliberate deviations from the task text**, both toward doctrine 4 (never
+display what the server did not send):
+
+1. **DD-8** emits the fenced blocks from validated server data instead of adding
+   a prompt contract for the model to author them. A ladder built from a
+   model-written number would make an invented level look authoritative.
+2. **DD-5** renders per-citation latency only where a step's tool *is* the
+   citation's source. Prod resolves **0 of 17** today, because the reply times
+   stages (`memory`/`analysts`/`llm`) while citations come from `taLevels`,
+   `social` and outlet names. The cards show no number rather than a wrong one.
+
+**Open, and not this ledger's to fix** — roughly half of prod probes across the
+session returned `text:""` with trust F/0 "no answer produced", all steps `ok`,
+answer step 36–44s. The panel degrades honestly (text-only, real F/0 verdict, no
+empty shells), but it is a real agent-side fault and belongs in a DX ledger.

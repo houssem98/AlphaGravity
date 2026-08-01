@@ -787,7 +787,7 @@ export const ChartActions: React.FC<{ actions?: ClientAction[] }> = ({ actions }
 // a full-width document marked by a left rule — no avatar column stealing 56px,
 // no 85% cap. The user's own words are typed plain text, so they render plain
 // (whitespace preserved), never through the markdown map.
-export const Turn: React.FC<{ msg: Message }> = ({ msg }) => {
+export const Turn: React.FC<{ msg: Message; traceOpen?: boolean }> = ({ msg, traceOpen }) => {
   if (msg.role === 'user') {
     return (
       <div className="flex flex-row-reverse gap-4">
@@ -814,7 +814,7 @@ export const Turn: React.FC<{ msg: Message }> = ({ msg }) => {
         <TrustStrip trust={msg.trust} uncitedCount={msg.uncitedFigures?.length ?? 0} />
       )}
       <EvidencePanel citations={msg.citations} steps={msg.steps} scope={msg.id} />
-      {msg.steps && <TracePanel steps={msg.steps} />}
+      {msg.steps && <TracePanel steps={msg.steps} defaultOpen={traceOpen} />}
     </div>
   );
 };

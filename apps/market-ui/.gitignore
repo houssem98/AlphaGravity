@@ -6,3 +6,6 @@ playwright-report
 e2e/fixtures/dexter-prod.css
 e2e/fixtures/dexter-turn.html
 e2e/fixtures/dexter-380.png
+e2e/fixtures/dexter-ship.css
+e2e/fixtures/dexter-ship.html
+e2e/fixtures/dexter-ship.png
