@@ -33,6 +33,9 @@ import {
   buildEntry, recordDecision, supabaseJournalStore,
 } from '../../src/services/dexterJournal.js';
 import { gradeOpen } from '../../src/services/dexterOutcome.js';
+import {
+  buildPastContext, renderTrackRecord, trackRecord,
+} from '../../src/services/dexterMemory.js';
 import type { Bar } from '../../src/services/taLevels.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
@@ -180,6 +183,22 @@ export default async function handler(req: any, res: any) {
     // is opt-in so it can be probed without changing the default path.
     if ((effectiveMode === 'deep' || effectiveMode === 'decide') && ctx) {
       const callLLM = (msgs: ChatMessage[]) => countedChat(msgs, [], { keys });
+
+      // DX-14: what this agent already tried on this name, and how it went. One
+      // storage read, no model call. Empty journal ⇒ empty block: a model told
+      // "no prior history" starts inventing patterns, a model told nothing
+      // does not.
+      let memoryBlock = '';
+      if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        try {
+          const rows = await trace.step('Recalling past calls', 'memory',
+            () => supabaseJournalStore(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!).get(),
+            { isEmpty: rs => rs.length === 0, meta: rs => `${rs.length} journalled decision(s)` });
+          const past = buildPastContext(rows, ctx.symbol);
+          const record = renderTrackRecord(trackRecord(rows));
+          memoryBlock = [past.text, record].filter(Boolean).join('\n\n');
+        } catch { /* memory is a bonus; never fail a run over it */ }
+      }
       const reports = await trace.step('Running analysts', 'analysts',
         () => runAnalysts(ctx, { tools: deps, callLLM }),
         {
@@ -221,6 +240,7 @@ export default async function handler(req: any, res: any) {
           {
             role: 'user',
             content:
+              (memoryBlock ? `${memoryBlock}\n\n---\n\n` : '') +
               `Analyst reports for ${ctx.symbol}:\n\n${renderReports(reports)}\n\n` +
               `Answer the question using these reports. Keep every [N] marker attached to the ` +
               `figure it came from, and do not introduce a figure that is not in a report above.\n\n` +

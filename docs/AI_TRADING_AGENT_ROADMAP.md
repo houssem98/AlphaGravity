@@ -314,7 +314,7 @@ flowchart TB
   bars, classifies target-hit / stop-hit / still-open, and writes a reflection lesson
   (`memory.py: update_with_outcome` pattern). → row 17
 
-- [ ] **DX-14 · Lesson injection.** Next question about a ticker preloads that ticker's past
+- [x] **DX-14 · Lesson injection.** Next question about a ticker preloads that ticker's past
   decisions + outcomes, plus capped cross-ticker lessons (`get_past_context` pattern, fused
   with `gridLessons.deriveLessons`). → row 18
 
@@ -721,3 +721,30 @@ minutes old with no later bar in existence, so it declined to grade rather than
 inventing an outcome.
 Tests: dexterOutcome 26/26, 19 suites / 339 tests, `tsc -b` 0, build 0.
 Deployed `market-8rkfes01s`.
+
+**DX-14** (2026-08-01) — `dexterMemory.ts`, the same 5-same / 3-cross split as
+TradingAgents' `get_past_context`, over the DX-12 journal. One storage read, no
+model call. Two rules stop it becoming a way to launder invention: only
+*resolved* outcomes carry a lesson (an open position is listed as open, because
+it has taught nothing yet), and an empty journal injects an **empty string** —
+a model told "no prior history" starts inventing patterns, a model told nothing
+does not. The block also carries no `[N]` markers, so recalled history can never
+be mistaken for evidence by the DX-6 citation checker, and it says so in words:
+*"your own record, not market data — do not cite it as a source and do not let a
+past result become the reason for this one."*
+
+Also added `trackRecord` — wins, losses, total R and hit rate from the agent's
+own journal, rendered into the prompt so a run that has been consistently wrong
+cannot present itself with the same confidence as one that has not.
+
+Verified end-to-end in prod. The recall step: `Recalling past calls / memory /
+ok / 402ms — 1 journalled decision(s)`. Then, asked "what is the setup on BTC,
+and have you called this name before?", the deployed agent answered:
+
+> "Yes—I have called BTC before (**my open SELL at 63098.39**), but that is
+> history, not a reason to act."
+
+That is the exact entry DX-12 wrote, recalled correctly, with the instruction
+obeyed rather than merely present. Grade B, every market figure cited, and no
+citation marker anywhere near the recalled history.
+Tests: dexterMemory 22/22, 20 suites / 361 tests, `tsc -b` 0, build 0.
