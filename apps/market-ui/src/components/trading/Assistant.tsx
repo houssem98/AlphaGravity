@@ -638,31 +638,75 @@ const EvidencePanel: React.FC<{
 
 // DX-3: what actually ran, under the answer. A step is here iff its call
 // executed, so a failed feed shows its real error rather than disappearing.
-const TracePanel: React.FC<{ steps: CellStep[] }> = ({ steps }) => {
-  const [open, setOpen] = useState(false);
+// DD-9 / F8: analysts → debate → risk → verification is the product's
+// differentiator and it collapsed to `▸ 6 steps · 32351ms` in grey. The
+// timeline gives every step its glyph, its label, a bar proportional to the run
+// it belongs to, and its real meta or error text — never truncated, because the
+// error string is the whole point of showing a failed step. Collapsed by
+// default, but the summary it collapses to states the failures.
+const STATUS_TONE: Record<CellStep['status'], string> = {
+  ok: 'text-[color:var(--up)]',
+  empty: 'text-amber-400',
+  failed: 'text-[color:var(--down)]',
+};
+
+const BAR_TONE: Record<CellStep['status'], string> = {
+  ok: 'bg-[color:var(--accent)]',
+  empty: 'bg-amber-400',
+  failed: 'bg-[color:var(--down)]',
+};
+
+export const TracePanel: React.FC<{ steps: CellStep[]; defaultOpen?: boolean }> = ({
+  steps,
+  defaultOpen = false,
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
   if (steps.length === 0) return null;
   const { tools, failed, totalMs } = traceSummary(steps);
+  // The bar is relative to the slowest step, so the shape of the run reads at a
+  // glance. A zero-length run would divide by zero, so it floors at 1.
+  const slowest = Math.max(1, ...steps.map((s) => s.ms));
 
   return (
     <div className="mt-3 border-t border-[color:var(--line)] pt-2">
       <button
+        type="button"
+        aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="text-label font-mono text-[color:var(--text-3)] hover:text-[color:var(--text)] transition-colors"
+        className="font-mono text-label text-[color:var(--text-3)] transition-colors hover:text-[color:var(--text)]"
       >
         {open ? '▾' : '▸'} {tools} step{tools === 1 ? '' : 's'} · {totalMs}ms
-        {failed > 0 && <span className="text-[color:var(--down)]"> · {failed} failed</span>}
+        {failed > 0 && (
+          <span className="text-[color:var(--down)]">
+            {' '}
+            · {failed} failed
+          </span>
+        )}
       </button>
       {open && (
-        <div className="mt-2 space-y-1">
+        <div data-trace-timeline="true" className="mt-2 space-y-1">
           {steps.map((s, i) => (
-            <div key={i} className="text-label font-mono flex gap-2">
-              <span className={s.status === 'failed' ? 'text-[color:var(--down)]' : s.status === 'empty' ? 'text-amber-400' : 'text-[color:var(--up)]'}>
-                {stepGlyph(s.status)}
-              </span>
-              <span className="text-[color:var(--text-2)] shrink-0">{s.label}</span>
-              <span className="text-[color:var(--text-4)]">{s.ms}ms</span>
+            <div key={i} className="font-mono text-label">
+              <div className="flex items-baseline gap-2">
+                <span className={`shrink-0 ${STATUS_TONE[s.status]}`}>{stepGlyph(s.status)}</span>
+                <span className="text-[color:var(--text-2)]">{s.label}</span>
+                <span className="ml-auto shrink-0 text-[color:var(--text-4)]">{s.ms}ms</span>
+              </div>
+              <div className="mt-0.5 flex h-0.5 overflow-hidden pl-5">
+                <div
+                  data-step-bar={s.ms}
+                  className={`h-full rounded-sm ${BAR_TONE[s.status]}`}
+                  style={{ width: `${Math.max(1, Math.round((s.ms / slowest) * 100))}%` }}
+                />
+              </div>
               {(s.error || s.meta) && (
-                <span className={`truncate ${s.error ? 'text-[color:var(--down)]' : 'text-[color:var(--text-4)]'}`}>{s.error || s.meta}</span>
+                <div
+                  className={`mt-0.5 break-words pl-5 ${
+                    s.error ? 'text-[color:var(--down)]' : 'text-[color:var(--text-4)]'
+                  }`}
+                >
+                  {s.error || s.meta}
+                </div>
               )}
             </div>
           ))}

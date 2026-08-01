@@ -245,7 +245,7 @@ flowchart TD
       level ladder with `up`/`down` semantics, plan card with an R:R bar. Prose path unchanged
       when absent.
       Fixes F10. Rows 10, 11.
-- [ ] **DD-9 — Trace timeline.** Replace the collapsed line with a timeline: glyph, label,
+- [x] **DD-9 — Trace timeline.** Replace the collapsed line with a timeline: glyph, label,
       proportional duration bar, provider meta, real error text on failure. Collapsed by
       default, but summarising honestly.
       Fixes F8. Row 9.
@@ -400,3 +400,16 @@ measured ms, screenshot path. No adjectives.)_
   ATR 1699.34973259, 4 support + 4 resistance (top res 62698.73 @ 6 touches).
   Plan block is `decide`-mode only and was not exercised by this probe — covered
   by the `renderPlan` unit tests instead.
+- 2026-08-01 — **DD-9** done. `TracePanel` is now a timeline: per step a glyph
+  toned by status (`--up` / amber / `--down`), the label, its real `ms`, and a
+  bar width-scaled against the slowest step in that run — so the shape of the
+  run reads at a glance. `truncate` removed: the meta and the error string wrap
+  in full, because on a failed step the error is the entire point. Still
+  collapsed by default, and the collapsed summary states the failure count.
+  Tests +11 (row 9, `tracePanel.test.tsx`), including a failed step whose 74-char
+  error must survive intact and an empty step toned apart. `npx vitest run` PASS
+  779 / FAIL 0 / skipped 7. `tsc --noEmit` 0 errors. `vercel --prod` → chunk
+  `TradingAssistantPage-DISlKzIx.js` verified (timeline, step bar, no truncate).
+  Live probe → 200 in 31.59s, 2313 chars, trust B/80, 3 steps rendering as
+  memory 681ms (bar 4%) / analysts 11462ms (61%) / llm 18942ms (100%), meta
+  `deepseek/deepseek-v4-flash` shown on the answering step.
