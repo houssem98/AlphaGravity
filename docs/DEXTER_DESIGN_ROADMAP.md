@@ -233,7 +233,7 @@ flowchart TD
 - [x] **DD-5 — Evidence panel as sources.** One card per citation: tool name, latency,
       full untruncated payload, anchor id for DD-4. Fabricated banner moves above the answer.
       Fixes F5. Rows 6, 8.
-- [ ] **DD-6 — Locate the uncited figures.** Mark each flagged figure inline at its position
+- [x] **DD-6 — Locate the uncited figures.** Mark each flagged figure inline at its position
       with a dotted amber underline + tooltip; keep a count in the trust strip. Never flag a
       figure inside a cited sentence.
       Fixes F6. Row 5.
@@ -346,3 +346,19 @@ measured ms, screenshot path. No adjectives.)_
   verified (no truncate, Sources header, banner, `role="alert"`). Live probe → 200
   in 41.72s, 1397 chars, 17 citations, trust B/79, 0 fabricated, 1 uncited,
   longest payload 49 chars — rendered end to end.
+- 2026-08-01 — **DD-6** done. `dexterTools` refactored to expose `figureSpans()`
+  (positions + per-occurrence `uncited`); `uncitedFigures()` is now derived from
+  it, so the marks and the trust grade read one rule — 666 service tests stayed
+  green across the refactor. `markUncited()` wraps each flagged figure at its
+  own position with U+2063 before parsing; `UncitedMark` paints it with a dotted
+  amber underline + tooltip. Two designs were tried and rejected against the live
+  fixture: a traversal cursor (marked the wrong figure — `strong` children render
+  after their parent's trailing text) and a node-local sentence scan (over-marked
+  `**62,211.53**: … [1]`, where the figure and its marker sit in different nodes).
+  Code spans are excluded. Tests +11 (row 5, `uncitedMark.test.tsx`) incl. a
+  second live fixture `dexter-prod-uncited.json` — 3 bare occurrences of 2 norms
+  marked, the cited occurrence of the *same* figure left clean. `npx vitest run`
+  PASS 742 / FAIL 0 / skipped 7. `tsc --noEmit` 0 errors. `vercel --prod` → chunk
+  `TradingAssistantPage-BCHCHGX1.js` verified (mark, dotted amber, sentinel,
+  tooltip). Live probe → 200 in 61.36s, 957 chars, 17 citations, trust B/78,
+  **2 uncited flagged in place** (`14%`, `62211.53333333`).

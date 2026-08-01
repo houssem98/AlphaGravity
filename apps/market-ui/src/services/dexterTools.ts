@@ -423,6 +423,15 @@ function isSentenceEnd(text: string, i: number): boolean {
     return !(/\d/.test(text[i - 1] ?? '') && /\d/.test(text[i + 1] ?? ''));
 }
 
+/** Does a marker follow the figure ending at `end`, before its sentence does?
+ *  DD-6 marks figures in the answer text and must apply this exact test, or the
+ *  marks and the trust grade would be answering two different questions. */
+export function citedWithinSentence(text: string, end: number): boolean {
+    let stop = end;
+    while (stop < text.length && !isSentenceEnd(text, stop)) stop++;
+    return /\[\d+\]/.test(text.slice(end, stop));
+}
+
 // Only market figures count. A bare small integer is nearly always a count
 // ("60 days", "3 touches") or a year, and demanding a source for those buries
 // the one number that actually needed one.
@@ -437,9 +446,21 @@ const MONTH_BEFORE = /(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\
 
 // Figures that appear in the prose with no citation anywhere in their sentence.
 // These are exactly the numbers a reader cannot check.
-export function uncitedFigures(text: string): string[] {
+/** One market figure found in the answer, with where it sits and whether its
+ *  own sentence carries a marker. DD-6 marks these in the prose, so the client
+ *  and the trust score must read from exactly one rule — this one. */
+export interface FigureSpan {
+    start: number;
+    end: number;
+    raw: string;
+    /** normalised form, as it appears in `uncitedFigures()` */
+    norm: string;
+    uncited: boolean;
+}
+
+export function figureSpans(text: string): FigureSpan[] {
     if (!text) return [];
-    const out = new Set<string>();
+    const spans: FigureSpan[] = [];
     // Same figure shapes as the grid's extractFigures, minus the trailing `\b`
     // that silently drops the "%" off "12%".
     const re = /\$?\d[\d,]*(?:\.\d+)?\s?(?:%|bn|billion|trillion|million|[mbk])?(?![\w%])/gi;
@@ -456,12 +477,20 @@ export function uncitedFigures(text: string): string[] {
         if (MONTH_BEFORE.test(text.slice(Math.max(0, start - 12), start))) continue;
         if (!isMarketFigure(m[0])) continue;
 
-        let stop = end;
-        while (stop < text.length && !isSentenceEnd(text, stop)) stop++;
-        if (!/\[\d+\]/.test(text.slice(end, stop))) {
-            out.add(m[0].replace(/\s+/g, '').toLowerCase());
-        }
+        spans.push({
+            start,
+            end,
+            raw: m[0],
+            norm: m[0].replace(/\s+/g, '').toLowerCase(),
+            uncited: !citedWithinSentence(text, end),
+        });
     }
+    return spans;
+}
+
+export function uncitedFigures(text: string): string[] {
+    const out = new Set<string>();
+    for (const s of figureSpans(text)) if (s.uncited) out.add(s.norm);
     return [...out].sort();
 }
 

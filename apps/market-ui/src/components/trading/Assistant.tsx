@@ -3,7 +3,12 @@ import { Send, Bot, User, Loader2, BarChart2, X, Sparkles } from 'lucide-react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { ChatMessage } from '../../services/dexterLlm';
-import type { AgentReply, DexterCitation } from '../../services/dexterTools';
+import {
+  figureSpans,
+  uncitedFigures,
+  type AgentReply,
+  type DexterCitation,
+} from '../../services/dexterTools';
 import { stepGlyph, traceSummary, type CellStep } from '../../services/gridTrace';
 import { chipPropsFor, type AnswerTrust } from '../../services/dexterTrust';
 import { isCryptoAsset } from '../../constants/tradingAssets';
@@ -197,23 +202,91 @@ export const CiteChip: React.FC<{ n: number; cite?: DexterCitation; scope: strin
   );
 };
 
-// Split the direct string children of a text-bearing node on [N] markers.
+// DD-6 / F6: the reply says 12 of 29 figures are unsupported but not WHICH
+// sentence holds them, so the warning reads as noise. The mark goes where the
+// figure sits. A figure whose own sentence carries a marker is never flagged —
+// that judgement is `figureSpans`, the same rule the trust score is built on,
+// so the answer text and the grade can never disagree.
+export const UncitedMark: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span
+    data-uncited="true"
+    title="no source in this sentence — this figure is unsupported"
+    className="border-b border-dotted border-amber-400 text-amber-400"
+  >
+    {children}
+  </span>
+);
+
+// U+2063 INVISIBLE SEPARATOR. A figure's sentence can span element boundaries —
+// `**62,211.53**: … [1]` puts the figure in one node and its marker in another —
+// so the decision is made ONCE on the raw answer text, where the whole sentence
+// is visible, and carried into the tree as a pair of format characters. They are
+// invisible, they are not whitespace, so `**bold**` still parses as bold, and
+// the renderer only has to paint what was already decided.
+const MARK = '⁣';
+
+const CODE_RE = /```[\s\S]*?```|`[^`\n]*`/g;
+
+/** Wrap every figure the server flagged, at its own position in the text. */
+export function markUncited(text: string, uncited: string[]): string {
+  if (!text || uncited.length === 0) return text;
+  const want = new Set(uncited);
+  const code: Array<[number, number]> = [];
+  for (const m of text.matchAll(CODE_RE)) code.push([m.index ?? 0, (m.index ?? 0) + m[0].length]);
+
+  let out = text;
+  // back to front, so an insertion never shifts a span still to be applied
+  for (const s of figureSpans(text).reverse()) {
+    if (!s.uncited || !want.has(s.norm)) continue;
+    if (code.some(([a, b]) => s.start >= a && s.end <= b)) continue;
+    out = out.slice(0, s.start) + MARK + s.raw + MARK + out.slice(s.end);
+  }
+  return out;
+}
+
+const MARKER_RE = /\[(\d+)\]/g;
+
+// Split one string node into citation chips, uncited marks and plain text.
+const renderTextNode = (
+  s: string,
+  cites: DexterCitation[],
+  scope: string,
+): React.ReactNode => {
+  if (!s.includes(MARK) && !MARKER_RE.test(s)) return s;
+  MARKER_RE.lastIndex = 0;
+
+  const out: React.ReactNode[] = [];
+  let key = 0;
+  s.split(MARK).forEach((chunk, i) => {
+    if (!chunk) return;
+    if (i % 2 === 1) {
+      out.push(<UncitedMark key={key++}>{chunk}</UncitedMark>);
+      return;
+    }
+    for (const part of chunk.split(/(\[\d+\])/g)) {
+      if (!part) continue;
+      const marker = /^\[(\d+)\]$/.exec(part);
+      if (!marker) {
+        out.push(part);
+        continue;
+      }
+      const n = Number(marker[1]);
+      out.push(<CiteChip key={key++} n={n} cite={cites.find((c) => c.id === n)} scope={scope} />);
+    }
+  });
+  return out;
+};
+
 // Elements pass through — their own component override transforms them — and
 // code/pre are deliberately not wrapped: fenced content is data, not narrative.
-const renderCites = (
+const renderInline = (
   children: React.ReactNode,
   cites: DexterCitation[],
   scope: string,
 ): React.ReactNode =>
-  React.Children.map(children, (child) => {
-    if (typeof child !== 'string' || !/\[\d+\]/.test(child)) return child;
-    return child.split(/(\[\d+\])/g).map((part, i) => {
-      const m = /^\[(\d+)\]$/.exec(part);
-      if (!m) return part;
-      const n = Number(m[1]);
-      return <CiteChip key={i} n={n} cite={cites.find((c) => c.id === n)} scope={scope} />;
-    });
-  });
+  React.Children.map(children, (child) =>
+    typeof child === 'string' ? renderTextNode(child, cites, scope) : child,
+  );
 
 // Without citations (an old localStorage message) the base map renders [N] as
 // the literal text it always was — no chips, no red, no guessing.
@@ -222,7 +295,7 @@ export function markdownComponents(cites?: DexterCitation[], scope = ''): Compon
   const wrap = (key: 'p' | 'li' | 'td' | 'th' | 'strong' | 'em') => {
     const Base = MARKDOWN_COMPONENTS[key] as React.FC<{ children?: React.ReactNode }>;
     return ({ children }: { children?: React.ReactNode }) => (
-      <Base>{renderCites(children, cites, scope)}</Base>
+      <Base>{renderInline(children, cites, scope)}</Base>
     );
   };
   return {
@@ -240,10 +313,13 @@ export const AnswerBody: React.FC<{
   text: string;
   citations?: DexterCitation[];
   anchorScope?: string;
-}> = ({ text, citations, anchorScope = '' }) => (
+  /** The server's own list. Absent on an old message, so it is recomputed with
+   *  the identical function rather than guessed at. */
+  uncited?: string[];
+}> = ({ text, citations, anchorScope = '', uncited }) => (
   <div className="min-w-0 text-body text-[color:var(--text)]">
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents(citations, anchorScope)}>
-      {text}
+      {citations ? markUncited(text, uncited ?? uncitedFigures(text)) : text}
     </ReactMarkdown>
   </div>
 );
@@ -413,7 +489,12 @@ export const Turn: React.FC<{ msg: Message }> = ({ msg }) => {
   return (
     <div className="w-full border-l-2 border-[color:var(--line)] pl-4">
       <FabricatedBanner fabricated={msg.fabricatedCites} />
-      <AnswerBody text={msg.content} citations={msg.citations} anchorScope={msg.id} />
+      <AnswerBody
+        text={msg.content}
+        citations={msg.citations}
+        anchorScope={msg.id}
+        uncited={msg.uncitedFigures}
+      />
       {msg.isDrawing && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}

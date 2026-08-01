@@ -1,0 +1,123 @@
+{
+ "text": "**Key levels from the technical report:**\n\n- **Price last closed at:** 62,546.01 [1]  \n- **Immediate support:** 62,211.53 — 3 touches; a hold keeps downside contained, but a break opens 61,030.92 [1]  \n- **Supports below:** 61,030.92 (2 touches), 59,130.91 (1 touch), 57,957.6 (2 touches) [1]  \n- **Immediate resistance:** 62,921.235 — 2 touches; then 63,987.215 — 2 touches; then 65,655.81 — 3 touches [1]  \n- **Volatility:** ATR(14) is 1,699.38, so expect a large daily range around that magnitude [1]\n\n**Read on direction:**\n\nThe bias is **bearish-leaning while price remains below 62,921.235**. Buyers need to reclaim 62,921.235 and then 63,987.215 to ease the bearish pressure [1]. The pivotal near-term level is **62,211.53**: if it holds, downside remains contained; if it breaks, the next target is 61,030.92 [1].\n\nNews flow is also negative in tone: Bitcoin was at a three-week low and backing off [12][14], mining difficulty fell 14% from its yearly high as revenues dropped [11], and security-related losses were reported [17][18]. Social sentiment is mixed but includes promotional, non-evidence-based bullish calls [22][28], so it does not provide a reliable directional signal.\n\nSo the near-term direction is **downside risk dominant unless 62,211.53 holds and price reclaims 62,921.235**.",
+ "citations": [
+  {
+   "id": 1,
+   "title": "BTC price structure (deterministic TA over 120 bars)",
+   "source": "taLevels",
+   "text": "close 62546.01, ATR 1699.37957211, trend down"
+  },
+  {
+   "id": 11,
+   "title": "Bitcoin mining difficulty shrinks 14% from this year's high as plunging revenues force operators to pivot",
+   "source": "CoinDesk",
+   "text": "CoinDesk — Sat, 01 Aug 2026 15:54:39 GMT"
+  },
+  {
+   "id": 12,
+   "title": "Bitcoin Falls To 3-Week Low—Here’s Why",
+   "source": "Forbes",
+   "text": "Forbes — Fri, 31 Jul 2026 16:25:08 GMT"
+  },
+  {
+   "id": 13,
+   "title": "Bitcoin scam targets Montgomery County, Pennsylvania, residents",
+   "source": "CBS News",
+   "text": "CBS News — Sat, 01 Aug 2026 17:48:00 GMT"
+  },
+  {
+   "id": 14,
+   "title": "Bitcoin and ethereum prices today, Friday, July 31, 2026: Crypto prices back off this morning",
+   "source": "Yahoo Finance",
+   "text": "Yahoo Finance — Fri, 31 Jul 2026 13:06:57 GMT"
+  },
+  {
+   "id": 15,
+   "title": "Exclusive | How bitcoin ransom in Nancy Guthrie case could still hold ‘valuable’ evidence 6 months after kidnapping",
+   "source": "Page Six",
+   "text": "Page Six — Sat, 01 Aug 2026 11:00:00 GMT"
+  },
+  {
+   "id": 16,
+   "title": "Bitcoin vs. XRP: Which Is the Better Long-Term Buy?",
+   "source": "The Motley Fool",
+   "text": "The Motley Fool — Sat, 01 Aug 2026 10:00:00 GMT"
+  },
+  {
+   "id": 17,
+   "title": "Coldcard exploit reignites Bitcoin self-custody debate after $38 million theft",
+   "source": "CoinDesk",
+   "text": "CoinDesk — Fri, 31 Jul 2026 17:08:06 GMT"
+  },
+  {
+   "id": 18,
+   "title": "Bitcoin losses linked to Coldcard vulnerability grow to $70 million, Galaxy Research says",
+   "source": "The Block",
+   "text": "The Block — Fri, 31 Jul 2026 20:20:52 GMT"
+  },
+  {
+   "id": 21,
+   "title": "@BenjaminCowen (788000 followers)",
+   "source": "social",
+   "text": "neutral — 106267 views, 2026-07-20T01:24:49+00:00"
+  },
+  {
+   "id": 22,
+   "title": "@altcoindaily (1700000 followers)",
+   "source": "social",
+   "text": "bullish — 34960 views, 2026-07-31T22:52:42+00:00"
+  },
+  {
+   "id": 23,
+   "title": "@BenjaminCowen (788000 followers)",
+   "source": "social",
+   "text": "bearish — 95294 views, 2026-07-27T02:29:51+00:00"
+  },
+  {
+   "id": 24,
+   "title": "@BenjaminCowen (788000 followers)",
+   "source": "social",
+   "text": "neutral — 81962 views, 2026-07-30T20:25:26+00:00"
+  },
+  {
+   "id": 25,
+   "title": "@BenjaminCowen (788000 followers)",
+   "source": "social",
+   "text": "neutral — 81253 views, 2026-07-24T13:10:27+00:00"
+  },
+  {
+   "id": 26,
+   "title": "@BenjaminCowen (788000 followers)",
+   "source": "social",
+   "text": "neutral — 67832 views, 2026-07-23T10:53:23+00:00"
+  },
+  {
+   "id": 27,
+   "title": "@BenjaminCowen (788000 followers)",
+   "source": "social",
+   "text": "bearish — 66803 views, 2026-07-19T00:48:37+00:00"
+  },
+  {
+   "id": 28,
+   "title": "@altcoindaily (1700000 followers)",
+   "source": "social",
+   "text": "bullish — 48535 views, 2026-07-24T00:05:25+00:00"
+  }
+ ],
+ "fabricatedCites": [],
+ "uncitedFigures": [
+  "62,211.53",
+  "62,921.235"
+ ],
+ "trust": {
+  "grade": "B",
+  "score": 78,
+  "rounds": 1,
+  "reasons": [
+   "2 tool call(s) returned data",
+   "17 citation(s) available",
+   "every [N] marker resolves to a real source",
+   "21/24 figures sit in a cited sentence"
+  ]
+ }
+}
