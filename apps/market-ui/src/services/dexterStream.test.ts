@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { quotePrice } from '../components/trading/Assistant';
 
 const handler = readFileSync(join(__dirname, '../../api/agent/[fn].ts'), 'utf8');
 const client = readFileSync(join(__dirname, '../components/trading/Assistant.tsx'), 'utf8');
@@ -107,9 +108,18 @@ describe('row 21 — one session per asset', () => {
 });
 
 describe('row 20 — a Tunisian listing is quoted in dinar', () => {
+    // DD-12 moved this out of the header JSX into `quotePrice`, so the rule is
+    // asserted by calling it rather than by matching the expression it used to
+    // be inlined as.
     it('no longer prints a dollar sign on every asset', () => {
-        expect(client).toMatch(/\{isTN \? '' : '\$'\}\{currentPrice < 1/);
-        expect(client).toMatch(/\{isTN \? ' TND' : ''\}/);
+        expect(quotePrice(62546.01, true)).toBe('62546.01 TND');
+        expect(quotePrice(62546.01, false)).toBe('$62546.01');
+        expect(quotePrice(62546.01, true)).not.toContain('$');
+    });
+
+    it('keeps four decimals under 1, so a dinar micro-cap does not round to zero', () => {
+        expect(quotePrice(0.4321, true)).toBe('0.4321 TND');
+        expect(quotePrice(0.4321, false)).toBe('$0.4321');
     });
 
     it('carries the currency into the model context too', () => {

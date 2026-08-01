@@ -255,7 +255,7 @@ flowchart TD
 - [x] **DD-11 — Chart-action confirmation.** Drive the confirmation from `reply.actions`
       and name what was drawn. Delete the dead `isDrawing` flag.
       Fixes F12. Row 15.
-- [ ] **DD-12 — Header and composer.** Rebuild both on tokens: retire the blur-gradient
+- [x] **DD-12 — Header and composer.** Rebuild both on tokens: retire the blur-gradient
       hover, quote the price in Martian Mono with correct currency, keep the Analyze action
       and cancel affordance.
       Fixes F3. Rows 2, 16.
@@ -451,3 +451,19 @@ measured ms, screenshot path. No adjectives.)_
   gated levels** (58201 … 82479.32), 5 steps (llm 1511 / getChartData 240 /
   llm 19248 / drawTechnicalAnalysis 245 / llm 11772ms) — renders as
   "support / resistance · 9 levels". Frozen as `__fixtures__/dexter-prod-actions.json`.
+- 2026-08-01 — **DD-12** done. Header rebuilt as a single 40px terminal strip
+  matching the app's own `Topbar` (`h-10`, `bg-surface`, `border-b line`): the
+  40px avatar tile and 18px bold title are gone, the live quote renders in
+  Martian Mono via a new exported `quotePrice(price, isTN)` — dinar for a BVMT
+  listing, dollars otherwise, 4 decimals under 1 so a micro-cap cannot round to
+  zero. Composer rebuilt: the 56px pill became a `rounded-sm` row, and while a
+  run is in flight the send control **becomes a STOP control**, putting the
+  cancel affordance where the hand already is instead of inside the streaming
+  row. No gradient survives anywhere in the panel. Tests +17 (rows 2, 16,
+  `headerComposer.test.tsx`); the DX row-20 assertion in `dexterStream.test.ts`
+  was retargeted from the old inline JSX expression to calling `quotePrice`
+  (behaviour identical, now asserted rather than pattern-matched). `npx vitest run`
+  PASS 831 / FAIL 0 / skipped 7. `tsc --noEmit` 0 errors. `vercel --prod` → chunk
+  `TradingAssistantPage-DC-R6cLw.js` verified: ANALYZE + STOP + `h-10` header
+  present, old pill composer and blur-gradient glow absent. Live probe → 200 in
+  57.58s, 1779 chars, 17 citations, trust B/80, levels block present.

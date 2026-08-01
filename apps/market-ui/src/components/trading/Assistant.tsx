@@ -726,6 +726,14 @@ export const TracePanel: React.FC<{ steps: CellStep[]; defaultOpen?: boolean }> 
   );
 };
 
+// DD-12: a Tunisian listing is quoted in dinar; the header printed a dollar
+// sign on every asset regardless. Sub-1 prices keep 4 decimals because a
+// 2-decimal TND micro-cap would round to zero.
+export function quotePrice(price: number, isTN: boolean): string {
+  const n = price < 1 ? price.toFixed(4) : price.toFixed(2);
+  return isTN ? `${n} TND` : `$${n}`;
+}
+
 // DD-11 / F12: the confirmation was gated on `isDrawing`, a flag derived from
 // the reply rather than read from it, so a chart mutation could not name itself.
 // It is driven by `reply.actions` now — and it names what was drawn, from the
@@ -1142,43 +1150,36 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
 
   return (
     <div className="flex flex-col h-full bg-[color:var(--bg)] border-l border-[color:var(--line)] shadow-xl">
-      {/* Header */}
-      <div className="p-4 border-b border-[color:var(--line)] bg-[color:var(--surface)] flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--line-strong)] flex items-center justify-center">
-            <Bot className="w-6 h-6 text-[color:var(--accent)]" />
+      {/* Header — a terminal strip, the same shape as the app's own Topbar:
+          one 40px row, name left, live quote in Martian Mono, actions right. */}
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-[color:var(--line)] bg-[color:var(--surface)] px-3">
+        <Bot className="w-4 h-4 shrink-0 text-[color:var(--accent)]" />
+        <h2 className="shrink-0 font-display text-body font-semibold text-[color:var(--text)]">
+          Dexter
+        </h2>
+        {currentPrice !== null && (
+          <div className="flex min-w-0 items-baseline gap-1.5 truncate font-mono text-label">
+            <span className="text-[color:var(--text-3)]">{currentAsset}</span>
+            <span className="text-[color:var(--text)]">{quotePrice(currentPrice, isTN)}</span>
           </div>
-          <div>
-            <h2 className="text-[color:var(--text)] font-display font-bold flex items-center gap-2 text-lg">
-              Dexter AI
-              <Sparkles className="w-4 h-4 text-amber-400" />
-            </h2>
-            {currentPrice !== null && (
-              <div className="text-label text-[color:var(--text-3)] font-mono flex items-center gap-1">
-                {/* A Tunisian listing is quoted in dinar; the header used to
-                    print a dollar sign on every asset regardless. */}
-                {currentAsset}: <span className="text-[color:var(--text)]">
-                  {isTN ? '' : '$'}{currentPrice < 1 ? currentPrice.toFixed(4) : currentPrice.toFixed(2)}{isTN ? ' TND' : ''}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
+        )}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <button
             onClick={handleAnalyze}
             disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-[color:var(--accent)] hover:brightness-110 text-[color:var(--accent-ink)] text-data font-semibold rounded-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title={`Analyze ${currentAsset}`}
+            className="flex items-center gap-1.5 rounded-sm bg-[color:var(--accent)] px-2.5 py-1 font-display text-label font-semibold text-[color:var(--accent-ink)] transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <BarChart2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Analyze</span>
+            <BarChart2 className="w-3 h-3" />
+            <span className="hidden sm:inline">ANALYZE</span>
           </button>
           {onClose && (
             <button
               onClick={onClose}
-              className="p-2 text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] rounded-sm transition-colors"
+              title="Close"
+              className="rounded-sm p-1 text-[color:var(--text-3)] transition-colors hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text)]"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -1230,28 +1231,41 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-[color:var(--line)] bg-[color:var(--bg)]">
-        <div className="relative">
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask Dexter to analyze patterns, draw support/resistance..."
-              className="w-full bg-[color:var(--surface-2)] text-[color:var(--text)] text-body rounded-xl pl-5 pr-14 py-4 border border-[color:var(--line)] focus:outline-none focus:border-[color:var(--accent)] focus:ring-1 focus:ring-[color:var(--accent)] transition-all placeholder-[color:var(--text-4)]"
-              disabled={isLoading}
-            />
+      {/* Composer — while a run is in flight the send control becomes a stop
+          control, so the cancel affordance is where the hand already is rather
+          than buried in the streaming row. */}
+      <div className="shrink-0 border-t border-[color:var(--line)] bg-[color:var(--bg)] p-3">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            placeholder={`Ask about ${currentAsset}…`}
+            className="min-w-0 flex-1 rounded-sm border border-[color:var(--line)] bg-[color:var(--surface-2)] px-3 py-2 text-body text-[color:var(--text)] transition-all placeholder-[color:var(--text-4)] focus:border-[color:var(--accent)] focus:outline-none"
+            disabled={isLoading}
+          />
+          {isLoading ? (
+            <button
+              onClick={() => abortRef.current?.abort()}
+              title="Stop this run"
+              className="flex shrink-0 items-center gap-1.5 rounded-sm border border-[color:var(--down)] px-2.5 py-2 font-display text-label font-semibold text-[color:var(--down)] transition-colors hover:bg-[color:var(--surface-2)]"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">STOP</span>
+            </button>
+          ) : (
             <button
               onClick={handleSend}
-              disabled={isLoading || !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-[color:var(--accent)] hover:brightness-110 text-[color:var(--accent-ink)] rounded-sm disabled:opacity-50 disabled:bg-[color:var(--surface-2)] transition-all"
+              disabled={!input.trim()}
+              title="Send"
+              className="shrink-0 rounded-sm bg-[color:var(--accent)] p-2 text-[color:var(--accent-ink)] transition-all hover:brightness-110 disabled:bg-[color:var(--surface-2)] disabled:text-[color:var(--text-4)]"
             >
-              <Send className="w-5 h-5" />
+              <Send className="w-4 h-4" />
             </button>
-          </div>
+          )}
         </div>
-        <div className="mt-3 flex justify-center gap-4">
+        <div className="mt-2 flex justify-center">
           <EngineMeta meta={lastAgentMeta(messages)} />
         </div>
       </div>
