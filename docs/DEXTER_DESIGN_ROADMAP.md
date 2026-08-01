@@ -226,7 +226,7 @@ flowchart TD
 - [x] **DD-3 — Document layout.** Assistant turns full-width with a left rule; user turns
       keep bubbles. Drop the assistant avatar column and the 16px radius.
       Fixes F9. Row 13.
-- [ ] **DD-4 — Citation chips.** Render `[N]` as an interactive chip: click scrolls to and
+- [x] **DD-4 — Citation chips.** Render `[N]` as an interactive chip: click scrolls to and
       flashes source `N`, hover previews the tool payload. Unmatched `[N]` renders
       fabricated-red and never becomes a chip.
       Fixes F4. Row 4.
@@ -319,3 +319,16 @@ measured ms, screenshot path. No adjectives.)_
   `TradingAssistantPage-CqQPhv_N.js` verified: left-rule string present, user
   bubble kept, `rounded-tl-none` gone. Live probe → 200 in 55.91s, 1843 chars,
   17 citations, trust B/79, 0 fabricated, 1 uncited, steps 792/21418/33292ms.
+- 2026-08-01 — **DD-4** done. `CiteChip` + `markdownComponents(cites, scope)`
+  wrap p/li/td/th/strong/em and split their string children on `[N]`: matched →
+  button with `data-cite-target`, click scrolls + flashes the source row (anchor
+  `dexter-cite-<msgId>-<n>`, scoped so two answers citing [1] cannot collide),
+  hover title = citation title/source/payload; unmatched → `--down` span, never a
+  chip; no `citations` array at all → literal `[N]` unchanged; code/pre never
+  touched. Tests +8 (row 4, `citationChip.test.tsx`). `npx vitest run` PASS 723 /
+  FAIL 0 / skipped 7. `tsc --noEmit` 0 errors. `vercel --prod` → chunk
+  `TradingAssistantPage-DgbzXqwI.js` verified (chip, anchor, fabricated tone all
+  present). Live probes ×5, all HTTP 200 (3 empty `text:""` F/0 — the DD-2
+  server-side flakiness, unchanged); the answering probe returned 1769 chars,
+  **19 markers → 19 chips, 0 fabricated-red**, 17 citations, trust B/79, ms 49647,
+  frozen verbatim as `__fixtures__/dexter-prod-cited.json` and asserted in the suite.

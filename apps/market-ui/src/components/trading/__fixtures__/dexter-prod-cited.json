@@ -1,0 +1,123 @@
+{
+ "text": "Your open SELL at 63098.39 is noted, but I’m setting it aside and judging current structure only.\n\n**Key levels**\n\n- **Support:** 62211.53333333, tested 3 times [1]. A loss of that exposes 61030.92 (2 touches), then 59130.91 (1 touch) and 57957.6 (2 touches) [1].\n- **Resistance:** 62921.235 (2 touches), then 63987.215 (2 touches), then 65655.81 (3 touches) [1].\n- **Higher supply:** 78204.33333333, 79379.98666667, 82459.15 — each with 3 touches [1].\n- **Decision zone:** 62211.53333333 support vs 62921.235 resistance; a daily close outside that zone may set the next short-term direction [1].\n\n**Direction read**\n\nThe structural trend is down across 120 daily bars, with the latest close at 62389.97 [1]. Price is above the first support but below the first nearby resistance, so the immediate bias is bearish unless resistance is cleared.\n\nMy read: **lean bearish while BTC is below 62921.235.** A daily close below 62211.53333333 likely opens the path toward 61030.92 [1]. A daily close above 62921.235 would negate the near-term bearish setup and target 63987.215 next [1].\n\nOther context:\n\n- ATR(14) is 1699.37957211, so expect meaningful daily noise around these levels [1].\n- There are 27 fair-value gaps and 21 order blocks [1], but their exact locations are not provided, so I cannot map them into the key levels.\n- News flow is not providing forward price guidance. Miner stress and security losses may pressure sentiment, while Strategy’s large accumulation is a counterweight [11][12][17][18].\n- Retail sentiment is mixed and cautious, but the social evidence contains no price data that changes the technical read [23][25][22][28].\n\nBottom line: broader trend down [1], and the path of least resistance is lower as long as 62921.235 holds as resistance.",
+ "citations": [
+  {
+   "id": 1,
+   "title": "BTC price structure (deterministic TA over 120 bars)",
+   "source": "taLevels",
+   "text": "close 62389.97, ATR 1699.37957211, trend down"
+  },
+  {
+   "id": 11,
+   "title": "Bitcoin mining difficulty shrinks 14% from this year's high as plunging revenues force operators to pivot",
+   "source": "CoinDesk",
+   "text": "CoinDesk — Sat, 01 Aug 2026 15:54:39 GMT"
+  },
+  {
+   "id": 12,
+   "title": "Strategy Announces Second Quarter Financial Results; Currently Holds 843,775 Bitcoin; Now the Largest Institutional Holder Globally",
+   "source": "Business Wire",
+   "text": "Business Wire — Thu, 30 Jul 2026 20:01:00 GMT"
+  },
+  {
+   "id": 13,
+   "title": "Bitcoin scam targets Montgomery County, Pennsylvania, residents",
+   "source": "CBS News",
+   "text": "CBS News — Sat, 01 Aug 2026 17:48:00 GMT"
+  },
+  {
+   "id": 14,
+   "title": "Bitcoin and ethereum prices today, Friday, July 31, 2026: Crypto prices back off this morning",
+   "source": "Yahoo Finance",
+   "text": "Yahoo Finance — Fri, 31 Jul 2026 13:06:57 GMT"
+  },
+  {
+   "id": 15,
+   "title": "Exclusive | How bitcoin ransom in Nancy Guthrie case could still hold ‘valuable’ evidence 6 months after kidnapping",
+   "source": "Page Six",
+   "text": "Page Six — Sat, 01 Aug 2026 11:00:00 GMT"
+  },
+  {
+   "id": 16,
+   "title": "Bitcoin vs. XRP: Which Is the Better Long-Term Buy?",
+   "source": "The Motley Fool",
+   "text": "The Motley Fool — Sat, 01 Aug 2026 10:00:00 GMT"
+  },
+  {
+   "id": 17,
+   "title": "Coldcard exploit reignites Bitcoin self-custody debate after $38 million theft",
+   "source": "CoinDesk",
+   "text": "CoinDesk — Fri, 31 Jul 2026 17:08:06 GMT"
+  },
+  {
+   "id": 18,
+   "title": "Bitcoin losses linked to Coldcard vulnerability grow to $70 million, Galaxy Research says",
+   "source": "The Block",
+   "text": "The Block — Fri, 31 Jul 2026 20:20:52 GMT"
+  },
+  {
+   "id": 21,
+   "title": "@BenjaminCowen (788000 followers)",
+   "source": "social",
+   "text": "neutral — 106239 views, 2026-07-20T01:24:49+00:00"
+  },
+  {
+   "id": 22,
+   "title": "@altcoindaily (1700000 followers)",
+   "source": "social",
+   "text": "bullish — 34296 views, 2026-07-31T22:52:42+00:00"
+  },
+  {
+   "id": 23,
+   "title": "@BenjaminCowen (788000 followers)",
+   "source": "social",
+   "text": "bearish — 95283 views, 2026-07-27T02:29:51+00:00"
+  },
+  {
+   "id": 24,
+   "title": "@BenjaminCowen (788000 followers)",
+   "source": "social",
+   "text": "neutral — 81431 views, 2026-07-30T20:25:26+00:00"
+  },
+  {
+   "id": 25,
+   "title": "@BenjaminCowen (788000 followers)",
+   "source": "social",
+   "text": "neutral — 81247 views, 2026-07-24T13:10:27+00:00"
+  },
+  {
+   "id": 26,
+   "title": "@BenjaminCowen (788000 followers)",
+   "source": "social",
+   "text": "neutral — 67825 views, 2026-07-23T10:53:23+00:00"
+  },
+  {
+   "id": 27,
+   "title": "@BenjaminCowen (788000 followers)",
+   "source": "social",
+   "text": "bearish — 66803 views, 2026-07-19T00:48:37+00:00"
+  },
+  {
+   "id": 28,
+   "title": "@altcoindaily (1700000 followers)",
+   "source": "social",
+   "text": "bullish — 48535 views, 2026-07-24T00:05:25+00:00"
+  }
+ ],
+ "fabricatedCites": [],
+ "uncitedFigures": [
+  "62921.235",
+  "63098.39"
+ ],
+ "trust": {
+  "grade": "B",
+  "score": 79,
+  "rounds": 1,
+  "reasons": [
+   "2 tool call(s) returned data",
+   "17 citation(s) available",
+   "every [N] marker resolves to a real source",
+   "30/31 figures sit in a cited sentence"
+  ]
+ }
+}

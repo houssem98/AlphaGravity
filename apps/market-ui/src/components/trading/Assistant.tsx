@@ -149,9 +149,100 @@ export const MARKDOWN_COMPONENTS: Components = {
   ),
 };
 
-export const AnswerBody: React.FC<{ text: string }> = ({ text }) => (
+// DD-4 / F4: the verification work already ships on the reply — the UI's job is
+// to make a claim's evidence reachable in one click. A `[N]` with a matching
+// source becomes a chip that scrolls to and flashes source N; a `[N]` with no
+// matching source is exactly what a fabricated citation looks like, so it
+// renders in the down colour and never becomes a live chip. Anchors are scoped
+// by message id — two answers both citing [1] must not collide.
+export const citeAnchorId = (scope: string, n: number) => `dexter-cite-${scope}-${n}`;
+
+export const CiteChip: React.FC<{ n: number; cite?: DexterCitation; scope: string }> = ({
+  n,
+  cite,
+  scope,
+}) => {
+  if (!cite) {
+    return (
+      <span
+        title="cites a source that does not exist"
+        className="font-mono text-label font-bold text-[color:var(--down)]"
+      >
+        [{n}]
+      </span>
+    );
+  }
+  const target = citeAnchorId(scope, n);
+  return (
+    <button
+      type="button"
+      data-cite-target={target}
+      title={`${cite.title} · ${cite.source}\n${cite.text}`}
+      onClick={() => {
+        const el = document.getElementById(target);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.animate(
+          [
+            { backgroundColor: 'color-mix(in oklab, var(--accent) 30%, transparent)' },
+            { backgroundColor: 'transparent' },
+          ],
+          { duration: 1200 },
+        );
+      }}
+      className="inline-flex items-center rounded-sm border border-[color:var(--line-strong)] bg-[color:var(--surface-2)] px-1 align-baseline font-mono text-label text-[color:var(--accent)] transition-colors hover:border-[color:var(--accent)]"
+    >
+      {n}
+    </button>
+  );
+};
+
+// Split the direct string children of a text-bearing node on [N] markers.
+// Elements pass through — their own component override transforms them — and
+// code/pre are deliberately not wrapped: fenced content is data, not narrative.
+const renderCites = (
+  children: React.ReactNode,
+  cites: DexterCitation[],
+  scope: string,
+): React.ReactNode =>
+  React.Children.map(children, (child) => {
+    if (typeof child !== 'string' || !/\[\d+\]/.test(child)) return child;
+    return child.split(/(\[\d+\])/g).map((part, i) => {
+      const m = /^\[(\d+)\]$/.exec(part);
+      if (!m) return part;
+      const n = Number(m[1]);
+      return <CiteChip key={i} n={n} cite={cites.find((c) => c.id === n)} scope={scope} />;
+    });
+  });
+
+// Without citations (an old localStorage message) the base map renders [N] as
+// the literal text it always was — no chips, no red, no guessing.
+export function markdownComponents(cites?: DexterCitation[], scope = ''): Components {
+  if (!cites) return MARKDOWN_COMPONENTS;
+  const wrap = (key: 'p' | 'li' | 'td' | 'th' | 'strong' | 'em') => {
+    const Base = MARKDOWN_COMPONENTS[key] as React.FC<{ children?: React.ReactNode }>;
+    return ({ children }: { children?: React.ReactNode }) => (
+      <Base>{renderCites(children, cites, scope)}</Base>
+    );
+  };
+  return {
+    ...MARKDOWN_COMPONENTS,
+    p: wrap('p'),
+    li: wrap('li'),
+    td: wrap('td'),
+    th: wrap('th'),
+    strong: wrap('strong'),
+    em: wrap('em'),
+  };
+}
+
+export const AnswerBody: React.FC<{
+  text: string;
+  citations?: DexterCitation[];
+  anchorScope?: string;
+}> = ({ text, citations, anchorScope = '' }) => (
   <div className="min-w-0 text-body text-[color:var(--text)]">
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents(citations, anchorScope)}>
       {text}
     </ReactMarkdown>
   </div>
@@ -189,12 +280,17 @@ const EvidencePanel: React.FC<{
   citations?: DexterCitation[];
   fabricated?: number[];
   uncited?: string[];
-}> = ({ citations = [], fabricated = [], uncited = [] }) => {
+  scope?: string;
+}> = ({ citations = [], fabricated = [], uncited = [], scope = '' }) => {
   if (citations.length === 0 && fabricated.length === 0 && uncited.length === 0) return null;
   return (
     <div className="mt-3 space-y-1">
       {citations.map((c) => (
-        <div key={c.id} className="text-label font-mono flex gap-2 text-[color:var(--text-3)]">
+        <div
+          key={c.id}
+          id={citeAnchorId(scope, c.id)}
+          className="text-label font-mono flex gap-2 text-[color:var(--text-3)]"
+        >
           <span className="text-[color:var(--accent)] shrink-0">[{c.id}]</span>
           <span className="text-[color:var(--text-2)] shrink-0">{c.title}</span>
           <span className="truncate">{c.text}</span>
@@ -271,7 +367,7 @@ export const Turn: React.FC<{ msg: Message }> = ({ msg }) => {
   }
   return (
     <div className="w-full border-l-2 border-[color:var(--line)] pl-4">
-      <AnswerBody text={msg.content} />
+      <AnswerBody text={msg.content} citations={msg.citations} anchorScope={msg.id} />
       {msg.isDrawing && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -291,6 +387,7 @@ export const Turn: React.FC<{ msg: Message }> = ({ msg }) => {
         citations={msg.citations}
         fabricated={msg.fabricatedCites}
         uncited={msg.uncitedFigures}
+        scope={msg.id}
       />
       {msg.steps && <TracePanel steps={msg.steps} />}
     </div>
