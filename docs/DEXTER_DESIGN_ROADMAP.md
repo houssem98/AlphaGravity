@@ -219,7 +219,7 @@ flowchart TD
       radius and `text-[Npx]` in the Dexter tree with tokens and scale steps. Footer renders
       the real `provider`/`model` from the reply; delete the `Gemini 3.1 Pro` string.
       Fixes F2, F3. Rows 2, 3.
-- [ ] **DD-2 — Make markdown real.** Remove the dead `prose*` classes; give `ReactMarkdown`
+- [x] **DD-2 — Make markdown real.** Remove the dead `prose*` classes; give `ReactMarkdown`
       an explicit `components` map styled from tokens (headings, lists, tables via
       `remark-gfm`, inline code, blockquote, links). No new dependency.
       Fixes F1. Rows 1, 16.
@@ -295,3 +295,18 @@ measured ms, screenshot path. No adjectives.)_
   `Powered by Gemini` absent; 0 hex / `rounded-2xl` / `text-[Npx]` on any
   `Assistant.tsx` code-path (21 other trading components still carry them — out of
   the Dexter tree).
+- 2026-08-01 — **DD-2** done. `AnswerBody` + exported `MARKDOWN_COMPONENTS` map
+  (19 node types: h1-h6/p/ul/ol/li/strong/em/a/blockquote/hr/code/pre/table/thead/
+  th/td), `remark-gfm` wired, 0 `prose*` left, tables + `pre` scroll in their own
+  `overflow-x-auto` container, `min-w-0` + `break-words` on the body, no fixed
+  px width in the tree. Tests: +9 (row 1 in `Assistant.design.test.tsx` incl. a
+  verbatim prod-answer fixture `__fixtures__/dexter-prod-answer.md`; row 16 in new
+  `Assistant.responsive.test.tsx`). `npx vitest run` PASS 712 / FAIL 0 / skipped 7
+  (was 702). `tsc --noEmit` 0 errors. `vercel --prod` → `market-owhfiv7up`, chunk
+  `TradingAssistantPage-8aB5waKO.js` verified: 0 prose classes, h2-rule/table-scroll/
+  list-marker class strings all present. Live probes ×6: all HTTP 200; best
+  `deepseek/deepseek-v4-flash` ms 47231, 17 citations, B/80, 0 fabricated, 0 uncited,
+  steps 432/17475/29319ms (frozen as the fixture). Server-side flakiness observed —
+  4 of 6 probes returned `text:""` with trust F/0 "no answer produced" (steps all
+  ok, answer step 38-44s) and 1 truncated at 292 chars; pipeline territory, not
+  touched per doctrine 10 — noted for a DX follow-up ledger.

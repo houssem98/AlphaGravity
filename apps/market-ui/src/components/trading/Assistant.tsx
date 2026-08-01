@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, BarChart2, X, Sparkles } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { ChatMessage } from '../../services/dexterLlm';
 import type { AgentReply, DexterCitation } from '../../services/dexterTools';
 import { stepGlyph, traceSummary, type CellStep } from '../../services/gridTrace';
@@ -58,6 +59,103 @@ export const EngineMeta: React.FC<{ meta: EngineIdentity | null }> = ({ meta }) 
     </span>
   );
 };
+
+// DD-2 / F1: the answer body used to ask for `@tailwindcss/typography` classes
+// that were never installed, so every heading, list and table rendered at raw
+// browser defaults. There is no plugin to add — react-markdown takes an explicit
+// component map, and each node here is styled from the terminal's own tokens.
+//
+// `##` is the section rule of a research answer, so it reads as a tracked
+// Archivo Narrow label over a hairline, not as a big bold chat heading. Tables
+// and code scroll inside their own container (row 16) so a wide level table can
+// never push the panel body sideways.
+const H_SECTION =
+  'mt-4 mb-2 pb-1 border-b border-[color:var(--line)] font-display text-label font-semibold uppercase text-[color:var(--text-3)]';
+const H_SUB = 'mt-3 mb-1 font-display text-data font-semibold text-[color:var(--text-2)]';
+
+export const MARKDOWN_COMPONENTS: Components = {
+  h1: ({ children }) => <h2 className={H_SECTION}>{children}</h2>,
+  h2: ({ children }) => <h2 className={H_SECTION}>{children}</h2>,
+  h3: ({ children }) => <h3 className={H_SUB}>{children}</h3>,
+  h4: ({ children }) => <h4 className={H_SUB}>{children}</h4>,
+  h5: ({ children }) => <h5 className={H_SUB}>{children}</h5>,
+  h6: ({ children }) => <h6 className={H_SUB}>{children}</h6>,
+  p: ({ children }) => (
+    <p className="my-2 text-body text-[color:var(--text)] break-words">{children}</p>
+  ),
+  ul: ({ children }) => (
+    <ul className="my-2 space-y-1 pl-4 list-disc marker:text-[color:var(--text-4)]">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="my-2 space-y-1 pl-4 list-decimal marker:text-[color:var(--text-4)]">
+      {children}
+    </ol>
+  ),
+  li: ({ children }) => (
+    <li className="text-body text-[color:var(--text)] break-words">{children}</li>
+  ),
+  strong: ({ children }) => (
+    <strong className="font-semibold text-[color:var(--text)]">{children}</strong>
+  ),
+  em: ({ children }) => <em className="italic text-[color:var(--text-2)]">{children}</em>,
+  a: ({ children, href }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="text-[color:var(--accent)] underline underline-offset-2 break-words hover:brightness-110"
+    >
+      {children}
+    </a>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="my-2 border-l-2 border-[color:var(--line-strong)] pl-3 text-body text-[color:var(--text-2)]">
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className="my-3 border-[color:var(--line)]" />,
+  // A figure and a word must never share a typeface: anything the model fenced
+  // or ticked is data, so it renders in Martian Mono.
+  code: ({ className, children }) =>
+    className?.includes('language-') ? (
+      <code className={`font-mono text-data ${className}`}>{children}</code>
+    ) : (
+      <code className="rounded-sm bg-[color:var(--surface)] px-1 py-0.5 font-mono text-data text-[color:var(--text)]">
+        {children}
+      </code>
+    ),
+  pre: ({ children }) => (
+    <pre className="my-2 overflow-x-auto rounded-sm border border-[color:var(--line)] bg-[color:var(--bg)] p-3 font-mono text-data text-[color:var(--text-2)]">
+      {children}
+    </pre>
+  ),
+  table: ({ children }) => (
+    <div className="my-2 overflow-x-auto">
+      <table className="w-full border-collapse font-mono text-data">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead className="border-b border-[color:var(--line-strong)]">{children}</thead>
+  ),
+  th: ({ children }) => (
+    <th className="whitespace-nowrap px-2 py-1 text-left font-display text-label font-semibold uppercase text-[color:var(--text-3)]">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="whitespace-nowrap border-b border-[color:var(--line)] px-2 py-1 text-[color:var(--text)]">
+      {children}
+    </td>
+  ),
+};
+
+export const AnswerBody: React.FC<{ text: string }> = ({ text }) => (
+  <div className="min-w-0 text-body text-[color:var(--text)]">
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+      {text}
+    </ReactMarkdown>
+  </div>
+);
 
 // DX-7: the grade the answer earned, with the reasons it earned it. Honest-empty
 // gets its own tone — an answer that admits a gap is not a failed answer.
@@ -502,12 +600,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
                     : 'bg-[color:var(--surface-2)] text-[color:var(--text)] rounded-tl-none border border-[color:var(--line)]'
                 }`}
               >
-                {/* DD-1 strips the inert typography-plugin classes — the plugin
-                    was never installed, so they styled nothing. DD-2 hangs a
-                    real component map here. */}
-                <div className="text-body">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                </div>
+                <AnswerBody text={msg.content} />
                 {msg.isDrawing && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
