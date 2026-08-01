@@ -9,7 +9,7 @@ import { chipPropsFor, type AnswerTrust } from '../../services/dexterTrust';
 import { isCryptoAsset } from '../../constants/tradingAssets';
 import { motion, AnimatePresence } from 'motion/react';
 
-interface Message {
+export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
@@ -247,6 +247,52 @@ const TracePanel: React.FC<{ steps: CellStep[] }> = ({ steps }) => {
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+// DD-3 / F9: bubble geometry is right for a question and wrong for a research
+// answer. A user turn stays a compact right-aligned bubble; an assistant turn is
+// a full-width document marked by a left rule — no avatar column stealing 56px,
+// no 85% cap. The user's own words are typed plain text, so they render plain
+// (whitespace preserved), never through the markdown map.
+export const Turn: React.FC<{ msg: Message }> = ({ msg }) => {
+  if (msg.role === 'user') {
+    return (
+      <div className="flex flex-row-reverse gap-4">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border bg-[color:var(--accent)] border-[color:var(--accent)]">
+          <User className="w-5 h-5 text-[color:var(--accent-ink)]" />
+        </div>
+        <div className="max-w-[85%] rounded-xl rounded-tr-none p-4 bg-[color:var(--accent)] text-[color:var(--accent-ink)]">
+          <div className="text-body whitespace-pre-wrap break-words">{msg.content}</div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="w-full border-l-2 border-[color:var(--line)] pl-4">
+      <AnswerBody text={msg.content} />
+      {msg.isDrawing && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="mt-3 flex items-center gap-2 text-data text-[color:var(--accent)] font-medium bg-[color:var(--surface)] px-3 py-2 rounded-sm border border-[color:var(--line-strong)] w-fit"
+        >
+          <BarChart2 className="w-4 h-4" />
+          Chart updated with analysis
+        </motion.div>
+      )}
+      {msg.trust && (
+        <div className="mt-3">
+          <TrustChip trust={msg.trust} />
+        </div>
+      )}
+      <EvidencePanel
+        citations={msg.citations}
+        fabricated={msg.fabricatedCites}
+        uncited={msg.uncitedFigures}
+      />
+      {msg.steps && <TracePanel steps={msg.steps} />}
     </div>
   );
 };
@@ -576,53 +622,8 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className={`flex gap-4 ${
-                msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-              }`}
             >
-              <div
-                className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border ${
-                  msg.role === 'user'
-                    ? 'bg-[color:var(--accent)] border-[color:var(--accent)]'
-                    : 'bg-[color:var(--surface-2)] border-[color:var(--line-strong)]'
-                }`}
-              >
-                {msg.role === 'user' ? (
-                  <User className="w-5 h-5 text-[color:var(--accent-ink)]" />
-                ) : (
-                  <Bot className="w-5 h-5 text-[color:var(--accent)]" />
-                )}
-              </div>
-              <div
-                className={`max-w-[85%] rounded-xl p-4 ${
-                  msg.role === 'user'
-                    ? 'bg-[color:var(--accent)] text-[color:var(--accent-ink)] rounded-tr-none'
-                    : 'bg-[color:var(--surface-2)] text-[color:var(--text)] rounded-tl-none border border-[color:var(--line)]'
-                }`}
-              >
-                <AnswerBody text={msg.content} />
-                {msg.isDrawing && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="mt-3 flex items-center gap-2 text-data text-[color:var(--accent)] font-medium bg-[color:var(--surface)] px-3 py-2 rounded-sm border border-[color:var(--line-strong)] w-fit"
-                  >
-                    <BarChart2 className="w-4 h-4" />
-                    Chart updated with analysis
-                  </motion.div>
-                )}
-                {msg.trust && (
-                  <div className="mt-3">
-                    <TrustChip trust={msg.trust} />
-                  </div>
-                )}
-                <EvidencePanel
-                  citations={msg.citations}
-                  fabricated={msg.fabricatedCites}
-                  uncited={msg.uncitedFigures}
-                />
-                {msg.steps && <TracePanel steps={msg.steps} />}
-              </div>
+              <Turn msg={msg} />
             </motion.div>
           ))}
           {isLoading && (
@@ -630,15 +631,13 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="flex gap-4"
+              className="w-full border-l-2 border-[color:var(--line)] pl-4"
             >
-              <div className="w-10 h-10 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--line-strong)] flex items-center justify-center shrink-0">
-                <Bot className="w-5 h-5 text-[color:var(--accent)]" />
-              </div>
               {/* The live ticker DX-3 deferred: the stage named here is the one
-                  the server told us it had started, never a guess. */}
-              <div className="bg-[color:var(--surface-2)] rounded-xl rounded-tl-none p-4 flex items-center gap-3 border border-[color:var(--line)]">
-                <Loader2 className="w-5 h-5 text-[color:var(--accent)] animate-spin" />
+                  the server told us it had started, never a guess. An in-flight
+                  answer sits where the answer will land — same document rule. */}
+              <div className="flex items-center gap-3 py-2">
+                <Loader2 className="w-4 h-4 text-[color:var(--accent)] animate-spin" />
                 <span className="text-body text-[color:var(--text-2)]">{stage ?? 'Starting'}…</span>
                 <button
                   onClick={() => abortRef.current?.abort()}

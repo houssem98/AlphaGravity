@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { AnswerBody, EngineMeta, MARKDOWN_COMPONENTS, lastAgentMeta } from './Assistant';
+import {
+  AnswerBody,
+  EngineMeta,
+  MARKDOWN_COMPONENTS,
+  Turn,
+  lastAgentMeta,
+  type Message,
+} from './Assistant';
 
 // DD-1 · rows 2 and 3 of the design regression table.
 //
@@ -147,5 +154,36 @@ describe('row 1 — markdown is really styled, not asking a plugin that is absen
     for (const c of codes) expect(c[1]).toContain('font-mono');
     // the ladder of numbers lives in the table, so the table itself is mono
     expect(html).toMatch(/<table[^>]*class="[^"]*font-mono/);
+  });
+});
+
+// DD-3 · row 13. Bubble geometry is right for a question and wrong for a
+// structured research answer: the assistant turn is a full-width document
+// marked by a left rule, with no avatar column and no width cap; the user turn
+// keeps its compact right-aligned bubble.
+describe('row 13 — document layout', () => {
+  const assistantMsg: Message = { id: 'a1', role: 'assistant', content: '## Direction\n\nHolding [1].' };
+  const userMsg: Message = { id: 'u1', role: 'user', content: 'Analyze BTC' };
+
+  it('renders an assistant turn full-width with a left rule and no avatar', () => {
+    const html = renderToStaticMarkup(<Turn msg={assistantMsg} />);
+    expect(html).not.toContain('max-w-[85%]');
+    expect(html).not.toContain('lucide-bot'); // no avatar column
+    expect(html).toMatch(/^<div[^>]*class="w-full border-l-2 border-\[color:var\(--line\)\]/);
+  });
+
+  it('keeps bubble geometry on the user turn', () => {
+    const html = renderToStaticMarkup(<Turn msg={userMsg} />);
+    expect(html).toContain('flex-row-reverse');
+    expect(html).toContain('max-w-[85%]');
+    expect(html).toContain('rounded-tr-none');
+  });
+
+  it('renders the user turn as plain text, never through the markdown map', () => {
+    const html = renderToStaticMarkup(
+      <Turn msg={{ id: 'u2', role: 'user', content: '## not a heading' }} />,
+    );
+    expect(html).not.toContain('<h2');
+    expect(html).toContain('## not a heading');
   });
 });

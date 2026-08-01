@@ -223,7 +223,7 @@ flowchart TD
       an explicit `components` map styled from tokens (headings, lists, tables via
       `remark-gfm`, inline code, blockquote, links). No new dependency.
       Fixes F1. Rows 1, 16.
-- [ ] **DD-3 — Document layout.** Assistant turns full-width with a left rule; user turns
+- [x] **DD-3 — Document layout.** Assistant turns full-width with a left rule; user turns
       keep bubbles. Drop the assistant avatar column and the 16px radius.
       Fixes F9. Row 13.
 - [ ] **DD-4 — Citation chips.** Render `[N]` as an interactive chip: click scrolls to and
@@ -310,3 +310,12 @@ measured ms, screenshot path. No adjectives.)_
   4 of 6 probes returned `text:""` with trust F/0 "no answer produced" (steps all
   ok, answer step 38-44s) and 1 truncated at 292 chars; pipeline territory, not
   touched per doctrine 10 — noted for a DX follow-up ledger.
+- 2026-08-01 — **DD-3** done. Exported `Turn`: assistant turn = full-width
+  document, `border-l-2 border-[color:var(--line)] pl-4`, no avatar, no width
+  cap; user turn keeps avatar + `max-w-[85%] rounded-tr-none` accent bubble and
+  renders plain text (never the markdown map); loading row moved onto the same
+  left rule. Tests +3 (row 13). `npx vitest run` PASS 715 / FAIL 0 / skipped 7.
+  `tsc --noEmit` 0 errors. `vercel --prod` → `market-h6i4ytbn7`, chunk
+  `TradingAssistantPage-CqQPhv_N.js` verified: left-rule string present, user
+  bubble kept, `rounded-tl-none` gone. Live probe → 200 in 55.91s, 1843 chars,
+  17 citations, trust B/79, 0 fabricated, 1 uncited, steps 792/21418/33292ms.
