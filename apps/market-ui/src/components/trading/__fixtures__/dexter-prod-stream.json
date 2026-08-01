@@ -1,0 +1,59 @@
+[
+ {
+  "type": "plan",
+  "intent": "deep",
+  "stages": [
+   {
+    "label": "Recalling past calls",
+    "tool": "memory"
+   },
+   {
+    "label": "Running analysts",
+    "tool": "analysts"
+   },
+   {
+    "label": "Answering from the analyst reports",
+    "tool": "llm"
+   }
+  ]
+ },
+ {
+  "type": "stage",
+  "label": "Recalling past calls",
+  "tool": "memory"
+ },
+ {
+  "type": "step",
+  "label": "Recalling past calls",
+  "tool": "memory",
+  "ms": 357,
+  "status": "ok",
+  "meta": "1 journalled decision(s)"
+ },
+ {
+  "type": "stage",
+  "label": "Running analysts",
+  "tool": "analysts"
+ },
+ {
+  "type": "step",
+  "label": "Running analysts",
+  "tool": "analysts",
+  "ms": 27729,
+  "status": "ok",
+  "meta": "market:ok news:ok social:ok"
+ },
+ {
+  "type": "stage",
+  "label": "Answering from the analyst reports",
+  "tool": "llm"
+ },
+ {
+  "type": "step",
+  "label": "Answering from the analyst reports",
+  "tool": "llm",
+  "ms": 37261,
+  "status": "ok",
+  "meta": "deepseek/deepseek-v4-flash"
+ }
+]

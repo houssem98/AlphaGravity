@@ -249,7 +249,7 @@ flowchart TD
       proportional duration bar, provider meta, real error text on failure. Collapsed by
       default, but summarising honestly.
       Fixes F8. Row 9.
-- [ ] **DD-10 — Staged progress.** Render the routed intent's full stage list up-front and
+- [x] **DD-10 — Staged progress.** Render the routed intent's full stage list up-front and
       tick stages from the NDJSON events, with elapsed time per stage.
       Fixes F11. Row 14.
 - [ ] **DD-11 — Chart-action confirmation.** Drive the confirmation from `reply.actions`
@@ -413,3 +413,24 @@ measured ms, screenshot path. No adjectives.)_
   Live probe → 200 in 31.59s, 2313 chars, trust B/80, 3 steps rendering as
   memory 681ms (bar 4%) / analysts 11462ms (61%) / llm 18942ms (100%), meta
   `deepseek/deepseek-v4-flash` shown on the answering step.
+- 2026-08-01 — **DD-10** done. The NDJSON contract gains one additive event:
+  `{type:'plan', intent, stages[]}`, emitted before the first `trace.step` — the
+  client cannot know the routed intent or whether the journal is configured, so
+  guessing the checklist would have put stages on screen that may never run.
+  New `src/services/dexterStages.ts` (`plannedStages` / `applyStageEvent` /
+  `stagesDone`) is shared by `api/agent/[fn].ts` and the client. `decide` plans
+  memory→analysts→debate→risk→llm, `deep` drops debate+risk, the memory stage is
+  gated on `SUPABASE_URL`, and the **tool-loop path plans nothing** — the model
+  picks its own calls there, so `plannedStages` returns [] and the ticker stays
+  as it was. `StageChecklist` renders pending/running/ok/empty/failed with the
+  real per-stage `ms`; an unplanned stage is appended rather than dropped.
+  Tests +20 (row 14, `stageProgress.test.tsx`); one DX-16 source-scan assertion
+  in `dexterStream.test.ts` was widened (the branch grew, `onStage(ev.label)`
+  behaviour unchanged). `npx vitest run` PASS 799 / FAIL 0 / skipped 7.
+  `tsc --noEmit` 0 errors. `vercel --prod` → chunk `TradingAssistantPage-IjBGdMO6.js`
+  verified. **Live streaming probe** (`stream:true`) → 200 in 66.03s, 8 events on
+  the wire: `plan intent=deep stages=[memory,analysts,llm]`, then 3 stage/step
+  pairs — memory 357ms, analysts 27729ms, llm 37261ms — then done (1703 chars,
+  trust B/75). That event log is frozen as `__fixtures__/dexter-prod-stream.json`
+  and replayed in the suite, asserting the done-count never runs ahead of the
+  step events.

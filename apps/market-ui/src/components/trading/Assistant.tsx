@@ -19,6 +19,14 @@ import {
   type DexterLevelsBlock,
   type DexterPlanBlock,
 } from '../../services/dexterBlocks';
+import {
+  applyStageEvent,
+  stagesDone,
+  toStageStates,
+  type PlannedStage,
+  type StageEvent,
+  type StageState,
+} from '../../services/dexterStages';
 import { stepGlyph, traceSummary, type CellStep } from '../../services/gridTrace';
 import { chipPropsFor, type AnswerTrust } from '../../services/dexterTrust';
 import { isCryptoAsset } from '../../constants/tradingAssets';
@@ -762,6 +770,51 @@ export const Turn: React.FC<{ msg: Message }> = ({ msg }) => {
   );
 };
 
+// DD-10 / F11: a run can take minutes and showed one spinner line for all of
+// it. The checklist states the pipeline the router chose before it runs, then
+// ticks each stage as its event lands — with the real duration the step
+// reported. A stage is never marked done ahead of the event that finished it.
+const STAGE_GLYPH: Record<StageState['status'], string> = {
+  pending: '·',
+  running: '▸',
+  ok: '✓',
+  empty: '○',
+  failed: '✗',
+};
+
+const STAGE_TONE: Record<StageState['status'], string> = {
+  pending: 'text-[color:var(--text-4)]',
+  running: 'text-[color:var(--accent)]',
+  ok: 'text-[color:var(--up)]',
+  empty: 'text-amber-400',
+  failed: 'text-[color:var(--down)]',
+};
+
+export const StageChecklist: React.FC<{ stages: StageState[] }> = ({ stages }) => {
+  if (stages.length === 0) return null;
+  return (
+    <div data-stage-checklist="true" className="mt-2 space-y-0.5">
+      {stages.map((s, i) => (
+        <div key={`${s.tool}-${i}`} className="flex items-baseline gap-2 font-mono text-label">
+          <span className={`shrink-0 ${STAGE_TONE[s.status]}`}>{STAGE_GLYPH[s.status]}</span>
+          <span
+            className={
+              s.status === 'pending'
+                ? 'text-[color:var(--text-4)]'
+                : 'text-[color:var(--text-2)]'
+            }
+          >
+            {s.label}
+          </span>
+          {s.ms !== undefined && (
+            <span className="ml-auto shrink-0 text-[color:var(--text-4)]">{s.ms}ms</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 interface AssistantProps {
   onDraw: (type: string, data: any) => void;
   currentAsset: string;
@@ -783,6 +836,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
   const [isLoading, setIsLoading] = useState(false);
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [stage, setStage] = useState<string | null>(null);
+  const [stages, setStages] = useState<StageState[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<ChatMessage[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -869,6 +923,8 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
     messages: ChatMessage[],
     onStage: (label: string) => void,
     signal: AbortSignal,
+    onPlan?: (stages: PlannedStage[]) => void,
+    onStageEvent?: (ev: StageEvent) => void,
   ): Promise<AgentReply> => {
     const res = await fetch('/api/agent/chat', {
       method: 'POST',
@@ -907,7 +963,9 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
         if (!line.trim()) continue;
         let ev: any;
         try { ev = JSON.parse(line); } catch { continue; }
-        if (ev.type === 'stage') onStage(ev.label);
+        if (ev.type === 'plan') onPlan?.(ev.stages ?? []);
+        else if (ev.type === 'stage') { onStage(ev.label); onStageEvent?.(ev as StageEvent); }
+        else if (ev.type === 'step') onStageEvent?.(ev as StageEvent);
         else if (ev.type === 'error') throw Object.assign(new Error(ev.error), { steps: ev.steps });
         else if (ev.type === 'done') done = ev as AgentReply;
       }
@@ -966,7 +1024,14 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
       history.push({ role: 'user', content: contextMessage });
       const controller = new AbortController();
       abortRef.current = controller;
-      const reply = await postAgent(history, setStage, controller.signal);
+      setStages([]);
+      const reply = await postAgent(
+        history,
+        setStage,
+        controller.signal,
+        (planned) => setStages(toStageStates(planned)),
+        (ev) => setStages((prev) => applyStageEvent(prev, ev)),
+      );
       history.push({ role: 'assistant', content: reply.text });
       for (const action of reply.actions) onDraw(action.type, action.args);
 
@@ -1104,6 +1169,11 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
               <div className="flex items-center gap-3 py-2">
                 <Loader2 className="w-4 h-4 text-[color:var(--accent)] animate-spin" />
                 <span className="text-body text-[color:var(--text-2)]">{stage ?? 'Starting'}…</span>
+                {stages.length > 0 && (
+                  <span className="font-mono text-label text-[color:var(--text-4)]">
+                    {stagesDone(stages)}/{stages.length}
+                  </span>
+                )}
                 <button
                   onClick={() => abortRef.current?.abort()}
                   className="ml-2 text-label text-[color:var(--text-3)] hover:text-[color:var(--down)] underline transition-colors"
@@ -1111,6 +1181,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
                   cancel
                 </button>
               </div>
+              <StageChecklist stages={stages} />
             </motion.div>
           )}
         </AnimatePresence>

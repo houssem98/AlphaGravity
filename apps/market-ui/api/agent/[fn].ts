@@ -39,6 +39,7 @@ import {
 } from '../../src/services/dexterMemory.js';
 import type { Bar, TaLevels } from '../../src/services/taLevels.js';
 import { renderLevelsBlock, MAX_LEVELS_PER_SIDE } from '../../src/services/dexterBlocks.js';
+import { plannedStages } from '../../src/services/dexterStages.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
 // A tool round-trip plus a reasoning model exceeds the 10s default. The full
@@ -215,6 +216,19 @@ export default async function handler(req: any, res: any) {
     },
     done: () => rawTrace.done(),
   };
+
+  // DD-10: the pipeline the router chose, stated before it runs. The tool-loop
+  // path returns [] — the model picks its own calls there, so there is nothing
+  // honest to promise.
+  send({
+    type: 'plan',
+    intent: effectiveMode,
+    stages: ctx
+      ? plannedStages(effectiveMode, {
+          hasMemory: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
+        })
+      : [],
+  });
 
   try {
     let provider = '';

@@ -60,7 +60,9 @@ describe('row 21 — the client consumes the stream and can stop it', () => {
     });
 
     it('shows the stage the server actually reported', () => {
-        expect(client).toMatch(/if \(ev\.type === 'stage'\) onStage\(ev\.label\)/);
+        // DD-10 widened this branch to also feed the stage checklist; the
+        // ticker still names only the stage the server reported.
+        expect(client).toMatch(/ev\.type === 'stage'.*onStage\(ev\.label\)/);
         expect(client).toMatch(/\{stage \?\? 'Starting'\}/);
     });
 
