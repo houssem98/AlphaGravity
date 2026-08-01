@@ -5,7 +5,7 @@
   "framework": "vite",
   "regions": ["fra1"],
   "rewrites": [
-    { "source": "/api/((?!tn/).*)", "destination": "https://market-server-prod.fly.dev/api/$1" },
+    { "source": "/api/((?!tn/|agent/).*)", "destination": "https://market-server-prod.fly.dev/api/$1" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "crons": [

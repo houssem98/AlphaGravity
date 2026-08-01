@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
 import { Activity, TrendingUp, TrendingDown, Minus, Loader2, ExternalLink } from 'lucide-react';
 import { safeUrl } from '../../lib/safeUrl';
 
@@ -27,68 +26,20 @@ export const SentimentPanel: React.FC<SentimentPanelProps> = ({ asset }) => {
     setExpanded(false);
   }, [asset]);
 
+  // DX-1: this panel used to build a GoogleGenAI client in the BROWSER from
+  // `process.env.GEMINI_API_KEY` — a Node variable that does not exist in a Vite
+  // bundle, so the button has never produced a reading. Its whole value came
+  // from Gemini's googleSearch grounding (real headlines behind the score), and
+  // the surviving provider chain has no grounded search channel yet. Rather
+  // than score sentiment from an ungrounded model (doctrine rule 2: the model
+  // never emits a figure it did not read), the panel says so until the News /
+  // Social analysts land in DX-8.
   const analyzeSentiment = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('GEMINI_API_KEY is not set');
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
-
-      const prompt = `Analyze the current news and social media sentiment for the financial asset: ${asset}. 
-      Search the web for the latest news, tweets, and articles from the last 24-48 hours.
-      Determine if the overall sentiment is Bullish, Bearish, or Neutral.
-      Provide a score from 0 to 100, where 0 is extremely bearish, 50 is neutral, and 100 is extremely bullish.
-      Provide a short summary of the main drivers of this sentiment.
-      
-      You MUST respond ONLY with a valid JSON object in the following format, with no markdown formatting or backticks:
-      {
-        "score": 75,
-        "label": "Bullish",
-        "summary": "Short summary here..."
-      }`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }]
-        }
-      });
-
-      let resultText = response.text;
-      if (!resultText) throw new Error("No response from AI");
-      
-      // Clean up markdown if present
-      resultText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
-      
-      const parsed = JSON.parse(resultText);
-      
-      // Extract sources from grounding metadata
-      const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-      const sources = chunks
-        .map(chunk => chunk.web)
-        .filter((web): web is { uri: string; title: string } => !!web && !!web.uri && !!web.title);
-
-      // Deduplicate sources by URI
-      const uniqueSources = Array.from(new Map(sources.map(item => [item.uri, item])).values()).slice(0, 3);
-
-      setData({
-        score: parsed.score,
-        label: parsed.label,
-        summary: parsed.summary,
-        sources: uniqueSources
-      });
-      setExpanded(true);
-    } catch (err: any) {
-      console.error("Sentiment analysis error:", err);
-      setError(err.message || "Failed to analyze sentiment");
-    } finally {
-      setLoading(false);
-    }
+    setError(
+      'Sentiment needs grounded headlines, not a model guess. The news + social ' +
+      'channels land with the analyst layer (roadmap DX-8) — until then this ' +
+      'panel would only be inventing a number.',
+    );
   };
 
   const getIcon = (label: string) => {

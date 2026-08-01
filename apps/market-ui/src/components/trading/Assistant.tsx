@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, BarChart2, X, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { GoogleGenAI, Type, Chat } from '@google/genai';
-import type { FunctionDeclaration } from '@google/genai';
+import type { ChatMessage, ChatResult, ToolDef } from '../../services/dexterLlm';
 import { isCryptoAsset } from '../../constants/tradingAssets';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -34,7 +33,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
   const [isLoading, setIsLoading] = useState(false);
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatRef = useRef<Chat | null>(null);
+  const historyRef = useRef<ChatMessage[]>([]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -104,107 +103,85 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
     };
   }, [currentAsset]);
 
-  const initChat = () => {
-    let apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    const allKeysStr = import.meta.env.VITE_GEMINI_API_KEYS;
-    
-    if (allKeysStr) {
-      const keys = allKeysStr.split(',').map((k: string) => k.trim()).filter(Boolean);
-      if (keys.length > 0) {
-        // Randomly pick an API key to avoid rate limits
-        apiKey = keys[Math.floor(Math.random() * keys.length)];
-        console.log(`Using API key ending in ...${apiKey!.slice(-4)}`);
-      }
-    }
-
-    if (!apiKey) {
-      console.error('No Gemini API key found (tried GEMINI_API_KEYS and GEMINI_API_KEY)');
-      return null;
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-
-    const drawTechnicalAnalysisFunction: FunctionDeclaration = {
+  // Tool schemas travel to the provider as plain JSON Schema (OpenAI function
+  // format) — no SDK, no vendor types. DX-2 moves the executors server-side.
+  const TOOLS: ToolDef[] = [
+    {
       name: 'drawTechnicalAnalysis',
       description: 'Draw technical analysis indicators on the chart.',
       parameters: {
-        type: Type.OBJECT,
+        type: 'object',
         properties: {
           type: {
-            type: Type.STRING,
+            type: 'string',
             description: 'The type of drawing: "support_resistance", "order_block", "fibonacci", or "pattern".',
           },
           levels: {
-            type: Type.ARRAY,
-            items: { type: Type.NUMBER },
+            type: 'array',
+            items: { type: 'number' },
             description: 'The price levels to draw. For support/resistance, provide an array of prices. For order blocks, provide [top, bottom]. For fibonacci, provide [high, low].',
           },
           points: {
-            type: Type.ARRAY,
+            type: 'array',
             items: {
-              type: Type.OBJECT,
+              type: 'object',
               properties: {
-                time: { type: Type.STRING, description: 'Date string (YYYY-MM-DD)' },
-                price: { type: Type.NUMBER, description: 'Price level' },
-                label: { type: Type.STRING, description: 'Label for the point (e.g., "Left Shoulder", "Head", "Top 1")' }
-              }
+                time: { type: 'string', description: 'Date string (YYYY-MM-DD)' },
+                price: { type: 'number', description: 'Price level' },
+                label: { type: 'string', description: 'Label for the point (e.g., "Left Shoulder", "Head", "Top 1")' },
+              },
             },
             description: 'Points to draw for patterns like head and shoulders, double top, etc.',
           },
           reasoning: {
-            type: Type.STRING,
+            type: 'string',
             description: 'Brief explanation of why these levels or patterns were chosen.',
-          }
+          },
         },
         required: ['type', 'reasoning'],
       },
-    };
-
-    const getChartDataFunction: FunctionDeclaration = {
+    },
+    {
       name: 'getChartData',
       description: 'Get the recent OHLCV data for the current asset to analyze patterns and trends.',
       parameters: {
-        type: Type.OBJECT,
+        type: 'object',
         properties: {
-          days: {
-            type: Type.NUMBER,
-            description: 'Number of recent days of data to retrieve (max 365).',
-          }
+          days: { type: 'number', description: 'Number of recent days of data to retrieve (max 365).' },
         },
         required: ['days'],
       },
-    };
-
-    const getFundamentalDataFunction: FunctionDeclaration = {
+    },
+    {
       name: 'getFundamentalData',
       description: 'Get fundamental data for the current asset (market cap, P/E ratio, revenue, etc.).',
-      parameters: {
-        type: Type.OBJECT,
-        properties: {},
-        required: [],
-      },
-    };
-
-    const getFinancialStatementsFunction: FunctionDeclaration = {
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+    {
       name: 'getFinancialStatements',
       description: 'Get detailed financial statements (income statement, balance sheet, cash flow) for the current asset.',
-      parameters: {
-        type: Type.OBJECT,
-        properties: {},
-        required: [],
-      },
-    };
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  ];
 
-    return ai.chats.create({
-      model: 'gemini-3.1-pro-preview',
-      config: {
-        systemInstruction: `You are Dexter, an autonomous AI financial analyst and trading assistant. You take complex financial questions and turn them into clear, step-by-step research plans. You execute those tasks using live market data, check your own work, and refine the results until you have a confident, data-backed answer.
-        
-        Key Capabilities:
-        - Intelligent Task Planning: Automatically decompose complex queries into structured research steps.
-        - Autonomous Execution: Select and execute the right tools to gather financial data.
-        - Self-Validation: Check your own work and iterate until tasks are complete.
-        
+  // One POST per model turn. The key lives in the deployment environment; the
+  // browser never sees it (roadmap §0 F1/F2).
+  const postChat = async (messages: ChatMessage[]): Promise<ChatResult> => {
+    const res = await fetch('/api/agent/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, tools: TOOLS }),
+    });
+    const json = await res.json().catch(() => ({ error: `agent/chat HTTP ${res.status}` }));
+    if (!res.ok) throw new Error(json.error || `agent/chat HTTP ${res.status}`);
+    return json as ChatResult;
+  };
+
+  const systemPrompt = () =>
+    `You are Dexter, an AI financial analyst and trading assistant. You answer with live market data
+        pulled through your tools, and you say plainly when a number is not available rather than
+        estimating it. Never state a price, level, or ratio you did not read from a tool result.
+
         The user's chart currently displays:
         - Asset: ${currentAsset}${isTN ? ` (${assetName || currentAsset} — listed on the Bourse de Tunis / BVMT, quoted in Tunisian Dinar TND)` : ''}
         - Current Real-time Price: ${currentPrice !== null ? (isTN ? currentPrice + ' TND' : '$' + currentPrice) : 'Unknown'}${isTN ? `
@@ -227,11 +204,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
         3. getFundamentalData: Retrieves fundamental data (P/E ratio, Market Cap, Revenue, etc.) for the current asset. Use this when the user asks for fundamental analysis.
         4. getFinancialStatements: Retrieves detailed financial statements (income statement, balance sheet, cash flow) for the current asset. Use this for deep fundamental research.
         
-        When analyzing, always provide clear insights and predictions based on technical indicators and historical data. Be professional, concise, and thoroughly explain your reasoning. If you draw something, explain what you drew and why. For patterns, use the "points" array to specify the time and price of each key point (e.g., left shoulder, head, right shoulder) and provide a label for each.`,
-        tools: [{ functionDeclarations: [drawTechnicalAnalysisFunction, getChartDataFunction, getFundamentalDataFunction, getFinancialStatementsFunction] }],
-      },
-    });
-  };
+        When analyzing, always provide clear insights and predictions based on technical indicators and historical data. Be professional, concise, and thoroughly explain your reasoning. If you draw something, explain what you drew and why. For patterns, use the "points" array to specify the time and price of each key point (e.g., left shoulder, head, right shoulder) and provide a label for each.`;
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -247,31 +220,40 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
     setIsLoading(true);
 
     try {
-      if (!chatRef.current) {
-        chatRef.current = initChat();
-      }
-
-      if (!chatRef.current) {
-        throw new Error('Failed to initialize chat');
-      }
-
-      const contextMessage = `[System Context: Current Asset is ${currentAsset}. Real-time Price is ${currentPrice !== null ? '$' + currentPrice : 'Unknown'}.]\n\n${text}`;
-      let response = await chatRef.current.sendMessage({ message: contextMessage });
-      
-      let finalContent = response.text || '';
+      const history = historyRef.current;
+      if (history.length === 0) history.push({ role: 'system', content: systemPrompt() });
+      const contextMessage = `[System Context: Current Asset is ${currentAsset}. Real-time Price is ${currentPrice !== null ? (isTN ? currentPrice + ' TND' : '$' + currentPrice) : 'Unknown'}.]\n\n${text}`;
+      history.push({ role: 'user', content: contextMessage });
+      let finalContent = '';
       let isDrawing = false;
-      let loopCount = 0;
       const MAX_LOOPS = 5;
 
-      while (response.functionCalls && response.functionCalls.length > 0 && loopCount < MAX_LOOPS) {
-        loopCount++;
-        let functionResponsesText = '';
+      for (let loopCount = 0; loopCount < MAX_LOOPS; loopCount++) {
+        const response = await postChat(history);
+        if (response.text) finalContent += (finalContent ? '\n\n' : '') + response.text;
+        if (response.toolCalls.length === 0) {
+          history.push({ role: 'assistant', content: response.text });
+          break;
+        }
 
-        for (const call of response.functionCalls) {
+        // The assistant turn must carry the tool_calls it made, or the provider
+        // rejects the tool results that follow (OpenAI protocol).
+        history.push({
+          role: 'assistant',
+          content: response.text,
+          tool_calls: response.toolCalls.map((c) => ({
+            id: c.id,
+            type: 'function' as const,
+            function: { name: c.name, arguments: JSON.stringify(c.args) },
+          })),
+        });
+
+        for (const call of response.toolCalls) {
+          let result: unknown = null;
           if (call.name === 'getChartData') {
             const days = (call.args as any).days || 30;
             const limit = Math.min(days, 365);
-            
+
             let data;
             const isCrypto = !isTN && isCryptoAsset(currentAsset);
 
@@ -330,13 +312,13 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
                 }
               }
             }
-            functionResponsesText += `\n\n[getChartData Result for ${currentAsset}]:\n${JSON.stringify(data)}`;
+            result = data;
           } else if (call.name === 'drawTechnicalAnalysis') {
             const args = call.args as any;
             onDraw(args.type, args);
             isDrawing = true;
-            finalContent += `\n\n*Drew ${args.type.replace('_', ' ')}*\n> ${args.reasoning}`;
-            functionResponsesText += `\n\n[drawTechnicalAnalysis Result]: Successfully drew ${args.type} on the chart.`;
+            finalContent += `\n\n*Drew ${String(args.type).replace('_', ' ')}*\n> ${args.reasoning}`;
+            result = `Successfully drew ${args.type} on the chart.`;
           } else if (call.name === 'getFundamentalData') {
             let data: any = {};
             const isCrypto = !isTN && isCryptoAsset(currentAsset);
@@ -358,7 +340,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
               } catch {
                 data = { error: 'BVMT feed unreachable.' };
               }
-              functionResponsesText += `\n\n[getFundamentalData Result for ${currentAsset}]:\n${JSON.stringify(data)}`;
+              history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(data) });
               continue;
             }
             try {
@@ -388,7 +370,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
                 data = { error: "Fundamental data not available for this asset." };
               }
             }
-            functionResponsesText += `\n\n[getFundamentalData Result for ${currentAsset}]:\n${JSON.stringify(data)}`;
+            result = data;
           } else if (call.name === 'getFinancialStatements') {
             let data: any = {};
             const isCrypto = !isTN && isCryptoAsset(currentAsset);
@@ -415,19 +397,11 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
                 data = { error: "Error fetching financial statements." };
               }
             }
-            functionResponsesText += `\n\n[getFinancialStatements Result for ${currentAsset}]:\n${JSON.stringify(data)}`;
+            result = data;
+          } else {
+            result = { error: `Unknown tool: ${call.name}` };
           }
-        }
-
-        if (functionResponsesText) {
-          response = await chatRef.current.sendMessage({
-            message: `Here are the results of your tool calls. Please analyze them and decide if you need to call more tools or provide the final answer to the user:\n${functionResponsesText}`
-          });
-          if (response.text) {
-            finalContent += '\n\n' + response.text;
-          }
-        } else {
-          break;
+          history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) });
         }
       }
 
@@ -441,7 +415,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
         },
       ]);
     } catch (error: any) {
-      console.error('Error calling Gemini:', error);
+      console.error('Error calling /api/agent/chat:', error);
       setMessages((prev) => [
         ...prev,
         {
@@ -461,9 +435,10 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
     sendMessage(`Please analyze the current chart for ${currentAsset}, provide insights, predictions based on technical indicators, and explain your reasoning.`);
   };
 
-  // Reset chat when asset or market changes
+  // Reset the conversation when asset or market changes — the system prompt is
+  // asset-scoped, so it is rebuilt on the next message.
   useEffect(() => {
-    chatRef.current = initChat();
+    historyRef.current = [];
   }, [currentAsset, market]);
 
   return (

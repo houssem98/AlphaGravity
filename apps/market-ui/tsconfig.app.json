@@ -5,7 +5,11 @@
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "types": ["vite/client"],
+    // "node" is explicit since DX-1: dropping @google/genai removed the
+    // transitive @types/node reference that src/services/evalRunner.ts,
+    // pdfStructuralQa.ts, selfImprovementHarness.ts, OrderBook.tsx and
+    // useMarketsData.ts had been relying on by accident.
+    "types": ["vite/client", "node"],
     "skipLibCheck": true,
 
     "baseUrl": ".",
