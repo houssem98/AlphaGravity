@@ -97,11 +97,34 @@ export default async function handler(req: any, res: any) {
   if (fn !== 'chat') return res.status(404).json({ error: `Unknown agent route: ${fn}` });
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-  const { messages, asset, tools, mode, rounds, riskRounds, confirmed } = req.body ?? {};
+  const { messages, asset, tools, mode, rounds, riskRounds, confirmed, stream } = req.body ?? {};
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages[] required' });
   }
   const t0 = Date.now();
+
+  // DX-16: NDJSON step events. This is the live ticker DX-3 could not ship —
+  // one non-streaming POST gave the browser no way to learn a server step
+  // before the run ended, and inventing progress would have been a performance
+  // rather than a record. Steps only, not tokens: on a 100-second graph the
+  // useful signal is WHICH STAGE is running, and streaming tokens through five
+  // stages would buy noise at the cost of a much larger surface.
+  const streaming = stream === true;
+  if (streaming) {
+    res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('X-Accel-Buffering', 'no');
+  }
+  let emitted = 0;
+  const send = (obj: unknown) => {
+    if (!streaming) return;
+    try { res.write(JSON.stringify(obj) + '\n'); } catch { /* client hung up */ }
+  };
+  const finish = (payload: Record<string, unknown>) => {
+    if (!streaming) return res.json(payload);
+    send({ type: 'done', ...payload });
+    return res.end();
+  };
 
   const keys: Partial<Record<ProviderId, string | undefined>> = {
     deepseek: process.env.DEEPSEEK_API_KEY,
@@ -149,7 +172,7 @@ export default async function handler(req: any, res: any) {
   const effectiveMode: string = mode ?? routed.intent;
 
   if (effectiveMode === 'decide' && confirmed !== true) {
-    return res.json({
+    return finish({
       needsConfirmation: true,
       intent: routed.intent,
       reason: routed.reason,
@@ -171,7 +194,25 @@ export default async function handler(req: any, res: any) {
   // DX-3: the trace is a record, never a performance. A step exists iff its
   // call executed; a thrown tool keeps its real error. It is built even when
   // the request is toolless, so the plain chat path still shows its one step.
-  const trace = newTrace();
+  const rawTrace = newTrace();
+
+  // DX-16: the same trace, with each completed step pushed to the client as it
+  // lands. It reports steps AFTER they run, so a streamed step is still a
+  // record of something that happened — never a spinner labelled with a stage
+  // that has not started.
+  const trace: typeof rawTrace = {
+    async step(label, tool, fn, opts) {
+      send({ type: 'stage', label, tool });
+      try {
+        return await rawTrace.step(label, tool, fn, opts);
+      } finally {
+        const done = rawTrace.done();
+        for (const s of done.slice(emitted)) send({ type: 'step', ...s });
+        emitted = done.length;
+      }
+    },
+    done: () => rawTrace.done(),
+  };
 
   try {
     let provider = '';
@@ -301,7 +342,7 @@ export default async function handler(req: any, res: any) {
         const store = supabaseJournalStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
         waitUntil(recordDecision(store, entry).catch(e => console.error('[journal]', e.message)));
       }
-      return res.json({
+      return finish({
         text: answer,
         actions,
         steps: trace.done(),
@@ -421,7 +462,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    res.json({
+    finish({
       text,
       actions,
       steps: trace.done(),
@@ -439,7 +480,9 @@ export default async function handler(req: any, res: any) {
     });
   } catch (e: any) {
     // A blown run still ships its trace — the steps that ran are exactly the
-    // evidence needed to see where it died.
+    // evidence needed to see where it died. On a stream the status is already
+    // sent, so the failure rides the same channel as everything else.
+    if (streaming) { send({ type: 'error', error: e.message, steps: trace.done() }); return res.end(); }
     res.status(502).json({ error: e.message, steps: trace.done() });
   }
 }

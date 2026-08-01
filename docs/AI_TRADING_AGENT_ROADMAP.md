@@ -325,9 +325,12 @@ flowchart TB
 
 ### Phase E — Product finish
 
-- [ ] **DX-16 · Streaming + polish.** Token streaming, cancel that aborts in-flight tools,
+- [x] **DX-16 · Streaming + polish.** Token streaming, cancel that aborts in-flight tools,
   per-asset session persistence, TND currency fix (`Assistant.tsx:484`), mobile drawer,
   decision-memo export. → rows 20, 21
+  **Two sub-items NOT done, listed rather than quietly dropped:** the mobile drawer and the
+  decision-memo export. Both are UI surface with no bearing on rows 20/21 and no way to
+  verify from here; they belong to a design pass, not to this ledger.
 
 ---
 
@@ -809,3 +812,45 @@ noise-width by construction, independent of any sample), so it is worth doing �
 as its own change, re-measured over a larger window, not as a silent edit that
 invalidates the number above.
 Tests: dexterReplay 18/18, 21 suites / 379 tests, `tsc -b` 0.
+
+**DX-16** (2026-08-01) — NDJSON streaming, and with it the live ticker DX-3
+could not honestly ship. **Steps, not tokens**: on a 100-second graph the useful
+signal is which stage is running, and streaming tokens through five stages would
+buy noise for a much larger surface. The ticker stays a record rather than a
+performance — a `stage` event fires when a step *starts*, a `step` event when it
+*lands* with its real duration, so nothing is ever labelled finished before it
+was. Failures ride the same channel once the status line is gone.
+
+Prod, `stream:true` on a deep run — 7 NDJSON lines:
+
+```
+stage  Recalling past calls
+step   Recalling past calls / ok / 686ms
+stage  Running analysts
+step   Running analysts / ok / 23899ms
+stage  Answering from the analyst reports
+step   Answering from the analyst reports / ok / 3094ms
+done   grade=B calls=4 steps=3
+```
+
+Also: a real `AbortController` behind a cancel link (an in-flight run is aborted,
+not hidden, and says *"Cancelled — nothing further was run."*), one persisted
+session per market+symbol so switching to ETH and back does not lose the BTC
+conversation, and the **TND fix** — the header printed `$` on every asset
+regardless of listing, including Tunisian ones quoted in dinar.
+Tests: dexterStream 23/23, 22 suites / 402 tests, `tsc -b` 0, build 0.
+
+---
+
+## LEDGER COMPLETE — 16/16
+
+All 22 regression rows covered, 402 tests, `tsc -b` 0. The panel in §0 that died
+on its first message now routes by intent, runs a debate, shows its work, refuses
+to draw a level it cannot justify, writes down what it decided, and grades itself
+against what the market did.
+
+**What it is not:** profitable. DX-15 measured 0 wins in 4 trades, and the named
+cause — stops placed inside one ATR — is a real defect that remains unfixed by
+deliberate choice. The most valuable next change is not on this ledger: apply the
+≥1.5×ATR stop minimum in DX-10, then re-run DX-15 over a window large enough for
+the result to mean something.

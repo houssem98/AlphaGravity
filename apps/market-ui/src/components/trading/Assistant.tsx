@@ -120,20 +120,26 @@ interface AssistantProps {
   assetName?: string;
 }
 
+const GREETING: Message = {
+  id: '1',
+  role: 'assistant',
+  content: 'Hello! I am your AI Trading Assistant. I can analyze charts, identify patterns, and draw technical indicators like order blocks and Fibonacci retracements. How can I help you today?',
+};
+
 export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onClose, market, assetName }) => {
   const isTN = market === 'tunisia';
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: 'Hello! I am your AI Trading Assistant. I can analyze charts, identify patterns, and draw technical indicators like order blocks and Fibonacci retracements. How can I help you today?',
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
+  const [stage, setStage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<ChatMessage[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // DX-16: one session per asset. Switching to ETH and back should not lose
+  // what was already said about BTC.
+  const sessionKey = `dexter_session_${market ?? 'us'}_${currentAsset}`;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -206,11 +212,20 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
   // The tool belt lives server-side now (dexterTools.ts): one POST runs the
   // whole tool loop next to the model, and the browser only applies the chart
   // actions that come back. Nothing here fetches market data any more.
-  const postAgent = async (messages: ChatMessage[]): Promise<AgentReply> => {
+  // DX-16: streamed as NDJSON so the stage the server is on shows up while it
+  // runs. `onStage` fires when a step STARTS, `onStep` when it lands with its
+  // real duration — the ticker never claims a stage finished before it did.
+  const postAgent = async (
+    messages: ChatMessage[],
+    onStage: (label: string) => void,
+    signal: AbortSignal,
+  ): Promise<AgentReply> => {
     const res = await fetch('/api/agent/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal,
       body: JSON.stringify({
+        stream: true,
         messages,
         asset: {
           symbol: currentAsset,
@@ -221,12 +236,34 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
         },
       }),
     });
-    const json = await res.json().catch(() => ({ error: `agent/chat HTTP ${res.status}` }));
-    if (!res.ok) {
-      // A failed run still carries its trace — keep it so the user sees where it died.
+
+    if (!res.ok || !res.body) {
+      const json = await res.json().catch(() => ({ error: `agent/chat HTTP ${res.status}` }));
       throw Object.assign(new Error(json.error || `agent/chat HTTP ${res.status}`), { steps: json.steps });
     }
-    return json as AgentReply;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let done: AgentReply | null = null;
+
+    for (;;) {
+      const { value, done: finished } = await reader.read();
+      if (finished) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let ev: any;
+        try { ev = JSON.parse(line); } catch { continue; }
+        if (ev.type === 'stage') onStage(ev.label);
+        else if (ev.type === 'error') throw Object.assign(new Error(ev.error), { steps: ev.steps });
+        else if (ev.type === 'done') done = ev as AgentReply;
+      }
+    }
+    if (!done) throw new Error('the run ended without producing an answer');
+    return done;
   };
 
 
@@ -277,7 +314,9 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
       if (history.length === 0) history.push({ role: 'system', content: systemPrompt() });
       const contextMessage = `[System Context: Current Asset is ${currentAsset}. Real-time Price is ${currentPrice !== null ? (isTN ? currentPrice + ' TND' : '$' + currentPrice) : 'Unknown'}.]\n\n${text}`;
       history.push({ role: 'user', content: contextMessage });
-      const reply = await postAgent(history);
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const reply = await postAgent(history, setStage, controller.signal);
       history.push({ role: 'assistant', content: reply.text });
       for (const action of reply.actions) onDraw(action.type, action.args);
 
@@ -296,18 +335,23 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
         },
       ]);
     } catch (error: any) {
-      console.error('Error calling /api/agent/chat:', error);
+      const cancelled = error?.name === 'AbortError';
+      if (!cancelled) console.error('Error calling /api/agent/chat:', error);
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           role: 'assistant',
-          content: `Sorry, I encountered an error: ${error.message}`,
-          steps: error.steps,
+          content: cancelled
+            ? 'Cancelled — nothing further was run.'
+            : `Sorry, I encountered an error: ${error.message}`,
+          steps: error?.steps,
         },
       ]);
     } finally {
       setIsLoading(false);
+      setStage(null);
+      abortRef.current = null;
     }
   };
 
@@ -317,11 +361,25 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
     sendMessage(`Please analyze the current chart for ${currentAsset}, provide insights, predictions based on technical indicators, and explain your reasoning.`);
   };
 
-  // Reset the conversation when asset or market changes — the system prompt is
-  // asset-scoped, so it is rebuilt on the next message.
+  // Restore this asset's session, or start a fresh one. The system prompt is
+  // asset-scoped, so the model history is rebuilt from the next message either
+  // way; only what the user can see is persisted.
   useEffect(() => {
     historyRef.current = [];
-  }, [currentAsset, market]);
+    abortRef.current?.abort();
+    setStage(null);
+    try {
+      const saved = localStorage.getItem(sessionKey);
+      setMessages(saved ? JSON.parse(saved) : [GREETING]);
+    } catch {
+      setMessages([GREETING]);
+    }
+  }, [sessionKey]);
+
+  useEffect(() => {
+    if (messages.length <= 1) return;
+    try { localStorage.setItem(sessionKey, JSON.stringify(messages.slice(-40))); } catch { /* quota */ }
+  }, [messages, sessionKey]);
 
   return (
     <div className="flex flex-col h-full bg-[#0B0E14] border-l border-[#1F2937] shadow-xl">
@@ -338,7 +396,11 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
             </h2>
             {currentPrice !== null && (
               <div className="text-xs text-gray-400 font-mono flex items-center gap-1">
-                {currentAsset}: <span className="text-white">${currentPrice < 1 ? currentPrice.toFixed(4) : currentPrice.toFixed(2)}</span>
+                {/* A Tunisian listing is quoted in dinar; the header used to
+                    print a dollar sign on every asset regardless. */}
+                {currentAsset}: <span className="text-white">
+                  {isTN ? '' : '$'}{currentPrice < 1 ? currentPrice.toFixed(4) : currentPrice.toFixed(2)}{isTN ? ' TND' : ''}
+                </span>
               </div>
             )}
           </div>
@@ -433,9 +495,17 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 flex items-center justify-center shrink-0 shadow-md">
                 <Bot className="w-5 h-5 text-blue-400" />
               </div>
+              {/* The live ticker DX-3 deferred: the stage named here is the one
+                  the server told us it had started, never a guess. */}
               <div className="bg-[#1F2937] rounded-2xl rounded-tl-none p-4 flex items-center gap-3 border border-gray-700/50 shadow-sm">
                 <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-                <span className="text-sm text-gray-400 animate-pulse">Dexter is analyzing...</span>
+                <span className="text-sm text-gray-400">{stage ?? 'Starting'}…</span>
+                <button
+                  onClick={() => abortRef.current?.abort()}
+                  className="ml-2 text-xs text-gray-500 hover:text-red-400 underline transition-colors"
+                >
+                  cancel
+                </button>
               </div>
             </motion.div>
           )}
