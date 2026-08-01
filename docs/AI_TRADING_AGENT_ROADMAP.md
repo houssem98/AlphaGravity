@@ -260,7 +260,7 @@ flowchart TB
 
 ### Phase B — Truth: the model stops inventing numbers
 
-- [ ] **DX-4 · Deterministic TA engine.** New `apps/market-ui/src/services/taLevels.ts`:
+- [x] **DX-4 · Deterministic TA engine.** New `apps/market-ui/src/services/taLevels.ts`:
   pure functions over OHLCV → swing pivots, S/R clusters, order blocks, fair-value gaps,
   fib from the real swing high/low, ATR, trend state. Golden-fixture tested. Zero LLM. → row 7
 
@@ -379,3 +379,23 @@ nothing to say grades `empty`, not `failed`, and the model's answer reported the
 gap rather than inventing a balance sheet. 5692 ms server / 6440 ms e2e.
 Tests: dexterTrace.test.ts 15/15, 3 dexter suites 41/41, `tsc -b` 0, build 0.
 Deployed `market-a3sdmjreb`.
+
+**DX-4** (2026-08-01) — `src/services/taLevels.ts`: fractal swing pivots, Wilder
+ATR, ATR-scaled S/R clustering with touch counts, three-bar fair-value gaps,
+order blocks anchored to those gaps, fib from the real swing leg, and structural
+trend. Pure — no clock, no randomness, no LLM. Golden fixture (16 hand-built
+bars where every range overlaps the bar two back, so exactly one imbalance is
+planted): pivots `high@112 low@90 high@120 low@88`, ATR `15.52040816`,
+one gap `bullish 108-113`, one order block `bullish 96-114` on the planted down
+candle, support `89×2` (88 and 90 merge under the 7.76 tolerance) and `112×1`,
+resistance `120×1`, fib `88→120 down` with 0.5 at 104, trend `range`.
+Two hand-derived expectations were wrong on the first run and the engine was
+right — the original fixture had overlapping-range gaps I had not counted, and
+92/96 correctly merged inside the ATR tolerance. Fixture rebuilt so the golden
+values are checkable by hand rather than back-fitted.
+Sanity run on 120 real BTC daily bars (not asserted, since live bars move):
+ATR 1655.60 on a 63,076.01 close (~2.6% daily), trend `down` across the 82k→63k
+slide, 36 pivots → strongest support 62,211.53 ×3 just under price and
+resistance 65,655.81 ×3 just over, every emitted level inside the traded range
+57,800.19–82,850. Tests: taLevels 22/22, 10 suites / 125 tests, `tsc -b` 0.
+Not deployed: nothing in the UI imports it yet — DX-5 wires it to the chart.
