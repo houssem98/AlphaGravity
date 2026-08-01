@@ -18,15 +18,56 @@ interface Message {
   fabricatedCites?: number[];
   uncitedFigures?: string[];
   trust?: AnswerTrust;
+  // DD-1: the engine that produced this turn, as the server reported it.
+  provider?: string;
+  model?: string;
+  ms?: number;
 }
+
+// DD-1: the newest turn that carries an engine identity. Old localStorage
+// sessions predate these fields, so a session with none reports nothing rather
+// than guessing a provider.
+export interface EngineIdentity {
+  provider: string;
+  model: string;
+  ms?: number;
+}
+
+export function lastAgentMeta(
+  msgs: ReadonlyArray<{ provider?: string; model?: string; ms?: number }>,
+): EngineIdentity | null {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i];
+    if (m.provider && m.model) return { provider: m.provider, model: m.model, ms: m.ms };
+  }
+  return null;
+}
+
+// DD-1 / F2: the footer used to hardcode a dead provider's name while the server
+// answered with another one. A panel that misreports its own engine cannot ask
+// to be trusted about a price, so the engine names itself from the reply.
+export const EngineMeta: React.FC<{ meta: EngineIdentity | null }> = ({ meta }) => {
+  if (!meta) return null;
+  return (
+    <span className="flex items-center gap-1 font-mono text-label text-[color:var(--text-3)]">
+      <Sparkles className="w-3 h-3" />
+      {meta.provider}/{meta.model}
+      {typeof meta.ms === 'number' && (
+        <span className="text-[color:var(--text-4)]">· {meta.ms}ms</span>
+      )}
+    </span>
+  );
+};
 
 // DX-7: the grade the answer earned, with the reasons it earned it. Honest-empty
 // gets its own tone — an answer that admits a gap is not a failed answer.
+// DD-1: toned from the direction tokens the rest of the terminal uses. Amber has
+// no token — it is the app's warning colour and stays on the palette scale.
 const TRUST_TONE: Record<string, string> = {
-  green: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-  amber: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-  red: 'bg-red-500/10 text-red-400 border-red-500/30',
-  honest: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+  green: 'text-[color:var(--up)] border-[color:var(--up)]',
+  amber: 'text-amber-400 border-amber-400',
+  red: 'text-[color:var(--down)] border-[color:var(--down)]',
+  honest: 'text-[color:var(--accent)] border-[color:var(--accent)]',
 };
 
 const TrustChip: React.FC<{ trust: AnswerTrust }> = ({ trust }) => {
@@ -34,7 +75,7 @@ const TrustChip: React.FC<{ trust: AnswerTrust }> = ({ trust }) => {
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono font-bold ${TRUST_TONE[tone]}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm border bg-[color:var(--surface-2)] text-label font-mono font-bold ${TRUST_TONE[tone]}`}
     >
       {label}
       <span className="font-normal opacity-70">{trust.score}</span>
@@ -55,19 +96,19 @@ const EvidencePanel: React.FC<{
   return (
     <div className="mt-3 space-y-1">
       {citations.map((c) => (
-        <div key={c.id} className="text-[11px] font-mono flex gap-2 text-gray-500">
-          <span className="text-blue-400 shrink-0">[{c.id}]</span>
-          <span className="text-gray-400 shrink-0">{c.title}</span>
+        <div key={c.id} className="text-label font-mono flex gap-2 text-[color:var(--text-3)]">
+          <span className="text-[color:var(--accent)] shrink-0">[{c.id}]</span>
+          <span className="text-[color:var(--text-2)] shrink-0">{c.title}</span>
           <span className="truncate">{c.text}</span>
         </div>
       ))}
       {fabricated.length > 0 && (
-        <div className="text-[11px] font-mono text-red-400">
+        <div className="text-label font-mono text-[color:var(--down)]">
           ✗ cites {fabricated.map((n) => `[${n}]`).join(' ')} — no such source
         </div>
       )}
       {uncited.length > 0 && (
-        <div className="text-[11px] font-mono text-amber-400">
+        <div className="text-label font-mono text-amber-400">
           ⚠ uncited figure{uncited.length === 1 ? '' : 's'}: {uncited.slice(0, 6).join(', ')}
           {uncited.length > 6 && ` +${uncited.length - 6}`}
         </div>
@@ -84,25 +125,25 @@ const TracePanel: React.FC<{ steps: CellStep[] }> = ({ steps }) => {
   const { tools, failed, totalMs } = traceSummary(steps);
 
   return (
-    <div className="mt-3 border-t border-gray-700/50 pt-2">
+    <div className="mt-3 border-t border-[color:var(--line)] pt-2">
       <button
         onClick={() => setOpen(!open)}
-        className="text-[11px] font-mono text-gray-500 hover:text-gray-300 transition-colors"
+        className="text-label font-mono text-[color:var(--text-3)] hover:text-[color:var(--text)] transition-colors"
       >
         {open ? '▾' : '▸'} {tools} step{tools === 1 ? '' : 's'} · {totalMs}ms
-        {failed > 0 && <span className="text-red-400"> · {failed} failed</span>}
+        {failed > 0 && <span className="text-[color:var(--down)]"> · {failed} failed</span>}
       </button>
       {open && (
         <div className="mt-2 space-y-1">
           {steps.map((s, i) => (
-            <div key={i} className="text-[11px] font-mono flex gap-2">
-              <span className={s.status === 'failed' ? 'text-red-400' : s.status === 'empty' ? 'text-amber-400' : 'text-emerald-400'}>
+            <div key={i} className="text-label font-mono flex gap-2">
+              <span className={s.status === 'failed' ? 'text-[color:var(--down)]' : s.status === 'empty' ? 'text-amber-400' : 'text-[color:var(--up)]'}>
                 {stepGlyph(s.status)}
               </span>
-              <span className="text-gray-400 shrink-0">{s.label}</span>
-              <span className="text-gray-600">{s.ms}ms</span>
+              <span className="text-[color:var(--text-2)] shrink-0">{s.label}</span>
+              <span className="text-[color:var(--text-4)]">{s.ms}ms</span>
               {(s.error || s.meta) && (
-                <span className={`truncate ${s.error ? 'text-red-400/80' : 'text-gray-600'}`}>{s.error || s.meta}</span>
+                <span className={`truncate ${s.error ? 'text-[color:var(--down)]' : 'text-[color:var(--text-4)]'}`}>{s.error || s.meta}</span>
               )}
             </div>
           ))}
@@ -332,6 +373,9 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
           fabricatedCites: reply.fabricatedCites,
           uncitedFigures: reply.uncitedFigures,
           trust: reply.trust,
+          provider: reply.provider,
+          model: reply.model,
+          ms: reply.ms,
         },
       ]);
     } catch (error: any) {
@@ -382,23 +426,23 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
   }, [messages, sessionKey]);
 
   return (
-    <div className="flex flex-col h-full bg-[#0B0E14] border-l border-[#1F2937] shadow-xl">
+    <div className="flex flex-col h-full bg-[color:var(--bg)] border-l border-[color:var(--line)] shadow-xl">
       {/* Header */}
-      <div className="p-4 border-b border-[#1F2937] bg-gradient-to-r from-[#0B0E14] to-[#1F2937]/30 flex items-center justify-between gap-2">
+      <div className="p-4 border-b border-[color:var(--line)] bg-[color:var(--surface)] flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <Bot className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--line-strong)] flex items-center justify-center">
+            <Bot className="w-6 h-6 text-[color:var(--accent)]" />
           </div>
           <div>
-            <h2 className="text-white font-bold flex items-center gap-2 text-lg">
+            <h2 className="text-[color:var(--text)] font-display font-bold flex items-center gap-2 text-lg">
               Dexter AI
-              <Sparkles className="w-4 h-4 text-yellow-500" />
+              <Sparkles className="w-4 h-4 text-amber-400" />
             </h2>
             {currentPrice !== null && (
-              <div className="text-xs text-gray-400 font-mono flex items-center gap-1">
+              <div className="text-label text-[color:var(--text-3)] font-mono flex items-center gap-1">
                 {/* A Tunisian listing is quoted in dinar; the header used to
                     print a dollar sign on every asset regardless. */}
-                {currentAsset}: <span className="text-white">
+                {currentAsset}: <span className="text-[color:var(--text)]">
                   {isTN ? '' : '$'}{currentPrice < 1 ? currentPrice.toFixed(4) : currentPrice.toFixed(2)}{isTN ? ' TND' : ''}
                 </span>
               </div>
@@ -409,7 +453,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
           <button
             onClick={handleAnalyze}
             disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-[#2962FF] hover:bg-[#2962FF]/80 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-[color:var(--accent)] hover:brightness-110 text-[color:var(--accent-ink)] text-data font-semibold rounded-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <BarChart2 className="w-4 h-4" />
             <span className="hidden sm:inline">Analyze</span>
@@ -417,7 +461,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
           {onClose && (
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-white hover:bg-[#1F2937] rounded-lg transition-colors"
+              className="p-2 text-[color:var(--text-3)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] rounded-sm transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -426,7 +470,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#0B0E14] custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[color:var(--bg)] custom-scrollbar">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
             <motion.div
@@ -439,33 +483,36 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
               }`}
             >
               <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-md ${
-                  msg.role === 'user' 
-                    ? 'bg-gradient-to-br from-blue-500 to-blue-600' 
-                    : 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700'
+                className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border ${
+                  msg.role === 'user'
+                    ? 'bg-[color:var(--accent)] border-[color:var(--accent)]'
+                    : 'bg-[color:var(--surface-2)] border-[color:var(--line-strong)]'
                 }`}
               >
                 {msg.role === 'user' ? (
-                  <User className="w-5 h-5 text-white" />
+                  <User className="w-5 h-5 text-[color:var(--accent-ink)]" />
                 ) : (
-                  <Bot className="w-5 h-5 text-blue-400" />
+                  <Bot className="w-5 h-5 text-[color:var(--accent)]" />
                 )}
               </div>
               <div
-                className={`max-w-[85%] rounded-2xl p-4 shadow-sm ${
+                className={`max-w-[85%] rounded-xl p-4 ${
                   msg.role === 'user'
-                    ? 'bg-[#2962FF] text-white rounded-tr-none'
-                    : 'bg-[#1F2937] text-gray-200 rounded-tl-none border border-gray-700/50'
+                    ? 'bg-[color:var(--accent)] text-[color:var(--accent-ink)] rounded-tr-none'
+                    : 'bg-[color:var(--surface-2)] text-[color:var(--text)] rounded-tl-none border border-[color:var(--line)]'
                 }`}
               >
-                <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-[#0B0E14] prose-pre:border prose-pre:border-gray-800">
+                {/* DD-1 strips the inert typography-plugin classes — the plugin
+                    was never installed, so they styled nothing. DD-2 hangs a
+                    real component map here. */}
+                <div className="text-body">
                   <ReactMarkdown>{msg.content}</ReactMarkdown>
                 </div>
                 {msg.isDrawing && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    className="mt-3 flex items-center gap-2 text-xs text-blue-400 font-medium bg-blue-500/10 px-3 py-2 rounded-lg border border-blue-500/20 w-fit"
+                    className="mt-3 flex items-center gap-2 text-data text-[color:var(--accent)] font-medium bg-[color:var(--surface)] px-3 py-2 rounded-sm border border-[color:var(--line-strong)] w-fit"
                   >
                     <BarChart2 className="w-4 h-4" />
                     Chart updated with analysis
@@ -492,17 +539,17 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
               exit={{ opacity: 0, scale: 0.9 }}
               className="flex gap-4"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 flex items-center justify-center shrink-0 shadow-md">
-                <Bot className="w-5 h-5 text-blue-400" />
+              <div className="w-10 h-10 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--line-strong)] flex items-center justify-center shrink-0">
+                <Bot className="w-5 h-5 text-[color:var(--accent)]" />
               </div>
               {/* The live ticker DX-3 deferred: the stage named here is the one
                   the server told us it had started, never a guess. */}
-              <div className="bg-[#1F2937] rounded-2xl rounded-tl-none p-4 flex items-center gap-3 border border-gray-700/50 shadow-sm">
-                <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-                <span className="text-sm text-gray-400">{stage ?? 'Starting'}…</span>
+              <div className="bg-[color:var(--surface-2)] rounded-xl rounded-tl-none p-4 flex items-center gap-3 border border-[color:var(--line)]">
+                <Loader2 className="w-5 h-5 text-[color:var(--accent)] animate-spin" />
+                <span className="text-body text-[color:var(--text-2)]">{stage ?? 'Starting'}…</span>
                 <button
                   onClick={() => abortRef.current?.abort()}
-                  className="ml-2 text-xs text-gray-500 hover:text-red-400 underline transition-colors"
+                  className="ml-2 text-label text-[color:var(--text-3)] hover:text-[color:var(--down)] underline transition-colors"
                 >
                   cancel
                 </button>
@@ -514,9 +561,8 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-[#1F2937] bg-[#0B0E14]">
-        <div className="relative group">
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl opacity-0 group-hover:opacity-20 transition duration-500 blur"></div>
+      <div className="p-4 border-t border-[color:var(--line)] bg-[color:var(--bg)]">
+        <div className="relative">
           <div className="relative flex items-center">
             <input
               type="text"
@@ -524,20 +570,20 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder="Ask Dexter to analyze patterns, draw support/resistance..."
-              className="w-full bg-[#1F2937] text-white rounded-xl pl-5 pr-14 py-4 border border-gray-700 focus:outline-none focus:border-[#2962FF] focus:ring-1 focus:ring-[#2962FF] transition-all shadow-inner placeholder-gray-500"
+              className="w-full bg-[color:var(--surface-2)] text-[color:var(--text)] text-body rounded-xl pl-5 pr-14 py-4 border border-[color:var(--line)] focus:outline-none focus:border-[color:var(--accent)] focus:ring-1 focus:ring-[color:var(--accent)] transition-all placeholder-[color:var(--text-4)]"
               disabled={isLoading}
             />
             <button
               onClick={handleSend}
               disabled={isLoading || !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-[#2962FF] hover:bg-[#2962FF]/80 text-white rounded-lg disabled:opacity-50 disabled:bg-gray-700 transition-all shadow-md"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-[color:var(--accent)] hover:brightness-110 text-[color:var(--accent-ink)] rounded-sm disabled:opacity-50 disabled:bg-[color:var(--surface-2)] transition-all"
             >
               <Send className="w-5 h-5" />
             </button>
           </div>
         </div>
-        <div className="mt-3 flex justify-center gap-4 text-xs text-gray-500">
-          <span className="flex items-center gap-1"><Sparkles className="w-3 h-3" /> Powered by Gemini 3.1 Pro</span>
+        <div className="mt-3 flex justify-center gap-4">
+          <EngineMeta meta={lastAgentMeta(messages)} />
         </div>
       </div>
     </div>
