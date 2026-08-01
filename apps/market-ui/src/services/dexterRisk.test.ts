@@ -227,6 +227,6 @@ describe('rows 15 and 22 — wired into the handler', () => {
     });
 
     it('appends the disclosure itself rather than asking for it', () => {
-        expect(handler).toMatch(/if \(mode === 'decide'\) answer = .*DISCLOSURE/);
+        expect(handler).toMatch(/if \(effectiveMode === 'decide'\) answer = .*DISCLOSURE/);
     });
 });

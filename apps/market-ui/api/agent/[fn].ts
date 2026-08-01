@@ -26,6 +26,9 @@ import {
 import {
   clampRiskRounds, renderPlan, runRisk, DISCLOSURE, type RiskResult,
 } from '../../src/services/dexterRisk.js';
+import {
+  classifyIntent, describeBudget, CallBudget,
+} from '../../src/services/dexterIntent.js';
 import type { Bar } from '../../src/services/taLevels.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
@@ -44,10 +47,11 @@ export default async function handler(req: any, res: any) {
   if (fn !== 'chat') return res.status(404).json({ error: `Unknown agent route: ${fn}` });
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-  const { messages, asset, tools, mode, rounds, riskRounds } = req.body ?? {};
+  const { messages, asset, tools, mode, rounds, riskRounds, confirmed } = req.body ?? {};
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages[] required' });
   }
+  const t0 = Date.now();
 
   const keys: Partial<Record<ProviderId, string | undefined>> = {
     deepseek: process.env.DEEPSEEK_API_KEY,
@@ -87,10 +91,32 @@ export default async function handler(req: any, res: any) {
     },
   };
 
+  // DX-11: route on the last user turn unless the caller pinned a mode. A
+  // decision costs minutes and real money, so it is quoted and confirmed before
+  // it runs — the refusal below spends zero model calls.
+  const lastUser = [...(messages as ChatMessage[])].reverse().find(m => m.role === 'user');
+  const routed = classifyIntent(String(lastUser?.content ?? ''));
+  const effectiveMode: string = mode ?? routed.intent;
+
+  if (effectiveMode === 'decide' && confirmed !== true) {
+    return res.json({
+      needsConfirmation: true,
+      intent: routed.intent,
+      reason: routed.reason,
+      budget: routed.budget,
+      message: describeBudget(routed),
+      ms: Date.now() - t0,
+    });
+  }
+
+  // Every model call in this request goes through the counter, including the
+  // ones inside the analysts, the debate and the risk trio.
+  const budget = new CallBudget();
+  const countedChat: typeof chatWithFallback = budget.wrap(chatWithFallback);
+
   const history: ChatMessage[] = [...messages];
   const actions: ClientAction[] = [];
   const citations: DexterCitation[] = [];
-  const t0 = Date.now();
 
   // DX-3: the trace is a record, never a performance. A step exists iff its
   // call executed; a thrown tool keeps its real error. It is built even when
@@ -105,8 +131,8 @@ export default async function handler(req: any, res: any) {
     // spending exactly one LLM call on a bounded cited report, then one call to
     // answer from all four. DX-11 will route here automatically; until then it
     // is opt-in so it can be probed without changing the default path.
-    if ((mode === 'deep' || mode === 'decide') && ctx) {
-      const callLLM = (msgs: ChatMessage[]) => chatWithFallback(msgs, [], { keys });
+    if ((effectiveMode === 'deep' || effectiveMode === 'decide') && ctx) {
+      const callLLM = (msgs: ChatMessage[]) => countedChat(msgs, [], { keys });
       const reports = await trace.step('Running analysts', 'analysts',
         () => runAnalysts(ctx, { tools: deps, callLLM }),
         {
@@ -124,7 +150,7 @@ export default async function handler(req: any, res: any) {
       // it, because 2N+1 extra calls is not something to spend on "what's the
       // price".
       let debate: DebateResult | null = null;
-      if (mode === 'decide') {
+      if (effectiveMode === 'decide') {
         debate = await trace.step('Bull/bear debate', 'debate',
           () => runDebate(ctx, reports, { callLLM }, clampRounds(rounds)),
           { meta: d => `${d.rounds} round(s), ${d.turns.length} turns → ${d.stance}${d.confidence === null ? '' : ` ${d.confidence}%`}` });
@@ -134,7 +160,7 @@ export default async function handler(req: any, res: any) {
       // risk. A BUY/SELL whose block does not validate comes back as
       // commentary — the plan is dropped, not quietly repaired.
       let risk: RiskResult | null = null;
-      if (mode === 'decide') {
+      if (effectiveMode === 'decide') {
         risk = await trace.step('Risk trio + portfolio manager', 'risk',
           () => runRisk(ctx, reports, debate, { callLLM }, clampRiskRounds(riskRounds)),
           { meta: r => r.plan
@@ -143,7 +169,7 @@ export default async function handler(req: any, res: any) {
       }
 
       const final = await trace.step('Answering from the analyst reports', 'llm',
-        () => chatWithFallback([
+        () => countedChat([
           ...messages as ChatMessage[],
           {
             role: 'user',
@@ -185,7 +211,7 @@ export default async function handler(req: any, res: any) {
       // that passed validation, so the two can never disagree.
       let answer = final.text;
       if (risk?.plan) answer = `${renderPlan(risk.plan, ctx)}\n\n${answer}`;
-      if (mode === 'decide') answer = `${answer}\n\n_${DISCLOSURE}_`;
+      if (effectiveMode === 'decide') answer = `${answer}\n\n_${DISCLOSURE}_`;
 
       const deepTrust = scoreAnswerTrust({ answer: final.text, citations, steps: trace.done() });
       return res.json({
@@ -194,6 +220,8 @@ export default async function handler(req: any, res: any) {
         steps: trace.done(),
         citations,
         trust: deepTrust,
+        intent: effectiveMode,
+        calls: budget.spent,
         reports: reports.map(r => ({
           id: r.id, title: r.title, ok: r.ok, error: r.error, ms: r.ms, steps: r.steps,
         })),
@@ -205,7 +233,7 @@ export default async function handler(req: any, res: any) {
           rounds: risk.rounds, plan: risk.plan, commentary: risk.commentary,
           rejectReason: risk.rejectReason, turns: risk.turns, steps: risk.steps,
         },
-        disclosure: mode === 'decide' ? DISCLOSURE : undefined,
+        disclosure: effectiveMode === 'decide' ? DISCLOSURE : undefined,
         fabricatedCites: findUnmappedCites(final.text, citations),
         uncitedFigures: uncitedFigures(final.text),
         provider, model, ms: Date.now() - t0,
@@ -222,7 +250,7 @@ export default async function handler(req: any, res: any) {
       const reply = await trace.step(
         loop === 0 ? 'Thinking' : 'Reading tool results',
         'llm',
-        () => chatWithFallback(history, toolDefs, { keys }),
+        () => countedChat(history, toolDefs, { keys }),
         {
           isEmpty: r => !r.text && r.toolCalls.length === 0,
           meta: r => `${r.provider}/${r.model}${r.toolCalls.length ? ` → ${r.toolCalls.map(c => c.name).join(', ')}` : ''}`,
@@ -311,6 +339,8 @@ export default async function handler(req: any, res: any) {
       steps: trace.done(),
       citations,
       trust,
+      intent: effectiveMode,
+      calls: budget.spent,
       // Two different lies, kept apart: a [N] pointing at no source, and a
       // number resting on no [N] at all.
       fabricatedCites: findUnmappedCites(text, citations),

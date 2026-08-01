@@ -295,7 +295,7 @@ flowchart TB
   → Portfolio Manager emits BUY/SELL/HOLD **with** entry, stop, size, R:R. Missing risk block
   ⇒ output is downgraded to commentary. Disclosure appended. → rows 15, 22
 
-- [ ] **DX-11 · Intent router + budget guard.** Classify each turn QUICK / DEEP / DECIDE;
+- [x] **DX-11 · Intent router + budget guard.** Classify each turn QUICK / DEEP / DECIDE;
   enforce the §5 call caps; show the user the spend before a DECIDE run and let them cancel.
   → row 12
 
@@ -616,3 +616,40 @@ Two limits stated rather than papered over:
   hole, so it is logged rather than rushed.
 Tests: dexterRisk 29/29, 16 suites / 251 tests, `tsc -b` 0, build 0.
 Deployed `market-aukfbiajl`.
+
+**DX-11** (2026-08-01) — `dexterIntent.ts`. Classification is a pure function,
+no LLM: spending a model call to decide whether to spend model calls is the one
+routing design that cannot pay for itself, and it would put a 6-second question
+behind a 2-second classifier. QUICK / DEEP / DECIDE by pattern, DECIDE checked
+first so "analyze BTC and tell me if i should buy" routes to a decision. Every
+model call in the request — including the ones inside the analysts, the debate
+and the risk trio — goes through a `CallBudget` that throws rather than bills
+past the cap.
+
+A decision is **quoted and confirmed before it runs**, and the refusal spends
+zero model calls. Prod:
+
+| question | routed | calls | wall |
+|---|---|---|---|
+| "what is BTC at" | quick | 2 | 6.4 s |
+| "analyze the setup on BTC" | deep | 4 | 126 s |
+| "should i buy BTC here" | **confirm** | **0** | **0.4 s** |
+| same, `confirmed:true` | decide | **11** | 103.9 s |
+
+The confirmation is the whole point: 0.4 s and nothing spent, instead of ~2
+minutes and 11 calls, unless the user says yes.
+
+Two corrections the probes forced, both against my own numbers:
+- §5 estimated 1 call for QUICK. It is **2** — a tool-using turn always pays for
+  a second pass to read the results. §5 estimated 14 for DECIDE; the measured
+  graph is exactly **11**, confirmed by the counter.
+- The *time* estimate was false precision. The same DEEP graph measured 23.8 s
+  in DX-8 and **126 s** here; individual analyst calls have ranged 6.0 s to
+  45.1 s. The quote now states the exact call count and an honest "usually 1-3
+  minutes but provider latency varies a lot" rather than a tidy number.
+
+DX-11 also correctly broke three handler assertions in DX-8/9/10 that pinned
+`mode`; they now assert `effectiveMode`, which is the stronger check — it proves
+the stages fire on the *routed* intent, not only on a caller-pinned one.
+Tests: dexterIntent 41/41, 17 suites / 292 tests, `tsc -b` 0, build 0.
+**Phase C complete.**

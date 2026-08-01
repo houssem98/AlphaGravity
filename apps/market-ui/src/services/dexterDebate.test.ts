@@ -156,9 +156,10 @@ describe('row 14 — traced like everything else', () => {
 describe('row 14 — wired into the handler', () => {
     const handler = readFileSync(join(__dirname, '../../api/agent/[fn].ts'), 'utf8');
 
+    // DX-11 moved these gates onto the routed mode.
     it('runs the debate only on a decision-shaped request', () => {
-        expect(handler).toMatch(/if \(mode === 'decide'\)/);
-        expect(handler).toMatch(/\(mode === 'deep' \|\| mode === 'decide'\) && ctx/);
+        expect(handler).toMatch(/if \(effectiveMode === 'decide'\)/);
+        expect(handler).toMatch(/\(effectiveMode === 'deep' \|\| effectiveMode === 'decide'\) && ctx/);
     });
 
     it('honours the caller\'s round count through the clamp', () => {
