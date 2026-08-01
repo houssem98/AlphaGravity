@@ -230,7 +230,7 @@ flowchart TD
       flashes source `N`, hover previews the tool payload. Unmatched `[N]` renders
       fabricated-red and never becomes a chip.
       Fixes F4. Row 4.
-- [ ] **DD-5 — Evidence panel as sources.** One card per citation: tool name, latency,
+- [x] **DD-5 — Evidence panel as sources.** One card per citation: tool name, latency,
       full untruncated payload, anchor id for DD-4. Fabricated banner moves above the answer.
       Fixes F5. Rows 6, 8.
 - [ ] **DD-6 — Locate the uncited figures.** Mark each flagged figure inline at its position
@@ -332,3 +332,17 @@ measured ms, screenshot path. No adjectives.)_
   server-side flakiness, unchanged); the answering probe returned 1769 chars,
   **19 markers → 19 chips, 0 fabricated-red**, 17 citations, trust B/79, ms 49647,
   frozen verbatim as `__fixtures__/dexter-prod-cited.json` and asserted in the suite.
+- 2026-08-01 — **DD-5** done. `truncate` deleted; one bordered card per citation
+  (`[N]` · source · full `whitespace-pre-wrap` payload · DD-4 anchor id) under a
+  `Sources` label. `FabricatedBanner` (`role="alert"`, `--down`) moved ABOVE
+  `AnswerBody` in `Turn`. Latency comes from `citationMs(source, steps)` — a
+  number renders only where a step's `tool` *is* the citation's source; **prod
+  currently resolves 0/17**, because the reply times stages (`memory` 722ms /
+  `analysts` 17545ms / `llm` 23122ms) while citation sources are `taLevels`,
+  `social` and 7 outlet names, so no ms is shown rather than invented (doctrine 4).
+  Tests +9 (rows 6, 8, `evidencePanel.test.tsx`, incl. the verbatim F5 price-snap
+  trail and the 17 live payloads). `npx vitest run` PASS 732 / FAIL 0 / skipped 7.
+  `tsc --noEmit` 0 errors. `vercel --prod` → chunk `TradingAssistantPage-DiCVSDX_.js`
+  verified (no truncate, Sources header, banner, `role="alert"`). Live probe → 200
+  in 41.72s, 1397 chars, 17 citations, trust B/79, 0 fabricated, 1 uncited,
+  longest payload 49 chars — rendered end to end.

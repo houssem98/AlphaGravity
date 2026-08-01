@@ -276,33 +276,78 @@ const TrustChip: React.FC<{ trust: AnswerTrust }> = ({ trust }) => {
 // DX-6: what the numbers rest on, and which ones rest on nothing. An answer
 // whose figures cannot be traced is exactly the failure mode this agent exists
 // to avoid, so it is stated rather than hidden.
+// DD-5 / row 8: a fabricated citation is the loudest thing an answer can carry,
+// so it is stated BEFORE the text it undermines, not in a footnote under it.
+export const FabricatedBanner: React.FC<{ fabricated?: number[] }> = ({ fabricated = [] }) => {
+  if (fabricated.length === 0) return null;
+  return (
+    <div
+      role="alert"
+      className="mb-3 flex items-start gap-2 rounded-sm border border-[color:var(--down)] bg-[color:var(--surface-2)] px-3 py-2 font-mono text-label text-[color:var(--down)]"
+    >
+      <span aria-hidden>✗</span>
+      <span className="break-words">
+        {fabricated.length} fabricated citation{fabricated.length === 1 ? '' : 's'}:{' '}
+        {fabricated.map((n) => `[${n}]`).join(' ')} — no such source. Treat those figures as
+        unsupported.
+      </span>
+    </div>
+  );
+};
+
+// The reply times whole stages (`memory`, `analysts`, `llm`), not individual
+// citations, so a latency renders only where a step's tool is literally the
+// citation's source. No match, no number — doctrine 4.
+export const citationMs = (source: string, steps?: CellStep[]): number | undefined =>
+  steps?.find((s) => s.tool === source)?.ms;
+
+// DD-5 / F5: the price-snap audit trail is the strongest proof the agent did not
+// invent a level, and `truncate` was clipping it to about four words. One card
+// per citation, full payload, anchored so a DD-4 chip can land on it.
 const EvidencePanel: React.FC<{
   citations?: DexterCitation[];
-  fabricated?: number[];
   uncited?: string[];
+  steps?: CellStep[];
   scope?: string;
-}> = ({ citations = [], fabricated = [], uncited = [], scope = '' }) => {
-  if (citations.length === 0 && fabricated.length === 0 && uncited.length === 0) return null;
+}> = ({ citations = [], uncited = [], steps, scope = '' }) => {
+  if (citations.length === 0 && uncited.length === 0) return null;
   return (
     <div className="mt-3 space-y-1">
-      {citations.map((c) => (
-        <div
-          key={c.id}
-          id={citeAnchorId(scope, c.id)}
-          className="text-label font-mono flex gap-2 text-[color:var(--text-3)]"
-        >
-          <span className="text-[color:var(--accent)] shrink-0">[{c.id}]</span>
-          <span className="text-[color:var(--text-2)] shrink-0">{c.title}</span>
-          <span className="truncate">{c.text}</span>
-        </div>
-      ))}
-      {fabricated.length > 0 && (
-        <div className="text-label font-mono text-[color:var(--down)]">
-          ✗ cites {fabricated.map((n) => `[${n}]`).join(' ')} — no such source
+      {citations.length > 0 && (
+        <div className="font-display text-label font-semibold uppercase text-[color:var(--text-3)]">
+          Sources
         </div>
       )}
+      {citations.map((c) => {
+        const ms = citationMs(c.source, steps);
+        return (
+          <div
+            key={c.id}
+            id={citeAnchorId(scope, c.id)}
+            className="rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)] px-2 py-1.5"
+          >
+            <div className="flex items-baseline gap-2">
+              <span className="shrink-0 font-mono text-label text-[color:var(--accent)]">
+                [{c.id}]
+              </span>
+              <span className="font-mono text-label text-[color:var(--text-2)] break-words">
+                {c.source}
+              </span>
+              {ms !== undefined && (
+                <span className="ml-auto shrink-0 font-mono text-label text-[color:var(--text-4)]">
+                  {ms}ms
+                </span>
+              )}
+            </div>
+            <div className="mt-0.5 text-data text-[color:var(--text-2)] break-words">{c.title}</div>
+            <div className="mt-0.5 whitespace-pre-wrap break-words font-mono text-label text-[color:var(--text-3)]">
+              {c.text}
+            </div>
+          </div>
+        );
+      })}
       {uncited.length > 0 && (
-        <div className="text-label font-mono text-amber-400">
+        <div className="font-mono text-label text-amber-400">
           ⚠ uncited figure{uncited.length === 1 ? '' : 's'}: {uncited.slice(0, 6).join(', ')}
           {uncited.length > 6 && ` +${uncited.length - 6}`}
         </div>
@@ -367,6 +412,7 @@ export const Turn: React.FC<{ msg: Message }> = ({ msg }) => {
   }
   return (
     <div className="w-full border-l-2 border-[color:var(--line)] pl-4">
+      <FabricatedBanner fabricated={msg.fabricatedCites} />
       <AnswerBody text={msg.content} citations={msg.citations} anchorScope={msg.id} />
       {msg.isDrawing && (
         <motion.div
@@ -385,8 +431,8 @@ export const Turn: React.FC<{ msg: Message }> = ({ msg }) => {
       )}
       <EvidencePanel
         citations={msg.citations}
-        fabricated={msg.fabricatedCites}
         uncited={msg.uncitedFigures}
+        steps={msg.steps}
         scope={msg.id}
       />
       {msg.steps && <TracePanel steps={msg.steps} />}
