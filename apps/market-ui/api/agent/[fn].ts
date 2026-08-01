@@ -29,6 +29,9 @@ import {
 import {
   classifyIntent, describeBudget, CallBudget,
 } from '../../src/services/dexterIntent.js';
+import {
+  buildEntry, recordDecision, supabaseJournalStore,
+} from '../../src/services/dexterJournal.js';
 import type { Bar } from '../../src/services/taLevels.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
@@ -39,6 +42,14 @@ import { newTrace } from '../../src/services/gridTrace.js';
 export const maxDuration = 300;
 
 export const MAX_TOOL_LOOPS = 5;
+
+// Same mechanism @vercel/functions' waitUntil uses, without the dependency —
+// copied from api/tn/[fn].ts, which has run on it in prod for weeks.
+function waitUntil(p: Promise<unknown>) {
+  const ctx = (globalThis as any)[Symbol.for('@vercel/request-context')]?.get?.();
+  const q = p.catch(() => {});
+  if (ctx?.waitUntil) ctx.waitUntil(q);
+}
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -214,6 +225,26 @@ export default async function handler(req: any, res: any) {
       if (effectiveMode === 'decide') answer = `${answer}\n\n_${DISCLOSURE}_`;
 
       const deepTrust = scoreAnswerTrust({ answer: final.text, citations, steps: trace.done() });
+
+      // DX-12: write the call down. Fire-and-forget — a journal failure must not
+      // cost the user their answer, and a decision the user already read is
+      // worth more than a perfectly consistent ledger.
+      let journalled: string | null = null;
+      if (effectiveMode === 'decide' && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const entry = buildEntry({
+          symbol: ctx.symbol, isTN: ctx.isTN, isCrypto: ctx.isCrypto,
+          priceAtCall: ctx.price ?? null,
+          plan: risk?.plan ?? null,
+          action: risk?.plan?.action ?? 'HOLD',
+          stance: debate?.stance ?? null,
+          confidence: debate?.confidence ?? null,
+          grade: deepTrust.grade, score: deepTrust.score,
+          thesis: final.text, calls: budget.spent,
+        });
+        journalled = entry.id;
+        const store = supabaseJournalStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+        waitUntil(recordDecision(store, entry).catch(e => console.error('[journal]', e.message)));
+      }
       return res.json({
         text: answer,
         actions,
@@ -222,6 +253,7 @@ export default async function handler(req: any, res: any) {
         trust: deepTrust,
         intent: effectiveMode,
         calls: budget.spent,
+        journalled,
         reports: reports.map(r => ({
           id: r.id, title: r.title, ok: r.ok, error: r.error, ms: r.ms, steps: r.steps,
         })),

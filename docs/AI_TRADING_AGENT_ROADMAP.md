@@ -301,9 +301,14 @@ flowchart TB
 
 ### Phase D — Memory and proof of edge (the part nobody else ships)
 
-- [ ] **DX-12 · Decision journal.** Supabase `dexter_decisions` (soft-ref, no FK, like
+- [x] **DX-12 · Decision journal.** Supabase `dexter_decisions` (soft-ref, no FK, like
   `lib_grid_runs`): ticker, side, entry, stop, target, size, thesis, trust grade, trace id,
   ts. Written server-side on every DECIDE. → row 16
+  **Storage deviation, deliberate:** a TABLE needs DDL through the Management API with a
+  PAT the user must paste — a user-only blocker. This repo already persists JSON to Supabase
+  **Storage** with the service-role key that is present in prod (`api/tn/[fn].ts`), so the
+  journal uses that: no DDL, no new secret, nothing invented, task unblocked. The writer is
+  one function if a real table is wanted later.
 
 - [ ] **DX-13 · Outcome grading loop.** Scheduled pass re-prices open decisions from real
   bars, classifies target-hit / stop-hit / still-open, and writes a reflection lesson
@@ -653,3 +658,34 @@ DX-11 also correctly broke three handler assertions in DX-8/9/10 that pinned
 the stages fire on the *routed* intent, not only on a caller-pinned one.
 Tests: dexterIntent 41/41, 17 suites / 292 tests, `tsc -b` 0, build 0.
 **Phase C complete.**
+
+**DX-12** (2026-08-01) — `dexterJournal.ts`. Nothing in Phase A-C made the agent
+accountable: a grade says an answer was well-sourced, not that the call was
+right. Every `decide` run now writes what it said to do, at the price it said it
+at, so DX-13 can come back and mark it against the market. Written
+fire-and-forget through `waitUntil` — a journal failure must not cost the user
+the answer they already read. Entries dedupe by id so a retry cannot double a
+row, and the cap drops the oldest rather than failing to write today's.
+
+Went to Supabase **Storage**, not a table — see the ledger note. Creating
+`dexter_decisions` as a table needs DDL via a PAT the user has to paste, and the
+loop's rule for a user-only blocker is to route around it rather than stall or
+fabricate infrastructure.
+
+Row 16 verified live, not only on fixtures. A confirmed `decide` on BTC returned
+`journalled=BTC-1785595201296`, and reading the blob straight back out of
+Supabase Storage with the service-role key gave:
+
+```
+{"id":"BTC-1785595201296","action":"SELL","priceAtCall":63100,
+ "entry":63098.39,"stop":63987.22,"target":62211.53,"sizePct":12,"rr":1,
+ "stance":"NEUTRAL","confidence":55,"grade":"C","score":68,"calls":11,
+ "outcome":"open"}
+```
+
+The geometry is worth noting because it proves DX-10's gate ran on a real
+decision: a SELL with stop 63987.22 **>** entry 63098.39 **>** target 62211.53,
+and the recomputed ratio 886.86/888.83 ≈ 1 matches the stored `rr`. Every row
+starts `outcome: 'open'` — nothing is graded at write time, which is the whole
+point of the next task.
+Tests: dexterJournal 21/21, 18 suites / 313 tests, `tsc -b` 0, build 0.
