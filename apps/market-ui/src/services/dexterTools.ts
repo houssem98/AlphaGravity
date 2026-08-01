@@ -37,10 +37,23 @@ export interface ClientAction {
 
 // What POST /api/agent/chat returns. The server owns this contract because the
 // server now owns the loop.
+// DX-6: one citation per successful tool snapshot. The model is told the id
+// while it reads the result, so it can cite [N] as it writes rather than having
+// a source list stapled on afterwards.
+export interface DexterCitation {
+    id: number;
+    title: string;      // "BTC price history (binance)"
+    source: string;     // tool name
+    text: string;       // the snapshot the figure must have come from
+}
+
 export interface AgentReply {
     text: string;
     actions: ClientAction[];
     steps: import('./gridTrace').CellStep[];   // DX-3: what actually ran
+    citations: DexterCitation[];               // DX-6: what the figures rest on
+    fabricatedCites: number[];                 // [N] markers with no such source
+    uncitedFigures: string[];                  // numbers with no source nearby
     provider: string;
     model: string;
     ms: number;
@@ -387,6 +400,78 @@ export function toolMeta(name: string, data: unknown): string {
     }
     if (data && typeof data === 'object') return `${Object.keys(data as object).length} fields`;
     return String(data ?? '');
+}
+
+// ── DX-6: evidence ─────────────────────────────────────────────────────────
+// A figure in a trading answer is either traceable to a feed or it is a guess.
+// These two helpers are what tell those apart, reusing the grid's own
+// definition of "a figure" so both products agree on what counts.
+
+// A citation covers the sentence it closes, which is how people actually write:
+// "the high was $66,556.16 and the low was $58,624.71 [1]." cites both. The
+// first prod probe used a fixed character window instead and flagged the high
+// as uncited — a warning that fires on a correct answer is a false signal, not
+// a safety net, so the scope is the sentence.
+// A period between two digits is a decimal point, not the end of a sentence —
+// without this, the scan stopped inside "$58,624.71" and reported the figure
+// before it as uncited.
+function isSentenceEnd(text: string, i: number): boolean {
+    const ch = text[i];
+    if (ch === '\n' || ch === '!' || ch === '?') return true;
+    if (ch !== '.') return false;
+    return !(/\d/.test(text[i - 1] ?? '') && /\d/.test(text[i + 1] ?? ''));
+}
+
+// Only market figures count. A bare small integer is nearly always a count
+// ("60 days", "3 touches") or a year, and demanding a source for those buries
+// the one number that actually needed one.
+export function isMarketFigure(raw: string): boolean {
+    return /[$%]/.test(raw)
+        || /(?:bn|billion|trillion|million|[mbk])$/i.test(raw)
+        || /[.,]/.test(raw);
+}
+
+// Month names, so "July 21" and "August 1, 2026" read as dates, not as figures.
+const MONTH_BEFORE = /(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+$/i;
+
+// Figures that appear in the prose with no citation anywhere in their sentence.
+// These are exactly the numbers a reader cannot check.
+export function uncitedFigures(text: string): string[] {
+    if (!text) return [];
+    const out = new Set<string>();
+    // Same figure shapes as the grid's extractFigures, minus the trailing `\b`
+    // that silently drops the "%" off "12%".
+    const re = /\$?\d[\d,]*(?:\.\d+)?\s?(?:%|bn|billion|trillion|million|[mbk])?(?![\w%])/gi;
+
+    for (const m of text.matchAll(re)) {
+        const start = m.index ?? 0;
+        const end = start + m[0].length;
+        const before = text.slice(Math.max(0, start - 1), start);
+        const after = text.slice(end, end + 1);
+
+        if (before === '[') continue;                                     // a marker, not a figure
+        if (before === '-' || before === '/' || before === '.') continue; // inside a date or a decimal
+        if (after === '-' || after === '/') continue;                     // start of a date
+        if (MONTH_BEFORE.test(text.slice(Math.max(0, start - 12), start))) continue;
+        if (!isMarketFigure(m[0])) continue;
+
+        let stop = end;
+        while (stop < text.length && !isSentenceEnd(text, stop)) stop++;
+        if (!/\[\d+\]/.test(text.slice(end, stop))) {
+            out.add(m[0].replace(/\s+/g, '').toLowerCase());
+        }
+    }
+    return [...out].sort();
+}
+
+// Turn a completed tool call into the evidence line the model may cite.
+export function citationFor(id: number, tool: string, symbol: string, data: unknown): DexterCitation {
+    return {
+        id,
+        title: `${symbol} ${(TOOL_LABEL[tool] ?? tool).toLowerCase()}`,
+        source: tool,
+        text: toolMeta(tool, data),
+    };
 }
 
 // User-facing verb for each tool, so the trace reads as work rather than as an

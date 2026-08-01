@@ -11,9 +11,11 @@ import {
   type ChatMessage, type ProviderId, type ToolDef,
 } from '../../src/services/dexterLlm.js';
 import {
-  executeTool, isEmptyToolData, normalizeBars, toolMeta, TOOL_DEFS, TOOL_LABEL,
-  type AssetContext, type ClientAction, type ToolDeps, type ToolOutcome,
+  citationFor, executeTool, isEmptyToolData, normalizeBars, toolMeta,
+  uncitedFigures, TOOL_DEFS, TOOL_LABEL,
+  type AssetContext, type ClientAction, type DexterCitation, type ToolDeps, type ToolOutcome,
 } from '../../src/services/dexterTools.js';
+import { findUnmappedCites } from '../../src/services/gridResearch.js';
 import type { Bar } from '../../src/services/taLevels.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
@@ -73,6 +75,7 @@ export default async function handler(req: any, res: any) {
 
   const history: ChatMessage[] = [...messages];
   const actions: ClientAction[] = [];
+  const citations: DexterCitation[] = [];
   const t0 = Date.now();
 
   // DX-3: the trace is a record, never a performance. A step exists iff its
@@ -136,11 +139,32 @@ export default async function handler(req: any, res: any) {
           outcome = { data: { error: `${call.name} failed: ${e?.message ?? String(e)}` } };
         }
         if (outcome.action) actions.push(outcome.action);
-        history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(outcome.data) });
+
+        // DX-6: a snapshot that carried something becomes citable evidence, and
+        // the model is handed its id inline so it can cite while writing.
+        let content = JSON.stringify(outcome.data);
+        if (ctx && !isEmptyToolData(outcome.data)) {
+          const cite = citationFor(citations.length + 1, call.name, ctx.symbol, outcome.data);
+          citations.push(cite);
+          content = `[${cite.id}] ${content}\n\nCite any figure taken from this result as [${cite.id}].`;
+        }
+        history.push({ role: 'tool', tool_call_id: call.id, content });
       }
     }
 
-    res.json({ text, actions, steps: trace.done(), provider, model, ms: Date.now() - t0 });
+    res.json({
+      text,
+      actions,
+      steps: trace.done(),
+      citations,
+      // Two different lies, kept apart: a [N] pointing at no source, and a
+      // number resting on no [N] at all.
+      fabricatedCites: findUnmappedCites(text, citations),
+      uncitedFigures: uncitedFigures(text),
+      provider,
+      model,
+      ms: Date.now() - t0,
+    });
   } catch (e: any) {
     // A blown run still ships its trace — the steps that ran are exactly the
     // evidence needed to see where it died.

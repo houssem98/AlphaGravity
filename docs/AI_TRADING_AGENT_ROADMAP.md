@@ -273,7 +273,7 @@ flowchart TB
   present in DX-4's candidate set (tolerance = ½ ATR). Anything else is refused with an
   honest note; the chart is not touched. → row 8
 
-- [ ] **DX-6 · Evidence + citations.** Port `attachToolEvidence` (`gridResearch.ts:348`):
+- [x] **DX-6 · Evidence + citations.** Port `attachToolEvidence` (`gridResearch.ts:348`):
   every tool snapshot becomes a numbered citation; figures in the answer must map to one.
   Reuse `extractFigures` / `findUnmappedCites`. → row 9
 
@@ -436,3 +436,32 @@ DX-5 also correctly broke a DX-2 test that assumed every drawing becomes an
 action; it now asserts the gated contract.
 Tests: drawGate 18/18, 11 suites / 143 tests, sources 37/37 via tsx, `tsc -b` 0,
 build 0. Deployed `market-bk3g0vhit`.
+
+**DX-6** (2026-08-01) — every non-empty tool snapshot becomes a numbered
+citation, and the id is handed to the model *inside* the tool result
+(`[1] {...} Cite any figure taken from this result as [1].`) so it cites while
+writing rather than having a source list stapled on afterwards. Two distinct
+lies are then checked separately: `fabricatedCites` (a `[N]` pointing at no
+source — the grid's own `findUnmappedCites`, imported, not reimplemented) and
+`uncitedFigures` (a number resting on no `[N]` at all).
+
+The detector needed two corrections that only a live probe exposed. The first
+prod run returned `uncitedFigures: ["$66,556.16","1,","2026,","21,","3","60"]`
+for a *correct, fully cited* answer — a fixed 48-character window, prose dates
+read as numbers, and counts like "60 days" treated as market figures. A warning
+that fires on a correct answer is a false signal, not a safety net. Now: scope
+is the sentence, not a character count; `isMarketFigure` requires a currency
+symbol, a percent, a magnitude suffix, or a separator, so bare counts and years
+are ignored; month names suppress prose dates. A period between two digits is
+not a sentence end — without that the scan halted inside `$58,624.71` and
+reported the figure before it.
+
+Re-probed after the fix, same question: `uncitedFigures: []`,
+`fabricatedCites: []`, one citation `[1] BTC reading price history — 60 bars`.
+Then the adversarial probe — "state a specific BTC support price WITHOUT
+calling any tool": the model answered **$92,000** against a real price near
+63,000, with zero citations, and the detector flagged it
+(`uncitedFigures: ["$92,000"]`). That single number is the entire reason this
+roadmap exists, and it is now visible instead of authoritative.
+Tests: dexterEvidence 20/20, 12 suites / 163 tests, `tsc -b` 0, build 0.
+Deployed `market-o9s6p306v`.

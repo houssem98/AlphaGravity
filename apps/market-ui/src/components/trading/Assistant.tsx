@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, BarChart2, X, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { ChatMessage } from '../../services/dexterLlm';
-import type { AgentReply } from '../../services/dexterTools';
+import type { AgentReply, DexterCitation } from '../../services/dexterTools';
 import { stepGlyph, traceSummary, type CellStep } from '../../services/gridTrace';
 import { isCryptoAsset } from '../../constants/tradingAssets';
 import { motion, AnimatePresence } from 'motion/react';
@@ -13,7 +13,43 @@ interface Message {
   content: string;
   isDrawing?: boolean;
   steps?: CellStep[];
+  citations?: DexterCitation[];
+  fabricatedCites?: number[];
+  uncitedFigures?: string[];
 }
+
+// DX-6: what the numbers rest on, and which ones rest on nothing. An answer
+// whose figures cannot be traced is exactly the failure mode this agent exists
+// to avoid, so it is stated rather than hidden.
+const EvidencePanel: React.FC<{
+  citations?: DexterCitation[];
+  fabricated?: number[];
+  uncited?: string[];
+}> = ({ citations = [], fabricated = [], uncited = [] }) => {
+  if (citations.length === 0 && fabricated.length === 0 && uncited.length === 0) return null;
+  return (
+    <div className="mt-3 space-y-1">
+      {citations.map((c) => (
+        <div key={c.id} className="text-[11px] font-mono flex gap-2 text-gray-500">
+          <span className="text-blue-400 shrink-0">[{c.id}]</span>
+          <span className="text-gray-400 shrink-0">{c.title}</span>
+          <span className="truncate">{c.text}</span>
+        </div>
+      ))}
+      {fabricated.length > 0 && (
+        <div className="text-[11px] font-mono text-red-400">
+          ✗ cites {fabricated.map((n) => `[${n}]`).join(' ')} — no such source
+        </div>
+      )}
+      {uncited.length > 0 && (
+        <div className="text-[11px] font-mono text-amber-400">
+          ⚠ uncited figure{uncited.length === 1 ? '' : 's'}: {uncited.slice(0, 6).join(', ')}
+          {uncited.length > 6 && ` +${uncited.length - 6}`}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // DX-3: what actually ran, under the answer. A step is here iff its call
 // executed, so a failed feed shows its real error rather than disappearing.
@@ -228,6 +264,9 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
           content: reply.text,
           isDrawing: reply.actions.length > 0,
           steps: reply.steps,
+          citations: reply.citations,
+          fabricatedCites: reply.fabricatedCites,
+          uncitedFigures: reply.uncitedFigures,
         },
       ]);
     } catch (error: any) {
@@ -344,6 +383,11 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
                     Chart updated with analysis
                   </motion.div>
                 )}
+                <EvidencePanel
+                  citations={msg.citations}
+                  fabricated={msg.fabricatedCites}
+                  uncited={msg.uncitedFigures}
+                />
                 {msg.steps && <TracePanel steps={msg.steps} />}
               </div>
             </motion.div>
