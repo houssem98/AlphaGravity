@@ -277,7 +277,7 @@ flowchart TB
   every tool snapshot becomes a numbered citation; figures in the answer must map to one.
   Reuse `extractFigures` / `findUnmappedCites`. → row 9
 
-- [ ] **DX-7 · Earned trust grade.** `scoreAnswerTrust` (chat-shaped port of
+- [x] **DX-7 · Earned trust grade.** `scoreAnswerTrust` (chat-shaped port of
   `scoreCellTrust`) + one verification round for D/F via `buildVerificationPrompt` /
   `mergeRounds`. Grade chip in the UI with its real reasons. → rows 10, 11
 
@@ -465,3 +465,40 @@ calling any tool": the model answered **$92,000** against a real price near
 roadmap exists, and it is now visible instead of authoritative.
 Tests: dexterEvidence 20/20, 12 suites / 163 tests, `tsc -b` 0, build 0.
 Deployed `market-o9s6p306v`.
+
+**DX-7** (2026-08-01) — `dexterTrust.ts`, a chat-shaped port of
+`scoreCellTrust`: the grid grades a cell by whether RAG grounded it, a chat turn
+by whether a TOOL ran and returned data. B is the round-1 ceiling for a
+tool-grounded answer whose markers resolve, and also the grade for an honest
+gap. C is the ceiling — not the floor — for anything ungrounded, so a thin
+LLM-only answer still lands at D and earns a re-run. A fabricated citation
+short-circuits to **F, score 0**: claiming a source that does not exist is worse
+than claiming nothing. A is unreachable in one round.
+
+The verification round is the part that matters. A D or F pushes one
+`buildVerifyPrompt` turn asking the model to *re-derive from the tools*, not to
+defend itself, then re-grades; the better-graded round ships, so a retry that
+made things worse is discarded rather than assumed to be an improvement.
+
+Prod, same adversarial prompt DX-6 used ("state a specific BTC support price
+WITHOUT calling any tool"), which had produced an uncited **$92,000** against a
+real ~63,000:
+
+> BTC's nearest support below the last close of $63,103.67 [1] is the $62,466
+> low printed on 2026-07-31 [1] …
+> `grade B · score 72 · rounds 2 · "figures moved between rounds — held at B"`
+
+Round 1 guessed; the verification round made it call `getChartData` and answer
+from the bars. Cross-checked against Binance: 2026-07-31 low is **62466.00**
+exactly. `uncitedFigures: []`. The held-at-B reason is correct — round 1's
+figures were the hallucination, so they could not agree with round 2's, and A is
+reserved for figures that survive a pass unchanged.
+Grounded control: `grade B · score 72 · rounds 1`, "5/5 figures sit in a cited
+sentence".
+
+DX-7 also correctly broke a DX-2 assertion that the handler never pushes a
+`role:'user'` turn. The verification prompt is one, legitimately; the test now
+asserts the real invariant — exactly one user push, and it is
+`buildVerifyPrompt` — instead of forbidding the role outright.
+Tests: dexterTrust 20/20, 13 suites / 183 tests, sources 37/37 via tsx,
+`tsc -b` 0, build 0. Deployed `market-doqgsavpb`. **Phase B complete.**

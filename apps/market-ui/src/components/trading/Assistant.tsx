@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import type { ChatMessage } from '../../services/dexterLlm';
 import type { AgentReply, DexterCitation } from '../../services/dexterTools';
 import { stepGlyph, traceSummary, type CellStep } from '../../services/gridTrace';
+import { chipPropsFor, type AnswerTrust } from '../../services/dexterTrust';
 import { isCryptoAsset } from '../../constants/tradingAssets';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -16,7 +17,31 @@ interface Message {
   citations?: DexterCitation[];
   fabricatedCites?: number[];
   uncitedFigures?: string[];
+  trust?: AnswerTrust;
 }
+
+// DX-7: the grade the answer earned, with the reasons it earned it. Honest-empty
+// gets its own tone — an answer that admits a gap is not a failed answer.
+const TRUST_TONE: Record<string, string> = {
+  green: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  amber: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  red: 'bg-red-500/10 text-red-400 border-red-500/30',
+  honest: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+};
+
+const TrustChip: React.FC<{ trust: AnswerTrust }> = ({ trust }) => {
+  const { label, tone, title } = chipPropsFor(trust);
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono font-bold ${TRUST_TONE[tone]}`}
+    >
+      {label}
+      <span className="font-normal opacity-70">{trust.score}</span>
+      {trust.rounds > 1 && <span className="font-normal opacity-70">·{trust.rounds}r</span>}
+    </span>
+  );
+};
 
 // DX-6: what the numbers rest on, and which ones rest on nothing. An answer
 // whose figures cannot be traced is exactly the failure mode this agent exists
@@ -267,6 +292,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
           citations: reply.citations,
           fabricatedCites: reply.fabricatedCites,
           uncitedFigures: reply.uncitedFigures,
+          trust: reply.trust,
         },
       ]);
     } catch (error: any) {
@@ -382,6 +408,11 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
                     <BarChart2 className="w-4 h-4" />
                     Chart updated with analysis
                   </motion.div>
+                )}
+                {msg.trust && (
+                  <div className="mt-3">
+                    <TrustChip trust={msg.trust} />
+                  </div>
                 )}
                 <EvidencePanel
                   citations={msg.citations}

@@ -51,6 +51,7 @@ export interface AgentReply {
     text: string;
     actions: ClientAction[];
     steps: import('./gridTrace').CellStep[];   // DX-3: what actually ran
+    trust: import('./dexterTrust').AnswerTrust; // DX-7: the earned grade
     citations: DexterCitation[];               // DX-6: what the figures rest on
     fabricatedCites: number[];                 // [N] markers with no such source
     uncitedFigures: string[];                  // numbers with no source nearby

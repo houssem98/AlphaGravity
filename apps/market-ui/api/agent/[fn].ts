@@ -15,7 +15,10 @@ import {
   uncitedFigures, TOOL_DEFS, TOOL_LABEL,
   type AssetContext, type ClientAction, type DexterCitation, type ToolDeps, type ToolOutcome,
 } from '../../src/services/dexterTools.js';
-import { findUnmappedCites } from '../../src/services/gridResearch.js';
+import { extractFigures, findUnmappedCites } from '../../src/services/gridResearch.js';
+import {
+  buildVerifyPrompt, needsVerification, scoreAnswerTrust, GRADE_RANK,
+} from '../../src/services/dexterTrust.js';
 import type { Bar } from '../../src/services/taLevels.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
@@ -84,9 +87,14 @@ export default async function handler(req: any, res: any) {
   const trace = newTrace();
 
   try {
-    let text = '';
     let provider = '';
     let model = '';
+
+    // One pass of "think → call tools → read results", up to the loop cap. The
+    // verification round (DX-7) runs this a second time against the same
+    // history, so it re-derives from the tools rather than restating.
+    const runRound = async (): Promise<string> => {
+    let text = '';
 
     for (let loop = 0; loop < MAX_TOOL_LOOPS; loop++) {
       const reply = await trace.step(
@@ -151,12 +159,36 @@ export default async function handler(req: any, res: any) {
         history.push({ role: 'tool', tool_call_id: call.id, content });
       }
     }
+    return text;
+    };
+
+    let text = await runRound();
+    let trust = scoreAnswerTrust({ answer: text, citations, steps: trace.done() });
+
+    // DX-7 row 11: a D or F earns exactly one more attempt, capped at 2 rounds.
+    // A verification that made the answer worse is not an improvement, so the
+    // better-graded round is the one that ships.
+    if (needsVerification(trust)) {
+      const priorFigures = extractFigures(text);
+      history.push({ role: 'user', content: buildVerifyPrompt(text, trust) });
+      const second = await runRound();
+      const secondTrust = scoreAnswerTrust({
+        answer: second, citations, steps: trace.done(), rounds: 2, priorFigures,
+      });
+      if (GRADE_RANK[secondTrust.grade] <= GRADE_RANK[trust.grade]) {
+        text = second;
+        trust = secondTrust;
+      } else {
+        trust = { ...trust, rounds: 2, reasons: [...trust.reasons, 'verification round scored worse — kept round 1'] };
+      }
+    }
 
     res.json({
       text,
       actions,
       steps: trace.done(),
       citations,
+      trust,
       // Two different lies, kept apart: a [N] pointing at no source, and a
       // number resting on no [N] at all.
       fabricatedCites: findUnmappedCites(text, citations),

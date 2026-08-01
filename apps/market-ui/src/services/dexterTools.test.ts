@@ -175,8 +175,11 @@ describe('row 6 — no tools, no behavior change', () => {
 
     it('feeds tool results back as role:"tool" turns, never as a user message', () => {
         expect(handler).toMatch(/role: 'tool', tool_call_id: call\.id/);
-        const userPushes = handler.match(/role: 'user'/g) ?? [];
-        expect(userPushes).toEqual([]);
+        // DX-7 added exactly one legitimate user turn — the verification prompt
+        // that asks for a re-derivation. Nothing else may be pushed as a user
+        // message, and a tool result never may.
+        const userPushes = [...handler.matchAll(/role: 'user', content: (\w+)/g)].map(m => m[1]);
+        expect(userPushes).toEqual(['buildVerifyPrompt']);
     });
 
     it('caps the server-side tool loop', () => {
