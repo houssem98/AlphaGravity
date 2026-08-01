@@ -244,7 +244,7 @@ flowchart TB
   anthropic → groq, honest error when exhausted). `Assistant.tsx` posts to it. Delete
   `@google/genai` import, `initChat()`, and every `VITE_GEMINI*` read. → rows 1, 2, 3
 
-- [ ] **DX-2 · Real tool protocol.** Replace the text-message tool hack
+- [x] **DX-2 · Real tool protocol.** Replace the text-message tool hack
   (`Assistant.tsx:422-431`) with a typed loop: model emits `{tool, args}`, server executes
   the real endpoint, result returns as a structured tool-result turn. Provider-agnostic (must
   work on DeepSeek, which is not Gemini-shaped). Keep the 4 existing tool bodies; move their
@@ -340,3 +340,21 @@ sentiment ungrounded, pending DX-8. (b) dropping `@google/genai` removed the tra
 (c) first deploy 404'd through the Fly rewrite; `agent/` added to the negative lookahead in
 `apps/market-ui/vercel.json`. Deployed: `market-qewupxf4f` → `market-ui-self.vercel.app`.
 Not yet true of the agent: no trace, no trust grade, no verification round — DX-2/DX-3/DX-7.
+
+**DX-2** (2026-08-01) — tool belt moved out of the component into
+`src/services/dexterTools.ts`; the whole tool loop now runs inside
+`api/agent/[fn].ts` next to the model. `Assistant.tsx` 582 → 358 lines and no
+longer fetches market data at all: it posts one request with the asset context
+and applies the `actions[]` that come back. `drawTechnicalAnalysis` is the one
+tool that stays client-side, returned as a client action rather than executed
+server-side. Prod probe (grounded end-to-end, not a canned reply):
+`POST /api/agent/chat` with `asset:{symbol:"BTC",isCrypto:true}` and
+"highest close in 30 days" → 200, `"The highest close in the 30-day window was
+$66,556.16 on July 21, 2026."`, 3609 ms server / 6139 ms e2e. Cross-checked
+against `api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=30`:
+max close **66556.16 on 2026-07-21** — exact match, so the model read the tool
+result rather than its priors. Tests: dexterTools.test.ts 16/16, dexterLlm 14/14,
+8 suites / 90 tests passed, sources 37/37 via tsx, `tsc -b` 0, build exit 0 in
+1 m 3 s. Deployed `market-q2xyju866`.
+Still not true of the agent: the steps are invisible (DX-3), levels are still
+whatever the model says (DX-4/DX-5), no grade (DX-7).
