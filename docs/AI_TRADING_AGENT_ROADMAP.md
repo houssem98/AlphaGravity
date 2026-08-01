@@ -283,7 +283,7 @@ flowchart TB
 
 ### Phase C — World-class reasoning (TradingAgents spine)
 
-- [ ] **DX-8 · Analyst layer.** `dexterGraph.ts`: Market / News / Social / Fundamentals
+- [x] **DX-8 · Analyst layer.** `dexterGraph.ts`: Market / News / Social / Fundamentals
   analysts run in parallel, each over its real tool belt (§2), each returning a bounded cited
   report. One analyst failing degrades honestly. → row 13
 
@@ -502,3 +502,41 @@ asserts the real invariant — exactly one user push, and it is
 `buildVerifyPrompt` — instead of forbidding the role outright.
 Tests: dexterTrust 20/20, 13 suites / 183 tests, sources 37/37 via tsx,
 `tsc -b` 0, build 0. Deployed `market-doqgsavpb`. **Phase B complete.**
+
+**DX-8** (2026-08-01) — `dexterGraph.ts`: Market / News / Social / Fundamentals
+run in parallel, each gathering evidence deterministically and spending exactly
+one LLM call on a bounded 150-word cited report. No tool-calling loop per
+analyst — four nested loops would be an unbounded bill. Each analyst owns a
+fixed citation block by position (market 1-10, news 11-20, social 21-30,
+fundamentals 31-40) so parallel completion order can never shuffle the
+numbering. Fundamentals is skipped for crypto rather than spending a call to
+produce an apology. Opt-in via `mode:"deep"` until DX-11 routes it.
+
+Endpoints live-probed before wiring: `/api/news` takes **`q`, not `symbol`**
+(`?symbol=` answers `{"error":"q required"}` HTTP 400) and returned 10,399
+bytes of Google News items; `/api/social/influencers/BTC` returned 15,053 bytes
+of posts with sentiment.
+
+Prod, BTC: analysts took 5623 / 5882 / 18671 ms and the step totalled
+**18750 ms** — sequential would have been 30176, so the parallelism is real and
+measured, not asserted. 17 citations landing in their disjoint blocks
+(`[1]` market, `[11][12][13][17]` news, `[21][23][26][28]` social), grade **B
+score 80**, zero uncited figures, zero fabricated cites. The market analyst
+quoted `62,211.53333333` unrounded, as its brief demands.
+
+Row 13 proven in prod rather than only in fixtures: the same request against the
+BVMT listing SAH got a real `HTTP 502` from the social route. The other three
+analysts still ran and the answer said "No social read is available" instead of
+inventing sentiment.
+
+That run also exposed a genuine defect. It graded **F score 0**, because the
+model had written `No social read is available [502]` — an HTTP status rendered
+as a citation marker, which resolved to nothing. The grade was correct; the
+prompt had a gap. The final-answer prompt now reserves square brackets for
+citations ("not an error code, not a year, not a quantity"). Re-probed: same 502
+degradation, stated in plain words, grade **B score 80**, `fabricatedCites: []`.
+Fixing the cause rather than loosening the check is the point.
+Tests: dexterGraph 18/18, 14 suites / 200 tests, `tsc -b` 0, build 0.
+Deployed `market-nqwrypdth`.
+Follow-up noted, not fixed: cluster means print as `62,211.53333333`. Correct
+but ugly — belongs to DX-16 polish, not to the engine.

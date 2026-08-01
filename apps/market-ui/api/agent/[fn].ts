@@ -19,6 +19,7 @@ import { extractFigures, findUnmappedCites } from '../../src/services/gridResear
 import {
   buildVerifyPrompt, needsVerification, scoreAnswerTrust, GRADE_RANK,
 } from '../../src/services/dexterTrust.js';
+import { allCitations, renderReports, runAnalysts } from '../../src/services/dexterGraph.js';
 import type { Bar } from '../../src/services/taLevels.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
@@ -33,7 +34,7 @@ export default async function handler(req: any, res: any) {
   if (fn !== 'chat') return res.status(404).json({ error: `Unknown agent route: ${fn}` });
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-  const { messages, asset, tools } = req.body ?? {};
+  const { messages, asset, tools, mode } = req.body ?? {};
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages[] required' });
   }
@@ -89,6 +90,61 @@ export default async function handler(req: any, res: any) {
   try {
     let provider = '';
     let model = '';
+
+    // DX-8: the analyst layer. Four evidence sources read in parallel, each
+    // spending exactly one LLM call on a bounded cited report, then one call to
+    // answer from all four. DX-11 will route here automatically; until then it
+    // is opt-in so it can be probed without changing the default path.
+    if (mode === 'deep' && ctx) {
+      const callLLM = (msgs: ChatMessage[]) => chatWithFallback(msgs, [], { keys });
+      const reports = await trace.step('Running analysts', 'analysts',
+        () => runAnalysts(ctx, { tools: deps, callLLM }),
+        {
+          isEmpty: rs => rs.every(r => !r.ok),
+          meta: rs => rs.map(r => `${r.id}:${r.ok ? 'ok' : 'unavailable'}`).join(' '),
+        });
+
+      // Each analyst's own steps stay inside its report rather than being
+      // spliced into the main trace: they ran concurrently, so interleaving
+      // them into one ordered list would imply a sequence that never happened.
+      citations.push(...allCitations(reports));
+
+      const final = await trace.step('Answering from the analyst reports', 'llm',
+        () => chatWithFallback([
+          ...messages as ChatMessage[],
+          {
+            role: 'user',
+            content:
+              `Analyst reports for ${ctx.symbol}:\n\n${renderReports(reports)}\n\n` +
+              `Answer the question using these reports. Keep every [N] marker attached to the ` +
+              `figure it came from, and do not introduce a figure that is not in a report above.\n\n` +
+              // A prod run wrote "No social read is available [502]", turning an HTTP status into
+              // a citation marker that resolved to nothing and correctly graded F. Square
+              // brackets belong to citations alone.
+              `Square brackets are reserved for citation markers. Never put any other number in ` +
+              `brackets — not an error code, not a year, not a quantity. When an analyst section ` +
+              `is unavailable, say so in plain words with no marker at all.`,
+          },
+        ], [], { keys }),
+        { meta: r => `${r.provider}/${r.model}` });
+      provider = final.provider;
+      model = final.model;
+
+      const deepTrust = scoreAnswerTrust({ answer: final.text, citations, steps: trace.done() });
+      return res.json({
+        text: final.text,
+        actions,
+        steps: trace.done(),
+        citations,
+        trust: deepTrust,
+        reports: reports.map(r => ({
+          id: r.id, title: r.title, ok: r.ok, error: r.error, ms: r.ms, steps: r.steps,
+        })),
+        fabricatedCites: findUnmappedCites(final.text, citations),
+        uncitedFigures: uncitedFigures(final.text),
+        provider, model, ms: Date.now() - t0,
+      });
+    }
 
     // One pass of "think → call tools → read results", up to the loop cap. The
     // verification round (DX-7) runs this a second time against the same
