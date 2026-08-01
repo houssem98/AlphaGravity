@@ -287,7 +287,7 @@ flowchart TB
   analysts run in parallel, each over its real tool belt (§2), each returning a bounded cited
   report. One analyst failing degrades honestly. → row 13
 
-- [ ] **DX-9 · Bull/Bear debate + Research Manager.** Round-controlled debate
+- [x] **DX-9 · Bull/Bear debate + Research Manager.** Round-controlled debate
   (`conditional_logic.py` pattern), default 1 round, cap 3, then a Research Manager verdict
   with confidence. → row 14
 
@@ -540,3 +540,32 @@ Tests: dexterGraph 18/18, 14 suites / 200 tests, `tsc -b` 0, build 0.
 Deployed `market-nqwrypdth`.
 Follow-up noted, not fixed: cluster means print as `62,211.53333333`. Correct
 but ugly — belongs to DX-16 polish, not to the engine.
+
+**DX-9** (2026-08-01) — `dexterDebate.ts`. Round control follows
+TradingAgents exactly (`count >= 2 * max_debate_rounds`, verified by reading
+`graph/conditional_logic.py:46`): N rounds means 2N debater turns plus one
+manager call. Default 1 round, clamped to 3. Two deliberate departures from the
+original prompts: the debaters inherit DX-6's citation discipline ("a number
+without a marker is worth nothing here and will be graded as such", and "a
+conceded point costs you less than an invented one"), and the manager is
+explicitly allowed to rule NEUTRAL — forcing a direction would manufacture
+conviction the evidence does not support. Stance and confidence are **parsed**
+from a `STANCE:` / `CONFIDENCE:` header, never inferred from prose tone; an
+unparseable reply yields NEUTRAL with `confidence: null`.
+
+Prod, `mode:"decide"` on "Should I go long BTC here?": `rounds=1 turns=2
+stance=BEARISH confidence=65`, steps `bull/8784ms bear/7404ms manager/15849ms`,
+grade **B score 79**, 17 citations, zero fabricated cites. The debate was real
+analysis rather than theatre — the bear's decisive argument used DX-4's touch
+counts against the bull: *"62921.235 — a level with only 2 touches, while
+62211.53333333 below has 3 touches. That makes the nearer support weaker, not a
+floor."* The manager's verdict cited both the technical case and the news
+`[11][18]`.
+
+Cost and latency, stated rather than buried: 7 LLM calls (3 analysts + 2
+debaters + manager + final answer) and **77.8 s server time**. That is
+comfortably under the §5 DECIDE cap of 14 calls, but it is far too slow to be
+the default path — which is exactly why DX-11 gates it behind an intent router
+and shows the spend before spending it.
+Tests: dexterDebate 20/20, 15 suites / 221 tests, `tsc -b` 0, build 0.
+Deployed `market-9r04lv9wz`.

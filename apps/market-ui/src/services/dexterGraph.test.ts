@@ -168,8 +168,10 @@ describe('row 13 — the analyst brief', () => {
 describe('row 13 — wired into the handler', () => {
     const handler = readFileSync(join(__dirname, '../../api/agent/[fn].ts'), 'utf8');
 
+    // DX-9 widened this gate: 'decide' also runs the analysts, then adds the
+    // debate on top. Both remain opt-in until DX-11 routes them.
     it('is opt-in until the router lands', () => {
-        expect(handler).toMatch(/mode === 'deep' && ctx/);
+        expect(handler).toMatch(/\(mode === 'deep' \|\| mode === 'decide'\) && ctx/);
     });
 
     it('grades the deep answer like any other', () => {

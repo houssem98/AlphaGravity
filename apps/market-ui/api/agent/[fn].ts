@@ -20,6 +20,9 @@ import {
   buildVerifyPrompt, needsVerification, scoreAnswerTrust, GRADE_RANK,
 } from '../../src/services/dexterTrust.js';
 import { allCitations, renderReports, runAnalysts } from '../../src/services/dexterGraph.js';
+import {
+  clampRounds, renderTurns, runDebate, type DebateResult,
+} from '../../src/services/dexterDebate.js';
 import type { Bar } from '../../src/services/taLevels.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
@@ -34,7 +37,7 @@ export default async function handler(req: any, res: any) {
   if (fn !== 'chat') return res.status(404).json({ error: `Unknown agent route: ${fn}` });
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-  const { messages, asset, tools, mode } = req.body ?? {};
+  const { messages, asset, tools, mode, rounds } = req.body ?? {};
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages[] required' });
   }
@@ -95,7 +98,7 @@ export default async function handler(req: any, res: any) {
     // spending exactly one LLM call on a bounded cited report, then one call to
     // answer from all four. DX-11 will route here automatically; until then it
     // is opt-in so it can be probed without changing the default path.
-    if (mode === 'deep' && ctx) {
+    if ((mode === 'deep' || mode === 'decide') && ctx) {
       const callLLM = (msgs: ChatMessage[]) => chatWithFallback(msgs, [], { keys });
       const reports = await trace.step('Running analysts', 'analysts',
         () => runAnalysts(ctx, { tools: deps, callLLM }),
@@ -108,6 +111,17 @@ export default async function handler(req: any, res: any) {
       // spliced into the main trace: they ran concurrently, so interleaving
       // them into one ordered list would imply a sequence that never happened.
       citations.push(...allCitations(reports));
+
+      // DX-9: on a decision-shaped request the reports go to a bull/bear debate
+      // and a research manager before anyone answers. Opt-in until DX-11 routes
+      // it, because 2N+1 extra calls is not something to spend on "what's the
+      // price".
+      let debate: DebateResult | null = null;
+      if (mode === 'decide') {
+        debate = await trace.step('Bull/bear debate', 'debate',
+          () => runDebate(ctx, reports, { callLLM }, clampRounds(rounds)),
+          { meta: d => `${d.rounds} round(s), ${d.turns.length} turns → ${d.stance}${d.confidence === null ? '' : ` ${d.confidence}%`}` });
+      }
 
       const final = await trace.step('Answering from the analyst reports', 'llm',
         () => chatWithFallback([
@@ -123,7 +137,13 @@ export default async function handler(req: any, res: any) {
               // brackets belong to citations alone.
               `Square brackets are reserved for citation markers. Never put any other number in ` +
               `brackets — not an error code, not a year, not a quantity. When an analyst section ` +
-              `is unavailable, say so in plain words with no marker at all.`,
+              `is unavailable, say so in plain words with no marker at all.` +
+              (debate
+                ? `\n\nThe bull and bear have already argued this and the research manager ruled ` +
+                  `${debate.stance}${debate.confidence === null ? '' : ` at ${debate.confidence}% confidence`}. ` +
+                  `Lead with that verdict and the reason it won.\n\n` +
+                  `Manager's verdict:\n${debate.verdict}\n\nDebate:\n${renderTurns(debate.turns)}`
+                : ''),
           },
         ], [], { keys }),
         { meta: r => `${r.provider}/${r.model}` });
@@ -140,6 +160,10 @@ export default async function handler(req: any, res: any) {
         reports: reports.map(r => ({
           id: r.id, title: r.title, ok: r.ok, error: r.error, ms: r.ms, steps: r.steps,
         })),
+        debate: debate && {
+          rounds: debate.rounds, stance: debate.stance, confidence: debate.confidence,
+          verdict: debate.verdict, turns: debate.turns, steps: debate.steps,
+        },
         fabricatedCites: findUnmappedCites(final.text, citations),
         uncitedFigures: uncitedFigures(final.text),
         provider, model, ms: Date.now() - t0,
