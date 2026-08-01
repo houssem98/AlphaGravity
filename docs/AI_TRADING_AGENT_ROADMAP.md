@@ -310,7 +310,7 @@ flowchart TB
   journal uses that: no DDL, no new secret, nothing invented, task unblocked. The writer is
   one function if a real table is wanted later.
 
-- [ ] **DX-13 · Outcome grading loop.** Scheduled pass re-prices open decisions from real
+- [x] **DX-13 · Outcome grading loop.** Scheduled pass re-prices open decisions from real
   bars, classifies target-hit / stop-hit / still-open, and writes a reflection lesson
   (`memory.py: update_with_outcome` pattern). → row 17
 
@@ -689,3 +689,35 @@ and the recomputed ratio 886.86/888.83 ≈ 1 matches the stored `rr`. Every row
 starts `outcome: 'open'` — nothing is graded at write time, which is the whole
 point of the next task.
 Tests: dexterJournal 21/21, 18 suites / 313 tests, `tsc -b` 0, build 0.
+
+**DX-13** (2026-08-01) — `dexterOutcome.ts` plus an `outcomes` branch on the
+existing dispatcher and a second daily cron. Everything before this measured
+*process* — was the figure cited, did the tool run. This measures *result*.
+Zero model calls: grading a price path is arithmetic, and paying a model to read
+one would be slower and less trustworthy.
+
+One judgement call was unavoidable and is made **pessimistically**: a daily bar
+that touches both the stop and the target does not say which came first, so the
+stop is assumed. Anything else would flatter the agent with information it never
+had. Positions are also graded only against bars strictly *after* the call, and
+a symbol whose feed is down stays `open` rather than being guessed at.
+
+Verified on real Binance bars, a call placed 2026-06-03 @ 64142.75 and graded
+over the 59 bars that followed:
+
+```
+BUY  +5% tgt / -3% stop → stop   @ 62218.47 on 2026-06-04   -1R
+SELL +5% tgt / -3% stop → target @ 60935.61 on 2026-06-05  +1.67R
+```
+
+Mirror images, which is the sanity check: BTC fell, so the long stopped and the
+short paid. The reflection named the real defect rather than a moral — *"the
+plan was a SELL while the debate ruled BULLISH — it traded against its own
+research"* — and that is precisely the input DX-14 injects.
+
+Prod pass: `GET /api/agent/outcomes` → `{"scanned":1,"graded":0,"stillOpen":1}`
+in 2331 ms. Correct and worth stating: the only journalled decision was 13
+minutes old with no later bar in existence, so it declined to grade rather than
+inventing an outcome.
+Tests: dexterOutcome 26/26, 19 suites / 339 tests, `tsc -b` 0, build 0.
+Deployed `market-8rkfes01s`.

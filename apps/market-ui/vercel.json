@@ -9,6 +9,7 @@
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "crons": [
-    { "path": "/api/tn/snapshot", "schedule": "0 14 * * *" }
+    { "path": "/api/tn/snapshot", "schedule": "0 14 * * *" },
+    { "path": "/api/agent/outcomes", "schedule": "30 22 * * *" }
   ]
 }

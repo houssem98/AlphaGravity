@@ -32,6 +32,7 @@ import {
 import {
   buildEntry, recordDecision, supabaseJournalStore,
 } from '../../src/services/dexterJournal.js';
+import { gradeOpen } from '../../src/services/dexterOutcome.js';
 import type { Bar } from '../../src/services/taLevels.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
@@ -51,10 +52,45 @@ function waitUntil(p: Promise<unknown>) {
   if (ctx?.waitUntil) ctx.waitUntil(q);
 }
 
+// DX-13: re-price every open decision against real bars and write the verdicts
+// back. Zero model calls — grading is arithmetic, and paying a model to read a
+// price path would be both slower and less trustworthy.
+async function outcomesRoute(req: any, res: any) {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return res.status(503).json({ error: 'journal storage is not configured' });
+
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const origin = `${proto}://${req.headers.host}`;
+  const getJson = async (u: string) => {
+    const r = await fetch(u.startsWith('http') ? u : `${origin}${u}`, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) throw new Error(`${u} → HTTP ${r.status}`);
+    return r.json();
+  };
+
+  const store = supabaseJournalStore(url, key);
+  const rows = await store.get();
+
+  const { rows: graded, summary } = await gradeOpen(rows, async (entry) => {
+    const out = await executeTool('getChartData', { days: 60 },
+      { symbol: entry.symbol, isTN: entry.isTN, isCrypto: entry.isCrypto }, { getJson });
+    return normalizeBars(out.data);
+  });
+
+  if (summary.graded > 0) await store.put(graded);
+  res.json({ scanned: rows.length, ...summary });
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   const fn = String(req.query?.fn ?? '');
+
+  // DX-13: the outcome pass. Driven by the daily cron in vercel.json, and
+  // callable by hand. Read-mostly: it fetches bars and rewrites the journal, it
+  // never asks a model anything.
+  if (fn === 'outcomes') return outcomesRoute(req, res);
+
   if (fn !== 'chat') return res.status(404).json({ error: `Unknown agent route: ${fn}` });
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
