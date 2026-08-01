@@ -3,6 +3,7 @@ import { Send, Bot, User, Loader2, BarChart2, X, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { ChatMessage } from '../../services/dexterLlm';
 import type { AgentReply } from '../../services/dexterTools';
+import { stepGlyph, traceSummary, type CellStep } from '../../services/gridTrace';
 import { isCryptoAsset } from '../../constants/tradingAssets';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -11,7 +12,44 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   isDrawing?: boolean;
+  steps?: CellStep[];
 }
+
+// DX-3: what actually ran, under the answer. A step is here iff its call
+// executed, so a failed feed shows its real error rather than disappearing.
+const TracePanel: React.FC<{ steps: CellStep[] }> = ({ steps }) => {
+  const [open, setOpen] = useState(false);
+  if (steps.length === 0) return null;
+  const { tools, failed, totalMs } = traceSummary(steps);
+
+  return (
+    <div className="mt-3 border-t border-gray-700/50 pt-2">
+      <button
+        onClick={() => setOpen(!open)}
+        className="text-[11px] font-mono text-gray-500 hover:text-gray-300 transition-colors"
+      >
+        {open ? '▾' : '▸'} {tools} step{tools === 1 ? '' : 's'} · {totalMs}ms
+        {failed > 0 && <span className="text-red-400"> · {failed} failed</span>}
+      </button>
+      {open && (
+        <div className="mt-2 space-y-1">
+          {steps.map((s, i) => (
+            <div key={i} className="text-[11px] font-mono flex gap-2">
+              <span className={s.status === 'failed' ? 'text-red-400' : s.status === 'empty' ? 'text-amber-400' : 'text-emerald-400'}>
+                {stepGlyph(s.status)}
+              </span>
+              <span className="text-gray-400 shrink-0">{s.label}</span>
+              <span className="text-gray-600">{s.ms}ms</span>
+              {(s.error || s.meta) && (
+                <span className={`truncate ${s.error ? 'text-red-400/80' : 'text-gray-600'}`}>{s.error || s.meta}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface AssistantProps {
   onDraw: (type: string, data: any) => void;
@@ -123,7 +161,10 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
       }),
     });
     const json = await res.json().catch(() => ({ error: `agent/chat HTTP ${res.status}` }));
-    if (!res.ok) throw new Error(json.error || `agent/chat HTTP ${res.status}`);
+    if (!res.ok) {
+      // A failed run still carries its trace — keep it so the user sees where it died.
+      throw Object.assign(new Error(json.error || `agent/chat HTTP ${res.status}`), { steps: json.steps });
+    }
     return json as AgentReply;
   };
 
@@ -178,17 +219,15 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
       const reply = await postAgent(history);
       history.push({ role: 'assistant', content: reply.text });
       for (const action of reply.actions) onDraw(action.type, action.args);
-      const finalContent = reply.text;
-      const isDrawing = reply.actions.length > 0;
-
 
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           role: 'assistant',
-          content: finalContent,
-          isDrawing,
+          content: reply.text,
+          isDrawing: reply.actions.length > 0,
+          steps: reply.steps,
         },
       ]);
     } catch (error: any) {
@@ -199,6 +238,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
           id: Date.now().toString(),
           role: 'assistant',
           content: `Sorry, I encountered an error: ${error.message}`,
+          steps: error.steps,
         },
       ]);
     } finally {
@@ -304,6 +344,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
                     Chart updated with analysis
                   </motion.div>
                 )}
+                {msg.steps && <TracePanel steps={msg.steps} />}
               </div>
             </motion.div>
           ))}

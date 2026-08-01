@@ -11,9 +11,10 @@ import {
   type ChatMessage, type ProviderId, type ToolDef,
 } from '../../src/services/dexterLlm.js';
 import {
-  executeTool, TOOL_DEFS,
-  type AssetContext, type ClientAction,
+  executeTool, isEmptyToolData, toolMeta, TOOL_DEFS, TOOL_LABEL,
+  type AssetContext, type ClientAction, type ToolOutcome,
 } from '../../src/services/dexterTools.js';
+import { newTrace } from '../../src/services/gridTrace.js';
 
 export const maxDuration = 60;   // a tool round-trip plus a reasoning model exceeds the 10s default
 
@@ -58,13 +59,26 @@ export default async function handler(req: any, res: any) {
   const actions: ClientAction[] = [];
   const t0 = Date.now();
 
+  // DX-3: the trace is a record, never a performance. A step exists iff its
+  // call executed; a thrown tool keeps its real error. It is built even when
+  // the request is toolless, so the plain chat path still shows its one step.
+  const trace = newTrace();
+
   try {
     let text = '';
     let provider = '';
     let model = '';
 
     for (let loop = 0; loop < MAX_TOOL_LOOPS; loop++) {
-      const reply = await chatWithFallback(history, toolDefs, { keys });
+      const reply = await trace.step(
+        loop === 0 ? 'Thinking' : 'Reading tool results',
+        'llm',
+        () => chatWithFallback(history, toolDefs, { keys }),
+        {
+          isEmpty: r => !r.text && r.toolCalls.length === 0,
+          meta: r => `${r.provider}/${r.model}${r.toolCalls.length ? ` → ${r.toolCalls.map(c => c.name).join(', ')}` : ''}`,
+        },
+      );
       provider = reply.provider;
       model = reply.model;
       if (reply.text) text += (text ? '\n\n' : '') + reply.text;
@@ -87,16 +101,33 @@ export default async function handler(req: any, res: any) {
       });
 
       for (const call of reply.toolCalls) {
-        const outcome = ctx
-          ? await executeTool(call.name, call.args, ctx, { getJson })
-          : { data: { error: 'No asset context — tools are unavailable for this request.' } as unknown, action: undefined };
+        let outcome: ToolOutcome;
+        try {
+          outcome = await trace.step(
+            TOOL_LABEL[call.name] ?? `Running ${call.name}`,
+            call.name,
+            () => ctx
+              ? executeTool(call.name, call.args, ctx, { getJson })
+              : Promise.resolve({ data: { error: 'No asset context — tools are unavailable for this request.' } }),
+            {
+              isEmpty: o => isEmptyToolData(o.data),
+              meta: o => toolMeta(call.name, o.data),
+            },
+          );
+        } catch (e: any) {
+          // The trace already recorded the real failure; the model gets an
+          // honest error so it can say the feed was down instead of guessing.
+          outcome = { data: { error: `${call.name} failed: ${e?.message ?? String(e)}` } };
+        }
         if (outcome.action) actions.push(outcome.action);
         history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(outcome.data) });
       }
     }
 
-    res.json({ text, actions, provider, model, ms: Date.now() - t0 });
+    res.json({ text, actions, steps: trace.done(), provider, model, ms: Date.now() - t0 });
   } catch (e: any) {
-    res.status(502).json({ error: e.message });
+    // A blown run still ships its trace — the steps that ran are exactly the
+    // evidence needed to see where it died.
+    res.status(502).json({ error: e.message, steps: trace.done() });
   }
 }

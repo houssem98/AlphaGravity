@@ -250,9 +250,13 @@ flowchart TB
   work on DeepSeek, which is not Gemini-shaped). Keep the 4 existing tool bodies; move their
   fetches server-side where the endpoint is same-origin. → rows 4, 6
 
-- [ ] **DX-3 · Trace the agent.** Wrap every tool/LLM call in `newTrace()` from
+- [x] **DX-3 · Trace the agent.** Wrap every tool/LLM call in `newTrace()` from
   `gridTrace.ts`. Assistant renders the live step ticker while running and the finished trace
   (glyph, label, ms, error) under each answer. → rows 5, 6
+  **Partial, deliberately:** the finished trace shipped; the *live* ticker did not. One
+  non-streaming POST gives the browser no way to learn a server step before the run ends, and
+  faking progress would be a performance rather than a record (doctrine rule 3). The live
+  ticker is folded into DX-16, where streaming actually arrives.
 
 ### Phase B — Truth: the model stops inventing numbers
 
@@ -358,3 +362,20 @@ result rather than its priors. Tests: dexterTools.test.ts 16/16, dexterLlm 14/14
 1 m 3 s. Deployed `market-q2xyju866`.
 Still not true of the agent: the steps are invisible (DX-3), levels are still
 whatever the model says (DX-4/DX-5), no grade (DX-7).
+
+**DX-3** (2026-08-01) — every model turn and every tool call is wrapped in
+`newTrace()`; `steps[]` rides back in the response (and on the 502 path too, so
+a blown run still shows where it died) and renders as a collapsible panel under
+each answer. `executeTool` no longer swallows exceptions — a thrown feed
+propagates so the trace records `status:'failed'` with the real error, and the
+handler turns it into an honest message for the model afterwards. Prod probe
+asking for bars **and** statements on a crypto asset returned this trace
+verbatim: `Thinking/llm 1797ms ok "deepseek/deepseek-v4-flash → getChartData,
+getFinancialStatements"` · `Reading price history/getChartData 241ms ok "30
+bars"` · `Reading financial statements/getFinancialStatements 0ms **empty**
+"Financial statements are not applicable for cryptocurrencies."` · `Reading tool
+results/llm 3654ms ok`. The third step is the one that matters: a feed with
+nothing to say grades `empty`, not `failed`, and the model's answer reported the
+gap rather than inventing a balance sheet. 5692 ms server / 6440 ms e2e.
+Tests: dexterTrace.test.ts 15/15, 3 dexter suites 41/41, `tsc -b` 0, build 0.
+Deployed `market-a3sdmjreb`.

@@ -31,6 +31,7 @@ export interface ClientAction {
 export interface AgentReply {
     text: string;
     actions: ClientAction[];
+    steps: import('./gridTrace').CellStep[];   // DX-3: what actually ran
     provider: string;
     model: string;
     ms: number;
@@ -216,31 +217,70 @@ async function financialStatements(ctx: AssetContext, deps: ToolDeps): Promise<u
     return fin ?? { error: 'Financial statements not available for this asset.' };
 }
 
-// A tool that throws returns its real error to the model rather than silence —
-// the model must be able to say "the feed was down", not invent the number.
+// DX-3: a throwing tool propagates. The trace needs the real failure to record
+// `status:'failed'` with the real error (gridTrace re-throws by contract), and
+// the caller turns it into an honest message for the model. Swallowing it here
+// would make every step look like it succeeded.
 export async function executeTool(
     name: string,
     args: Record<string, unknown>,
     ctx: AssetContext,
     deps: ToolDeps,
 ): Promise<ToolOutcome> {
-    try {
-        switch (name) {
-            case 'getChartData':
-                return { data: await chartData(Number(args.days) || 30, ctx, deps) };
-            case 'getFundamentalData':
-                return { data: await fundamentalData(ctx, deps) };
-            case 'getFinancialStatements':
-                return { data: await financialStatements(ctx, deps) };
-            case 'drawTechnicalAnalysis':
-                return {
-                    data: `Drawing dispatched to the chart: ${args.type}.`,
-                    action: { type: String(args.type ?? ''), args },
-                };
-            default:
-                return { data: { error: `Unknown tool: ${name}` } };
-        }
-    } catch (e) {
-        return { data: { error: `${name} failed: ${(e as Error).message}` } };
+    switch (name) {
+        case 'getChartData':
+            return { data: await chartData(Number(args.days) || 30, ctx, deps) };
+        case 'getFundamentalData':
+            return { data: await fundamentalData(ctx, deps) };
+        case 'getFinancialStatements':
+            return { data: await financialStatements(ctx, deps) };
+        case 'drawTechnicalAnalysis':
+            return {
+                data: `Drawing dispatched to the chart: ${args.type}.`,
+                action: { type: String(args.type ?? ''), args },
+            };
+        default:
+            return { data: { error: `Unknown tool: ${name}` } };
     }
 }
+
+// gridTrace's third status: the call ran fine but carried nothing useful. A feed
+// that answers "no data for this symbol" is not a failure, and grading it as one
+// would make a working pipeline look broken.
+export function isEmptyToolData(data: unknown): boolean {
+    if (data == null) return true;
+    if (Array.isArray(data)) return data.length === 0;
+    if (typeof data === 'object') {
+        const keys = Object.keys(data as object);
+        if (keys.length === 0) return true;
+        if ('error' in (data as object)) return true;
+        if ('dailyBars' in (data as any)) {
+            const d = data as any;
+            return (d.dailyBars?.length ?? 0) === 0 && (d.todayIntraday15m?.length ?? 0) === 0;
+        }
+    }
+    return false;
+}
+
+// Short human note for the trace row — never the payload, never an adjective.
+export function toolMeta(name: string, data: unknown): string {
+    if (data && typeof data === 'object' && 'error' in (data as object)) {
+        return String((data as any).error);
+    }
+    if (Array.isArray(data)) return `${data.length} bars`;
+    if (name === 'getChartData' && data && typeof data === 'object') {
+        const d = data as any;
+        return `${d.dailyBars?.length ?? 0} daily bars, ${d.todayIntraday15m?.length ?? 0} intraday`;
+    }
+    if (data && typeof data === 'object') return `${Object.keys(data as object).length} fields`;
+    return String(data ?? '');
+}
+
+// User-facing verb for each tool, so the trace reads as work rather than as an
+// API log.
+export const TOOL_LABEL: Record<string, string> = {
+    getChartData: 'Reading price history',
+    getFundamentalData: 'Reading fundamentals',
+    getFinancialStatements: 'Reading financial statements',
+    drawTechnicalAnalysis: 'Drawing on the chart',
+};

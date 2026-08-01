@@ -63,14 +63,17 @@ describe('row 4 — typed tool contract', () => {
         expect(String(out.data)).toContain('support_resistance');
     });
 
-    it('reports a dead feed as an error the model can read, never as silence', async () => {
+    it('reports a feed with nothing to say as an error the model can read', async () => {
         const out = await executeTool('getFinancialStatements', {}, EQUITY, deps({}));
         expect(out.data).toEqual({ error: 'Financial statements not available for this asset.' });
+    });
 
-        const bad = await executeTool('getChartData', { days: 5 }, CRYPTO, {
+    // DX-3 changed this: a thrown tool propagates so the trace can record the
+    // real failure. The handler converts it to an honest message afterwards.
+    it('lets a thrown feed propagate instead of swallowing it', async () => {
+        await expect(executeTool('getChartData', { days: 5 }, CRYPTO, {
             getJson: async () => { throw new Error('binance timeout'); },
-        });
-        expect((bad.data as any).error).toContain('binance timeout');
+        })).rejects.toThrow('binance timeout');
     });
 
     it('rejects a tool it does not implement', async () => {
