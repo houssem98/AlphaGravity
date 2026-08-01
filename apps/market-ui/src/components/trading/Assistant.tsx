@@ -7,6 +7,7 @@ import {
   figureSpans,
   uncitedFigures,
   type AgentReply,
+  type ClientAction,
   type DexterCitation,
 } from '../../services/dexterTools';
 import {
@@ -36,7 +37,8 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  isDrawing?: boolean;
+  /** DD-11: what the reply actually drew. Replaces the derived `isDrawing`. */
+  actions?: ClientAction[];
   steps?: CellStep[];
   citations?: DexterCitation[];
   fabricatedCites?: number[];
@@ -724,6 +726,54 @@ export const TracePanel: React.FC<{ steps: CellStep[]; defaultOpen?: boolean }> 
   );
 };
 
+// DD-11 / F12: the confirmation was gated on `isDrawing`, a flag derived from
+// the reply rather than read from it, so a chart mutation could not name itself.
+// It is driven by `reply.actions` now — and it names what was drawn, from the
+// gated args the server sent. Every price here already passed the DX-5 gate and
+// was snapped to a level the engine computed, so these are real levels.
+const DRAW_LABEL: Record<string, string> = {
+  support_resistance: 'support / resistance',
+  order_block: 'order block',
+  fibonacci: 'Fibonacci retracement',
+  pattern: 'pattern',
+};
+
+/** What a drawing put on the chart, said in the terms the args actually carry. */
+export function describeAction(action: ClientAction): string {
+  const name = DRAW_LABEL[action.type] ?? action.type.replace(/_/g, ' ');
+  const args = action.args ?? {};
+  const levels = Array.isArray(args.levels)
+    ? (args.levels as unknown[]).filter((n) => Number.isFinite(n as number))
+    : [];
+  const points = Array.isArray(args.points) ? (args.points as unknown[]) : [];
+  const n = levels.length + points.length;
+  return n > 0 ? `${name} · ${n} level${n === 1 ? '' : 's'}` : name;
+}
+
+export const ChartActions: React.FC<{ actions?: ClientAction[] }> = ({ actions }) => {
+  if (!actions || actions.length === 0) return null;
+  return (
+    <motion.div
+      data-chart-actions={actions.length}
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      className="mt-3 w-fit rounded-sm border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 py-2"
+    >
+      <div className="flex items-center gap-2 font-mono text-label text-[color:var(--accent)]">
+        <BarChart2 className="w-4 h-4 shrink-0" />
+        drawn on the chart
+      </div>
+      <ul className="mt-1 space-y-0.5">
+        {actions.map((a, i) => (
+          <li key={i} className="font-mono text-label text-[color:var(--text-2)] break-words">
+            · {describeAction(a)}
+          </li>
+        ))}
+      </ul>
+    </motion.div>
+  );
+};
+
 // DD-3 / F9: bubble geometry is right for a question and wrong for a research
 // answer. A user turn stays a compact right-aligned bubble; an assistant turn is
 // a full-width document marked by a left rule — no avatar column stealing 56px,
@@ -751,16 +801,7 @@ export const Turn: React.FC<{ msg: Message }> = ({ msg }) => {
         anchorScope={msg.id}
         uncited={msg.uncitedFigures}
       />
-      {msg.isDrawing && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          className="mt-3 flex items-center gap-2 text-data text-[color:var(--accent)] font-medium bg-[color:var(--surface)] px-3 py-2 rounded-sm border border-[color:var(--line-strong)] w-fit"
-        >
-          <BarChart2 className="w-4 h-4" />
-          Chart updated with analysis
-        </motion.div>
-      )}
+      <ChartActions actions={msg.actions} />
       {msg.trust && (
         <TrustStrip trust={msg.trust} uncitedCount={msg.uncitedFigures?.length ?? 0} />
       )}
@@ -1041,7 +1082,7 @@ export const Assistant: React.FC<AssistantProps> = ({ onDraw, currentAsset, onCl
           id: Date.now().toString(),
           role: 'assistant',
           content: reply.text,
-          isDrawing: reply.actions.length > 0,
+          actions: reply.actions,
           steps: reply.steps,
           citations: reply.citations,
           fabricatedCites: reply.fabricatedCites,

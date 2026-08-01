@@ -1,0 +1,70 @@
+{
+ "actions": [
+  {
+   "type": "support_resistance",
+   "args": {
+    "type": "support_resistance",
+    "levels": [
+     58201,
+     60000,
+     62272.2,
+     64806,
+     66956.15,
+     69988.83,
+     74050,
+     79485.66,
+     82479.32
+    ],
+    "reasoning": "Support cluster ~62,275 (multiple lows: Aug 1 62,275, Jul 31 62,466, Jun 17 62,272); psychological/support 60,000 (multiple June closes); major June low zone 58,115-57,800. Resistance: 64,800 (multiple caps: Jul 14 65,100, Jun 21 64,588, Jul 24 64,750); 67,000 (Jul 21 66,956, Jun 15 67,292); 70,000 (April/May pivot); 74,000 (April swing area); 79,500 (Apr 22 high 79,472, May resistance); 82,500 (May 6 major high 82,850)."
+   }
+  }
+ ],
+ "steps": [
+  {
+   "label": "Thinking",
+   "tool": "llm",
+   "ms": 1511,
+   "status": "ok",
+   "meta": "deepseek/deepseek-v4-flash → getChartData"
+  },
+  {
+   "label": "Reading price history",
+   "tool": "getChartData",
+   "ms": 240,
+   "status": "ok",
+   "meta": "120 bars"
+  },
+  {
+   "label": "Reading tool results",
+   "tool": "llm",
+   "ms": 19248,
+   "status": "ok",
+   "meta": "deepseek/deepseek-v4-flash → drawTechnicalAnalysis"
+  },
+  {
+   "label": "Drawing on the chart",
+   "tool": "drawTechnicalAnalysis",
+   "ms": 245,
+   "status": "ok",
+   "meta": "Drawing dispatched to the chart: support_resistance. Snapped to the engine's own prices: 58200→58201, 62275→62272.2, 64800→64806, 67000→66956.15, 70000→69988.83, 74000→74050, 79500→79485.66, 82500→82479.32."
+  },
+  {
+   "label": "Reading tool results",
+   "tool": "llm",
+   "ms": 11772,
+   "status": "ok",
+   "meta": "deepseek/deepseek-v4-flash"
+  }
+ ],
+ "trust": {
+  "grade": "C",
+  "score": 68,
+  "rounds": 1,
+  "reasons": [
+   "2 tool call(s) returned data",
+   "2 citation(s) available",
+   "every [N] marker resolves to a real source",
+   "44/61 figures sit in a cited sentence"
+  ]
+ }
+}

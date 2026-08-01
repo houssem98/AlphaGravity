@@ -252,7 +252,7 @@ flowchart TD
 - [x] **DD-10 — Staged progress.** Render the routed intent's full stage list up-front and
       tick stages from the NDJSON events, with elapsed time per stage.
       Fixes F11. Row 14.
-- [ ] **DD-11 — Chart-action confirmation.** Drive the confirmation from `reply.actions`
+- [x] **DD-11 — Chart-action confirmation.** Drive the confirmation from `reply.actions`
       and name what was drawn. Delete the dead `isDrawing` flag.
       Fixes F12. Row 15.
 - [ ] **DD-12 — Header and composer.** Rebuild both on tokens: retire the blur-gradient
@@ -434,3 +434,20 @@ measured ms, screenshot path. No adjectives.)_
   trust B/75). That event log is frozen as `__fixtures__/dexter-prod-stream.json`
   and replayed in the suite, asserting the done-count never runs ahead of the
   step events.
+- 2026-08-01 — **DD-11** done. `Message.isDrawing` deleted (it was derived state,
+  written as `reply.actions.length > 0` and read back as a boolean); the message
+  now carries `actions: ClientAction[]` and `ChartActions` renders one line per
+  drawing. `describeAction` names the kind and counts only the prices the args
+  actually carry — `levels[]` plus `points[].price`, non-numeric entries ignored,
+  bare name when there are none — so the confirmation can never claim a level
+  the server did not send. Old localStorage turns have no `actions` field and
+  render clean. Tests +15 (row 15, `chartActions.test.tsx`), incl. a source scan
+  proving `isDrawing` survives only in comments. `npx vitest run` PASS 814 /
+  FAIL 0 / skipped 7. `tsc --noEmit` 0 errors. `vercel --prod` → chunk
+  `TradingAssistantPage-DNLnFJuh.js` verified: confirmation + draw labels
+  present, `Chart updated with analysis` and `isDrawing` both absent from the
+  bundle. Live probe ("Draw the key support and resistance levels…") → 200 in
+  33.46s, 2780 chars, trust C/68, **1 action `support_resistance` carrying 9
+  gated levels** (58201 … 82479.32), 5 steps (llm 1511 / getChartData 240 /
+  llm 19248 / drawTechnicalAnalysis 245 / llm 11772ms) — renders as
+  "support / resistance · 9 levels". Frozen as `__fixtures__/dexter-prod-actions.json`.
