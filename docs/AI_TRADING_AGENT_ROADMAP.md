@@ -318,7 +318,7 @@ flowchart TB
   decisions + outcomes, plus capped cross-ticker lessons (`get_past_context` pattern, fused
   with `gridLessons.deriveLessons`). → row 18
 
-- [ ] **DX-15 · Replay backtest gate.** Run the whole DECIDE graph over historical bars (TN
+- [x] **DX-15 · Replay backtest gate.** Run the whole DECIDE graph over historical bars (TN
   deep history 589 ISINs; Binance klines) with a strict no-look-ahead assertion. Publish hit
   rate, avg R, and comparison to buy-and-hold — **whatever the number is**. If there is no
   edge, that goes in the Progress log verbatim. → row 19
@@ -748,3 +748,64 @@ That is the exact entry DX-12 wrote, recalled correctly, with the instruction
 obeyed rather than merely present. Grade B, every market figure cited, and no
 citation marker anywhere near the recalled history.
 Tests: dexterMemory 22/22, 20 suites / 361 tests, `tsc -b` 0, build 0.
+
+**DX-15** (2026-08-01) — `dexterReplay.ts`. No-look-ahead is enforced by the
+plumbing, not by intention: the replay deps physically cannot hand a tool a bar
+dated after the decision and throw `LookAheadError` if asked. News and social
+are **refused outright** — there is no archive of what Google News showed on a
+past date, so replaying them would serve today's headlines as if they had been
+available then, which is the worst kind of look-ahead because it is invisible in
+the output. Replayed decisions therefore run on price structure alone, making
+them a **floor**, not an estimate of live performance.
+
+### The result, published as measured
+
+48 real LLM calls, the actual graph (market analyst → bull/bear debate →
+research manager → risk trio → portfolio manager) at 6 dates across
+2026-03-15 → 2026-06-08 on BTC:
+
+```
+2026-03-15 @ 72815.24  HOLD                                    -> open
+2026-04-01 @ 68113.92  SELL e68113.92 s69400    t65342.08      -> stop -1R
+2026-04-18 @ 75691.76  HOLD                                    -> open
+2026-05-05 @ 80905.52  BUY  e80905.52 s79450    t86074.72      -> stop -1R
+2026-05-22 @ 75539.5   SELL e75539.5  s76030    t73749.475     -> stop -1R
+2026-06-08 @ 63085.99  SELL e63085.99 s65416.088 t59565.455    -> stop -1R
+
+positions 4 · holds 2 · wins 0 · losses 4
+hit rate 0 · avg -1R · total -4R
+buy-and-hold over the same window: -15.71%
+```
+
+**There is no edge. The agent lost every trade it took.** That is the number,
+stated as the ledger requires.
+
+### Why — and this is what the gate was for
+
+The failure is not direction. Three of four positions were shorts in a market
+that fell 15.71%, and the two HOLDs correctly sat out. The failure is stop
+placement, and it is systematic:
+
+| date | side | stop distance | ATR(14) | stop / ATR |
+|---|---|---|---|---|
+| 2026-04-01 | SELL | 1286.08 | 2664.78 | **0.48** |
+| 2026-05-05 | BUY | 1455.52 | 2164.94 | **0.67** |
+| 2026-05-22 | SELL | 490.50 | 2000.55 | **0.25** |
+| 2026-06-08 | SELL | 2330.10 | 2510.27 | **0.93** |
+
+Every stop sat inside one day's average range. All four were near-certain to be
+hit by ordinary noise whatever the direction — which is exactly what happened.
+The portfolio manager is handed the ATR by the market analyst and ignores it
+when placing risk.
+
+### The fix is named but deliberately NOT applied here
+
+A minimum stop distance of ~1.5×ATR belongs in the DX-10 manager prompt and in
+`parsePlan` validation. It is not applied in this task for two reasons: DX-15's
+job is to measure, and tuning a rule until a 4-trade sample turns green is
+curve-fitting — the precise sin this whole harness exists to prevent. The
+constraint is defensible on definitional grounds (a stop inside one ATR is
+noise-width by construction, independent of any sample), so it is worth doing —
+as its own change, re-measured over a larger window, not as a silent edit that
+invalidates the number above.
+Tests: dexterReplay 18/18, 21 suites / 379 tests, `tsc -b` 0.
