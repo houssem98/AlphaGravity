@@ -237,7 +237,7 @@ flowchart TD
       with a dotted amber underline + tooltip; keep a count in the trust strip. Never flag a
       figure inside a cited sentence.
       Fixes F6. Row 5.
-- [ ] **DD-7 — Trust strip.** Promote the 10px chip to a header strip carrying grade, score,
+- [x] **DD-7 — Trust strip.** Promote the 10px chip to a header strip carrying grade, score,
       rounds and every reason as visible text, toned by `chipPropsFor`.
       Fixes F7. Row 7.
 - [ ] **DD-8 — Structured answer blocks.** Add the optional fenced-block contract to the
@@ -362,3 +362,18 @@ measured ms, screenshot path. No adjectives.)_
   `TradingAssistantPage-BCHCHGX1.js` verified (mark, dotted amber, sentinel,
   tooltip). Live probe → 200 in 61.36s, 957 chars, 17 citations, trust B/78,
   **2 uncited flagged in place** (`14%`, `62211.53333333`).
+- 2026-08-01 — **DD-7** done. `TrustChip` (10px, reasons hidden in a hover
+  `title`) replaced by `TrustStrip`: grade, `score/100`, round count, the uncited
+  count, and **every** reason as a visible `<li>`. Tone still comes from
+  `chipPropsFor` alone — A/B `--up`, C amber, D/F `--down`, honest-empty
+  `--accent` — so no grade can be cosmetically upgraded. The duplicate uncited
+  line was dropped from the evidence panel (DD-6 marks them in place, the strip
+  counts them), leaving `EvidencePanel` purely sources. Tests +9 (row 7,
+  `trustStrip.test.tsx`). `npx vitest run` PASS 751 / FAIL 0 / skipped 7.
+  `tsc --noEmit` 0 errors. `vercel --prod` → chunk `TradingAssistantPage-B1wKdY8J.js`
+  verified (strip, `/100`, rounds, uncited count present; old 10px chip gone).
+  Live probes ×2 → 200; the answering one 34.83s, 1549 chars, trust **B/80**,
+  1 round, **4 reasons rendered** ("2 tool call(s) returned data", "17 citation(s)
+  available", "every [N] marker resolves to a real source", "24/24 figures sit in
+  a cited sentence"), 0 uncited. The empty-answer probe rendered its real verdict
+  too: F/0, "no answer produced".

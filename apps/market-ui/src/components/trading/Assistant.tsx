@@ -335,17 +335,43 @@ const TRUST_TONE: Record<string, string> = {
   honest: 'text-[color:var(--accent)] border-[color:var(--accent)]',
 };
 
-const TrustChip: React.FC<{ trust: AnswerTrust }> = ({ trust }) => {
-  const { label, tone, title } = chipPropsFor(trust);
+// DD-7 / F7: the grade is the headline of a verified-answer product, and it was
+// the smallest thing on screen — a 10px chip whose reasons were reachable only
+// by hovering it. The strip states the grade, the score it was computed from,
+// how many rounds it took, and EVERY reason as visible text. `chipPropsFor` is
+// still the single source of tone and label, so a C can never be dressed as an A.
+export const TrustStrip: React.FC<{ trust: AnswerTrust; uncitedCount?: number }> = ({
+  trust,
+  uncitedCount = 0,
+}) => {
+  const { label, tone } = chipPropsFor(trust);
   return (
-    <span
-      title={title}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm border bg-[color:var(--surface-2)] text-label font-mono font-bold ${TRUST_TONE[tone]}`}
+    <div
+      data-trust-grade={trust.grade}
+      className={`mt-3 rounded-sm border bg-[color:var(--surface-2)] px-3 py-2 ${TRUST_TONE[tone]}`}
     >
-      {label}
-      <span className="font-normal opacity-70">{trust.score}</span>
-      {trust.rounds > 1 && <span className="font-normal opacity-70">·{trust.rounds}r</span>}
-    </span>
+      <div className="flex items-baseline gap-2">
+        <span className="font-mono text-body font-bold">{label}</span>
+        <span className="font-mono text-label text-[color:var(--text-2)]">{trust.score}/100</span>
+        <span className="font-mono text-label text-[color:var(--text-3)]">
+          {trust.rounds} round{trust.rounds === 1 ? '' : 's'}
+        </span>
+        {uncitedCount > 0 && (
+          <span className="ml-auto font-mono text-label text-amber-400">
+            {uncitedCount} uncited
+          </span>
+        )}
+      </div>
+      {trust.reasons.length > 0 && (
+        <ul className="mt-1 space-y-0.5">
+          {trust.reasons.map((r, i) => (
+            <li key={i} className="font-mono text-label text-[color:var(--text-2)] break-words">
+              · {r}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 };
 
@@ -382,18 +408,15 @@ export const citationMs = (source: string, steps?: CellStep[]): number | undefin
 // per citation, full payload, anchored so a DD-4 chip can land on it.
 const EvidencePanel: React.FC<{
   citations?: DexterCitation[];
-  uncited?: string[];
   steps?: CellStep[];
   scope?: string;
-}> = ({ citations = [], uncited = [], steps, scope = '' }) => {
-  if (citations.length === 0 && uncited.length === 0) return null;
+}> = ({ citations = [], steps, scope = '' }) => {
+  if (citations.length === 0) return null;
   return (
     <div className="mt-3 space-y-1">
-      {citations.length > 0 && (
-        <div className="font-display text-label font-semibold uppercase text-[color:var(--text-3)]">
-          Sources
-        </div>
-      )}
+      <div className="font-display text-label font-semibold uppercase text-[color:var(--text-3)]">
+        Sources
+      </div>
       {citations.map((c) => {
         const ms = citationMs(c.source, steps);
         return (
@@ -422,12 +445,6 @@ const EvidencePanel: React.FC<{
           </div>
         );
       })}
-      {uncited.length > 0 && (
-        <div className="font-mono text-label text-amber-400">
-          ⚠ uncited figure{uncited.length === 1 ? '' : 's'}: {uncited.slice(0, 6).join(', ')}
-          {uncited.length > 6 && ` +${uncited.length - 6}`}
-        </div>
-      )}
     </div>
   );
 };
@@ -506,16 +523,9 @@ export const Turn: React.FC<{ msg: Message }> = ({ msg }) => {
         </motion.div>
       )}
       {msg.trust && (
-        <div className="mt-3">
-          <TrustChip trust={msg.trust} />
-        </div>
+        <TrustStrip trust={msg.trust} uncitedCount={msg.uncitedFigures?.length ?? 0} />
       )}
-      <EvidencePanel
-        citations={msg.citations}
-        uncited={msg.uncitedFigures}
-        steps={msg.steps}
-        scope={msg.id}
-      />
+      <EvidencePanel citations={msg.citations} steps={msg.steps} scope={msg.id} />
       {msg.steps && <TracePanel steps={msg.steps} />}
     </div>
   );
