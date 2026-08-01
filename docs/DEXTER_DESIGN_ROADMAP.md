@@ -240,7 +240,7 @@ flowchart TD
 - [x] **DD-7 — Trust strip.** Promote the 10px chip to a header strip carrying grade, score,
       rounds and every reason as visible text, toned by `chipPropsFor`.
       Fixes F7. Row 7.
-- [ ] **DD-8 — Structured answer blocks.** Add the optional fenced-block contract to the
+- [x] **DD-8 — Structured answer blocks.** Add the optional fenced-block contract to the
       server prompt (` ```dexter-levels `, ` ```dexter-plan `) and render each as a component —
       level ladder with `up`/`down` semantics, plan card with an R:R bar. Prose path unchanged
       when absent.
@@ -377,3 +377,26 @@ measured ms, screenshot path. No adjectives.)_
   available", "every [N] marker resolves to a real source", "24/24 figures sit in
   a cited sentence"), 0 uncited. The empty-answer probe rendered its real verdict
   too: F/0, "no answer produced".
+- 2026-08-01 — **DD-8** done, with one deliberate deviation from the task text.
+  The spec said "add the fenced-block contract to the server *prompt*"; the
+  blocks are instead **emitted by the server from data that already validated** —
+  `taLevels()` (deterministic TA over the same bars the risk floor uses) and the
+  `TradePlan` that passed `parsePlan`. Asking the model to author the JSON would
+  have put an invented level inside an authoritative-looking ladder, which
+  doctrine 2 forbids; this way the invention surface is zero and rows 10/11 are
+  still satisfied. New `src/services/dexterBlocks.ts` holds the contract
+  (`renderLevelsBlock`/`renderPlanBlock`/`isCompletePlan`/`dexterLang`), shared by
+  `api/agent/[fn].ts` and the client. `taLevels` hoisted in the dispatcher so one
+  read backs both the ladder and `minStopDistance` — they can never disagree.
+  Client: `LevelsCard` (res-above-sup, `--up`/`--down` semantics, touches, ATR),
+  `PlanCard` (entry/stop/target + R:R bar), `IncompletePlan` warning; unknown
+  `dexter-*` or unparseable body falls back to a code block and never throws.
+  Levels render at **full precision** — 63,987.22 is a different number from
+  63,987.215. Tests +17 (rows 10, 11, `structuredBlocks.test.tsx`) incl. live
+  fixture `dexter-prod-levels.json`. `npx vitest run` PASS 768 / FAIL 0 /
+  skipped 7. `tsc --noEmit` 0 errors. `vercel --prod` → chunk
+  `TradingAssistantPage-BeG41kGb.js` verified. Live probe → 200 in 40.90s,
+  1774 chars, trust B/79, **levels block present**: lastClose 62494, trend down,
+  ATR 1699.34973259, 4 support + 4 resistance (top res 62698.73 @ 6 touches).
+  Plan block is `decide`-mode only and was not exercised by this probe — covered
+  by the `renderPlan` unit tests instead.

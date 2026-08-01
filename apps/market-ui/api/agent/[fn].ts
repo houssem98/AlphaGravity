@@ -24,8 +24,9 @@ import {
   clampRounds, renderTurns, runDebate, type DebateResult,
 } from '../../src/services/dexterDebate.js';
 import {
-  clampRiskRounds, renderPlan, runRisk, DISCLOSURE, type RiskResult,
+  clampRiskRounds, minStopDistance, renderPlan, runRisk, DISCLOSURE, type RiskResult,
 } from '../../src/services/dexterRisk.js';
+import { taLevels } from '../../src/services/taLevels.js';
 import {
   classifyIntent, describeBudget, CallBudget,
 } from '../../src/services/dexterIntent.js';
@@ -36,7 +37,8 @@ import { gradeOpen } from '../../src/services/dexterOutcome.js';
 import {
   buildPastContext, renderTrackRecord, trackRecord,
 } from '../../src/services/dexterMemory.js';
-import type { Bar } from '../../src/services/taLevels.js';
+import type { Bar, TaLevels } from '../../src/services/taLevels.js';
+import { renderLevelsBlock, MAX_LEVELS_PER_SIDE } from '../../src/services/dexterBlocks.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
 // A tool round-trip plus a reasoning model exceeds the 10s default. The full
@@ -252,6 +254,15 @@ export default async function handler(req: any, res: any) {
       // them into one ordered list would imply a sequence that never happened.
       citations.push(...allCitations(reports));
 
+      // DD-8: the deterministic levels, read once from the same bars the
+      // analysis ran on. They back the risk floor below AND the levels block
+      // prepended to the answer, so the ladder the user scans and the stop the
+      // manager was held to can never come from two different reads.
+      let levels: TaLevels | null = null;
+      if (deps.getBars) {
+        try { levels = taLevels(await deps.getBars()); } catch { levels = null; }
+      }
+
       // DX-9: on a decision-shaped request the reports go to a bull/bear debate
       // and a research manager before anyone answers. Opt-in until DX-11 routes
       // it, because 2N+1 extra calls is not something to spend on "what's the
@@ -268,8 +279,12 @@ export default async function handler(req: any, res: any) {
       // commentary — the plan is dropped, not quietly repaired.
       let risk: RiskResult | null = null;
       if (effectiveMode === 'decide') {
+        // DX-17: the stop floor comes from the same bars the analysis ran on.
+        // Without an ATR (too little history) there is no floor rather than a
+        // guessed one.
+        const minStop = minStopDistance(levels?.atr ?? null);
         risk = await trace.step('Risk trio + portfolio manager', 'risk',
-          () => runRisk(ctx, reports, debate, { callLLM }, clampRiskRounds(riskRounds)),
+          () => runRisk(ctx, reports, debate, { callLLM, minStop }, clampRiskRounds(riskRounds)),
           { meta: r => r.plan
               ? `${r.plan.action} ${r.plan.sizePct}% · stop ${r.plan.stop} · R:R ${r.plan.rr}:1`
               : `no position (${r.commentary ? `downgraded: ${r.rejectReason}` : 'HOLD'})` });
@@ -319,6 +334,19 @@ export default async function handler(req: any, res: any) {
       // that passed validation, so the two can never disagree.
       let answer = final.text;
       if (risk?.plan) answer = `${renderPlan(risk.plan, ctx)}\n\n${answer}`;
+      // DD-8: the ladder goes above the plan — a reader checks where price is
+      // before reading what to do about it. Emitted only when the TA actually
+      // found levels; there is no empty ladder.
+      if (levels && (levels.support.length > 0 || levels.resistance.length > 0)) {
+        answer = `${renderLevelsBlock({
+          lastClose: levels.lastClose,
+          trend: levels.trend,
+          atr: levels.atr,
+          unit: ctx.isTN ? ' TND' : '',
+          support: levels.support.slice(0, MAX_LEVELS_PER_SIDE).map(l => ({ price: l.price, touches: l.touches })),
+          resistance: levels.resistance.slice(0, MAX_LEVELS_PER_SIDE).map(l => ({ price: l.price, touches: l.touches })),
+        })}\n\n${answer}`;
+      }
       if (effectiveMode === 'decide') answer = `${answer}\n\n_${DISCLOSURE}_`;
 
       const deepTrust = scoreAnswerTrust({ answer: final.text, citations, steps: trace.done() });

@@ -9,6 +9,16 @@ import {
   type AgentReply,
   type DexterCitation,
 } from '../../services/dexterTools';
+import {
+  dexterLang,
+  isCompletePlan,
+  isLevelsBlock,
+  parseBlock,
+  LEVELS_LANG,
+  PLAN_LANG,
+  type DexterLevelsBlock,
+  type DexterPlanBlock,
+} from '../../services/dexterBlocks';
 import { stepGlyph, traceSummary, type CellStep } from '../../services/gridTrace';
 import { chipPropsFor, type AnswerTrust } from '../../services/dexterTrust';
 import { isCryptoAsset } from '../../constants/tradingAssets';
@@ -129,11 +139,19 @@ export const MARKDOWN_COMPONENTS: Components = {
         {children}
       </code>
     ),
-  pre: ({ children }) => (
-    <pre className="my-2 overflow-x-auto rounded-sm border border-[color:var(--line)] bg-[color:var(--bg)] p-3 font-mono text-data text-[color:var(--text-2)]">
-      {children}
-    </pre>
-  ),
+  // DD-8: a `dexter-*` fence is a structured block the server emitted from
+  // validated numbers. Anything else — including a `dexter-*` name this build
+  // does not know, or a body that will not parse — falls through to the plain
+  // code block it always was.
+  pre: ({ children }) => {
+    const block = dexterBlock(children);
+    if (block) return block;
+    return (
+      <pre className="my-2 overflow-x-auto rounded-sm border border-[color:var(--line)] bg-[color:var(--bg)] p-3 font-mono text-data text-[color:var(--text-2)]">
+        {children}
+      </pre>
+    );
+  },
   table: ({ children }) => (
     <div className="my-2 overflow-x-auto">
       <table className="w-full border-collapse font-mono text-data">{children}</table>
@@ -153,6 +171,175 @@ export const MARKDOWN_COMPONENTS: Components = {
     </td>
   ),
 };
+
+// DD-8 / F10: the levels and the plan are the two things a trader scans in
+// under a second, and they arrived as undifferentiated text. Both blocks are
+// emitted by the SERVER from numbers that already validated, so the ladder
+// cannot show a level the TA did not find.
+// Grouped for reading, never rounded: a level is a price the TA actually found,
+// and 63,987.22 is a different number from 63,987.215.
+const fmt = (n: number, unit: string) =>
+  `${n.toLocaleString('en-US', { maximumFractionDigits: 20 })}${unit}`;
+
+export const LevelsCard: React.FC<{ block: DexterLevelsBlock }> = ({ block }) => {
+  const rows = [
+    ...[...block.resistance].reverse().map((l) => ({ ...l, kind: 'resistance' as const })),
+    ...block.support.map((l) => ({ ...l, kind: 'support' as const })),
+  ];
+  return (
+    <div
+      data-dexter-block="levels"
+      className="my-3 overflow-x-auto rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)]"
+    >
+      <div className="flex items-baseline gap-2 border-b border-[color:var(--line)] px-3 py-1.5">
+        <span className="font-display text-label font-semibold uppercase text-[color:var(--text-3)]">
+          Levels
+        </span>
+        {block.lastClose !== null && (
+          <span className="font-mono text-data text-[color:var(--text)]">
+            {fmt(block.lastClose, block.unit)}
+          </span>
+        )}
+        <span
+          className={`font-mono text-label ${
+            block.trend === 'up'
+              ? 'text-[color:var(--up)]'
+              : block.trend === 'down'
+                ? 'text-[color:var(--down)]'
+                : 'text-[color:var(--text-3)]'
+          }`}
+        >
+          {block.trend}
+        </span>
+        {block.atr !== null && (
+          <span className="ml-auto shrink-0 font-mono text-label text-[color:var(--text-4)]">
+            ATR {fmt(block.atr, '')}
+          </span>
+        )}
+      </div>
+      {rows.length === 0 ? (
+        <div className="px-3 py-1.5 font-mono text-label text-[color:var(--text-3)]">
+          no levels found in the bars
+        </div>
+      ) : (
+        <div>
+          {rows.map((l, i) => (
+            <div
+              key={i}
+              className="flex items-baseline gap-3 border-b border-[color:var(--line)] px-3 py-1 last:border-b-0"
+            >
+              <span
+                className={`w-16 shrink-0 font-mono text-label uppercase ${
+                  l.kind === 'resistance' ? 'text-[color:var(--down)]' : 'text-[color:var(--up)]'
+                }`}
+              >
+                {l.kind === 'resistance' ? 'res' : 'sup'}
+              </span>
+              <span className="font-mono text-data text-[color:var(--text)]">
+                {fmt(l.price, block.unit)}
+              </span>
+              <span className="ml-auto shrink-0 font-mono text-label text-[color:var(--text-4)]">
+                {l.touches} touch{l.touches === 1 ? '' : 'es'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const PlanCard: React.FC<{ block: DexterPlanBlock }> = ({ block }) => {
+  const risk = Math.abs(block.entry - block.stop);
+  const reward = Math.abs(block.target - block.entry);
+  const rewardShare = risk + reward > 0 ? (reward / (risk + reward)) * 100 : 0;
+  const long = block.target >= block.entry;
+  return (
+    <div
+      data-dexter-block="plan"
+      className="my-3 rounded-sm border border-[color:var(--line-strong)] bg-[color:var(--surface)]"
+    >
+      <div className="flex items-baseline gap-2 border-b border-[color:var(--line)] px-3 py-1.5">
+        <span
+          className={`font-mono text-body font-bold ${
+            long ? 'text-[color:var(--up)]' : 'text-[color:var(--down)]'
+          }`}
+        >
+          {block.action}
+        </span>
+        <span className="font-mono text-label text-[color:var(--text-3)]">
+          {block.sizePct}% of portfolio
+        </span>
+        <span className="ml-auto shrink-0 font-mono text-label text-[color:var(--text-2)]">
+          {block.rr}:1
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 px-3 py-2">
+        {(
+          [
+            ['entry', block.entry, 'text-[color:var(--text)]'],
+            ['stop', block.stop, 'text-[color:var(--down)]'],
+            ['target', block.target, 'text-[color:var(--up)]'],
+          ] as const
+        ).map(([label, value, tone]) => (
+          <div key={label}>
+            <div className="font-display text-label uppercase text-[color:var(--text-4)]">
+              {label}
+            </div>
+            <div className={`font-mono text-data ${tone}`}>{fmt(value, block.unit)}</div>
+          </div>
+        ))}
+      </div>
+      {/* The bar is the R:R made visible: red is what is risked to win green. */}
+      <div className="flex h-1 overflow-hidden px-3 pb-2">
+        <div className="flex h-1 w-full overflow-hidden rounded-sm">
+          <div
+            className="h-full bg-[color:var(--down)]"
+            style={{ width: `${100 - rewardShare}%` }}
+          />
+          <div className="h-full bg-[color:var(--up)]" style={{ width: `${rewardShare}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// A plan that lost a number is not a plan. Rendering three of its four fields
+// as a card would read as executable while missing the stop.
+export const IncompletePlan: React.FC<{ missing: string[] }> = ({ missing }) => (
+  <div
+    data-dexter-block="plan-incomplete"
+    role="alert"
+    className="my-3 rounded-sm border border-amber-400 bg-[color:var(--surface-2)] px-3 py-2 font-mono text-label text-amber-400"
+  >
+    ⚠ incomplete plan — no {missing.join(', ')}. Not shown as a trade.
+  </div>
+);
+
+/** Turn a `<pre>`'s child `<code>` into a Dexter block, or null to keep the
+ *  code block. Never throws: an unknown name or unparseable body returns null. */
+function dexterBlock(children: React.ReactNode): React.ReactElement | null {
+  const child = React.Children.toArray(children)[0];
+  if (!React.isValidElement(child)) return null;
+  const props = child.props as { className?: string; children?: React.ReactNode };
+  const lang = dexterLang(props.className);
+  if (!lang) return null;
+
+  const body = React.Children.toArray(props.children).filter((c) => typeof c === 'string').join('');
+  const parsed = parseBlock(body);
+  if (parsed === null) return null;
+
+  if (lang === LEVELS_LANG && isLevelsBlock(parsed)) return <LevelsCard block={parsed} />;
+  if (lang === PLAN_LANG) {
+    if (isCompletePlan(parsed)) return <PlanCard block={parsed} />;
+    const p = parsed as Partial<DexterPlanBlock>;
+    const missing = (['entry', 'stop', 'target', 'rr'] as const).filter(
+      (k) => typeof p?.[k] !== 'number' || !Number.isFinite(p[k] as number),
+    );
+    return <IncompletePlan missing={missing.map((m) => (m === 'rr' ? 'R:R' : m))} />;
+  }
+  return null;
+}
 
 // DD-4 / F4: the verification work already ships on the reply — the UI's job is
 // to make a claim's evidence reachable in one click. A `[N]` with a matching

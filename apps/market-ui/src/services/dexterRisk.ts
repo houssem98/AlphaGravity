@@ -17,6 +17,7 @@ import type { AssetContext } from './dexterTools.js';
 import { newTrace, type CellStep } from './gridTrace.js';
 import { renderReports, type AnalystReport } from './dexterGraph.js';
 import { renderTurns, type DebateResult } from './dexterDebate.js';
+import { renderPlanBlock } from './dexterBlocks.js';
 
 export type RiskSide = 'aggressive' | 'conservative' | 'neutral';
 
@@ -99,12 +100,36 @@ export function renderRiskTurns(turns: RiskTurn[]): string {
     return turns.map(t => `${t.side} (round ${t.round}): ${t.text}`).join('\n\n');
 }
 
+// DX-17: the minimum distance a stop may sit from the entry, in ATR. A stop
+// closer than one ATR is inside a single day's ordinary range — it is not a
+// thesis-invalidation level, it is a coin flip on noise. 1.5 gives the trade
+// room to be right slowly.
+//
+// This is not a number tuned until a backtest went green. DX-15 measured four
+// trades, all stopped, at 0.48 / 0.67 / 0.25 / 0.93 ATR — but the rule stands on
+// the definition of ATR rather than on that sample, which is why it is stated as
+// a constant here and not fitted.
+export const MIN_STOP_ATR = 1.5;
+
+export function minStopDistance(atr: number | null): number | null {
+    return atr === null ? null : Number((atr * MIN_STOP_ATR).toFixed(8));
+}
+
 export function managerPrompt(
     ctx: AssetContext,
     reports: AnalystReport[],
     debate: DebateResult | null,
     turns: RiskTurn[],
+    minStop: number | null = null,
 ): ChatMessage[] {
+    const stopRule = minStop === null
+        ? `Place the stop where the idea is actually wrong, not where it is convenient.`
+        : `Your stop must sit at least ${minStop} away from your entry — that is ` +
+          `${MIN_STOP_ATR}x the current ATR. A closer stop is inside one day's ordinary range ` +
+          `and will be taken out by noise whichever way the market goes; a plan with one will ` +
+          `be rejected. If the level where your idea is genuinely wrong is nearer than that, ` +
+          `the trade does not have room — answer HOLD.`;
+
     return [
         {
             role: 'system',
@@ -115,8 +140,9 @@ export function managerPrompt(
                 `SIZE: <percent of portfolio>\n\n` +
                 `A BUY or a SELL without every one of those numbers is not a decision and will be ` +
                 `relabelled as commentary. For a BUY the stop sits BELOW the entry and the target ` +
-                `ABOVE it; for a SELL, the reverse. If the evidence does not support a position, ` +
-                `answer HOLD and leave the numbers at 0 — that is a real answer, not a failure.\n\n` +
+                `ABOVE it; for a SELL, the reverse. ${stopRule} If the evidence does not support a ` +
+                `position, answer HOLD and leave the numbers at 0 — that is a real answer, not a ` +
+                `failure.\n\n` +
                 `Then at most 120 words: why this action, why this stop, and what would invalidate ` +
                 `it. Keep the [N] marker on every figure.`,
         },
@@ -147,7 +173,7 @@ export interface PlanParse {
 // Row 15. The risk/reward ratio is COMPUTED from the levels, never read from
 // the model: a plan that claims 3:1 while its own numbers say 0.4:1 is the
 // exact failure this gate exists for.
-export function parsePlan(text: string): PlanParse {
+export function parsePlan(text: string, minStop: number | null = null): PlanParse {
     const actionMatch = text.match(/ACTION:\s*(BUY|SELL|HOLD)/i);
     const action = (actionMatch?.[1].toUpperCase() as Action) ?? null;
 
@@ -180,6 +206,21 @@ export function parsePlan(text: string): PlanParse {
     const risk = Math.abs(entry! - stop!);
     if (risk === 0) return { plan: null, action, problems: ['stop equals entry — no risk defined'] };
 
+    // DX-17: a stop inside the instrument's own noise is not a risk level. The
+    // prompt asks for this; this enforces it, because an instruction the model
+    // can ignore is a suggestion.
+    if (minStop !== null && risk < minStop) {
+        return {
+            plan: null,
+            action,
+            problems: [
+                `stop is ${risk.toFixed(2)} from entry but must be at least ${minStop} ` +
+                `(${MIN_STOP_ATR}x ATR) — a closer stop sits inside one day's ordinary range ` +
+                `and gets taken out by noise regardless of direction`,
+            ],
+        };
+    }
+
     return {
         plan: {
             action,
@@ -198,7 +239,19 @@ export function parsePlan(text: string): PlanParse {
 // numbers, so it cannot disagree with what was validated.
 export function renderPlan(plan: TradePlan, ctx: AssetContext): string {
     const unit = ctx.isTN ? ' TND' : '';
+    // DD-8: the same validated numbers, additionally emitted as a structured
+    // block so the client can render a plan card. The prose lines stay — a
+    // consumer that does not know the block still reads the whole plan.
     return [
+        renderPlanBlock({
+            action: plan.action,
+            entry: plan.entry,
+            stop: plan.stop,
+            target: plan.target,
+            sizePct: plan.sizePct,
+            rr: plan.rr,
+            unit,
+        }),
         `**${plan.action}** · entry ${plan.entry}${unit} · stop ${plan.stop}${unit} · target ${plan.target}${unit}`,
         `Size ${plan.sizePct}% of portfolio · risk/reward ${plan.rr}:1 (computed from these levels)`,
     ].join('\n');
@@ -212,6 +265,8 @@ export function clampRiskRounds(n: number | undefined): number {
 export interface RiskDeps {
     callLLM: (messages: ChatMessage[]) => Promise<{ text: string }>;
     now?: () => number;
+    /** DX-17: minimum stop distance, from the market analyst's ATR. */
+    minStop?: number | null;
 }
 
 export async function runRisk(
@@ -234,11 +289,12 @@ export async function runRisk(
         }
     }
 
+    const minStop = deps.minStop ?? null;
     const decision = await trace.step('Portfolio manager decides', 'portfolio',
-        () => deps.callLLM(managerPrompt(ctx, reports, debate, turns)),
+        () => deps.callLLM(managerPrompt(ctx, reports, debate, turns, minStop)),
         { isEmpty: r => !r.text.trim() });
 
-    const { plan, problems, action } = parsePlan(decision.text);
+    const { plan, problems, action } = parsePlan(decision.text, minStop);
     const commentary = action !== 'HOLD' && plan === null;
 
     return {
