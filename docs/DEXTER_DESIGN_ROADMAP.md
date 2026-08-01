@@ -259,7 +259,7 @@ flowchart TD
       hover, quote the price in Martian Mono with correct currency, keep the Analyze action
       and cancel affordance.
       Fixes F3. Rows 2, 16.
-- [ ] **DD-13 — Narrow-width and degradation pass.** Verify at 380px: tables scroll in
+- [x] **DD-13 — Narrow-width and degradation pass.** Verify at 380px: tables scroll in
       their own container, no horizontal body scroll, old `localStorage` replies render
       cleanly with no empty panels.
       Rows 12, 16.
@@ -467,3 +467,23 @@ measured ms, screenshot path. No adjectives.)_
   `TradingAssistantPage-DC-R6cLw.js` verified: ANALYZE + STOP + `h-10` header
   present, old pill composer and blur-gradient glow absent. Live probe → 200 in
   57.58s, 1779 chars, 17 citations, trust B/80, levels block present.
+- 2026-08-01 — **DD-13** done, and it changed no client code: the shipped chunk
+  is still `TradingAssistantPage-DC-R6cLw.js`, byte-identical to DD-12. It was an
+  audit, and the audit found nothing to fix. Row 12: `Assistant.degrade.test.tsx`
+  renders 9 partial message shapes (citations-only, trust-only, steps-only,
+  actions-only, uncited-only, the three empty arrays, and an empty answer) plus
+  4 malformed ones (undefined content, a citation missing its fields, a step with
+  no status, an unknown `dexter-*` block) — none throws, none renders an empty
+  shell, and an empty answer still shows its real F/0 verdict. Row 16 is now
+  **measured, not asserted**: `e2e/dexterNarrow.spec.ts` renders the panel's own
+  markup under the **production CSS bundle** at a 380px viewport in Chromium.
+  Result: `scrollWidth 380 == clientWidth 380` (zero horizontal body scroll)
+  while the wide table really is **553.7px inside a 362px parent** — proving the
+  containment is doing work rather than the test passing vacuously — and every
+  element past the rail has a scrolling ancestor. Screenshot at
+  `e2e/fixtures/dexter-380.png` (380×2873) shows the whole stack legible on the
+  rail: fabricated banner above the answer, levels ladder, `[N]` chips, amber
+  uncited marks, B/79 trust strip with 4 reasons, 17 source cards, trace summary
+  `6 steps · 37216ms · 1 failed`. Repeatable via `npm run check:dexter`
+  (captures the live CSS, then measures). Tests +29 (rows 12, 16). `npx vitest run`
+  PASS 857 / FAIL 0 / skipped 7. `tsc --noEmit` 0 errors.
