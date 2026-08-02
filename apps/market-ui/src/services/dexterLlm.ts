@@ -87,6 +87,26 @@ export type FetchLike = (url: string, init: Record<string, unknown>) => Promise<
     ok: boolean; status: number; text(): Promise<string>; json(): Promise<any>;
 }>;
 
+// Transient failures are not provider failures. A long completion can come back
+// as a bare `terminated` from the socket layer, and a 429/5xx is a "later", not
+// a "no" — found when a 10-decision replay died four decisions in. Without this
+// the chain gives up on DeepSeek and, with no second key configured, the whole
+// run fails. Same shape market-server/src/routes/llm.ts has used in prod.
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 529]);
+export const MAX_ATTEMPTS = 3;
+
+function isTransient(e: unknown): boolean {
+    const m = (e as Error)?.message ?? '';
+    return /terminated|fetch failed|ECONNRESET|ETIMEDOUT|socket hang up|network/i.test(m);
+}
+
+const sleep = (ms: number): Promise<void> => new Promise<void>(r => setTimeout(r, ms));
+
+// DI-3: the evaluation harness is only seeded if the sampler is. Prod keeps 0.3;
+// a replay passes 0 so a re-run is as close to reproducible as the API allows —
+// which is close, not exact, and the ledger says so rather than claiming a seed.
+export const DEFAULT_TEMPERATURE = 0.3;
+
 export async function callOpenAICompatible(
     provider: ProviderId,
     model: string,
@@ -94,8 +114,35 @@ export async function callOpenAICompatible(
     tools: ToolDef[],
     key: string,
     fetchImpl: FetchLike = fetch as unknown as FetchLike,
+    attempts: number = MAX_ATTEMPTS,
+    delay: (ms: number) => Promise<void> = sleep,
+    temperature: number = DEFAULT_TEMPERATURE,
 ): Promise<ChatReply> {
-    const body: Record<string, unknown> = { model, messages, max_tokens: 4096, temperature: 0.3 };
+    let last: unknown;
+    for (let attempt = 0; attempt < attempts; attempt++) {
+        if (attempt > 0) await delay(Math.min(1000 * 2 ** (attempt - 1), 8000));
+        try {
+            return await callOnce(provider, model, messages, tools, key, fetchImpl, temperature);
+        } catch (e) {
+            last = e;
+            const status = Number(/HTTP (\d{3})/.exec((e as Error).message ?? '')?.[1]);
+            const retryable = isTransient(e) || RETRYABLE_STATUS.has(status);
+            if (!retryable) throw e;
+        }
+    }
+    throw last;
+}
+
+async function callOnce(
+    provider: ProviderId,
+    model: string,
+    messages: ChatMessage[],
+    tools: ToolDef[],
+    key: string,
+    fetchImpl: FetchLike,
+    temperature: number = DEFAULT_TEMPERATURE,
+): Promise<ChatReply> {
+    const body: Record<string, unknown> = { model, messages, max_tokens: 4096, temperature };
     if (tools.length > 0) {
         body.tools = tools.map(t => ({
             type: 'function',
@@ -124,6 +171,8 @@ export interface ChatDeps {
     keys: Partial<Record<ProviderId, string | undefined>>;
     call?: (provider: ProviderId, model: string, messages: ChatMessage[], tools: ToolDef[], key: string) => Promise<ChatReply>;
     now?: () => number;
+    /** Replays pass 0; prod leaves this alone. */
+    temperature?: number;
 }
 
 // Walks the chain in order, skipping providers with no key and falling through
@@ -137,7 +186,8 @@ export async function chatWithFallback(
     const chain = configuredProviders(deps.keys);
     if (chain.length === 0) throw new Error(NO_PROVIDER);
 
-    const call = deps.call ?? ((p, m, msgs, t, k) => callOpenAICompatible(p, m, msgs, t, k));
+    const call = deps.call ?? ((p, m, msgs, t, k) =>
+        callOpenAICompatible(p, m, msgs, t, k, undefined, undefined, undefined, deps.temperature));
     const now = deps.now ?? Date.now;
     const failures: string[] = [];
 

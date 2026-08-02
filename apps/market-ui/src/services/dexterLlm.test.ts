@@ -5,7 +5,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
     chatWithFallback, configuredProviders, callOpenAICompatible,
-    NO_PROVIDER, PROVIDER_CHAIN, DEFAULT_MODEL,
+    NO_PROVIDER, PROVIDER_CHAIN, DEFAULT_MODEL, DEFAULT_TEMPERATURE,
     type ChatMessage, type ChatReply, type FetchLike, type ProviderId,
 } from './dexterLlm';
 
@@ -157,6 +157,30 @@ describe('callOpenAICompatible', () => {
         expect(bare.body.tools).toBeUndefined();
     });
 
+    // DI-3: an evaluation harness is only seeded if the sampler is.
+    it('sends the default temperature unless a caller asks for another', async () => {
+        const prod: { body?: any } = {};
+        await callOpenAICompatible('deepseek', 'm', MSGS, [], 'k', fakeFetch(200, { choices: [{ message: { content: 'ok' } }] }, prod));
+        expect(prod.body.temperature).toBe(DEFAULT_TEMPERATURE);
+
+        const replay: { body?: any } = {};
+        await callOpenAICompatible('deepseek', 'm', MSGS, [], 'k',
+            fakeFetch(200, { choices: [{ message: { content: 'ok' } }] }, replay), undefined, undefined, 0);
+        expect(replay.body.temperature).toBe(0);
+    });
+
+    it('carries a replay temperature through the fallback chain', async () => {
+        const seen: { body?: any } = {};
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = fakeFetch(200, { choices: [{ message: { content: 'ok' } }] }, seen) as unknown as typeof fetch;
+        try {
+            await chatWithFallback(MSGS, [], { keys: { deepseek: 'k' }, temperature: 0 });
+            expect(seen.body.temperature).toBe(0);
+        } finally {
+            globalThis.fetch = originalFetch;
+        }
+    });
+
     it('treats a malformed argument blob as an empty call rather than inventing values', async () => {
         const r = await callOpenAICompatible('deepseek', 'm', MSGS, [], 'k', fakeFetch(200, {
             choices: [{ message: { content: '', tool_calls: [{ id: 'c1', function: { name: 'getChartData', arguments: '{not json' } }] } }],
@@ -168,5 +192,57 @@ describe('callOpenAICompatible', () => {
         await expect(
             callOpenAICompatible('groq', 'llama-3.3-70b-versatile', MSGS, [], 'k', fakeFetch(401, { error: 'Invalid API Key' })),
         ).rejects.toThrow(/groq\/llama-3\.3-70b-versatile HTTP 401/);
+    });
+});
+
+// A 10-decision replay died four decisions in on a bare `terminated` from the
+// socket layer. With only one key configured, giving up on the first blip fails
+// the whole run.
+describe('transient failures are retried, permanent ones are not', () => {
+    const ok = { choices: [{ message: { content: 'recovered' } }] };
+    const noWait = async () => {};
+
+    function flaky(failures: number, mode: 'throw' | number): FetchLike {
+        let n = 0;
+        return (async () => {
+            if (n++ < failures) {
+                if (mode === 'throw') throw new Error('terminated');
+                return { ok: false, status: mode, text: async () => 'busy', json: async () => ({}) };
+            }
+            return { ok: true, status: 200, text: async () => '', json: async () => ok };
+        }) as unknown as FetchLike;
+    }
+
+    it('recovers from a dropped socket', async () => {
+        const r = await callOpenAICompatible('deepseek', 'm', MSGS, [], 'k', flaky(2, 'throw'), 3, noWait);
+        expect(r.text).toBe('recovered');
+    });
+
+    it('recovers from a rate limit and from an overload', async () => {
+        for (const status of [429, 503, 529]) {
+            const r = await callOpenAICompatible('deepseek', 'm', MSGS, [], 'k', flaky(1, status), 3, noWait);
+            expect(r.text).toBe('recovered');
+        }
+    });
+
+    it('gives up after the attempt cap rather than hammering', async () => {
+        let n = 0;
+        const always = (async () => { n++; throw new Error('terminated'); }) as unknown as FetchLike;
+        await expect(callOpenAICompatible('deepseek', 'm', MSGS, [], 'k', always, 3, noWait)).rejects.toThrow('terminated');
+        expect(n).toBe(3);
+    });
+
+    it('does not retry a bad key — it will fail every time', async () => {
+        let n = 0;
+        const dead = (async () => { n++; return { ok: false, status: 401, text: async () => 'bad key', json: async () => ({}) }; }) as unknown as FetchLike;
+        await expect(callOpenAICompatible('deepseek', 'm', MSGS, [], 'k', dead, 3, noWait)).rejects.toThrow(/HTTP 401/);
+        expect(n).toBe(1);
+    });
+
+    it('backs off between attempts instead of retrying instantly', async () => {
+        const waits: number[] = [];
+        await callOpenAICompatible('deepseek', 'm', MSGS, [], 'k', flaky(2, 'throw'), 3,
+            async (ms) => { waits.push(ms); });
+        expect(waits).toEqual([1000, 2000]);
     });
 });

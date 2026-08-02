@@ -21,7 +21,9 @@ if (!isContamination(CONTAMINATION)) {
 }
 
 let calls = 0;
-const callLLM = async (msgs: ChatMessage[]) => { calls++; return chatWithFallback(msgs, [], { keys }); };
+// DI-3: temperature 0 so a re-run is as reproducible as the API allows.
+const TEMPERATURE = Number(process.env.TEMPERATURE ?? 0);
+const callLLM = async (msgs: ChatMessage[]) => { calls++; return chatWithFallback(msgs, [], { keys, temperature: TEMPERATURE }); };
 
 const SYMBOL = 'BTC';
 const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${SYMBOL}USDT&interval=1d&limit=400`);

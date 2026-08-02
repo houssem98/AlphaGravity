@@ -257,7 +257,7 @@ flowchart TD
 - [x] **DI-2 — Cost model.** Fee + spread + slippage per side, applied in `summariseReplay`.
       Report gross and net. Re-score the n=30 A/B net of costs and record whether either arm
       survives. Closes G5. Rows 3, 4.
-- [ ] **DI-3 — Walk-forward harness.** Promote `replay.mts` into a committed, seeded script
+- [x] **DI-3 — Walk-forward harness.** Promote `replay.mts` into a committed, seeded script
       with strict temporal splits, non-overlapping folds, a stated universe and a recorded
       command line. Closes G11. Row 5.
 - [ ] **DI-4 — Deterministic signal layer.** `dexterSignal.ts`: direction proposed from
@@ -396,3 +396,30 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   repo 962 pass / 0 fail / 7 skipped, `tsc --noEmit -p tsconfig.app.json` 0 errors.
   No UI or api function changed, so no deploy. **Gate open: DI-4 onward may run,
   and every figure above carries `suspect` + net-of-12.001bps.**
+- 2026-08-03 — **DI-3 closed. Walk-forward harness, and the A/B does not survive
+  it either.** `walkForward.ts` generates rolling folds and throws (never warns)
+  on: a fold whose test window sits inside its own train window, test windows that
+  overlap each other, a missing universe, a window too short for one fold, and an
+  empty fold list. `scripts/walk-forward.mts` splits the DI-2 rows and scores each
+  fold, zero LLM calls, command
+  `npx tsx scripts/walk-forward.mts replay-floor-on.json replay-floor-off.json`
+  (defaults 90d train / 0d embargo / 60d test, universe [BTC]).
+  Both arms, 3 folds each, 18 of 30 decisions land in a test window (the first 12
+  fall in the opening train span and are correctly excluded from scoring):
+
+  | arm | folds w/ trades | positive folds | net/fold mean | SD | SE | mean/SE |
+  |---|---|---|---|---|---|---|
+  | floor ON | 3/3 | **1** | −0.456R | 1.260 | 0.728 | **−0.63** |
+  | floor OFF | 3/3 | **0** | −2.502R | 0.999 | 0.577 | **−4.34** |
+
+  Floor ON's single positive fold (+0.99R net, one trade) is one trade in one
+  window — the fold spread says nothing survives. n is small and stated as such:
+  5 and 8 trades across three folds respectively.
+  **Seeding, stated honestly rather than claimed:** the sampler was the harness's
+  real RNG. `dexterLlm` now threads a temperature (`DEFAULT_TEMPERATURE = 0.3`
+  unchanged for prod) and `replay.mts` passes **0**, so a re-run is as reproducible
+  as the API allows — which is close, not bitwise, and this ledger does not claim
+  a seed it does not have. Tests: walkForward 20/20 (row 5), dexterLlm 21/21
+  including two new temperature-threading tests, full repo **984 pass / 0 fail /
+  7 skipped**, `tsc --noEmit -p tsconfig.app.json` 0 errors (exit 0). No UI or api
+  change, so no deploy. Closes G11.
