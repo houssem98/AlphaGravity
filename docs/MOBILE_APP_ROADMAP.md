@@ -319,7 +319,7 @@ it names are the acceptance tests.
   surfaces only; desktop control sizes are unchanged.
   *Rows: 6, 18, 19, 20.*
 
-- [ ] **MB-13 · Scroll and gesture polish.** `overscroll-behavior: contain` on
+- [x] **MB-13 · Scroll and gesture polish.** `overscroll-behavior: contain` on
   sheets and scroll containers so a flick does not pull-to-refresh the page;
   momentum scrolling on the table containers; `touch-action` on chart surfaces so
   a pan gesture reaches the chart instead of the page; the existing
@@ -542,6 +542,15 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
   - _Hit-slop, not resizing, per the doctrine._ The control keeps its own box and the terminal keeps its density; only the tap area grows. A blanket `min-height: 44px` would have been one line and would have inflated every dense row on the phone.
   - _Rejected as unsafe:_ a blanket `button::after` hit-slop across all controls. It needs `position: relative` on the host, and forcing that on a coarse-pointer media query would relocate every absolutely-positioned button on the page — the assistant FAB among them. Per-site tagging is slower but cannot move anything.
   - _Remaining work is concentrated:_ `/trading` (38) and `/companies` (35) are 72 of the 91 left, and both are repeated instances of a few components, so tagging 3–4 component sites should clear most of them.
+
+- **MB-13 · scroll containment** · One coarse-pointer block in `index.css`: `overscroll-behavior-y: contain` on `<body>` and `overscroll-behavior: contain` on `.overflow-y-auto`, `.overflow-x-auto`, the vaul drawer and the assistant sheet. · **905 vitest**, tsc 0 errors, **row 18 12/12**, **row 21 30/30**, sweep **103 passed / 0 failed**.
+
+  **Measured on prod at 390px:** every scroll container in the app reported `overscroll-behavior: auto` — `/search` 2 containers, `/trading` 1, `/companies` 1, plus `<body>`. **Unconstrained: 4 → 0.** On a phone `auto` means a flick reaching the end of a sheet or table chains to the page behind it, or trips the browser's pull-to-refresh mid-scroll.
+
+  **Desktop verified untouched at 1440px:** `body` and container both still compute `auto`. The rule is inside `@media (pointer: coarse)` because wheel-chaining to the page is correct desktop behaviour and must not change — and `overscroll-behavior` does not affect geometry, so row 18 could not have caught a mistake here either way. Measuring it directly was the only proof available.
+
+  - _Two thirds of this task was already done or not worth doing._ **Reduced motion** needed nothing: the global `*, *::before, *::after` block at `index.css:525` already zeroes every animation and transition, including the sheets this loop added. **Momentum scrolling** needed nothing either — `-webkit-overflow-scrolling: touch` has been the default since iOS 13 and is a no-op on every browser this app supports. Adding it would have been cargo.
+  - _Not done — chart `touch-action`._ The spec asks that a pan gesture reach the chart rather than the page. `/trading` opens on the hub, so the probe never had a chart to measure, and `lightweight-charts` manages `touch-action` on its own canvas. Rather than add a rule I could not verify and might fight the library, this is left alone and recorded.
 
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 

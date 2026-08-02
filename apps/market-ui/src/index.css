@@ -576,3 +576,40 @@
     }
   }
 }
+
+/* ── MB-13 · scroll containment ──────────────────────────────────────────
+   Measured on prod at 390px: every scroll container in the app reported
+   `overscroll-behavior: auto`, and so did <body>. That is the default, and on
+   a phone it means a flick that reaches the end of a sheet or a table keeps
+   going — the gesture chains to the page behind it, or triggers the browser's
+   pull-to-refresh mid-scroll.
+
+   `contain` stops the chaining without disabling the scroll itself. Scoped to
+   coarse pointers: a mouse wheel chaining to the page is expected behaviour on
+   a desktop and this must not change it.
+
+   `.overflow-y-auto` / `.overflow-x-auto` are Tailwind's own literal class
+   names, which is what every container in this app is built from, so matching
+   them covers the set exactly. Nothing here conflicts with Tailwind — it sets
+   `overflow`, this sets `overscroll-behavior`.
+
+   NOT included: `-webkit-overflow-scrolling: touch`. Momentum scrolling has
+   been the default since iOS 13 and the property is a no-op on every browser
+   this app supports.
+
+   Reduced motion needs nothing either — the global block above already zeroes
+   every animation and transition, including the sheets this loop added. */
+@layer utilities {
+  @media (pointer: coarse) {
+    body {
+      overscroll-behavior-y: contain;
+    }
+
+    .overflow-y-auto,
+    .overflow-x-auto,
+    [data-slot='drawer-content'],
+    [data-testid='assistant-sheet'] {
+      overscroll-behavior: contain;
+    }
+  }
+}
