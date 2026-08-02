@@ -281,7 +281,7 @@ flowchart TD
 - [x] **DI-10 — Calibration.** Brier score over journalled confidence vs realised outcomes,
       surfaced in the note and the UI; honest "not yet calibrated" below the sample floor.
       Closes G8. Row 14.
-- [ ] **DI-11 — Analyst iteration budget.** A bounded tool loop per analyst so a thread can be
+- [x] **DI-11 — Analyst iteration budget.** A bounded tool loop per analyst so a thread can be
       pulled, with the budget enforced and truncation recorded. Closes G9. Row 15.
 - [ ] **DI-12 — Thesis memory.** Persist theses per symbol, link new calls to prior ones, flag a
       stance flip with no new evidence. Closes G10. Row 16.
@@ -568,3 +568,23 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   Tests: dexterCalibration 12/12 (row 14), full repo **1095 pass / 0 fail / 7
   skipped**, `tsc` 0 errors (exit 0). No UI or api change yet — surfacing the line
   in the note and the panel rides DI-13/DI-15. Closes G8 at the layer.
+- 2026-08-03 — **DI-11 closed. An analyst can pull a thread, exactly once, and a
+  refused pull is on the record.** `dexterGraph.ts` gains a **bounded** follow-up
+  loop: an analyst may end its report with `FOLLOW-UP: getChartData days=365`,
+  the request is executed against a **three-tool whitelist**
+  (`getChartData` / `getQuote` / `getFundamentalData`), the result is appended to
+  the evidence **with its own citation**, and the report is rewritten. The
+  original header's reasoning — "no tool-calling loop per analyst, that would be
+  four nested loops and an unbounded bill" — is preserved by the bound, not
+  discarded: cost is capped at **1 + budget** model calls per analyst, and the
+  row-15 test asserts exactly that for budgets 0, 1, 2 and 3.
+  The part that matters for G9 is the refusal. A request made with no budget left
+  does **not** silently vanish: `truncated: true`, a `truncationReason` naming the
+  tool that was refused and the budget already spent, and the reason appended to
+  the report text itself. An off-whitelist request (`FOLLOW-UP: rmRf path=/`)
+  parses to null and is simply not a request.
+  Spine intact: the 18 pre-existing DX-8 tests pass untouched, and an analyst that
+  never asks spends 0 iterations and behaves exactly as before.
+  Tests: dexterGraph **25/25** (18 DX-8 + 7 new for row 15), full repo **1102 pass
+  / 0 fail / 7 skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no
+  deploy. Closes G9.

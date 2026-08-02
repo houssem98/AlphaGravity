@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
     runAnalysts, analystsFor, analystPrompt, renderReports, allCitations,
     citeBase, ANALYST_ORDER, CITE_BLOCK, REPORT_MAX_CHARS,
+    parseFollowUp, ANALYST_ITERATION_BUDGET,
     type AnalystDeps, type AnalystId,
 } from './dexterGraph';
 import type { AssetContext } from './dexterTools';
@@ -188,5 +189,86 @@ describe('row 13 — wired into the handler', () => {
     it('reserves square brackets for citations so a status code cannot become one', () => {
         expect(handler).toContain('Square brackets are reserved for citation markers');
         expect(handler).toContain('not an error code');
+    });
+});
+
+// DI-11 — docs/DEXTER_INSTITUTIONAL_ROADMAP.md Section 6 row 15.
+describe('row 15 — the analyst iteration budget is bounded and enforced', () => {
+    /** Asks for a follow-up on the first `asks` replies, then writes plainly. */
+    function pullingDeps(asks: number, budget?: number): AnalystDeps & { calls: number } {
+        const base = cryptoDeps();
+        let calls = 0;
+        const d = {
+            ...base,
+            iterations: budget,
+            callLLM: async () => {
+                calls++;
+                return { text: calls <= asks ? 'Need more history.\nFOLLOW-UP: getChartData days=365' : 'Final report citing [1].' };
+            },
+        };
+        return Object.defineProperty(d, 'calls', { get: () => calls }) as AnalystDeps & { calls: number };
+    }
+
+    it('parses a follow-up request and its arguments', () => {
+        expect(parseFollowUp('FOLLOW-UP: getChartData days=365')).toEqual({ tool: 'getChartData', args: { days: 365 } });
+        expect(parseFollowUp('follow-up:  getQuote symbol="BTC"')).toEqual({ tool: 'getQuote', args: { symbol: 'BTC' } });
+        expect(parseFollowUp('no request here')).toBeNull();
+        expect(parseFollowUp('FOLLOW-UP: rmRf path=/')).toBeNull();   // not on the whitelist
+    });
+
+    it('spends nothing when the analyst does not ask', async () => {
+        const [r] = await runAnalysts(CRYPTO, cryptoDeps(), ['market']);
+        expect(r.iterations).toBe(0);
+        expect(r.truncated).toBe(false);
+        expect(r.budget).toBe(ANALYST_ITERATION_BUDGET);
+    });
+
+    it('lets an analyst pull the thread once, and cites what it pulled', async () => {
+        const d = pullingDeps(1);
+        const [r] = await runAnalysts(CRYPTO, d, ['market']);
+        expect(r.iterations).toBe(1);
+        expect(r.truncated).toBe(false);
+        expect(d.calls).toBe(2);                       // first write + rewrite
+        expect(r.citations.some(c => c.source === 'getChartData')).toBe(true);
+        expect(r.citations.at(-1)!.title).toContain('follow-up: getChartData');
+    });
+
+    it('refuses the second request and RECORDS the truncation', async () => {
+        const d = pullingDeps(5);                      // asks forever
+        const [r] = await runAnalysts(CRYPTO, d, ['market']);
+        expect(r.iterations).toBe(ANALYST_ITERATION_BUDGET);
+        expect(r.truncated).toBe(true);
+        expect(r.truncationReason).toContain('after spending its 1 follow-up pull(s)');
+        expect(r.text).toContain('the request was refused');
+        expect(d.calls).toBe(2);                       // bounded, not a loop
+    });
+
+    it('honours a caller-supplied budget, including zero', async () => {
+        const generous = pullingDeps(5, 3);
+        const [r3] = await runAnalysts(CRYPTO, generous, ['market']);
+        expect(r3.iterations).toBe(3);
+        expect(r3.truncated).toBe(true);
+        expect(generous.calls).toBe(4);
+
+        const none = pullingDeps(5, 0);
+        const [r0] = await runAnalysts(CRYPTO, none, ['market']);
+        expect(r0.iterations).toBe(0);
+        expect(r0.truncated).toBe(true);
+        expect(none.calls).toBe(1);
+    });
+
+    it('caps the whole analyst at 1 + budget model calls', async () => {
+        for (const budget of [0, 1, 2, 3]) {
+            const d = pullingDeps(99, budget);
+            await runAnalysts(CRYPTO, d, ['market']);
+            expect(d.calls).toBe(1 + budget);
+        }
+    });
+
+    it('records the follow-up in the trace rather than hiding it', async () => {
+        const [r] = await runAnalysts(CRYPTO, pullingDeps(1), ['market']);
+        const labels = r.steps.map(s => s.label);
+        expect(labels.some(l => l.includes('follow-up 1/1 (getChartData)'))).toBe(true);
+        expect(labels.some(l => l.includes('rewriting after follow-up 1'))).toBe(true);
     });
 });

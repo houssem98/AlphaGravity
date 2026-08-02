@@ -48,6 +48,12 @@ export interface AnalystReport {
     ok: boolean;
     error?: string;
     citations: DexterCitation[];
+    /** DI-11: follow-up pulls actually spent, and the cap they were spent against. */
+    iterations?: number;
+    budget?: number;
+    /** DI-11: true when a follow-up was asked for with no budget left. Never silent. */
+    truncated?: boolean;
+    truncationReason?: string;
     steps: CellStep[];
     ms: number;
 }
@@ -56,6 +62,42 @@ export interface AnalystDeps {
     tools: ToolDeps;
     callLLM: (messages: ChatMessage[]) => Promise<{ text: string }>;
     now?: () => number;
+    /** DI-11: extra evidence pulls an analyst may request. Defaults to ANALYST_ITERATION_BUDGET. */
+    iterations?: number;
+}
+
+// DI-11 (row 15). The header above says "no tool-calling loop per analyst —
+// that would be four nested loops and an unbounded bill", and that reasoning
+// still holds: what is added here is a BOUNDED loop, not an open one. An analyst
+// that finds a thread may pull it exactly `iterations` times, by naming one
+// whitelisted tool call, and the cost is therefore capped at
+// (1 + iterations) calls per analyst rather than however many the model fancies.
+// A request made with no budget left is refused and RECORDED — the one thing
+// that must never happen is a silent truncation.
+export const ANALYST_ITERATION_BUDGET = 1;
+export const FOLLOW_UP_PREFIX = 'FOLLOW-UP:';
+
+/** Only deterministic evidence tools, and only ones already proven in DX-2. */
+export const FOLLOW_UP_TOOLS = ['getChartData', 'getQuote', 'getFundamentalData'] as const;
+export type FollowUpTool = typeof FOLLOW_UP_TOOLS[number];
+
+export interface FollowUpRequest {
+    tool: FollowUpTool;
+    args: Record<string, unknown>;
+}
+
+/** Parses `FOLLOW-UP: getChartData days=365`. Anything else is not a request. */
+export function parseFollowUp(text: string): FollowUpRequest | null {
+    const m = text.match(/FOLLOW-UP:\s*(\w+)([^\n]*)/i);
+    if (!m) return null;
+    const tool = FOLLOW_UP_TOOLS.find(t => t.toLowerCase() === m[1].toLowerCase());
+    if (!tool) return null;
+    const args: Record<string, unknown> = {};
+    for (const pair of m[2].matchAll(/(\w+)\s*=\s*("[^"]*"|\S+)/g)) {
+        const raw = pair[2].replace(/^"|"$/g, '');
+        args[pair[1]] = Number.isFinite(Number(raw)) && raw.trim() !== '' ? Number(raw) : raw;
+    }
+    return { tool, args };
 }
 
 // Keeps one analyst's report from crowding out the other three in the
@@ -196,15 +238,57 @@ async function runOne(id: AnalystId, ctx: AssetContext, deps: AnalystDeps): Prom
     const trace = newTrace(now);
     const base = { id, title: ANALYST_TITLE[id], ms: 0 };
 
+    const budget = Math.max(0, deps.iterations ?? ANALYST_ITERATION_BUDGET);
+
     try {
         const evidence = await trace.step(`${ANALYST_TITLE[id]}: gathering`, id, () => GATHER[id](ctx, deps.tools));
-        const reply = await trace.step(`${ANALYST_TITLE[id]}: writing`, 'llm',
-            () => deps.callLLM(analystPrompt(id, ctx, evidence.prompt)));
+        let prompt = evidence.prompt;
+        const citations = [...evidence.citations];
+        let reply = await trace.step(`${ANALYST_TITLE[id]}: writing`, 'llm',
+            () => deps.callLLM(analystPrompt(id, ctx, prompt)));
+
+        let iterations = 0;
+        let truncated = false;
+        let truncationReason: string | undefined;
+
+        // Bounded: at most `budget` extra pulls, and the refusal is recorded.
+        for (;;) {
+            const ask = parseFollowUp(reply.text);
+            if (!ask) break;
+            if (iterations >= budget) {
+                truncated = true;
+                truncationReason =
+                    `${ANALYST_TITLE[id]} asked for ${ask.tool} after spending its ${budget} follow-up ` +
+                    `pull(s); the request was refused and the report is written on the evidence it already had`;
+                break;
+            }
+            iterations++;
+            const followed = await trace.step(
+                `${ANALYST_TITLE[id]}: follow-up ${iterations}/${budget} (${ask.tool})`, id,
+                () => executeTool(ask.tool, ask.args, ctx, deps.tools),
+            );
+            const cite = citeBase(id) + citations.length;
+            citations.push({
+                id: cite,
+                title: `${ctx.symbol} follow-up: ${ask.tool}(${JSON.stringify(ask.args)})`,
+                source: ask.tool,
+                text: JSON.stringify(followed.data).slice(0, 300),
+            });
+            prompt = `${prompt}\n\n[${cite}] Follow-up you requested — ${ask.tool}(${JSON.stringify(ask.args)}):\n` +
+                `${JSON.stringify(followed.data).slice(0, 1200)}`;
+            reply = await trace.step(`${ANALYST_TITLE[id]}: rewriting after follow-up ${iterations}`, 'llm',
+                () => deps.callLLM(analystPrompt(id, ctx, prompt)));
+        }
+
         return {
             ...base,
             ok: true,
-            text: clip(reply.text),
-            citations: evidence.citations,
+            text: clip(truncated ? `${reply.text}\n\n(${truncationReason})` : reply.text),
+            citations,
+            iterations,
+            budget,
+            truncated,
+            truncationReason,
             steps: trace.done(),
             ms: now() - t0,
         };
