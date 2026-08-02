@@ -278,7 +278,7 @@ flowchart TD
       honest null off-universe. Closes G6 with DI-7. Row 12.
 - [x] **DI-9 — Adversarial debate grounding.** Bull and bear each get private evidence and must
       emit falsifiable claims. Closes G7. Row 13.
-- [ ] **DI-10 — Calibration.** Brier score over journalled confidence vs realised outcomes,
+- [x] **DI-10 — Calibration.** Brier score over journalled confidence vs realised outcomes,
       surfaced in the note and the UI; honest "not yet calibrated" below the sample floor.
       Closes G8. Row 14.
 - [ ] **DI-11 — Analyst iteration budget.** A bounded tool loop per analyst so a thread can be
@@ -549,3 +549,22 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   Tests: dexterDebate **27/27** (20 DX-9 + 7 new for row 13), full repo **1083
   pass / 0 fail / 7 skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no
   deploy. Closes G7 at the layer; wiring rides DI-15.
+- 2026-08-03 — **DI-10 closed. Confidence is scored, and below the floor there is
+  no score at all.** `dexterCalibration.ts` computes **Brier** (mean squared error
+  between the stated probability and the realised 0/1) over resolved,
+  confidence-bearing journal calls — and reports it next to the bar that actually
+  matters, the **base-rate Brier**, plus the **skill score** `1 − brier /
+  baseRateBrier`. Raw Brier flatters a forecaster on a lopsided sample; skill does
+  not. A forecaster stating 90% who is right 75% of the time scores a **negative**
+  skill score, because stating the base rate would have beaten it. Also reported:
+  overall over/underconfidence (mean stated − realised) and four reliability
+  buckets, with the widest-gap bucket surfaced in the rendered line.
+  The honest null is the point: under **20** resolved calls with a stated
+  confidence the output is `not yet calibrated (n=7 of 20)` with `brier: null`,
+  `skillScore: null` and no buckets — never a number computed from seven trades.
+  Open positions do not count towards the floor, and a resolved call that carried
+  **no** confidence (or one outside 0-100) is counted as `unscored` rather than
+  silently treated as zero.
+  Tests: dexterCalibration 12/12 (row 14), full repo **1095 pass / 0 fail / 7
+  skipped**, `tsc` 0 errors (exit 0). No UI or api change yet — surfacing the line
+  in the note and the panel rides DI-13/DI-15. Closes G8 at the layer.
