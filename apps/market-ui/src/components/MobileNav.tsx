@@ -38,7 +38,11 @@ export function isActivePath(pathname: string, to: string): boolean {
     return pathname === to;
 }
 
-export default function MobileNav() {
+// `hideAt` is the width at which the host shell's own navigation takes over.
+// AppLayout's rail returns at md; /trading's returns at lg, because its three
+// columns need 1024px before they fit. Both classes are written out in full so
+// Tailwind's scanner can see them.
+export default function MobileNav({ hideAt = 'md' }: { hideAt?: 'md' | 'lg' } = {}) {
     const location = useLocation();
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
@@ -66,7 +70,7 @@ export default function MobileNav() {
             // Instead the bar is a normal flex child at the end of AppLayout's
             // h-dvh column, so it lands on the bottom of whatever is actually
             // visible. --safe-b then clears the home indicator.
-            className="md:hidden shrink-0 flex bg-[color:var(--surface)] border-t border-[color:var(--line)]"
+            className={`${hideAt === 'lg' ? 'lg:hidden' : 'md:hidden'} shrink-0 flex bg-[color:var(--surface)] border-t border-[color:var(--line)]`}
             style={{ paddingBottom: 'var(--safe-b)' }}
         >
             {PRIMARY.map(({ to, icon: Icon, label }) => {

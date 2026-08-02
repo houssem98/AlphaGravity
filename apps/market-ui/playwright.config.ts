@@ -41,6 +41,13 @@ export default defineConfig({
             name: 'desktop-baseline',
             testMatch: BASELINE,
             dependencies: ['setup'],
+            // One retry. These captures race a live deployment: under twelve
+            // parallel workers a section can still be mid-render at capture
+            // time, and its landmarks read as "gone" — /history and /billing
+            // each did this once, then passed alone. A genuine layout
+            // regression is deterministic and fails both attempts, so the
+            // retry costs nothing it should not cost.
+            retries: 1,
             use: {
                 ...devices['Desktop Chrome'],
                 viewport: { width: 1440, height: 900 },

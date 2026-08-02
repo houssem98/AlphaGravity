@@ -251,7 +251,7 @@ it names are the acceptance tests.
   along.
   *Rows: 9, 10, 15, 18, 19, 20, 22.*
 
-- [ ] **MB-4 · Trading shell → single column.** `TradingAssistantPage:564-676`:
+- [x] **MB-4 · Trading shell → single column.** `TradingAssistantPage:564-676`:
   below `md`, stop rendering the 3-column flex. Chart owns the viewport;
   `AssetInfoPanel` and `CommunityPanel` become `vaul` sheets opened from a
   two-button strip; `ResizeHandle` and the drawing `Sidebar` are hidden (the
@@ -417,6 +417,24 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
   - _The gate said this page was fine, and it was not._ Before any edit, `/` passed rows 9 and 10 at every width — no horizontal scroll, nothing uncontained — while Execution's two panels sat entirely off-screen (`x=-170` and `x=430`), the fake sidebar sat at `x=-72`, and there were **zero** nav links, so a phone visitor had no way into the product from the front door. An overflow gate cannot see content that is present, laid out, and invisible. The measurements above are the evidence MB-3.5 needed and rows 9/10 could never have produced; this is the clearest case so far that a passing gate is not a working page.
   - _The stranding was the animation, not the layout._ Execution's entrance timeline starts its panels at `x: '-50vw'` / `x: '50vw'` and only slides them in as the pinned section scrubs. Below `md` the pin is wrong, so disabling it alone would have left the panels parked off-stage forever at `opacity: 0`. Every disabled timeline needed a matching reveal branch, which is also what makes `prefers-reduced-motion` correct rather than merely quiet.
   - _Row 10's containment rule was wrong, and it was hiding the real faults._ The evaluator inherited DD-13's `overflow-x: auto|scroll` test, but `hidden` and `clip` also stop the page scrolling sideways — a decorative full-bleed layer inside an `overflow-hidden` section is a design choice. All **12** of `/`'s reported escapees were that false positive. `<body>` is deliberately excluded from the rule, since `index.css` sets `overflow-x: hidden` there as a global net and honouring it would mark every element on every page contained. Fixing the instrument first is why the real faults above were measurable at all.
+
+- **MB-4 · trading shell, single column** · `TradingAssistantPage` now branches on `useIsMobile(1024)`: the left `AssetInfoPanel`, the right `CommunityPanel` and both `ResizeHandle`s are not rendered, the chart column owns the viewport, and the two panels return as full-height `vaul` sheets behind an INFO / SOCIAL strip. The icon rail, the drawing `Sidebar` and the desktop nav go `hidden lg:*`; `MobileNav hideAt="lg"` takes over. `leftW`/`rightW` and their localStorage keys are untouched. · **905 vitest**, tsc 0 errors, **row 18 12/12**, **row 21 30/30**. · **Sweep 6 → 2 failures of 88.**
+
+  **Row 11 — fault F1, closed:**
+
+  | | before | after |
+  |---|---|---|
+  | 320px | chart 16px = **5%** | **100%** |
+  | 390px | chart 16px = **4%** | **100%** (`tv-lightweight-charts 390x496 @0`) |
+  | 430px | chart 16px = **4%** | **100%** |
+  | 810px iPad | chart 16px = **2%** | **100%** |
+
+  Row 12 passes: both sheets open in one tap and measure ≥90% of viewport width and ≥85% of height.
+
+  - _The hinge is 1024, not 768, and the tablet is why._ `md` is the right breakpoint for a page that merely reflows and the wrong one for a page carrying fixed furniture: 288 + 300 = **588px** of side panel needs ~900px before a chart is worth drawing, so an 810px iPad running the "desktop" layout got 222px of chart. `useIsMobile` now takes a breakpoint argument; `/trading` passes 1024. This is the first task where the token scale's `md` was simply the wrong number for the content.
+  - _Fixing the breakpoint opened a hole, briefly._ Moving the rail to `hidden lg:flex` while `MobileNav` was hardcoded `md:hidden` left 768–1023px with **no navigation at all** — the same class of fault MB-3.5 measured on the landing nav, introduced by the fix for a different one. `MobileNav` now takes `hideAt`.
+  - _Row 11's own measurement was wrong and read as a regression._ `querySelector('canvas, .tv-lightweight-charts, [class*="chart"]')` returns the first match in document order, which is a 0px hidden canvas or a 52px axis pane — it reported "chart is 0px = 0%" on a chart that was rendering at a full 390px. Now takes the widest candidate. Two of the three gate corrections so far have been the instrument, not the app.
+  - _`desktop-baseline` gets `retries: 1`._ `/history` and `/billing` each failed once under twelve parallel workers against a live deployment, then passed alone — a section still mid-render at capture time reads as "landmarks gone". A real layout regression is deterministic and fails both attempts.
 
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 

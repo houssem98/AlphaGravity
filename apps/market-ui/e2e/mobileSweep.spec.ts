@@ -152,7 +152,7 @@ test.describe('rows 9 + 10 — no route scrolls sideways on a phone', () => {
   // the three-column asset view. Measuring only what loads at rest would have
   // certified the broken surface as clean.
   // Navigation idiom borrowed from hubAssetMarket.spec.ts:12-19.
-  test('/trading asset view — the chart is not crushed by the side panels', async ({ page }) => {
+  test('/trading asset view — the chart is not crushed by the side panels', async ({ page }, info) => {
     await settle(page, '/trading');
 
     const card = page.locator('div').filter({ hasText: /^Tunisian Market/ }).first();
@@ -170,13 +170,21 @@ test.describe('rows 9 + 10 — no route scrolls sideways on a phone', () => {
       const panels = Array.from(document.querySelectorAll<HTMLElement>('[style*="width:"]'))
         .map((el) => el.getBoundingClientRect())
         .filter((r) => r.width >= 200 && r.height >= 200);
-      const chart = document.querySelector('canvas, .tv-lightweight-charts, [class*="chart"]');
-      const c = chart?.getBoundingClientRect();
+      // The WIDEST chart-ish box, not the first in document order. A
+      // lightweight-charts root contains several canvases — a price pane and a
+      // narrow axis pane — so `querySelector` returns a 52px axis or a hidden
+      // 0px canvas and reports the chart as crushed when it is not.
+      const chartWidth = Math.max(
+        0,
+        ...Array.from(
+          document.querySelectorAll('.tv-lightweight-charts, canvas, [class*="chart"]'),
+        ).map((e) => e.getBoundingClientRect().width),
+      );
       return {
         frame,
         panelWidths: panels.map((p) => Math.round(p.width)),
-        chartWidth: c ? Math.round(c.width) : 0,
-        chartPct: c ? Math.round((c.width / frame) * 100) : 0,
+        chartWidth: Math.round(chartWidth),
+        chartPct: Math.round((chartWidth / frame) * 100),
       };
     });
 
@@ -185,5 +193,25 @@ test.describe('rows 9 + 10 — no route scrolls sideways on a phone', () => {
       `chart is ${geom.chartWidth}px = ${geom.chartPct}% of a ${geom.frame}px viewport; ` +
         `side panels measured [${geom.panelWidths.join(', ')}]`,
     ).toBeGreaterThanOrEqual(88);
+
+    // Row 12 — the two columns the phone gave up are each one tap away and
+    // each own the screen when open. Tablet keeps the desktop three-column
+    // layout, so there is no strip there to tap.
+    if (info.project.name === 'tablet-768') return;
+
+    for (const [name, label] of [
+      ['info', 'INFO'],
+      ['community', 'SOCIAL'],
+    ] as const) {
+      await page.getByRole('button', { name: label }).click();
+      const sheet = page.locator('[data-slot="drawer-content"]');
+      await expect(sheet).toBeVisible();
+      const s = (await sheet.boundingBox())!;
+      const v = page.viewportSize()!;
+      expect(Math.round((s.width / v.width) * 100), `${name} sheet width`).toBeGreaterThanOrEqual(90);
+      expect(Math.round((s.height / v.height) * 100), `${name} sheet height`).toBeGreaterThanOrEqual(85);
+      await page.keyboard.press('Escape');
+      await expect(sheet).toBeHidden();
+    }
   });
 });

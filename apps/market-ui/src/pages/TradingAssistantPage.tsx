@@ -28,8 +28,11 @@ import { AboutTab } from '../components/trading/tabs/AboutTab';
 import { MarketsTab } from '../components/trading/tabs/MarketsTab';
 import { HermesRiskBanner } from '../components/trading/HermesRiskBanner';
 import { useAssetRiskCheck } from '../hooks/useAssetRiskCheck';
+import { useIsMobile } from '../hooks/use-mobile';
+import MobileNav from '../components/MobileNav';
+import { Drawer, DrawerContent, DrawerTitle } from '../components/ui/drawer';
 
-import { X, MessageSquare, Search, Settings, PieChart, Star, ArrowLeft, Sparkles, LogOut, PanelLeft, PanelLeftClose } from 'lucide-react';
+import { X, MessageSquare, Search, Settings, PieChart, Star, ArrowLeft, Sparkles, LogOut, PanelLeft, PanelLeftClose, Info, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { NAV_ITEMS as NAV } from '../lib/navItems';
@@ -53,6 +56,16 @@ export default function TradingAssistantPage() {
   const [railOpen, setRailOpen] = useState<boolean>(() => localStorage.getItem('trading.railOpen') !== 'false');
   useEffect(() => { localStorage.setItem('trading.railOpen', String(railOpen)); }, [railOpen]);
   // Resizable side-panel widths (persisted). CMC-matched defaults; drag dividers to resize.
+  // MB-4 · below md the three columns become one. `useIsMobile` (768px) has
+  // been in the tree since the shadcn import and never had a consumer; this is
+  // it. Conditional rendering rather than CSS because the side panels do not
+  // shrink here — they move into sheets, and a hidden-but-mounted panel would
+  // still fetch and still keep its scroll position fighting the chart's.
+  // 1024, not 768: the three columns reserve 288 + 300 = 588px of side panel,
+  // so an 810px iPad left the chart 222px. The hinge belongs where the layout
+  // stops fitting, not where the token scale happens to put `md`.
+  const isMobile = useIsMobile(1024);
+  const [mobileSheet, setMobileSheet] = useState<'info' | 'community' | null>(null);
   const [leftW, setLeftW] = useState<number>(() => Number(localStorage.getItem('trading.leftW.v2')) || 288);
   const [rightW, setRightW] = useState<number>(() => Number(localStorage.getItem('trading.rightW.v2')) || 300);
   useEffect(() => { localStorage.setItem('trading.leftW.v2', String(leftW)); }, [leftW]);
@@ -396,9 +409,9 @@ export default function TradingAssistantPage() {
   }, []);
 
   return (
-    <div className="flex h-dvh w-full font-sans overflow-hidden bg-[color:var(--bg)] text-[color:var(--text-2)]">
+    <div className="flex flex-col lg:flex-row h-dvh w-full font-sans overflow-hidden bg-[color:var(--bg)] text-[color:var(--text-2)]">
       {/* Persistent Left Nav Sidebar (collapsible) */}
-      <aside className={`${railOpen ? 'w-[56px]' : 'w-0 border-r-0'} overflow-hidden flex flex-col items-center py-3 shrink-0 z-50 bg-[color:var(--surface)] border-r border-[color:var(--line)] transition-[width] duration-200`}>
+      <aside className={`${railOpen ? 'w-[56px]' : 'w-0 border-r-0'} overflow-hidden hidden lg:flex flex-col items-center py-3 shrink-0 z-50 bg-[color:var(--surface)] border-r border-[color:var(--line)] transition-[width] duration-200`}>
         <Link
           to="/search"
           onPointerEnter={() => preloadRoute('/search')}
@@ -440,7 +453,7 @@ export default function TradingAssistantPage() {
       </aside>
 
       {/* Main Trading Area */}
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
       {/* Global Header — crypto views only */}
       {currentView !== 'hub' && activeMarket === 'crypto' && (
       <header className="chrome-nav h-12 shrink-0 flex items-center px-3 justify-between z-50 bg-[color:var(--surface)] border-b border-[color:var(--line)]">
@@ -563,11 +576,16 @@ export default function TradingAssistantPage() {
           {/* 3-column layout: left info | chart | right community */}
           <div className="flex flex-row flex-1 overflow-hidden bg-[color:var(--bg)]">
 
-            {/* Left: Coin info (resizable) */}
-            <div className="shrink-0 h-full" style={{ width: leftW }}>
-              <AssetInfoPanel asset={currentAsset} market={activeMarket} onAskAI={() => setIsAssistantOpen(true)} onBack={() => setCurrentView('markets')} />
-            </div>
-            <ResizeHandle value={leftW} min={240} max={520} dir={1} onChange={setLeftW} ariaLabel="Resize info panel" />
+            {/* Left: Coin info (resizable) — a sheet below md. leftW keeps its
+                desktop meaning; the localStorage key is never written here. */}
+            {!isMobile && (
+              <>
+                <div className="shrink-0 h-full" style={{ width: leftW }}>
+                  <AssetInfoPanel asset={currentAsset} market={activeMarket} onAskAI={() => setIsAssistantOpen(true)} onBack={() => setCurrentView('markets')} />
+                </div>
+                <ResizeHandle value={leftW} min={240} max={520} dir={1} onChange={setLeftW} ariaLabel="Resize info panel" />
+              </>
+            )}
 
             {/* Center: Chart */}
             <div className="flex-1 flex flex-col min-w-0">
@@ -605,7 +623,7 @@ export default function TradingAssistantPage() {
 
               {activeTab === 'Chart' ? (
                 <div className="flex flex-row flex-1 overflow-hidden relative">
-                  <div className="shrink-0">
+                  <div className="shrink-0 hidden lg:block">
                     <Sidebar onToolClick={handleToolClick} activeTool={activeTool} activeIndicators={activeIndicators} onIndicatorToggle={handleIndicatorToggle} />
                   </div>
                   <div className="flex-1 relative min-w-0">
@@ -654,13 +672,71 @@ export default function TradingAssistantPage() {
               }
             </div>
 
-            {/* Right: Community / Twitter tracker (resizable) */}
-            <ResizeHandle value={rightW} min={260} max={560} dir={-1} onChange={setRightW} ariaLabel="Resize social panel" />
-            <div className="shrink-0 h-full" style={{ width: rightW }}>
-              <CommunityPanel key={activeMarket === 'tunisia' ? 'tn' : 'default'} currentAsset={currentAsset} market={activeMarket} name={assetName} />
-            </div>
+            {/* Right: Community / Twitter tracker (resizable) — sheet below md */}
+            {!isMobile && (
+              <>
+                <ResizeHandle value={rightW} min={260} max={560} dir={-1} onChange={setRightW} ariaLabel="Resize social panel" />
+                <div className="shrink-0 h-full" style={{ width: rightW }}>
+                  <CommunityPanel key={activeMarket === 'tunisia' ? 'tn' : 'default'} currentAsset={currentAsset} market={activeMarket} name={assetName} />
+                </div>
+              </>
+            )}
 
           </div>
+
+          {/* The two columns the phone gave up, one tap away each. */}
+          {isMobile && (
+            <div className="shrink-0 flex border-t border-[color:var(--line)] bg-[color:var(--surface)]">
+              <button
+                onClick={() => setMobileSheet('info')}
+                className="flex-1 min-h-[44px] flex items-center justify-center gap-2 text-label text-[color:var(--text-2)]"
+              >
+                <Info className="w-4 h-4" />
+                INFO
+              </button>
+              <div className="w-px bg-[color:var(--line)]" />
+              <button
+                onClick={() => setMobileSheet('community')}
+                className="flex-1 min-h-[44px] flex items-center justify-center gap-2 text-label text-[color:var(--text-2)]"
+              >
+                <Users className="w-4 h-4" />
+                SOCIAL
+              </button>
+            </div>
+          )}
+
+          {isMobile && (
+            <Drawer open={mobileSheet !== null} onOpenChange={(o) => !o && setMobileSheet(null)}>
+              <DrawerContent
+                className="bg-[color:var(--bg)] border-[color:var(--line-strong)] p-0"
+                // vaul caps bottom sheets at max-h-[80vh]; a panel that was a
+                // full column on desktop needs the screen, so override both
+                // bounds inline where class order cannot lose.
+                style={{ height: '92dvh', maxHeight: '92dvh', paddingBottom: 'var(--safe-b)' }}
+              >
+                <DrawerTitle className="sr-only">
+                  {mobileSheet === 'info' ? 'Asset information' : 'Community'}
+                </DrawerTitle>
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  {mobileSheet === 'info' ? (
+                    <AssetInfoPanel
+                      asset={currentAsset}
+                      market={activeMarket}
+                      onAskAI={() => { setMobileSheet(null); setIsAssistantOpen(true); }}
+                      onBack={() => { setMobileSheet(null); setCurrentView('markets'); }}
+                    />
+                  ) : (
+                    <CommunityPanel
+                      key={activeMarket === 'tunisia' ? 'tn' : 'default'}
+                      currentAsset={currentAsset}
+                      market={activeMarket}
+                      name={assetName}
+                    />
+                  )}
+                </div>
+              </DrawerContent>
+            </Drawer>
+          )}
 
         {/* Floating Assistant Widget */}
         {isAssistantOpen && (
@@ -704,6 +780,10 @@ export default function TradingAssistantPage() {
       </>
       )}
       </div>
+
+      {/* The rail is hidden below md, so without this the terminal is a page
+          with no way out. Same fault MB-3.5 measured on the landing nav. */}
+      <MobileNav hideAt="lg" />
     </div>
   );
 }
