@@ -254,7 +254,7 @@ flowchart TD
       no data supplied, ask the model for post-T prices/events and score recall. Label every
       replay window `clean`/`suspect`/`contaminated`. Retro-label DX-15 and DX-17 in
       `AI_TRADING_AGENT_ROADMAP.md` §8 with the result. Closes G1. Rows 1, 2.
-- [ ] **DI-2 — Cost model.** Fee + spread + slippage per side, applied in `summariseReplay`.
+- [x] **DI-2 — Cost model.** Fee + spread + slippage per side, applied in `summariseReplay`.
       Report gross and net. Re-score the n=30 A/B net of costs and record whether either arm
       survives. Closes G5. Rows 3, 4.
 - [ ] **DI-3 — Walk-forward harness.** Promote `replay.mts` into a committed, seeded script
@@ -364,3 +364,35 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   BTC 2025-08-27 → 2026-06-13, 8 LLM calls per decision = **480 calls**, commands
   `CONTAMINATION=suspect REPLAY_N=30 [NO_FLOOR=1] npx tsx replay.mts`. Smoke test
   n=2 green (16 calls, both HOLD). Numbers land in the next entry.
+- 2026-08-03 — **DI-2 closed. Neither arm survives net of costs.** A/B re-run,
+  BTC **2025-08-28 → 2026-06-14**, n=30 decisions per arm, 480 live
+  `deepseek-v4-flash` calls, contamination **suspect**, costs **12.001 bps/side**;
+  rows persisted to `replay-floor-{on,off}.json` and re-scored by
+  `npx tsx scripts/score-replay.mts replay-floor-on.json replay-floor-off.json`.
+
+  | arm | positions | gross | net | friction | net avg | net SD | SE | mean/SE | wins net |
+  |---|---|---|---|---|---|---|---|---|---|
+  | floor ON (1.5×ATR) | 6 of 30 | −0.20R | **−0.39R** | 0.19R | −0.066R | 1.077 | 0.440 | **−0.15** | 3/6 |
+  | floor OFF | 12 of 30 | −8.20R | **−10.17R** | 1.97R | −0.847R | 0.813 | 0.235 | **−3.61** | 2/12 |
+
+  Buy-and-hold over the same window −41.22%. Floor ON is **indistinguishable from
+  zero** (mean/SE −0.15 on 6 trades) — an honest null, not a win; floor OFF is
+  **reliably negative** (mean/SE −3.61). Friction per trade tracks stop width
+  exactly as the model predicts: 0.032R average with the floor on, 0.164R with it
+  off — 5× — because an R shrinks as the stop tightens. Three floor-OFF trades
+  paid **0.29–0.35R** in friction alone on stops under 1% of price.
+
+  **Two prior claims fail to reproduce and are withdrawn.** (a) The DX-17 A/B
+  figures (floor-ON +1.82R, floor-OFF +1.54R) did not reappear: same window, same
+  n, same code path, this run returns −0.20R and −8.20R **gross**. The original
+  comparison sat inside run-to-run LLM variance and never demonstrated anything.
+  (b) G1's premise that "both arms went overwhelmingly short" does not hold here —
+  floor-OFF opened **5 longs of 12** into the fall, which weakens, not strengthens,
+  the recall hypothesis DI-1 already labelled unmeasured.
+  This is a **fresh n=30 sample, not a re-score of the original trades**: those
+  per-trade rows were never persisted and are unrecoverable. From here they are,
+  so a re-score costs zero calls.
+  Tests: dexterCosts 12/12, dexterReplay 27/27 (rows 3, 4), spine set 467, full
+  repo 962 pass / 0 fail / 7 skipped, `tsc --noEmit -p tsconfig.app.json` 0 errors.
+  No UI or api function changed, so no deploy. **Gate open: DI-4 onward may run,
+  and every figure above carries `suspect` + net-of-12.001bps.**
