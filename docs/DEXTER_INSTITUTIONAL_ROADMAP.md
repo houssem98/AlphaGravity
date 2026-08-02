@@ -266,7 +266,7 @@ flowchart TD
 - [x] **DI-5 — Risk-based sizing.** `dexterSizing.ts`: size from ATR, risk budget and equity,
       Kelly-capped with a hard per-position maximum. Model-supplied `sizePct` is discarded.
       Closes G3. Rows 8, 9.
-- [ ] **DI-6 — Portfolio state and correlation gate.** Open positions, exposure and portfolio
+- [x] **DI-6 — Portfolio state and correlation gate.** Open positions, exposure and portfolio
       heat carried into the decision; a correlated or over-budget position is resized or
       rejected in code. Closes G4. Row 10.
 - [ ] **DI-7 — Regime classifier.** Deterministic regime label from bars, gating which
@@ -468,3 +468,26 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   Tests: dexterSizing 20/20 (rows 8, 9), full repo **1026 pass / 0 fail / 7
   skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy. Closes
   G3 at the layer; wiring rides DI-15 with DI-4.
+- 2026-08-03 — **DI-6 closed. A trade is now evaluated against the book.**
+  `dexterPortfolio.ts` applies three limits in order, each of which can only
+  shrink a position: **correlation** (|r| ≥ **0.7**, or the same symbol, makes a
+  candidate an addition to the existing cluster rather than a new trade; a
+  correlated candidate on the **opposite** side is refused outright, because
+  holding both sides pays two lots of costs to own approximately nothing),
+  **portfolio heat** (total risk ≤ **6%**, resize to what is left or reject when
+  nothing is), and **gross exposure** (sum of sizes ≤ **100%**, which binds first
+  whenever stops are wide). Risk and size are always scaled by the same factor so
+  the two cannot drift apart. Correlation is **computed** from returns (Pearson
+  over the overlapping tail, ≥20 pairs) and returns **null rather than 0** when
+  undefined — an unknown correlation is treated as unknown, never as independent.
+  G4's exact failure case is a test: ten consecutive same-size calls now stop
+  being admitted once heat reaches 6%, where before they were ten independent
+  full-size positions.
+  **One real bug caught by its own test**: the flat-series guard used `dx === 0`,
+  and a constant series leaves float dust of order 1e-35 in the variance sums, so
+  two series that never moved scored a confident **+1** correlation. Now gated on
+  `VARIANCE_EPSILON = 1e-12`, which separates real return variance (~1e-4) from
+  float noise (~1e-35) by twenty orders of magnitude.
+  Tests: dexterPortfolio 19/19 (row 10), full repo **1045 pass / 0 fail / 7
+  skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy. Closes
+  G4 at the layer; wiring rides DI-15.
