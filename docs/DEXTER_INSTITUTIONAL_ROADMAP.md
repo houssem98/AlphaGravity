@@ -274,7 +274,7 @@ flowchart TD
       Macro-conditioned regime is a stretch goal blocked on G13: it needs a free FRED API
       key (user-only input) plus a `process.env` port of `fredService.ts`. Ship the
       bars-only classifier; ledger-note the macro extension rather than waiting. Row 11.
-- [ ] **DI-8 — Cross-sectional context.** Relative strength against a stated universe, with an
+- [x] **DI-8 — Cross-sectional context.** Relative strength against a stated universe, with an
       honest null off-universe. Closes G6 with DI-7. Row 12.
 - [ ] **DI-9 — Adversarial debate grounding.** Bull and bear each get private evidence and must
       emit falsifiable claims. Closes G7. Row 13.
@@ -516,3 +516,17 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   Ship state is the bars-only classifier, which the ledger names as the required
   path. Tests: dexterRegime 18/18 (row 11), full repo **1063 pass / 0 fail / 7
   skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy.
+- 2026-08-03 — **DI-8 closed. A name is positioned against comparables, or
+  explicitly not ranked at all.** `dexterCrossSection.ts` computes return over a
+  **20-bar** lookback for every universe member, ranks the symbol among them, and
+  reports **excess over the universe median** — the part of the move that is not
+  just the tape. Row 12's honest null is enforced three ways, each with its own
+  message: a symbol **outside** the stated universe gets `rank: null` and no `rs`,
+  no `percentile`, no median (a default rank would be "a comparison that was never
+  made"); a member with **fewer than lookback+1 closes** gets null for want of
+  history; and a universe where fewer than **3** members have history gets null,
+  because a rank against two names is noise dressed as a number. The universe is
+  named in the output in every case, refusals included.
+  Tests: dexterCrossSection 13/13 (row 12), full repo **1076 pass / 0 fail / 7
+  skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy. Closes
+  G6 together with DI-7.
