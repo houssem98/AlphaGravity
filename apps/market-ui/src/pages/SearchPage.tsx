@@ -1130,7 +1130,7 @@ export default function SearchPage() {
     // ── GRID MODE ─────────────────────────────────────────────────────────────
     if (mode === 'grid') {
         return (
-            <div className="flex flex-col h-full min-h-[calc(100vh-48px)] bg-[color:var(--bg)]">
+            <div className="flex flex-col h-full min-h-[calc(100dvh-48px)] bg-[color:var(--bg)]">
                 <div className="border-b border-[color:var(--line)] px-4 py-2 bg-[color:var(--surface)]">
                     <div className="flex gap-3 max-w-4xl mx-auto items-center">
                         <ModeToggle mode={mode} onChange={setMode} />
@@ -1146,7 +1146,7 @@ export default function SearchPage() {
     // ── COMPANY MODE ──────────────────────────────────────────────────────────
     if (mode === 'company') {
         return (
-            <div className="flex flex-col h-full min-h-[calc(100vh-48px)] bg-[color:var(--bg)]">
+            <div className="flex flex-col h-full min-h-[calc(100dvh-48px)] bg-[color:var(--bg)]">
                 <div className="border-b border-[color:var(--line)] px-4 py-2 bg-[color:var(--surface)]">
                     <div className="flex gap-3 max-w-4xl mx-auto items-center">
                         <ModeToggle mode={mode} onChange={setMode} />
@@ -1166,7 +1166,7 @@ export default function SearchPage() {
             ? ` · ${qaState.chartSpecs.length} chart${qaState.chartSpecs.length > 1 ? 's' : ''}`
             : qaState.structuredData.length > 0 ? ` (${qaState.structuredData.length})` : '';
         return (
-            <div className="flex h-[calc(100vh-64px)] bg-[var(--bg)]">
+            <div className="flex h-[calc(100dvh-64px)] bg-[var(--bg)]">
                 {/* Citation side panel overlay */}
                 {openCitation && (
                     <>
@@ -1610,7 +1610,7 @@ export default function SearchPage() {
 
     // ── DEEP RESEARCH MODE ────────────────────────────────────────────────────
     return (
-        <div className="flex h-[calc(100vh-64px)]" style={{ background: 'var(--bg)' }}>
+        <div className="flex h-[calc(100dvh-64px)]" style={{ background: 'var(--bg)' }}>
 
             {/* ═══════════════ SIDEBAR ═══════════════ */}
             <aside className="w-[280px] flex-shrink-0 flex flex-col" style={{ background: 'var(--bg)', borderRight: '1px solid rgba(255,255,255,0.05)' }}>

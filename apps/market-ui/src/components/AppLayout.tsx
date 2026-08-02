@@ -25,7 +25,7 @@ export default function AppLayout() {
     const itemActive = "text-[color:var(--accent)] bg-[color:color-mix(in_oklch,var(--accent)_12%,transparent)]";
 
     return (
-        <div className="min-h-screen flex bg-[color:var(--bg)] text-[color:var(--text-2)]">
+        <div className="min-h-dvh flex bg-[color:var(--bg)] text-[color:var(--text-2)]">
             {/* Sidebar */}
             <aside className="w-14 bg-[color:var(--surface)] border-r border-[color:var(--line)] flex flex-col items-center py-3 fixed h-full z-50">
                 <Link
@@ -81,7 +81,7 @@ export default function AppLayout() {
                     </div>
                 </header>
 
-                <main className="pt-12 min-h-screen bg-[color:var(--bg)]">
+                <main className="pt-12 min-h-dvh bg-[color:var(--bg)]">
                     <Outlet />
                 </main>
             </div>

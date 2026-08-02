@@ -59,6 +59,14 @@
     --fs-h2:    20px;
     --fs-h1:    28px;
 
+    /* Safe areas — 0 on every desktop browser and on any phone that is not
+       notched, so these are inert until viewport-fit=cover actually has an
+       inset to report. index.html sets that cover; the two ship together. */
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
+
     /* Tailwind alias layer — existing components keep working */
     --background: var(--bg);
     --foreground: var(--text);
@@ -117,6 +125,11 @@
     -moz-osx-font-smoothing: grayscale;
     position: relative;
     overflow-x: hidden;
+    /* Landscape notch: normal-flow content clears the sensor housing. Fixed and
+       absolute surfaces sit outside this padding and pad themselves — the
+       bottom tab bar and the composer own --safe-b directly. */
+    padding-left: var(--safe-l);
+    padding-right: var(--safe-r);
   }
 
   /* Atmospheric layers removed — they were bleeding into the viewport

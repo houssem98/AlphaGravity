@@ -396,7 +396,7 @@ export default function TradingAssistantPage() {
   }, []);
 
   return (
-    <div className="flex h-screen w-full font-sans overflow-hidden bg-[color:var(--bg)] text-[color:var(--text-2)]">
+    <div className="flex h-dvh w-full font-sans overflow-hidden bg-[color:var(--bg)] text-[color:var(--text-2)]">
       {/* Persistent Left Nav Sidebar (collapsible) */}
       <aside className={`${railOpen ? 'w-[56px]' : 'w-0 border-r-0'} overflow-hidden flex flex-col items-center py-3 shrink-0 z-50 bg-[color:var(--surface)] border-r border-[color:var(--line)] transition-[width] duration-200`}>
         <Link

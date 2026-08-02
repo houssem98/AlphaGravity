@@ -1,0 +1,18 @@
+{
+  "name": "AlphaGravity — Market Intelligence",
+  "short_name": "AlphaGravity",
+  "description": "Research terminal for equities, crypto and the Tunis exchange — filings, live markets and a cited AI analyst.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#070A12",
+  "theme_color": "#070A12",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
