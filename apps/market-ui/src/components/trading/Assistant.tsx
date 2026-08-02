@@ -20,6 +20,7 @@ import {
   type DexterLevelsBlock,
   type DexterPlanBlock,
 } from '../../services/dexterBlocks';
+import { NOTE_LANG, isNoteBlock, type InstitutionalNote } from '../../services/institutionalNote';
 import {
   applyStageEvent,
   stagesDone,
@@ -326,6 +327,48 @@ export const IncompletePlan: React.FC<{ missing: string[] }> = ({ missing }) => 
   </div>
 );
 
+// DI-13: the institutional skeleton a PM scans for. A field the evidence could
+// not support is painted as its gap sentence in the warning colour rather than
+// dropped, because a note missing its price target must LOOK like a note missing
+// its price target.
+export const NoteCard: React.FC<{ note: InstitutionalNote }> = ({ note }) => (
+  <div
+    data-dexter-block="note"
+    className="my-3 rounded-sm border border-[color:var(--line-strong)] bg-[color:var(--surface)]"
+  >
+    <div className="flex items-baseline gap-2 border-b border-[color:var(--line)] px-3 py-1.5">
+      <span className="font-display text-label font-semibold uppercase text-[color:var(--text-3)]">
+        Note
+      </span>
+      <span className="font-mono text-data text-[color:var(--text)]">{note.symbol}</span>
+      {!note.complete && (
+        <span className="ml-auto font-mono text-label text-amber-400">
+          {note.gaps.length} gap{note.gaps.length === 1 ? '' : 's'}
+        </span>
+      )}
+    </div>
+    <dl className="divide-y divide-[color:var(--line)]">
+      {note.fields.map((f) => (
+        <div key={f.key} className="flex flex-col gap-0.5 px-3 py-2 sm:flex-row sm:gap-3">
+          <dt className="font-display text-label uppercase text-[color:var(--text-3)] sm:w-40 sm:shrink-0">
+            {f.label}
+          </dt>
+          <dd
+            className={`text-body ${f.value ? 'text-[color:var(--text)]' : 'font-mono text-label text-amber-400'}`}
+          >
+            {f.value ?? `— ${f.gap}`}
+          </dd>
+        </div>
+      ))}
+    </dl>
+    {note.calibration && (
+      <div className="border-t border-[color:var(--line)] px-3 py-1.5 font-mono text-label text-[color:var(--text-3)]">
+        {note.calibration}
+      </div>
+    )}
+  </div>
+);
+
 /** Turn a `<pre>`'s child `<code>` into a Dexter block, or null to keep the
  *  code block. Never throws: an unknown name or unparseable body returns null. */
 function dexterBlock(children: React.ReactNode): React.ReactElement | null {
@@ -340,6 +383,7 @@ function dexterBlock(children: React.ReactNode): React.ReactElement | null {
   if (parsed === null) return null;
 
   if (lang === LEVELS_LANG && isLevelsBlock(parsed)) return <LevelsCard block={parsed} />;
+  if (lang === NOTE_LANG && isNoteBlock(parsed)) return <NoteCard note={parsed} />;
   if (lang === PLAN_LANG) {
     if (isCompletePlan(parsed)) return <PlanCard block={parsed} />;
     const p = parsed as Partial<DexterPlanBlock>;

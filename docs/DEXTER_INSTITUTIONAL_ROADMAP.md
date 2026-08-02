@@ -285,7 +285,7 @@ flowchart TD
       pulled, with the budget enforced and truncation recorded. Closes G9. Row 15.
 - [x] **DI-12 — Thesis memory.** Persist theses per symbol, link new calls to prior ones, flag a
       stance flip with no new evidence. Closes G10. Row 16.
-- [ ] **DI-13 — Institutional note.** Rating, target + horizon, one-line thesis, variant
+- [x] **DI-13 — Institutional note.** Rating, target + horizon, one-line thesis, variant
       perception, dated catalysts, falsifiable invalidation triggers — as a `dexter-note`
       block the DD-8 renderer draws. Missing fields render as explicit gaps. Closes G12. Rows 17, 18.
 - [ ] **DI-14 — Execution realism.** Gap-through fills at the open, partial fills, overnight
@@ -605,3 +605,25 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   Tests: dexterThesis 14/14 (row 16), full repo **1116 pass / 0 fail / 7
   skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy.
   Closes G10.
+- 2026-08-03 — **DI-13 closed. The note has the skeleton a PM scans for, and its
+  holes are visible.** `institutionalNote.ts` builds the six fields — **rating**
+  (on a fixed five-point scale, anything else refused), **price target with a
+  horizon** (a target without one is not a target), **one-line thesis**,
+  **variant perception**, **dated catalysts** (undated is refused: "an undated
+  catalyst is a hope"), and **falsifiable invalidation triggers** — and emits them
+  as a `dexter-note` fenced block on the DD-8 contract. `NoteCard` in
+  `Assistant.tsx` paints it, with any gap rendered **in the warning colour in the
+  field's own row** plus a gap count in the header, so a note missing its price
+  target looks like a note missing its price target.
+  Row 18 is enforced by `isFalsifiable`: a trigger must be a **condition**, so a
+  bare price (`61,400`, `$61,400.00`) is rejected, a restatement of the stop is
+  rejected, and a hedge with no observable in it ("if things get worse",
+  "sentiment sours") is rejected. Only surviving triggers render; if none survive
+  the field gaps out rather than showing the stop dressed as a thesis test.
+  Tests: institutionalNote 15/15 (rows 17, 18), full repo **1131 pass / 0 fail /
+  7 skipped**, `tsc` 0 errors (exit 0), `vite build` clean.
+  **Deploy deliberately deferred to DI-15.** The UI changed, but `NoteCard` only
+  paints when the server emits a `dexter-note` block, and that wiring is DI-15's
+  job — so a prod probe today could not confirm the change from a real 200. The
+  ledger's own last row is "ship and prove"; this ships there, once, with the
+  DI-4/5/6/9 wiring. Closes G12 at the layer.
