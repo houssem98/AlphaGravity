@@ -307,7 +307,7 @@ it names are the acceptance tests.
   full-width controls, ≥16px inputs, no fixed-width containers.
   *Rows: 7, 9, 10, 17, 18, 19, 20, 22.*
 
-- [ ] **MB-11 · Company + Dashboard + History.** `CompanyPage` (2 hits, 38.7KB),
+- [x] **MB-11 · Company + Dashboard + History.** `CompanyPage` (2 hits, 38.7KB),
   `DashboardPage`, `HistoryPage`, `BillingPage`: stack the multi-column grids,
   make the peer strip and filing tables scroll inside their own containers, keep
   every figure with its source marker.
