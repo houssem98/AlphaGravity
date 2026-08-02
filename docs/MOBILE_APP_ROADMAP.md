@@ -268,7 +268,7 @@ it names are the acceptance tests.
   menu meet 44px.
   *Rows: 5, 6, 9, 10, 18, 19, 20, 22.*
 
-- [ ] **MB-6 · Market tables.** `Markets.tsx:899` and `MarketList.tsx:824`: below
+- [x] **MB-6 · Market tables.** `Markets.tsx:899` and `MarketList.tsx:824`: below
   `md`, drop the `min-w-[1200px]` floor and render a mobile column preset —
   identity (logo + ticker) **pinned** via `sticky left-0`, then price and change,
   with the remaining columns reachable by horizontal scroll inside the existing
@@ -443,6 +443,22 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
   - _Rows 9 and 10 are structurally blind to this fault._ The topbar sits inside an `overflow-hidden` ancestor, so 210px of excess control rail produced no page overflow and no escapee — the content was **clipped and unreachable**, which reads as clean to both rows. Row 5 asserts the property that actually matters: nothing inside the topbar may overflow its own box without being scrollable. That phrasing also passes correctly at 810px, where the whole topbar fits and the list is empty for the right reason.
   - _First assertion was wrong at the tablet._ It demanded that a scrollable strip *exist*, which fails at 810px where nothing needs to scroll. Rewritten to forbid unreachable overflow instead of requiring overflow.
   - _One claim withdrawn._ The first version of this test asserted the tabs had pushed BUY out of a clipped row, making the primary CTA unreachable. The sweep navigates to a **TN** asset, whose row is 3 tabs / 197px and fits, so that was never demonstrated; the 6-tab crypto row is the tighter case and the probe could not reach it. The comment now states only what was measured and flags the gap.
+
+- **MB-6 · market tables** · `Markets.tsx` and `MarketList.tsx`: the `min-w-[1200px]` floor becomes `lg:min-w-[1200px]`, the identity cell gets `sticky left-0 z-20` with its own opaque background in both header and body, and the company name truncates at `max-w-[110px] lg:max-w-none`. No second table component, no change to the column-preference plumbing, desktop column set and order untouched. · **905 vitest**, tsc 0 errors, **row 18 12/12**, **row 21 30/30**, sweep **2 failures of 91**.
+
+  **Measured on prod, TN market list at 390px (container 356px):**
+
+  | | before | after |
+  |---|---|---|
+  | table width | **1200px** | **481px** |
+  | Name column | **706px** | **243px** |
+  | identity position | `static` | **`sticky`** |
+  | horizontal scroll to reach the last column | **844px** | **125px** |
+
+  - _F3's diagnosis was wrong in an instructive way._ The fault was recorded as "3.1× the viewport, usable only by blind horizontal dragging" — i.e. too many columns. In fact **only four columns render** at 390px: `COLMETA` already carries `hidden md:table-cell` / `lg:` / `xl:` on almost every column, so the mobile column set the spec asked me to build **already existed**. The real defect was that the 1200px floor then inflated the *Name* cell to **706px** to fill the width, pushing Price and 24h% off the edge. The fix is the floor and a pinned identity, not a column preset — and a column preset would have been machinery layered on top of a working mechanism, fighting the user's saved prefs for no gain.
+  - _Truncation chosen over disappearance._ At 243px the Name cell still put Price at x=348 in a 356px container. The name now truncates; the symbol chip beside it identifies the row exactly, so nothing about *which* row this is gets lost. A price that is technically on the page and practically off it is worse than an ellipsis.
+  - _Row 13 asserts against the real scroll extent, not a fixed 600px._ The roadmap wrote "still visible after a 600px horizontal scroll", but the table is now only 481px wide, so a literal 600px assertion would fail for exactly the reason the task succeeded. It scrolls to `scrollWidth` and checks the identity survived.
+  - _The desktop gate is leaning on its retry._ `/history`, `/billing` and now `/search` have each flaked once against the live deployment. `retries: 1` is carrying it; if a fourth route joins them the settle strategy needs revisiting rather than the retry count raising.
 
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 

@@ -896,12 +896,12 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                 </div>
               </div>
             ) : (
-              <table className="sticky-head w-full min-w-[1200px] text-left border-collapse whitespace-nowrap">
+              <table className="sticky-head w-full lg:min-w-[1200px] text-left border-collapse whitespace-nowrap">
                 <thead>
                   <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
                     <th className="py-2 px-4 label w-8" />
                     <th className="py-2 px-4 label w-10">#</th>
-                    {sortTh('name', 'Name', '')}
+                    {sortTh('name', 'Name', 'sticky left-0 z-20 bg-[color:var(--surface-2)]')}
                     {sortTh('priceUsd', 'Price', 'text-right')}
                     {orderedCols.map((k) => <React.Fragment key={k}>{headerFor(k)}</React.Fragment>)}
                     {/* Matches the rows' trailing spacer cell — without it the
@@ -1222,7 +1222,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             <td className="py-2.5 px-4 font-mono text-data text-[color:var(--text-3)]">
                               {(currentPage - 1) * itemsPerPage + index + 1}
                             </td>
-                            <td className="py-2.5 px-4">
+                            <td className="py-2.5 px-4 sticky left-0 z-20 bg-[color:var(--bg)]">
                               <div className="flex items-center gap-2.5">
                                 <img
                                   src={market.image || `https://assets.coincap.io/assets/icons/${(market.symbol || 'btc').toLowerCase()}@2x.png`}
@@ -1233,7 +1233,9 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                   }}
                                 />
                                 <div className="flex items-center gap-2">
-                                  <span className="text-body font-semibold text-[color:var(--text)]">{market.name || 'Unknown'}</span>
+                                  {/* MB-6: same reason as MarketList — the name
+                                      cannot be allowed to eat the price. */}
+                                  <span className="text-body font-semibold text-[color:var(--text)] truncate max-w-[110px] lg:max-w-none">{market.name || 'Unknown'}</span>
                                   <span className="font-mono text-label text-[color:var(--text-3)] bg-[color:var(--bg)] border border-[color:var(--line)] px-1.5 py-0.5 rounded-sm">{market.symbol || '???'}</span>
                                 </div>
                               </div>

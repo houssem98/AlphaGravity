@@ -146,6 +146,59 @@ test.describe('rows 9 + 10 — no route scrolls sideways on a phone', () => {
     await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible();
   });
 
+  // MB-6 · row 13. A wide table on a phone is only usable if the row keeps its
+  // name while the numbers scroll past. Before this, the 1200px floor gave the
+  // Name cell 706px of a 356px container and pushed Price off the edge, with
+  // nothing pinned — scrolling to a price meant losing track of whose it was.
+  test('row 13 — the identity column stays pinned while the row scrolls', async ({ page }, info) => {
+    test.skip(info.project.name === 'tablet-768', 'the table fits unaided above the hinge');
+    await settle(page, '/trading');
+
+    await page.getByRole('button', { name: /see all/i }).first().click({ timeout: 30_000 });
+    await page.waitForTimeout(3_000);
+
+    const before = await page.evaluate(() => {
+      const t = document.querySelector('table');
+      const id = t?.querySelector('tbody tr td:nth-child(3)') as HTMLElement | null;
+      if (!t || !id) return null;
+      const cont = t.parentElement!;
+      return {
+        sticky: getComputedStyle(id).position,
+        text: (id.textContent || '').trim().slice(0, 30),
+        left: Math.round(id.getBoundingClientRect().left),
+        maxScroll: cont.scrollWidth - cont.clientWidth,
+      };
+    });
+    expect(before, 'market table not found').not.toBeNull();
+    expect(before!.sticky, 'identity cell is not pinned').toBe('sticky');
+
+    // Scroll as far as the table actually goes — asserting a fixed 600px would
+    // fail for the right reason on a table that is now only 481px wide, which
+    // is the improvement, not a regression.
+    const after = await page.evaluate(() => {
+      const t = document.querySelector('table')!;
+      const cont = t.parentElement!;
+      cont.scrollLeft = cont.scrollWidth;
+      const id = t.querySelector('tbody tr td:nth-child(3)') as HTMLElement;
+      const r = id.getBoundingClientRect();
+      return {
+        scrolled: Math.round(cont.scrollLeft),
+        left: Math.round(r.left),
+        right: Math.round(r.right),
+        text: (id.textContent || '').trim().slice(0, 30),
+        frame: document.documentElement.clientWidth,
+      };
+    });
+
+    expect(after.scrolled, 'table did not scroll').toBeGreaterThan(0);
+    expect(after.text, 'the row lost its identity when scrolled').toBe(before!.text);
+    expect(
+      after.right,
+      `identity ends at ${after.right} on a ${after.frame}px screen after scrolling ${after.scrolled}px`,
+    ).toBeGreaterThan(0);
+    expect(after.left, 'identity scrolled off the left edge').toBeGreaterThanOrEqual(-1);
+  });
+
   // A bare /trading load lands on the market hub, which is `max-w-[1280px]
   // mx-auto px-4` and reflows fine — so the route above passes at every width
   // while fault F1, the worst layout bug in the app, sits one click deeper in

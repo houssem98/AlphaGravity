@@ -56,8 +56,11 @@ const TN_ONLY_KEYS = new Set<ColKey>([
   'per', 'eps', 'pb', 'netIncome', 'equity', 'divYield',
   'engScore', 'engLabel', 'fMomentum', 'fVolume', 'fNews', 'fLiqTrend',
 ]);
+// MB-6 · the identity column stays put while the row scrolls sideways. It needs
+// its own opaque background or the scrolling cells show through it, and a
+// z-index above them. Inert at desktop widths, where the table does not scroll.
 const COLMETA: Record<ColKey, { label: string; cls: string; sort?: SortKey; movable?: boolean }> = {
-  name:        { label: 'Name', cls: '', sort: 'name', movable: true },
+  name:        { label: 'Name', cls: 'sticky left-0 z-20 bg-[color:var(--surface-2)]', sort: 'name', movable: true },
   price:       { label: 'Price', cls: 'text-right', sort: 'price', movable: true },
   changePct:   { label: '24h %', cls: 'text-right', sort: 'changePct', movable: true },
   sevenD:      { label: '7d %', cls: 'text-right hidden md:table-cell' },
@@ -389,10 +392,14 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
     const { loaded, up, p7 } = ctx;
     switch (kk) {
       case 'name': return (
-        <td key={kk} className="py-2.5 px-4">
+        <td key={kk} className="py-2.5 px-4 sticky left-0 z-20 bg-[color:var(--bg)]">
           <div className="flex items-center gap-2.5">
             <AssetIcon r={r} />
-            <span className="text-body font-semibold text-[color:var(--text)]">{r.name}</span>
+            {/* MB-6: a full company name took 302px of a 356px row, which put
+                Price at x=348 — technically on the page, practically not. The
+                symbol chip beside it identifies the row exactly, so the name
+                truncates rather than the price falling off the edge. */}
+            <span className="text-body font-semibold text-[color:var(--text)] truncate max-w-[110px] lg:max-w-none">{r.name}</span>
             <span className="font-mono text-label text-[color:var(--text-3)] bg-[color:var(--bg)] border border-[color:var(--line)] px-1.5 py-0.5 rounded-sm">{r.symbol.replace('^', '')}</span>
           </div>
         </td>
@@ -821,7 +828,7 @@ export const MarketList: React.FC<MarketListProps> = ({ market, onAssetSelect, o
               root-level x-scroll dragged the stats bar and cards sideways
               with it. Edge auto-scroll rides this container too. */}
           <div ref={tableScrollRef} className="w-full overflow-x-auto">
-            <table className="sticky-head w-full min-w-[1200px] text-left border-collapse whitespace-nowrap">
+            <table className="sticky-head w-full lg:min-w-[1200px] text-left border-collapse whitespace-nowrap">
               <thead>
                 <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
                   <th className="py-2 px-4 w-8" />
