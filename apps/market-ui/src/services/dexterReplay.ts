@@ -21,6 +21,7 @@ import type { AnalystId } from './dexterGraph.js';
 import type { ToolDeps } from './dexterTools.js';
 import { gradeEntry, type Verdict } from './dexterOutcome.js';
 import { buildEntry, type JournalEntry } from './dexterJournal.js';
+import { isContamination, type Contamination } from './hindsightProbe.js';
 
 export const REPLAYABLE_ANALYSTS: readonly AnalystId[] = ['market', 'fundamentals'];
 export const UNREPLAYABLE_REASON =
@@ -113,10 +114,25 @@ export interface ReplaySummary {
     totalR: number;
     /** Simple buy-and-hold over the same window, in percent. Different units to R. */
     buyHoldPct: number | null;
+    /** DI-1: what the hindsight probe found for this window and model. Never defaulted. */
+    contamination: Contamination;
     notes: string[];
 }
 
-export function summariseReplay(trades: ReplayTrade[], bars: Bar[], firstAsOf: number): ReplaySummary {
+// The label is a required argument rather than an optional field because a
+// number without it is the thing this ledger exists to stop being quoted.
+export function summariseReplay(
+    trades: ReplayTrade[],
+    bars: Bar[],
+    firstAsOf: number,
+    contamination: Contamination,
+): ReplaySummary {
+    if (!isContamination(contamination)) {
+        throw new Error(
+            'summariseReplay needs a contamination label from the DI-1 hindsight probe ' +
+            "('clean' | 'suspect' | 'contaminated'); an unlabelled replay number is not quotable",
+        );
+    }
     const positions = trades.filter(t => t.entry.action !== 'HOLD');
     const resolved = positions.filter(t => t.verdict.outcome !== 'open');
     const rs = resolved.map(t => t.verdict.rMultiple ?? 0);
@@ -137,8 +153,10 @@ export function summariseReplay(trades: ReplayTrade[], bars: Bar[], firstAsOf: n
         avgR: resolved.length === 0 ? null : Number((rs.reduce((a, b) => a + b, 0) / resolved.length).toFixed(2)),
         totalR: Number(rs.reduce((a, b) => a + b, 0).toFixed(2)),
         buyHoldPct: first && last ? Number((((last - first) / first) * 100).toFixed(2)) : null,
+        contamination,
         notes: [
             `analysts replayed: ${REPLAYABLE_ANALYSTS.join(', ')} only — ${UNREPLAYABLE_REASON}`,
+            `hindsight: this window is labelled ${contamination} by the DI-1 probe; every R below carries that label`,
             'R-multiples and buy-and-hold percent are different units; the comparison shows direction, not a like-for-like return',
         ],
     };

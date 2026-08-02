@@ -137,26 +137,51 @@ describe('row 19 — the summary states its own limits', () => {
     };
 
     it('counts trades, holds and R', () => {
-        const s = summariseReplay([win, loss, win, hold], BARS, AS_OF);
+        const s = summariseReplay([win, loss, win, hold], BARS, AS_OF, 'suspect');
         expect(s).toMatchObject({ dates: 4, trades: 3, holds: 1, wins: 2, losses: 1, hitRate: 0.67, avgR: 1, totalR: 3 });
     });
 
     it('computes buy-and-hold over the graded window', () => {
         // 2026-01-04 close 128 → 2026-01-05 close 95
-        expect(summariseReplay([win], BARS, AS_OF).buyHoldPct).toBe(-25.78);
+        expect(summariseReplay([win], BARS, AS_OF, 'suspect').buyHoldPct).toBe(-25.78);
     });
 
     it('reports no rate at all rather than a fake zero', () => {
-        const s = summariseReplay([hold], BARS, AS_OF);
+        const s = summariseReplay([hold], BARS, AS_OF, 'suspect');
         expect(s.hitRate).toBeNull();
         expect(s.avgR).toBeNull();
         expect(s.trades).toBe(0);
     });
 
     it('carries the caveats with the numbers, not in a footnote', () => {
-        const s = summariseReplay([win], BARS, AS_OF);
+        const s = summariseReplay([win], BARS, AS_OF, 'suspect');
         expect(s.notes[0]).toContain('market, fundamentals only');
         expect(s.notes[0]).toContain(UNREPLAYABLE_REASON);
-        expect(s.notes[1]).toContain('different units');
+        expect(s.notes.some(n => n.includes('different units'))).toBe(true);
+    });
+});
+
+// DI-1, Section 6 row 2 — no replay number leaves this file unlabelled.
+describe('row 2 — every summary carries a contamination label', () => {
+    const win: ReplayTrade = {
+        asOf: '2026-01-03',
+        entry: { action: 'BUY' } as any,
+        verdict: { outcome: 'target', at: 1, price: 130, rMultiple: 2, reason: '' },
+    };
+
+    it('reports the label the hindsight probe gave the window', () => {
+        for (const label of ['clean', 'suspect', 'contaminated'] as const) {
+            expect(summariseReplay([win], BARS, AS_OF, label).contamination).toBe(label);
+        }
+    });
+
+    it('states the label alongside the R, not in a footnote', () => {
+        const s = summariseReplay([win], BARS, AS_OF, 'contaminated');
+        expect(s.notes.some(n => n.includes('labelled contaminated'))).toBe(true);
+    });
+
+    it('throws rather than summarising an unlabelled window', () => {
+        expect(() => summariseReplay([win], BARS, AS_OF, undefined as any)).toThrow(/hindsight probe/);
+        expect(() => summariseReplay([win], BARS, AS_OF, 'probably fine' as any)).toThrow(/not quotable/);
     });
 });

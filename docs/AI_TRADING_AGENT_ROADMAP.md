@@ -783,6 +783,26 @@ buy-and-hold over the same window: -15.71%
 **There is no edge. The agent lost every trade it took.** That is the number,
 stated as the ledger requires.
 
+> **RETRO-LABEL, added 2026-08-02 by DI-1** (`docs/DEXTER_INSTITUTIONAL_ROADMAP.md`).
+> Every R above, and every R in the DX-17 stop-floor A/B that followed it
+> (n=30, floor-ON +1.82R vs floor-OFF +1.54R, buy-and-hold −44.13%), carries two
+> labels from here on and may not be quoted without them:
+>
+> - **contamination `suspect`** — the windows sit inside `deepseek-v4-flash`'s
+>   plausible training range. The DI-1 probe measured it rather than assuming it:
+>   over 5 replicates the model named **0/60** window closes to within 2% and
+>   answered **0/55** direction pairs on the window, while recalling 2024's path
+>   **11/11** in the one replicate where the control arm engaged. That asymmetry
+>   points at absent memory of the window, but the control is sensitive in only
+>   1/5 runs, so the pre-registered ladder returns `suspect` — unmeasured, not
+>   clean.
+> - **gross of costs** — no fee, spread or slippage term exists anywhere in the
+>   dexter path yet. The floor-OFF arm's +0.11R average per trade is inside the
+>   round-trip cost of the instrument. DI-2 re-scores both arms net.
+>
+> `summariseReplay` now requires a contamination label and throws without one, so
+> a future replay cannot produce an unlabelled number the way these two did.
+
 ### Why — and this is what the gate was for
 
 The failure is not direction. Three of four positions were shorts in a market
@@ -849,7 +869,8 @@ on its first message now routes by intent, runs a debate, shows its work, refuse
 to draw a level it cannot justify, writes down what it decided, and grades itself
 against what the market did.
 
-**What it is not:** profitable. DX-15 measured 0 wins in 4 trades, and the named
+**What it is not:** profitable. DX-15 measured 0 wins in 4 trades — a number now
+labelled **contamination `suspect`, gross of costs** by DI-1 — and the named
 cause — stops placed inside one ATR — is a real defect that remains unfixed by
 deliberate choice. The most valuable next change is not on this ledger: apply the
 ≥1.5×ATR stop minimum in DX-10, then re-run DX-15 over a window large enough for
