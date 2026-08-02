@@ -260,7 +260,7 @@ flowchart TD
 - [x] **DI-3 — Walk-forward harness.** Promote `replay.mts` into a committed, seeded script
       with strict temporal splits, non-overlapping folds, a stated universe and a recorded
       command line. Closes G11. Row 5.
-- [ ] **DI-4 — Deterministic signal layer.** `dexterSignal.ts`: direction proposed from
+- [x] **DI-4 — Deterministic signal layer.** `dexterSignal.ts`: direction proposed from
       `taLevels` output alone (trend / breakout / mean-reversion playbooks), no LLM in the
       path. The LLM may veto or downgrade, never invert. Closes G2. Rows 6, 7.
 - [ ] **DI-5 — Risk-based sizing.** `dexterSizing.ts`: size from ATR, risk budget and equity,
@@ -423,3 +423,26 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   including two new temperature-threading tests, full repo **984 pass / 0 fail /
   7 skipped**, `tsc --noEmit -p tsconfig.app.json` 0 errors (exit 0). No UI or api
   change, so no deploy. Closes G11.
+- 2026-08-03 — **DI-4 closed. The signal is deterministic; the model can only
+  argue with it.** `dexterSignal.ts` reads a direction out of `taLevels` alone —
+  breakout (close ≥ **0.25 ATR** beyond a level with ≥ **2 touches**), else trend
+  (the pivot sequence), else mean-reversion (range only, within **0.5 ATR** of a
+  held level), else flat. Conviction is bounded per playbook by construction
+  (breakout ≤ 0.9, trend ≤ 0.7, fade ≤ 0.6) and is **not fitted to any backtest**.
+  Arbitration is four-valued and every branch records its reason: `accepted`,
+  `vetoed` (model stands the trade down — allowed), `downgraded` (model cuts
+  conviction — allowed), and **`inversion-rejected`** — the model argued the
+  opposite direction, the deterministic direction stands, conviction is cut to
+  0.5×, and the attempt is written into the reasons rather than dropped.
+  Inversion is deliberately NOT folded into veto: a model that could flip a signal
+  by arguing the opposite would be generating alpha through the back door, which
+  is exactly G2. A model confidence **above** the signal's is not an upgrade.
+  Row 6 is enforced structurally — the test parses `dexterSignal.ts`'s import
+  lines and fails if `dexterLlm`, `dexterGraph`, `dexterDebate`, `dexterRisk` or
+  `dexterTools` appears among them, or if `fetch(` appears anywhere in the file.
+  Tests: dexterSignal 22/22 (rows 6, 7), full repo **1006 pass / 0 fail / 7
+  skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy.
+  **Wiring into `api/agent/[fn].ts` is deliberately deferred to DI-15**: DI-5
+  sizing, DI-6 portfolio state and DI-9 debate grounding all modify the same call
+  site, and wiring each one separately would ship a half-assembled chain three
+  times. Closes G2 at the layer; the live path changes once, at the ship.
