@@ -1,4 +1,8 @@
 // DX-17 re-measurement. Same harness as DX-15, with the ATR stop floor active.
+// DI-2 re-score, both arms, n=30, BTC 2025-08-27 → 2026-06-13:
+//   CONTAMINATION=suspect REPLAY_N=30 npx tsx replay.mts            (floor ON)
+//   CONTAMINATION=suspect REPLAY_N=30 NO_FLOOR=1 npx tsx replay.mts (floor OFF)
+import { writeFileSync } from 'node:fs';
 import { runAnalysts } from './src/services/dexterGraph.js';
 import { runDebate } from './src/services/dexterDebate.js';
 import { runRisk, minStopDistance } from './src/services/dexterRisk.js';
@@ -28,6 +32,7 @@ const bars: Bar[] = raw.map(d => ({
 }));
 
 const N = Number(process.env.REPLAY_N ?? 10);
+const OUT = process.env.REPLAY_OUT ?? `replay-${FLOOR ? 'floor-on' : 'floor-off'}.json`;
 const first = 60;
 const last = bars.length - 35;
 const step = Math.floor((last - first) / N);
@@ -49,6 +54,18 @@ for (const day of dates) {
     return risk.plan;
   });
   trades.push(trade);
+  // DI-2: persist every trade as it lands. The n=30 A/B could not be re-scored
+  // net of costs without re-running 480 LLM calls, purely because the per-trade
+  // rows were printed and thrown away. Never again.
+  writeFileSync(OUT, JSON.stringify({
+    symbol: SYMBOL, floor: FLOOR, contamination: CONTAMINATION, n: N,
+    window: `${dates[0].date} → ${dates.at(-1)!.date}`,
+    trades: trades.map(t => ({
+      asOf: t.asOf, action: t.entry.action, priceAtCall: t.entry.priceAtCall,
+      entry: t.entry.entry, stop: t.entry.stop, target: t.entry.target,
+      outcome: t.verdict.outcome, exit: t.verdict.price, rMultiple: t.verdict.rMultiple,
+    })),
+  }, null, 2));
   const v = trade.verdict;
   const e = trade.entry;
   const atr = taLevels(asOfBars(bars, asOf)).atr ?? 0;
@@ -63,5 +80,8 @@ const s = summariseReplay(trades, bars, Date.parse(dates[0].date + 'T00:00:00Z')
 console.log(`\n=== stop floor ${FLOOR ? 'ON' : 'OFF'} ===`);
 console.log(`dates ${s.dates} · positions ${s.trades} · holds ${s.holds} · still open ${s.open}`);
 console.log(`wins ${s.wins} · losses ${s.losses} · hit rate ${s.hitRate ?? 'n/a'}`);
-console.log(`avg ${s.avgR ?? 'n/a'}R · total ${s.totalR}R · buy-and-hold ${s.buyHoldPct}%`);
-console.log(`llm calls ${calls}`);
+console.log(`GROSS avg ${s.avgR ?? 'n/a'}R · total ${s.totalR}R · buy-and-hold ${s.buyHoldPct}%`);
+console.log(`NET   avg ${s.avgNetR ?? 'n/a'}R · total ${s.totalNetR}R · friction ${s.totalCostR}R · wins net ${s.winsNet} · hit rate net ${s.hitRateNet ?? 'n/a'}`);
+console.log(`contamination ${s.contamination} · uncosted ${s.uncosted}`);
+for (const note of s.notes) console.log(`  · ${note}`);
+console.log(`llm calls ${calls} · per-trade rows written to ${OUT}`);

@@ -348,3 +348,19 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   tsconfig.app.json` 0 errors. No UI or api function changed, so no deploy.
   Rows 1, 2 green. G1 measured; **DX-15 and DX-17 retro-labelled `suspect` and
   still gross of costs — quotable only with both labels attached until DI-2.**
+- 2026-08-02 — DI-2 partial, logged before the long operation as the loop requires.
+  `dexterCosts.ts` + `summariseReplay` gross/net are written and green (dexterCosts
+  12/12, dexterReplay 27/27 — rows 3, 4). Cost model, probed not assumed: fee
+  **10.0 bps/side** (Binance spot taker, published standard tier), half-spread
+  **0.001 bps/side** (measured 2026-08-02, `GET /api/v3/ticker/bookTicker?symbol=
+  BTCUSDT` → bid 63684.60 / ask 63684.61, a one-tick $0.01 spread), slippage
+  **2.0 bps/side** (stated ASSUMPTION — no fill data exists for a strategy that
+  has never traded); **12.001 bps per side, charged at both legs' own prices**.
+  Because an R is profit over risk, friction in R scales with stop tightness: at
+  BTC 70k a 1.5×ATR stop (3750) costs **0.045R** per round trip, the 0.25×ATR stop
+  DX-15 measured costs **0.269R**. The n=30 A/B could not be re-scored from the
+  existing record — per-trade rows were printed and discarded — so `replay.mts`
+  now persists them per decision, and the A/B is being re-run: n=30 × 2 arms,
+  BTC 2025-08-27 → 2026-06-13, 8 LLM calls per decision = **480 calls**, commands
+  `CONTAMINATION=suspect REPLAY_N=30 [NO_FLOOR=1] npx tsx replay.mts`. Smoke test
+  n=2 green (16 calls, both HOLD). Numbers land in the next entry.

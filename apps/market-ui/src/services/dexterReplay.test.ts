@@ -7,6 +7,7 @@ import {
     isReplayable, LookAheadError, REPLAYABLE_ANALYSTS, UNREPLAYABLE_REASON,
     type ReplayTrade,
 } from './dexterReplay';
+import { DEFAULT_COSTS, ZERO_COSTS } from './dexterCosts';
 import type { Bar } from './taLevels';
 
 const BARS: Bar[] = [
@@ -158,6 +159,68 @@ describe('row 19 — the summary states its own limits', () => {
         expect(s.notes[0]).toContain('market, fundamentals only');
         expect(s.notes[0]).toContain(UNREPLAYABLE_REASON);
         expect(s.notes.some(n => n.includes('different units'))).toBe(true);
+    });
+});
+
+// DI-2, Section 6 row 4 — gross and net, and net is never the flattering one.
+describe('row 4 — the summary reports gross and net R', () => {
+    // Entry 110, stop 100 ⇒ risk 10 per unit; exit at the 130 target ⇒ +2R gross.
+    const trade = (rMultiple: number, price: number): ReplayTrade => ({
+        asOf: '2026-01-03',
+        entry: { action: 'BUY', entry: 110, stop: 100, target: 130 } as any,
+        verdict: { outcome: rMultiple > 0 ? 'target' : 'stop', at: 1, price, rMultiple, reason: '' },
+    });
+    const win = trade(2, 130);
+    const loss = trade(-1, 100);
+
+    it('charges costs by default — a gross-only summary must ask for it', () => {
+        const s = summariseReplay([win], BARS, AS_OF, 'suspect');
+        expect(s.costs).toBe(DEFAULT_COSTS);
+        expect(s.totalCostR).toBeGreaterThan(0);
+        expect(s.totalNetR).toBeLessThan(s.totalR);
+    });
+
+    it('keeps net at or below gross for any non-zero cost', () => {
+        for (const trades of [[win], [loss], [win, loss], [win, win, loss]]) {
+            const s = summariseReplay(trades, BARS, AS_OF, 'suspect');
+            expect(s.totalNetR).toBeLessThanOrEqual(s.totalR);
+            expect(s.avgNetR!).toBeLessThanOrEqual(s.avgR!);
+        }
+    });
+
+    it('leaves net equal to gross only under an explicit zero-cost run', () => {
+        const s = summariseReplay([win, loss], BARS, AS_OF, 'suspect', ZERO_COSTS);
+        expect(s.totalNetR).toBe(s.totalR);
+        expect(s.totalCostR).toBe(0);
+    });
+
+    it('turns a scratch winner into a net loser rather than rounding it away', () => {
+        // +0.02R gross on a 10-wide stop: (110+110.2)*0.0012/10 = 0.0264R of friction.
+        const scratch = trade(0.02, 110.2);
+        const s = summariseReplay([scratch], BARS, AS_OF, 'suspect');
+        expect(s.wins).toBe(1);
+        expect(s.winsNet).toBe(0);
+        expect(s.hitRateNet).toBe(0);
+        expect(s.totalNetR).toBeLessThan(0);
+    });
+
+    it('states the cost assumptions with the numbers', () => {
+        const notes = summariseReplay([win], BARS, AS_OF, 'suspect').notes.join(' ');
+        expect(notes).toContain('bps per side');
+        expect(notes).toContain('Binance spot taker');
+        expect(notes).toContain('ASSUMPTION');
+    });
+
+    it('counts a trade it cannot charge rather than pretending it was free', () => {
+        const noPrice: ReplayTrade = {
+            asOf: '2026-01-03',
+            entry: { action: 'BUY', entry: null, stop: null, target: null } as any,
+            verdict: { outcome: 'expired', at: 1, price: null, rMultiple: 0.5, reason: '' },
+        };
+        const s = summariseReplay([noPrice], BARS, AS_OF, 'suspect');
+        expect(s.uncosted).toBe(1);
+        expect(s.totalR).toBe(0.5);
+        expect(s.totalNetR).toBe(0);
     });
 });
 

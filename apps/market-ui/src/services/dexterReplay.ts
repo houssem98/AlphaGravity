@@ -22,6 +22,7 @@ import type { ToolDeps } from './dexterTools.js';
 import { gradeEntry, type Verdict } from './dexterOutcome.js';
 import { buildEntry, type JournalEntry } from './dexterJournal.js';
 import { isContamination, type Contamination } from './hindsightProbe.js';
+import { applyCosts, resolveCosts, describeCosts, type CostModel } from './dexterCosts.js';
 
 export const REPLAYABLE_ANALYSTS: readonly AnalystId[] = ['market', 'fundamentals'];
 export const UNREPLAYABLE_REASON =
@@ -112,6 +113,17 @@ export interface ReplaySummary {
     hitRate: number | null;
     avgR: number | null;
     totalR: number;
+    /** DI-2: the same trades net of fee, spread and slippage. Never above gross. */
+    avgNetR: number | null;
+    totalNetR: number;
+    /** Round-trip friction charged across the resolved trades, in R. */
+    totalCostR: number;
+    /** Winners after costs — a +0.1R gross scratch is a loser once charged. */
+    winsNet: number;
+    hitRateNet: number | null;
+    /** Resolved trades that had no price to charge costs against. */
+    uncosted: number;
+    costs: CostModel;
     /** Simple buy-and-hold over the same window, in percent. Different units to R. */
     buyHoldPct: number | null;
     /** DI-1: what the hindsight probe found for this window and model. Never defaulted. */
@@ -126,6 +138,7 @@ export function summariseReplay(
     bars: Bar[],
     firstAsOf: number,
     contamination: Contamination,
+    costsIn?: CostModel,
 ): ReplaySummary {
     if (!isContamination(contamination)) {
         throw new Error(
@@ -133,10 +146,22 @@ export function summariseReplay(
             "('clean' | 'suspect' | 'contaminated'); an unlabelled replay number is not quotable",
         );
     }
+    // Costs default to the real model — a gross-only run has to ask for ZERO_COSTS.
+    const costs = resolveCosts(costsIn);
     const positions = trades.filter(t => t.entry.action !== 'HOLD');
     const resolved = positions.filter(t => t.verdict.outcome !== 'open');
     const rs = resolved.map(t => t.verdict.rMultiple ?? 0);
     const wins = rs.filter(r => r > 0).length;
+
+    const costed = resolved.map(t => applyCosts(costs, {
+        entryPx: t.entry.entry,
+        stopPx: t.entry.stop,
+        exitPx: t.verdict.price,
+        grossR: t.verdict.rMultiple,
+    }));
+    const netRs = costed.map(c => c.netR).filter((r): r is number => r !== null);
+    const totalCostR = costed.reduce((a, c) => a + (c.costR ?? 0), 0);
+    const winsNet = netRs.filter(r => r > 0).length;
 
     const window = futureBars(bars, firstAsOf);
     const first = window[0]?.close ?? null;
@@ -152,11 +177,20 @@ export function summariseReplay(
         hitRate: resolved.length === 0 ? null : Number((wins / resolved.length).toFixed(2)),
         avgR: resolved.length === 0 ? null : Number((rs.reduce((a, b) => a + b, 0) / resolved.length).toFixed(2)),
         totalR: Number(rs.reduce((a, b) => a + b, 0).toFixed(2)),
+        avgNetR: netRs.length === 0 ? null : Number((netRs.reduce((a, b) => a + b, 0) / netRs.length).toFixed(2)),
+        totalNetR: Number(netRs.reduce((a, b) => a + b, 0).toFixed(2)),
+        totalCostR: Number(totalCostR.toFixed(2)),
+        winsNet,
+        hitRateNet: netRs.length === 0 ? null : Number((winsNet / netRs.length).toFixed(2)),
+        uncosted: costed.filter(c => c.netR === null).length,
+        costs,
         buyHoldPct: first && last ? Number((((last - first) / first) * 100).toFixed(2)) : null,
         contamination,
         notes: [
             `analysts replayed: ${REPLAYABLE_ANALYSTS.join(', ')} only — ${UNREPLAYABLE_REASON}`,
             `hindsight: this window is labelled ${contamination} by the DI-1 probe; every R below carries that label`,
+            describeCosts(costs),
+            ...costs.assumptions,
             'R-multiples and buy-and-hold percent are different units; the comparison shows direction, not a like-for-like return',
         ],
     };
