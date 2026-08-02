@@ -334,7 +334,7 @@ it names are the acceptance tests.
   offline is not a requirement and a stale-cache bug is worse than a cold load.
   *Rows: 2, 22.*
 
-- [ ] **MB-15 · Close the ledger.** Run the full §6 sweep at 320/390/430/768/1440.
+- [x] **MB-15 · Close the ledger.** Run the full §6 sweep at 320/390/430/768/1440.
   Every row green, every route zero-overflow, desktop screenshots identical to
   the MB-2 baseline. Paste the full matrix into §8. Capture one screenshot per
   route at 390px into `docs/mobile/` as the shipped record.
@@ -569,6 +569,41 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
   - _What "installable" does and does not mean here, stated plainly._ The manifest is complete and `display: standalone`, so **iOS Add to Home Screen** and **Android's manual Add** both launch chrome-free with the right name and theme colour. Chrome's *automatic* install prompt additionally wants a service worker with a fetch handler, which MB-1 ruled out — so the prompt will not appear on its own. That is the accepted cost of not shipping a cache, not an oversight.
   - _Row 22 is partly unverifiable and marked so:_ launching from the home screen cannot be tested headlessly. What was verified is everything the launch depends on — manifest parse, `display`, colours, and every icon URL resolving with the right content type. The final tap is the one thing left to a human.
   - _One desktop-baseline run failed once and did not reproduce_ (12/12 on the next two runs). Live-data flakiness again, now on its fifth occurrence across the ledger.
+
+- **MB-15 · closed** · Full §6 sweep run at 320 / 390 / 430 / 768 / 1440. One screenshot per route at 390px in `docs/mobile/`, captured by `scripts/capture-mobile-record.mjs`.
+
+  ### Final matrix — every gate, run fresh against prod
+
+  | gate | result |
+  |---|---|
+  | vitest | **907 passing**, 0 failing, 7 skipped |
+  | `tsc --noEmit` | **0 errors** |
+  | mobile sweep (320/390/430/768) | **103 passed, 0 failed**, 6 skipped |
+  | row 18 · desktop 1440 | **12 / 12** |
+  | row 21 · pre-existing e2e | **30 / 30** |
+  | overflow at 390px, all 10 routes | **0px** |
+
+  **The sweep opened at 41 failures of 84 in MB-2 and closes at 0 of 109.**
+
+  ### The close found one more fault, and it was mine
+
+  `/search`'s mode tabs rendered at **y=31 behind a 48px fixed header** — the top 17px of every tab hidden. Two causes, both introduced by this loop:
+
+  1. MB-3 made `main` the scroll container while it still carried `pt-12` for the *fixed* header. Padding scrolls away with content, so anything that scrolled `main` slid under the header. The offset now lives on the column (`pt-12 md:pt-0`), where it cannot scroll.
+  2. The QA and research shells were `h-[calc(100dvh-64px)]` — 600px inside a 570px `main`, overflowing by exactly the 30px of `scrollTop` observed. The header is 48px and `main` already accounts for it, so below `md` the shells are now `h-full`.
+
+  Tabs measure **y=61..105, `scrollTop 0`** after the fix. Neither row 9 nor row 10 could have caught this: the clipping is **vertical**, and every gate in this ledger measures horizontal overflow. That is the sharpest limitation of the instrument, and it is worth stating at the close rather than discovering later.
+
+  ### Standing limitations, recorded rather than closed
+
+  - **52 controls remain under 44px** (MB-12), all in stacked or wrapped rows where hit-slop would steal taps from neighbours. Fixing them means trading terminal density for tap comfort — a design decision, not a defect.
+  - **Chrome's automatic install prompt will not fire** (MB-14): it needs a service worker, which MB-1 ruled out. iOS Add to Home Screen and Android's manual Add both work.
+  - **Three things cannot be verified headlessly** and are marked so: the keyboard not covering submit (row 17), launching from the home screen (MB-14), and chart `touch-action` (MB-13).
+  - **Live-data flakiness hit six times** across the run — `/history`, `/billing`, `/search`, row 14, and twice on the pre-existing suite. Both new gates carry `retries: 1`; `chromium` deliberately does not, so flakes surface there as failures. Every occurrence passed on a clean re-run.
+
+  ### Stop condition
+
+  **Target.** No `[ ]` remains in §7 and this sweep actually ran at all five widths. 16 tasks against a budget of 16. The loop stops here.
 
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 

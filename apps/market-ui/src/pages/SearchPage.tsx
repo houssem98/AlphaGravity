@@ -1171,7 +1171,7 @@ export default function SearchPage() {
             ? ` · ${qaState.chartSpecs.length} chart${qaState.chartSpecs.length > 1 ? 's' : ''}`
             : qaState.structuredData.length > 0 ? ` (${qaState.structuredData.length})` : '';
         return (
-            <div className="flex h-[calc(100dvh-64px)] bg-[var(--bg)]">
+            <div className="flex h-full md:h-[calc(100dvh-64px)] bg-[var(--bg)]">
                 {/* Citation side panel overlay */}
                 {openCitation && (
                     <>
@@ -1637,7 +1637,7 @@ export default function SearchPage() {
 
     // ── DEEP RESEARCH MODE ────────────────────────────────────────────────────
     return (
-        <div className="flex h-[calc(100dvh-64px)]" style={{ background: 'var(--bg)' }}>
+        <div className="flex h-full md:h-[calc(100dvh-64px)]" style={{ background: 'var(--bg)' }}>
 
             {/* ═══════════════ SIDEBAR ═══════════════ */}
             {researchNavOpen && (

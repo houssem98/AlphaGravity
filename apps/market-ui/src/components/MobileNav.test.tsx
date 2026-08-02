@@ -96,7 +96,7 @@ describe('row 6 — every mobile target clears 44px', () => {
     // classes it warns against, and a bare source scan would match the warning.
     expect(NAV_SRC).not.toMatch(/className="[^"]*\bfixed\b[^"]*bottom-0/);
     expect(render('/search')).not.toMatch(/class="[^"]*\bfixed\b/);
-    expect(LAYOUT_SRC).toContain('h-dvh md:h-auto flex flex-col md:block');
+    expect(LAYOUT_SRC).toContain('h-dvh md:h-auto pt-12 md:pt-0 flex flex-col md:block');
   });
 });
 
@@ -117,6 +117,16 @@ describe('row 6 — the shell hands the phone its space back', () => {
 
   it('scrolls the content column so the bar is a sibling, not an overlay', () => {
     expect(LAYOUT_SRC).toContain('flex-1 overflow-y-auto');
+  });
+
+  it('keeps the fixed header offset off the scrolling child', () => {
+    // MB-15: while `main` carried `pt-12`, the padding scrolled away with the
+    // content and anything that scrolled main slid under the fixed header —
+    // measured scrollTop 30 with the mode tabs at y=31 behind a 48px header.
+    // Below md the offset belongs to the column; at md the original stands.
+    expect(LAYOUT_SRC).toContain('pt-12 md:pt-0 flex flex-col');
+    expect(LAYOUT_SRC).not.toMatch(/<main className="pt-12/);
+    expect(LAYOUT_SRC).toContain('md:pt-12 md:min-h-dvh');
   });
 
   it('mounts the mobile nav', () => {

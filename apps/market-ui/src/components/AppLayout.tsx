@@ -71,7 +71,7 @@ export default function AppLayout() {
                 scrolls internally, so the nav bar at its end lands on the real
                 bottom of the screen instead of the layout viewport's. At md it
                 reverts to a plain block and the page scrolls as it always did. */}
-            <div className="flex-1 min-w-0 md:ml-14 h-dvh md:h-auto flex flex-col md:block">
+            <div className="flex-1 min-w-0 md:ml-14 h-dvh md:h-auto pt-12 md:pt-0 flex flex-col md:block">
                 <header className="h-12 bg-[color:var(--surface)] border-b border-[color:var(--line)] flex items-center justify-between px-3 fixed top-0 right-0 left-0 md:left-14 z-40 fade-in">
                     <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-sm flex items-center justify-center bg-[color:var(--accent)] glint chrome">
@@ -94,7 +94,12 @@ export default function AppLayout() {
 
                 {/* The scroll container below md — the nav is its sibling, not
                     an overlay, so no bottom padding is owed to it. */}
-                <main className="pt-12 flex-1 overflow-y-auto md:overflow-visible md:min-h-dvh bg-[color:var(--bg)]">
+                {/* The header is fixed, so its 48px offset must live on the COLUMN, not
+                    on the scrolling child. While `main` carried `pt-12` the padding
+                    scrolled away with the content: measured on prod, main sat at
+                    scrollTop 30 on load and the mode tabs rendered at y=31 behind a
+                    48px header. Desktop keeps the original arrangement exactly. */}
+                <main className="flex-1 overflow-y-auto md:overflow-visible md:pt-12 md:min-h-dvh bg-[color:var(--bg)]">
                     <Outlet />
                 </main>
 
