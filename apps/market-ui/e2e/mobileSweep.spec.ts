@@ -206,22 +206,29 @@ test.describe('rows 9 + 10 — no route scrolls sideways on a phone', () => {
     test.skip(info.project.name === 'tablet-768', 'the side-by-side modal is correct above the hinge');
     await settle(page, '/trading');
 
-    const card = page.locator('div').filter({ hasText: /^Tunisian Market/ }).first();
-    const stock = card.getByRole('button').nth(1);
-    await expect(stock).toBeVisible({ timeout: 30_000 });
-    await stock.click();
+    // Sentiment data exists for crypto, not for the TN stock the other specs
+    // use. The route is: a market list, tap a row to EXPAND it, then ADVANCED
+    // CHART. The row's own click only toggles the accordion, and the TRADE
+    // button that navigates directly lives in the `spark` column, which is
+    // `hidden md:table-cell` — so on a phone the expand path is the only way
+    // in, and clicking the row and expecting navigation is what made three
+    // earlier attempts at this test fail.
+    await page.getByRole('button', { name: /see all/i }).first().click({ timeout: 30_000 });
     await page.waitForTimeout(3_000);
+    await page.locator('tbody tr').first().click();
+    await page.waitForTimeout(1_200);
+    await page.getByRole('button', { name: /advanced chart/i }).first().click();
+    await page.waitForTimeout(4_000);
 
     // The info panel is a sheet below the hinge (MB-4); the sentiment bar lives
     // inside it.
     await page.getByRole('button', { name: 'INFO' }).click();
-    await page.waitForTimeout(1_500);
+    await page.waitForTimeout(2_000);
 
     const bar = page.getByRole('button').filter({ hasText: /sentiment/i }).first();
-    const opened = await bar.isVisible().catch(() => false);
-    test.skip(!opened, 'this asset has no sentiment data to open the modal with');
+    await expect(bar).toBeVisible({ timeout: 20_000 });
     await bar.click();
-    await page.waitForTimeout(1_500);
+    await page.waitForTimeout(2_000);
 
     const m = await page.evaluate(() => {
       const box = Array.from(document.querySelectorAll('div')).find((d) =>
