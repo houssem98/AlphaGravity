@@ -198,6 +198,62 @@ test.describe('rows 9 + 10 — no route scrolls sideways on a phone', () => {
     }
   });
 
+  // MB-8 · fault F10. The sentiment modal reserved a fixed 280px stats column
+  // inside a `max-w-[96vw]` box: 96vw of 390 is 374px, so the chart pane was
+  // left 94px. Like F9 this is invisible to rows 9 and 10 — the modal only
+  // exists after two taps, and it is `position: fixed` with its own overlay.
+  test('the asset modal takes the screen and stacks its panes', async ({ page }, info) => {
+    test.skip(info.project.name === 'tablet-768', 'the side-by-side modal is correct above the hinge');
+    await settle(page, '/trading');
+
+    const card = page.locator('div').filter({ hasText: /^Tunisian Market/ }).first();
+    const stock = card.getByRole('button').nth(1);
+    await expect(stock).toBeVisible({ timeout: 30_000 });
+    await stock.click();
+    await page.waitForTimeout(3_000);
+
+    // The info panel is a sheet below the hinge (MB-4); the sentiment bar lives
+    // inside it.
+    await page.getByRole('button', { name: 'INFO' }).click();
+    await page.waitForTimeout(1_500);
+
+    const bar = page.getByRole('button').filter({ hasText: /sentiment/i }).first();
+    const opened = await bar.isVisible().catch(() => false);
+    test.skip(!opened, 'this asset has no sentiment data to open the modal with');
+    await bar.click();
+    await page.waitForTimeout(1_500);
+
+    const m = await page.evaluate(() => {
+      const box = Array.from(document.querySelectorAll('div')).find((d) =>
+        (d.getAttribute('class') || '').includes('lg:w-[900px]'),
+      );
+      if (!box) return null;
+      const r = box.getBoundingClientRect();
+      const panes = Array.from(box.querySelectorAll(':scope > div'));
+      return {
+        frame: document.documentElement.clientWidth,
+        visible: document.documentElement.clientHeight,
+        width: Math.round(r.width),
+        right: Math.round(r.right),
+        chart: Math.round(box.querySelector('.recharts-wrapper')?.getBoundingClientRect().width || 0),
+        panes: panes.length,
+      };
+    });
+    expect(m, 'sentiment modal not found').not.toBeNull();
+
+    expect(m!.right, `modal right edge ${m!.right} on a ${m!.frame}px screen`).toBeLessThanOrEqual(m!.frame + 1);
+    expect(
+      Math.round((m!.width / m!.frame) * 100),
+      `modal is ${m!.width}px of a ${m!.frame}px screen`,
+    ).toBeGreaterThanOrEqual(95);
+    // The whole point: the chart pane is no longer the leftovers of a fixed
+    // side column.
+    expect(
+      Math.round((m!.chart / m!.frame) * 100),
+      `chart pane is ${m!.chart}px of a ${m!.frame}px screen`,
+    ).toBeGreaterThanOrEqual(70);
+  });
+
   // MB-6 · row 13. A wide table on a phone is only usable if the row keeps its
   // name while the numbers scroll past. Before this, the 1200px floor gave the
   // Name cell 706px of a 356px container and pushed Price off the edge, with

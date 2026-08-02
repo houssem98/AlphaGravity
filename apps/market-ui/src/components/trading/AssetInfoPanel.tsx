@@ -6,6 +6,7 @@ import { fetchMarket, fmtPrice } from '../../services/marketsHub';
 import { safeUrl } from '../../lib/safeUrl';
 import { useCryptoStore, ensureCryptoFeed, livePrice } from '../../stores/cryptoStore';
 import { tnLogo } from './MarketList';
+import { useIsMobile } from '../../hooks/use-mobile';
 import {
   Info, Star, Globe, FileText, Copy, Check, ChevronDown, ChevronRight,
   Edit2, Unlock, CheckCircle2, ExternalLink, Play, ArrowLeftRight, Shield, ArrowLeft,
@@ -1482,6 +1483,10 @@ function buildChartData(bullPct: number, n: number) {
 function SentimentModal({ asset, assetName, data, onClose }: {
   asset: string; assetName: string; data: PredictionData; onClose: () => void;
 }) {
+  // MB-8 · 1024 to match the hinge the rest of /trading uses. The border
+  // sides below are inline and cannot carry a media query, so the modal
+  // needs to know the width rather than express it in classes alone.
+  const isMobile = useIsMobile(1024);
   const [tab, setTab]     = useState<'7d'|'15d'|'30d'>('7d');
   const [lbTab, setLbTab] = useState<'bull'|'bear'>('bull');
 
@@ -1498,8 +1503,12 @@ function SentimentModal({ asset, assetName, data, onClose }: {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.82)' }} onClick={onClose}>
-      <div className="relative w-[900px] max-w-[96vw] rounded-2xl overflow-hidden flex flex-col"
-        style={{ background: '#131722', border: '1px solid #2A3550', maxHeight: '90vh' }}
+      {/* F10: 96vw of 390 is 374px, and the fixed 280px stats column left 94px
+          for the chart. Below the hinge the modal takes the screen and the two
+          panes stack. dvh rather than vh because the modal is height-capped and
+          vh measures the tall layout viewport. */}
+      <div className="relative w-full h-full rounded-none lg:w-[900px] lg:max-w-[96vw] lg:h-auto lg:rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: '#131722', border: '1px solid #2A3550', maxHeight: isMobile ? '100dvh' : '90dvh' }}
         onClick={e => e.stopPropagation()}>
 
         {/* Modal header */}
@@ -1508,7 +1517,7 @@ function SentimentModal({ asset, assetName, data, onClose }: {
           <button onClick={onClose} className="text-[20px] leading-none transition-opacity hover:opacity-60 text-white">×</button>
         </div>
 
-        <div className="flex overflow-hidden" style={{ minHeight: 0 }}>
+        <div className="flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden" style={{ minHeight: 0 }}>
           {/* LEFT — chart */}
           <div className="flex-1 px-6 py-4 flex flex-col">
             {/* Time tabs */}
@@ -1547,7 +1556,10 @@ function SentimentModal({ asset, assetName, data, onClose }: {
           </div>
 
           {/* RIGHT — stats */}
-          <div className="w-[280px] shrink-0 px-5 py-4 overflow-y-auto" style={{ borderLeft: '1px solid #1B2236' }}>
+          <div
+            className="w-full lg:w-[280px] shrink-0 px-5 py-4 lg:overflow-y-auto"
+            style={isMobile ? { borderTop: '1px solid #1B2236' } : { borderLeft: '1px solid #1B2236' }}
+          >
             {/* Vote total */}
             <div className="text-[14px] font-bold text-white mb-3">Vote (Total)</div>
             <div className="flex items-center gap-2 mb-1">
