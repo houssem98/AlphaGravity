@@ -76,6 +76,19 @@ describe('row 2 — the manifest is complete and consistent', () => {
     expect(m.background_color).toBe(BG);
   });
 
+  it('covers the platform sizes each store actually reads', () => {
+    const icons = m.icons as Array<{ src: string; sizes: string; purpose?: string }>;
+    const sizes = icons.map((i) => i.sizes);
+    // Chrome's install prompt wants 192 and 512; Android's launcher crops to a
+    // platform shape and needs a maskable variant to survive it.
+    expect(sizes).toContain('192x192');
+    expect(sizes).toContain('512x512');
+    expect(icons.some((i) => i.purpose === 'maskable')).toBe(true);
+    // iOS never reads the manifest icons — only this link.
+    expect(HTML).toContain('rel="apple-touch-icon"');
+    expect(() => read('../public/apple-touch-icon.png')).not.toThrow();
+  });
+
   it('ships at least one icon, and every icon it lists resolves', () => {
     const icons = m.icons as Array<{ src: string; type: string; sizes: string }>;
     expect(icons.length).toBeGreaterThan(0);

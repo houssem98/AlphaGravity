@@ -327,7 +327,7 @@ it names are the acceptance tests.
   this loop adds.
   *Rows: 9, 10, 16, 18, 19, 20, 22.*
 
-- [ ] **MB-14 · Installable.** Generate the icon set (192/512/maskable) and an
+- [x] **MB-14 · Installable.** Generate the icon set (192/512/maskable) and an
   `apple-touch-icon` from the existing `Sparkles`-on-accent mark, wire them into
   the manifest from MB-1, and verify "Add to Home Screen" launches standalone
   with the correct name, theme colour, and no browser chrome. No service worker —
@@ -551,6 +551,24 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
 
   - _Two thirds of this task was already done or not worth doing._ **Reduced motion** needed nothing: the global `*, *::before, *::after` block at `index.css:525` already zeroes every animation and transition, including the sheets this loop added. **Momentum scrolling** needed nothing either — `-webkit-overflow-scrolling: touch` has been the default since iOS 13 and is a no-op on every browser this app supports. Adding it would have been cargo.
   - _Not done — chart `touch-action`._ The spec asks that a pan gesture reach the chart rather than the page. `/trading` opens on the hub, so the probe never had a chart to measure, and `lightweight-charts` manages `touch-action` on its own canvas. Rather than add a rule I could not verify and might fight the library, this is left alone and recorded.
+
+- **MB-14 · installable** · `scripts/make-icons.mjs` rasterises `public/icon.svg` to `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` and `apple-touch-icon.png`; the manifest lists all four plus the SVG, and `index.html` gains the `apple-touch-icon` link. No new dependency — Playwright is already a dev dependency and rasterises the SVG, so the repo gained a 40-line script instead of an image toolchain. No service worker, as MB-1 decided. · **906 vitest** (+1), tsc 0 errors, **row 18 12/12**, **row 21 30/30**, sweep **103 passed / 0 failed**.
+
+  **Verified on prod — all six assets resolve:**
+
+  | asset | status | type | bytes |
+  |---|---|---|---|
+  | `manifest.webmanifest` | 200 | `application/manifest+json` | 844 |
+  | `icon.svg` | 200 | `image/svg+xml` | 1,016 |
+  | `icon-192.png` | 200 | `image/png` | 6,407 |
+  | `icon-512.png` | 200 | `image/png` | 18,749 |
+  | `icon-maskable-512.png` | 200 | `image/png` | 9,107 |
+  | `apple-touch-icon.png` | 200 | `image/png` | 4,821 |
+
+  - _Three icon variants, three different platform contracts._ The `any` PNGs keep the mark's own rounded corners (rendered on transparency) because Android may show them unmasked. The **maskable** one is full-bleed with the glyph at 58% so it survives a circle crop at 80% diameter — the rounded-square version would have its corners sliced off. `apple-touch-icon` is deliberately **opaque**: iOS composites transparency onto black and applies its own squircle. Row 2 now asserts each of these rather than just "an icon exists".
+  - _What "installable" does and does not mean here, stated plainly._ The manifest is complete and `display: standalone`, so **iOS Add to Home Screen** and **Android's manual Add** both launch chrome-free with the right name and theme colour. Chrome's *automatic* install prompt additionally wants a service worker with a fetch handler, which MB-1 ruled out — so the prompt will not appear on its own. That is the accepted cost of not shipping a cache, not an oversight.
+  - _Row 22 is partly unverifiable and marked so:_ launching from the home screen cannot be tested headlessly. What was verified is everything the launch depends on — manifest parse, `display`, colours, and every icon URL resolving with the right content type. The final tap is the one thing left to a human.
+  - _One desktop-baseline run failed once and did not reproduce_ (12/12 on the next two runs). Live-data flakiness again, now on its fifth occurrence across the ledger.
 
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 
