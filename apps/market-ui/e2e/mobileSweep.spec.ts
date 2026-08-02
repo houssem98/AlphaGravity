@@ -146,6 +146,58 @@ test.describe('rows 9 + 10 — no route scrolls sideways on a phone', () => {
     await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible();
   });
 
+  // MB-7 · row 14. Fault F9 was arithmetic — 380px of panel at right-4 wants
+  // 396px on a 390px screen — but rows 9 and 10 never saw it, because the
+  // panel only exists after a tap and the trading shell clips it. DD-13 proved
+  // the contents reflow at 380px in a fixture; this proves the shell on prod.
+  test('row 14 — the assistant opens as a sheet inside the viewport', async ({ page }, info) => {
+    test.skip(info.project.name === 'tablet-768', 'the docked panel is correct above the hinge');
+    await settle(page, '/trading');
+
+    // The assistant lives in the asset view, not the hub — same navigation the
+    // row 11 test uses.
+    const card = page.locator('div').filter({ hasText: /^Tunisian Market/ }).first();
+    const stock = card.getByRole('button').nth(1);
+    await expect(stock).toBeVisible({ timeout: 30_000 });
+    await stock.click();
+    await page.waitForTimeout(3_000);
+
+    await page.getByRole('button', { name: 'Open assistant' }).click({ timeout: 30_000 });
+    await page.waitForTimeout(1_500);
+
+    const m = await page.evaluate(() => {
+      // The sheet identifies itself. Two attempts at inferring it from the DOM
+      // both measured the wrong box — walking up by height stopped at an inner
+      // scroll container (484px against a 584px sheet), and walking up to the
+      // first absolute ancestor stopped at a 42px decoration inside the panel.
+      // Both reported failures the shell did not have.
+      const el = document.querySelector('[data-testid="assistant-sheet"]') as HTMLElement | null;
+      const ta = document.querySelector('textarea, input[type="text"]');
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      const c = ta?.getBoundingClientRect();
+      return {
+        frame: document.documentElement.clientWidth,
+        visible: document.documentElement.clientHeight,
+        left: Math.round(r.left),
+        right: Math.round(r.right),
+        height: Math.round(r.height),
+        composerBottom: c ? Math.round(c.bottom) : null,
+      };
+    });
+    expect(m, 'assistant panel not found').not.toBeNull();
+
+    expect(m!.right, `panel right edge ${m!.right} on a ${m!.frame}px screen`).toBeLessThanOrEqual(m!.frame + 1);
+    expect(m!.left, 'panel starts off the left edge').toBeGreaterThanOrEqual(-1);
+    expect(
+      Math.round((m!.height / m!.visible) * 100),
+      `panel is ${m!.height}px of a ${m!.visible}px viewport`,
+    ).toBeGreaterThanOrEqual(85);
+    if (m!.composerBottom !== null) {
+      expect(m!.composerBottom, 'composer sits below the visible viewport').toBeLessThanOrEqual(m!.visible + 1);
+    }
+  });
+
   // MB-6 · row 13. A wide table on a phone is only usable if the row keeps its
   // name while the numbers scroll past. Before this, the 1200px floor gave the
   // Name cell 706px of a 356px container and pushed Price off the edge, with

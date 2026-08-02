@@ -453,7 +453,14 @@ export default function TradingAssistantPage() {
       </aside>
 
       {/* Main Trading Area */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      {/* `relative` below the hinge only. The assistant sheet anchors to its
+          nearest positioned ancestor; with none, that is <body> and the sheet
+          runs under the bottom nav, where this column's overflow-hidden clips
+          it — measured 584px of sheet with the last 46px cut off. Making this
+          column the containing block bounds the sheet to the visible area.
+          Kept `lg:static` so the desktop panel keeps anchoring exactly where
+          it always has. */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden relative lg:static">
       {/* Global Header — crypto views only */}
       {currentView !== 'hub' && activeMarket === 'crypto' && (
       <header className="chrome-nav h-12 shrink-0 flex items-center px-3 justify-between z-50 bg-[color:var(--surface)] border-b border-[color:var(--line)]">
@@ -740,7 +747,22 @@ export default function TradingAssistantPage() {
 
         {/* Floating Assistant Widget */}
         {isAssistantOpen && (
-          <div className="absolute bottom-20 right-4 w-[380px] h-[600px] max-h-[80vh] z-50 flex flex-col overflow-hidden rounded-[6px] bg-[color:var(--surface)] border border-[color:var(--line-strong)]">
+          // F9 was arithmetic: 380px of panel at right-4 needs 396px, on a
+          // 390px screen. DD-13 already proved the panel's CONTENTS reflow at
+          // 380px (e2e/dexterNarrow.spec.ts) — only the shell was wrong, so
+          // this changes the box and nothing inside Assistant.tsx.
+          //
+          // 88dvh, not vh: the panel is bottom-anchored and vh measures the
+          // tall layout viewport, which is what buried the nav bar in MB-3.
+          <div
+            data-testid="assistant-sheet"
+            className={
+              isMobile
+                ? 'absolute inset-x-0 bottom-0 h-[88dvh] z-50 flex flex-col overflow-hidden rounded-t-lg bg-[color:var(--surface)] border-t border-[color:var(--line-strong)]'
+                : 'absolute bottom-20 right-4 w-[380px] h-[600px] max-h-[80vh] z-50 flex flex-col overflow-hidden rounded-[6px] bg-[color:var(--surface)] border border-[color:var(--line-strong)]'
+            }
+            style={isMobile ? { paddingBottom: 'var(--safe-b)' } : undefined}
+          >
             <Assistant onDraw={handleDraw} currentAsset={currentAsset} market={activeMarket} assetName={assetName} onClose={() => setIsAssistantOpen(false)} />
           </div>
         )}
@@ -748,7 +770,10 @@ export default function TradingAssistantPage() {
         {/* Floating Toggle Button */}
         <button
           onClick={() => setIsAssistantOpen(!isAssistantOpen)}
-          className="absolute bottom-4 right-4 w-10 h-10 rounded-sm transition-colors z-40 flex items-center justify-center bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 press"
+          aria-label={isAssistantOpen ? 'Close assistant' : 'Open assistant'}
+          // 44px and clear of the INFO/SOCIAL strip below the hinge; the
+          // desktop 40px square at bottom-4 is unchanged.
+          className="absolute bottom-4 right-4 w-11 h-11 lg:w-10 lg:h-10 rounded-sm transition-colors z-[60] flex items-center justify-center bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 press"
         >
           {isAssistantOpen ? (
             <X className="w-5 h-5" />

@@ -277,7 +277,7 @@ it names are the acceptance tests.
   Desktop column set and order unchanged.
   *Rows: 5, 9, 10, 13, 18, 19, 20, 21, 22.*
 
-- [ ] **MB-7 · Dexter assistant sheet.** `TradingAssistantPage:667`: below `md`,
+- [x] **MB-7 · Dexter assistant sheet.** `TradingAssistantPage:667`: below `md`,
   replace `absolute bottom-20 right-4 w-[380px] h-[600px]` with a full-width
   bottom sheet — `inset-x-0 bottom-0 h-[88dvh]`, safe-area padded composer,
   drag-to-dismiss handle. The panel's *contents* already reflow at 380px (DD-13,
@@ -459,6 +459,15 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
   - _Truncation chosen over disappearance._ At 243px the Name cell still put Price at x=348 in a 356px container. The name now truncates; the symbol chip beside it identifies the row exactly, so nothing about *which* row this is gets lost. A price that is technically on the page and practically off it is worse than an ellipsis.
   - _Row 13 asserts against the real scroll extent, not a fixed 600px._ The roadmap wrote "still visible after a 600px horizontal scroll", but the table is now only 481px wide, so a literal 600px assertion would fail for exactly the reason the task succeeded. It scrolls to `scrollWidth` and checks the identity survived.
   - _The desktop gate is leaning on its retry._ `/history`, `/billing` and now `/search` have each flaked once against the live deployment. `retries: 1` is carrying it; if a fourth route joins them the settle strategy needs revisiting rather than the retry count raising.
+
+- **MB-7 · assistant sheet** · Below the hinge the panel is `absolute inset-x-0 bottom-0 h-[88dvh]` with a safe-area-padded bottom and `rounded-t-lg`; above it, the docked `w-[380px] h-[600px] bottom-20 right-4` box is byte-identical. The main column takes `relative lg:static` so the sheet's containing block is the visible area rather than `<body>`. The FAB is 44px below the hinge (`w-11 h-11 lg:w-10 lg:h-10`), gains an `aria-label`, and sits at `z-[60]` above the sheet. **Nothing inside `Assistant.tsx` changed** — DD-13 had already proved the contents reflow at 380px. · **905 vitest**, tsc 0 errors, **row 18 12/12**, **row 21 30/30**, sweep **2 failures of 92**.
+
+  **Measured on prod at 390px:** sheet **390x584 @y=80**, right edge 390 on a 390px screen, **88% of the 664px visible viewport**, composer inside the visible area.
+
+  - _F9 was arithmetic no gate could see._ 380 + 16 = 396 > 390, but the panel only exists after a tap and the trading shell clips it, so rows 9 and 10 read clean. DD-13 proved the contents in a fixture; only prod could prove the shell.
+  - _The first fix was 88dvh and still wrong._ The sheet computed to exactly 584px, but with no positioned ancestor it anchored to `<body>` and ran under the bottom nav, where the main column's `overflow-hidden` cut the last 46px off. `relative lg:static` scopes the containing block to the visible column below the hinge and leaves the desktop anchor exactly where it was.
+  - _Two bad measurements before a good one._ Walking up from the composer by height stopped at an inner scroll container (484px against a 584px sheet); walking up to the first absolute ancestor stopped at a 42px decoration. Both reported failures the shell did not have. The shell now carries `data-testid="assistant-sheet"` and the test asks for it by name. **Inference about someone else's DOM is the wrong tool** — three of the seven gate corrections in this ledger have been exactly this mistake.
+  - _Not shipped:_ drag-to-dismiss. The spec asked for a drag handle; the panel already has a close button and the FAB toggles it, so the gesture is convenience, not access. Adding it means routing the panel through `vaul`, which changes mount semantics for a component this task is explicitly forbidden from touching.
 
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 
