@@ -82,6 +82,59 @@ test.describe('rows 9 + 10 — no route scrolls sideways on a phone', () => {
     });
   }
 
+  // MB-3 · rows 15 and 16. The bar is the one piece of chrome that must survive
+  // the iOS toolbar collapse, and the one the desktop rail never had to prove:
+  // a rail can be off-screen and still work with a scroll, a bottom bar cannot.
+  test('rows 15 + 16 — the bottom bar is reachable and navigates', async ({ page }, info) => {
+    test.skip(info.project.name === 'tablet-768', 'the rail is still the nav at md and above');
+    await settle(page, '/search');
+
+    const bar = page.getByTestId('mobile-nav');
+    await expect(bar).toBeVisible();
+
+    // Row 15: visible in the collapsed-toolbar viewport without scrolling.
+    //
+    // Measured against the VISIBLE viewport, not window.innerHeight. Under
+    // mobile emulation those differ — 664 vs 743 at iPhone 14 — and the larger
+    // one is exactly the lie that hides bottom chrome under the browser
+    // toolbar. If this assertion is ever "fixed" by switching to innerHeight,
+    // the bug comes back silently.
+    const fit = await page.evaluate(() => {
+      const r = document.querySelector('[data-testid="mobile-nav"]')!.getBoundingClientRect();
+      return {
+        bottom: Math.round(r.bottom),
+        visible: document.documentElement.clientHeight,
+        innerHeight: window.innerHeight,
+      };
+    });
+    expect(
+      fit.bottom,
+      `bar bottom ${fit.bottom} vs visible ${fit.visible} (innerHeight claims ${fit.innerHeight})`,
+    ).toBeLessThanOrEqual(fit.visible + 1);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+    // Row 6, measured rather than scanned: five targets, each >= 44px.
+    const targets = bar.locator('a, button');
+    expect(await targets.count()).toBe(5);
+    for (let i = 0; i < 5; i++) {
+      const b = (await targets.nth(i).boundingBox())!;
+      expect(Math.round(b.height), `target ${i} height`).toBeGreaterThanOrEqual(44);
+      expect(Math.round(b.width), `target ${i} width`).toBeGreaterThanOrEqual(44);
+    }
+
+    // The desktop rail must be gone, not merely overlapped.
+    await expect(page.locator('aside').first()).toBeHidden();
+
+    // Row 16: a tap actually routes, and the active state follows.
+    await bar.getByRole('link', { name: /History/i }).click();
+    await expect(page).toHaveURL(/\/history/);
+    await expect(bar.locator('[aria-current="page"]')).toHaveCount(1);
+
+    // The sheet holds every destination the tabs do not.
+    await bar.getByRole('button', { name: 'More destinations' }).click();
+    await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible();
+  });
+
   // A bare /trading load lands on the market hub, which is `max-w-[1280px]
   // mx-auto px-4` and reflows fine — so the route above passes at every width
   // while fault F1, the worst layout bug in the app, sits one click deeper in

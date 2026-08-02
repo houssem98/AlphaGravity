@@ -229,7 +229,7 @@ it names are the acceptance tests.
   §8 as MB-2's result. Do not fix anything here.
   *Rows: 9, 10, 18 (baseline captured), 21.*
 
-- [ ] **MB-3 · App shell nav.** `AppLayout`: below `md`, hide the 56px rail and
+- [x] **MB-3 · App shell nav.** `AppLayout`: below `md`, hide the 56px rail and
   drop `ml-14`; render a bottom tab bar with the first 4 `NAV_ITEMS` plus a
   "More" trigger opening a `vaul` bottom Drawer holding the rest — **labelled**,
    ≥44px, safe-area padded. Header shrinks to brand + live dot. Above `md`,
@@ -380,6 +380,26 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
   - _Baseline selector widened:_ `/trading` builds its columns from unsemantic divs sized by inline style, so the semantic landmarks caught only the rail. Added `[style*="width:"]` filtered to boxes ≥200px — unfiltered it also matched sparklines inside market cards, whose count tracks the data and would have made the gate flap.
   - _Deferred, not skipped:_ modal and drawer open-state baselines. Driving them is stateful (the citation drawer needs a completed search with citations), and the task that changes each surface already exercises the interaction — so MB-7, MB-8 and MB-9 own their own open-state proof. Row 18 amended to say so rather than leaving an unrunnable clause in the gate.
 
+- **MB-3 · bottom tab bar, More sheet, shell restructure** · New `src/components/MobileNav.tsx` — four labelled tabs from `NAV_ITEMS.slice(0,4)` plus a More trigger opening the `vaul` sheet with the remaining five destinations and Sign Out; `NAV_ITEMS` is imported, never copied. `AppLayout`: rail `hidden md:flex`, margin `md:ml-14`, header `left-0 md:left-14` with the strapline and avatar slot `hidden md:*`, content column `flex-1 min-w-0`, and below `md` the column is `h-dvh flex flex-col` with `main` as `flex-1 overflow-y-auto`. · **905 vitest passing** (+16 in `MobileNav.test.tsx`), tsc 0 errors, **row 18 12/12**, **row 21 30/30**. · **Sweep: 41 → 12 failures of 88.** Every `document gains no horizontal scroll` test now passes at every width on every route — row 9 is **100% green**. All seven AppLayout routes went fully green on rows 9 **and** 10:
+
+  | route | 320 before → after | 390 before → after |
+  |---|---|---|
+  | `/search` | +196px · 12 esc → **ok** | +126px · 12 esc → **ok** |
+  | `/documents` | +339px · 12 esc → **ok** | +269px · 12 esc → **ok** |
+  | `/settings` | +204px · 12 esc → **ok** | +134px · 12 esc → **ok** |
+  | `/history` | +139px · 12 esc → **ok** | +68px · 12 esc → **ok** |
+  | `/companies` | +40px · 12 esc → **ok** | ok |
+  | `/dashboard` | +45px · 6 esc → **ok** | ok |
+  | `/billing` | 2 esc → **ok** | ok |
+
+  The 12 remaining failures are all owned by later tasks: `/` escapees ×4 widths (MB-3.5), `/auth` escapees ×3 (MB-10), and the `/trading` asset view ×4 (MB-4, still 16px).
+
+  - _`min-w-0` did most of the work._ Dropping the rail's 56px explains only part of it; the rest is that `flex-1` defaults to `min-width:auto`, so the content column could never shrink below its widest child and pushed the entire shell sideways instead of letting each page's own `overflow-x-auto` container do its job. `/documents` improved by 215px at 390 from one class.
+  - _The bar was built wrong first, and the gate caught it._ `fixed bottom-0` is the obvious implementation and it is wrong on a phone: measured on prod at iPhone 14, **`window.innerHeight` reported 743 against a 664px visible viewport**, so the bar's bottom edge sat at **743 — 79px below the fold**, unreachable, and unreachable by scrolling too since fixed elements do not move. That is fault F4 wearing a different hat, and `dvh` on the shells does not fix it because `fixed` anchors to the layout viewport regardless. Rebuilt as a normal flex child at the end of an `h-dvh` column with `main` scrolling internally: bar now measures **top 618, bottom 664, height 46 — flush with the visible viewport**, `position: static`. Row 15's assertion deliberately compares against `documentElement.clientHeight`, never `innerHeight`, with a comment saying why, because "fixing" it to `innerHeight` would make the bug invisible again.
+  - _Row 18 comparison changed from per-index to set-of-positions._ `/history` failed the desktop guard with 8 landmarks "disappeared" at identical `x=204/571/937 w=355` — the account's card list had shrunk between runs. Row counts are data, not layout. The set still catches a column that moves, resizes, restacks or vanishes; only multiplicity is discarded. Regenerating the baseline was safe because the other 11 routes passed against the pre-MB-3 baseline, which is itself the proof that MB-3 did not move the desktop.
+  - _One flake, not a regression:_ `floatingHeader.spec.ts` failed once in a full 30-spec parallel run against live prod, then passed 3/3 alone and 30/30 on a clean re-run.
+  - _Cadence changed to 120s_ at the user's instruction, and written into `~/.claude/LOOP_SPEC.md` as the global default for loops that **work** rather than **watch**. Polling loops keep the old rule of matching the tick to the observed process.
+
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 
 ---
@@ -424,10 +444,13 @@ These are the loop working, not the loop failing:
 
 ## 11. Cadence
 
-Match the tick to the work, not to impatience. A layout task is minutes of edit
-and one deploy; there is nothing to poll. Run tasks back to back while they are
-unblocked. On a rate limit or 429: stop consuming tokens immediately, schedule a
-wake-up an hour out, and resume from the last logged step — never spin.
+**120 seconds between iterations.** This loop works rather than watches — each
+tick is edit, test, deploy, verify, log, all performed by the agent — so there is
+no external state to wait for and a long tick is idle time. Run tasks back to
+back while they are unblocked.
+
+On a rate limit or 429: stop consuming tokens immediately, schedule a wake-up an
+hour out, and resume from the last logged step — never spin.
 
 The one thing worth waiting on is a prod deploy propagating, and that is seconds.
 

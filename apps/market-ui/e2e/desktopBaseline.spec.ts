@@ -75,18 +75,24 @@ async function settle(page: import('@playwright/test').Page) {
 }
 
 function compare(base: Frame[], now: Frame[]): string[] {
-  // x + width only. Height is data-dependent; presence and count are not.
-  const key = (f: Frame) => `${f.sel}[${f.i}]`;
-  const geom = (f: Frame) => `x=${f.x} w=${f.w}`;
-  const a = new Map(base.map((f) => [key(f), geom(f)]));
-  const b = new Map(now.map((f) => [key(f), geom(f)]));
+  // The comparison is over the SET of distinct positions, not per-index.
+  //
+  // Indexing by ordinal leaks the item count into the gate: /history renders a
+  // three-column card grid, and when the account's list shrank between runs,
+  // eight cards at the same three x-offsets "disappeared" and failed a route
+  // whose layout had not moved a pixel. Row counts are data.
+  //
+  // A set still catches every layout regression this loop can cause — a column
+  // that moves, resizes, restacks, or vanishes changes which distinct positions
+  // exist. Only the multiplicity is discarded.
+  //
+  // Heights are recorded but not compared; a taller table is data too.
+  const geom = (f: Frame) => `${f.sel} x=${f.x} w=${f.w}`;
+  const a = new Set(base.map(geom));
+  const b = new Set(now.map(geom));
   const moved: string[] = [];
-  for (const [k, v] of a) {
-    const n = b.get(k);
-    if (n === undefined) moved.push(`${k} disappeared (was ${v})`);
-    else if (n !== v) moved.push(`${k} ${v} -> ${n}`);
-  }
-  for (const k of b.keys()) if (!a.has(k)) moved.push(`${k} appeared (${b.get(k)})`);
+  for (const k of a) if (!b.has(k)) moved.push(`gone: ${k}`);
+  for (const k of b) if (!a.has(k)) moved.push(`new:  ${k}`);
   return moved;
 }
 
