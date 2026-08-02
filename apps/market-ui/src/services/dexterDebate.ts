@@ -23,7 +23,11 @@ export interface DebateTurn {
     side: Side;
     round: number;
     text: string;
+    /** DI-9: the observable this side says would prove it wrong. Null if it declined to give one. */
+    falsifier?: string | null;
 }
+
+export const FALSIFIER_PREFIX = 'FALSIFIER:';
 
 export type Stance = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
 
@@ -34,6 +38,12 @@ export interface DebateResult {
     /** 0-100, or null when the manager declined to state one. */
     confidence: number | null;
     rounds: number;
+    /** DI-9: what each side was shown that the other was not. */
+    privateEvidence: Record<Side, string[]>;
+    /** DI-9: every falsifiable claim made, with its author. */
+    falsifiers: Array<{ side: Side; claim: string }>;
+    /** DI-9: sides that produced no falsifier, or were given no private evidence. */
+    gaps: string[];
     steps: CellStep[];
 }
 
@@ -54,7 +64,43 @@ const SHARED_RULES =
     'Rules: argue only from the analyst reports below. Every figure you use keeps the [N] marker ' +
     'it came from — a number without one is worth nothing here and will be graded as such. ' +
     'If the reports do not support your side on some point, concede it; a conceded point costs ' +
-    'you less than an invented one. At most 140 words.';
+    'you less than an invented one. At most 140 words.\n' +
+    `End with exactly one line:\n${FALSIFIER_PREFIX} <the specific observable that would prove ` +
+    'your case wrong — a level, a print, a date>. It must be a condition someone could check, ' +
+    'not a hedge: "if support fails" is not a falsifier, "a daily close below 61,400" is.';
+
+// DI-9 (row 13): each side is handed structure the other is not. Bull sees what
+// holds the position up, bear sees what stands in its way, and each is told the
+// other cannot see it — so a debater who only restates the shared reports is
+// visibly not using what it was given. This is the difference between two
+// advocates reading one file and an actual adversarial process.
+export interface PrivateEvidenceInput {
+    /** From taLevels: held support/resistance the side cares about. */
+    levels?: Array<{ price: number; touches: number; kind: 'support' | 'resistance' }>;
+    /** From dexterRegime. */
+    regime?: string;
+    regimeReason?: string;
+    /** From dexterCrossSection: where the name sits against its universe. */
+    crossSection?: string;
+    /** From dexterSignal: the deterministic read, which the bear is told to attack. */
+    signal?: string;
+}
+
+export function buildPrivateEvidence(side: Side, input: PrivateEvidenceInput): string[] {
+    const out: string[] = [];
+    const want = side === 'bull' ? 'support' : 'resistance';
+    for (const l of input.levels ?? []) {
+        if (l.kind === want) out.push(`${l.kind} at ${l.price} held ${l.touches} times`);
+    }
+    if (side === 'bull') {
+        if (input.crossSection) out.push(`cross-section: ${input.crossSection}`);
+        if (input.signal) out.push(`the deterministic engine reads: ${input.signal}`);
+    } else {
+        if (input.regime) out.push(`regime: ${input.regime}${input.regimeReason ? ` — ${input.regimeReason}` : ''}`);
+        if (input.signal) out.push(`the deterministic engine reads ${input.signal} — find what would break it`);
+    }
+    return out;
+}
 
 export function renderTurns(turns: DebateTurn[]): string {
     if (turns.length === 0) return '(no prior argument)';
@@ -66,7 +112,12 @@ export function debatePrompt(
     ctx: AssetContext,
     reports: AnalystReport[],
     turns: DebateTurn[],
+    privateEvidence: string[] = [],
 ): ChatMessage[] {
+    const priv = privateEvidence.length === 0
+        ? ''
+        : `\n\nEvidence held only by you (the other side has NOT seen this — use it):\n` +
+          privateEvidence.map(e => `- ${e}`).join('\n');
     return [
         {
             role: 'system',
@@ -75,9 +126,16 @@ export function debatePrompt(
         },
         {
             role: 'user',
-            content: `Analyst reports:\n\n${renderReports(reports)}\n\nDebate so far:\n\n${renderTurns(turns)}`,
+            content: `Analyst reports:\n\n${renderReports(reports)}${priv}\n\nDebate so far:\n\n${renderTurns(turns)}`,
         },
     ];
+}
+
+/** The falsifier line, or null when the side did not give one. Never inferred from prose. */
+export function parseFalsifier(text: string): string | null {
+    const m = text.match(/FALSIFIER:\s*(.+)/i);
+    const claim = m?.[1]?.trim();
+    return claim ? claim.replace(/\s+/g, ' ') : null;
 }
 
 // The manager is asked for a machine-readable header so the stance and
@@ -121,6 +179,8 @@ export function parseVerdict(text: string): { stance: Stance; confidence: number
 export interface DebateDeps {
     callLLM: (messages: ChatMessage[]) => Promise<{ text: string }>;
     now?: () => number;
+    /** DI-9: deterministic structure to split between the two sides. */
+    evidence?: PrivateEvidenceInput;
 }
 
 // N rounds = exactly 2N debater calls, plus one manager call. The bear always
@@ -135,16 +195,20 @@ export async function runDebate(
     const n = clampRounds(rounds);
     const trace = newTrace(deps.now ?? Date.now);
     const turns: DebateTurn[] = [];
+    const priv: Record<Side, string[]> = {
+        bull: deps.evidence ? buildPrivateEvidence('bull', deps.evidence) : [],
+        bear: deps.evidence ? buildPrivateEvidence('bear', deps.evidence) : [],
+    };
 
     for (let round = 1; round <= n; round++) {
         for (const side of ['bull', 'bear'] as const) {
             const reply = await trace.step(
                 `${side === 'bull' ? 'Bull' : 'Bear'} argues (round ${round})`,
                 side,
-                () => deps.callLLM(debatePrompt(side, ctx, reports, turns)),
+                () => deps.callLLM(debatePrompt(side, ctx, reports, turns, priv[side])),
                 { isEmpty: r => !r.text.trim() },
             );
-            turns.push({ side, round, text: reply.text });
+            turns.push({ side, round, text: reply.text, falsifier: parseFalsifier(reply.text) });
         }
     }
 
@@ -152,11 +216,29 @@ export async function runDebate(
         () => deps.callLLM(managerPrompt(ctx, reports, turns)),
         { isEmpty: r => !r.text.trim() });
 
+    // A side that would not say what would prove it wrong is recorded as such
+    // rather than quietly passing (doctrine 4: a view with no invalidation
+    // condition is not a view).
+    const gaps: string[] = [];
+    for (const side of ['bull', 'bear'] as const) {
+        if (!turns.some(t => t.side === side && t.falsifier)) {
+            gaps.push(`${side} produced no falsifiable claim`);
+        }
+    }
+    if (deps.evidence) {
+        for (const side of ['bull', 'bear'] as const) {
+            if (priv[side].length === 0) gaps.push(`${side} was given no private evidence`);
+        }
+    }
+
     return {
         turns,
         verdict: verdict.text,
         ...parseVerdict(verdict.text),
         rounds: n,
+        privateEvidence: priv,
+        falsifiers: turns.filter(t => t.falsifier).map(t => ({ side: t.side, claim: t.falsifier! })),
+        gaps,
         steps: trace.done(),
     };
 }

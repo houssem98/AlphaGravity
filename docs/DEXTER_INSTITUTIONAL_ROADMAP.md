@@ -276,7 +276,7 @@ flowchart TD
       bars-only classifier; ledger-note the macro extension rather than waiting. Row 11.
 - [x] **DI-8 — Cross-sectional context.** Relative strength against a stated universe, with an
       honest null off-universe. Closes G6 with DI-7. Row 12.
-- [ ] **DI-9 — Adversarial debate grounding.** Bull and bear each get private evidence and must
+- [x] **DI-9 — Adversarial debate grounding.** Bull and bear each get private evidence and must
       emit falsifiable claims. Closes G7. Row 13.
 - [ ] **DI-10 — Calibration.** Brier score over journalled confidence vs realised outcomes,
       surfaced in the note and the UI; honest "not yet calibrated" below the sample floor.
@@ -530,3 +530,22 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   Tests: dexterCrossSection 13/13 (row 12), full repo **1076 pass / 0 fail / 7
   skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy. Closes
   G6 together with DI-7.
+- 2026-08-03 — **DI-9 closed. The debate is adversarial in substance, not just in
+  tone.** `dexterDebate.ts` now splits deterministic structure between the sides:
+  the **bull** is handed held support, the cross-sectional rank and the engine's
+  read; the **bear** is handed held resistance, the regime label with its drift
+  number, and the same engine read with an instruction to find what would break
+  it. Each side's prompt says outright that the other has not seen it, so a
+  debater who merely restates the shared reports is visibly not using what it was
+  given. Every turn must end with a `FALSIFIER:` line naming an observable —
+  the prompt spells out that *"if support fails"* is not a falsifier and
+  *"a daily close below 61,400"* is — and the claim is **parsed, never inferred
+  from prose**. A side that refuses to give one does not quietly pass: it lands
+  in `gaps` as "bull produced no falsifiable claim" (doctrine 4).
+  The spine was not regressed: the pre-existing 20 DX-9 tests still pass
+  untouched, `debatePrompt` and `runDebate` keep their old signatures with the
+  evidence and falsifier work behind optional parameters, and a debate run with
+  no evidence supplied behaves exactly as before.
+  Tests: dexterDebate **27/27** (20 DX-9 + 7 new for row 13), full repo **1083
+  pass / 0 fail / 7 skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no
+  deploy. Closes G7 at the layer; wiring rides DI-15.

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
     runDebate, debatePrompt, managerPrompt, parseVerdict, clampRounds, renderTurns,
     DEFAULT_DEBATE_ROUNDS, MAX_DEBATE_ROUNDS,
+    buildPrivateEvidence, parseFalsifier,
     type DebateDeps, type DebateTurn,
 } from './dexterDebate';
 import type { AnalystReport } from './dexterGraph';
@@ -168,5 +169,104 @@ describe('row 14 — wired into the handler', () => {
 
     it('hands the verdict to the final answer instead of re-deciding', () => {
         expect(handler).toContain('Lead with that verdict and the reason it won');
+    });
+});
+
+// DI-9 — docs/DEXTER_INSTITUTIONAL_ROADMAP.md Section 6 row 13.
+describe('row 13 — each side gets evidence the other does not, and must say what would kill it', () => {
+    const EVIDENCE = {
+        levels: [
+            { price: 61_400, touches: 4, kind: 'support' as const },
+            { price: 72_800, touches: 3, kind: 'resistance' as const },
+        ],
+        regime: 'trending-down',
+        regimeReason: 'drift -0.21 ATR/bar',
+        crossSection: 'BTC ranks 2/4, excess +3.5%',
+        signal: 'SHORT · trend · conviction 0.6',
+    };
+
+    const withFalsifiers = (): DebateDeps & { seen: ChatMessage[][] } => {
+        const base = deps();
+        return {
+            ...base,
+            callLLM: async (messages: ChatMessage[]) => {
+                base.seen.push(messages);
+                const isManager = String(messages[0].content).includes('research manager');
+                if (isManager) return { text: 'STANCE: BEARISH\nCONFIDENCE: 62\nThe bear won.' };
+                const isBull = String(messages[0].content).includes('You are the bull');
+                return {
+                    text: isBull
+                        ? 'Support has held four times [1].\nFALSIFIER: a daily close below 61,400'
+                        : 'Trend is down [1].\nFALSIFIER: a daily close above 72,800',
+                };
+            },
+        };
+    };
+
+    it('hands the bull support and the bear resistance', () => {
+        expect(buildPrivateEvidence('bull', EVIDENCE)).toEqual([
+            'support at 61400 held 4 times',
+            'cross-section: BTC ranks 2/4, excess +3.5%',
+            'the deterministic engine reads: SHORT · trend · conviction 0.6',
+        ]);
+        expect(buildPrivateEvidence('bear', EVIDENCE)).toEqual([
+            'resistance at 72800 held 3 times',
+            'regime: trending-down — drift -0.21 ATR/bar',
+            'the deterministic engine reads SHORT · trend · conviction 0.6 — find what would break it',
+        ]);
+    });
+
+    it('gives each side at least one item the other never sees', async () => {
+        const d = withFalsifiers();
+        const r = await runDebate(CTX, REPORTS, { ...d, evidence: EVIDENCE }, 1);
+        const bullOnly = r.privateEvidence.bull.filter(e => !r.privateEvidence.bear.includes(e));
+        const bearOnly = r.privateEvidence.bear.filter(e => !r.privateEvidence.bull.includes(e));
+        expect(bullOnly.length).toBeGreaterThanOrEqual(1);
+        expect(bearOnly.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('puts the private evidence in that side\'s prompt and nowhere else', async () => {
+        const d = withFalsifiers();
+        await runDebate(CTX, REPORTS, { ...d, evidence: EVIDENCE }, 1);
+        const bullPrompt = String(d.seen[0][1].content);
+        const bearPrompt = String(d.seen[1][1].content);
+        expect(bullPrompt).toContain('support at 61400 held 4 times');
+        expect(bullPrompt).not.toContain('resistance at 72800');
+        expect(bearPrompt).toContain('resistance at 72800 held 3 times');
+        expect(bearPrompt).not.toContain('support at 61400');
+        expect(bullPrompt).toContain('the other side has NOT seen this');
+    });
+
+    it('asks for a falsifier and records the one each side gives', async () => {
+        const d = withFalsifiers();
+        const r = await runDebate(CTX, REPORTS, { ...d, evidence: EVIDENCE }, 1);
+        expect(String(d.seen[0][0].content)).toContain('FALSIFIER:');
+        expect(String(d.seen[0][0].content)).toContain('not a hedge');
+        expect(r.falsifiers).toEqual([
+            { side: 'bull', claim: 'a daily close below 61,400' },
+            { side: 'bear', claim: 'a daily close above 72,800' },
+        ]);
+        expect(r.gaps).toEqual([]);
+    });
+
+    it('records a side that refused to say what would prove it wrong', async () => {
+        const r = await runDebate(CTX, REPORTS, deps(), 1);
+        expect(r.falsifiers).toEqual([]);
+        expect(r.gaps).toContain('bull produced no falsifiable claim');
+        expect(r.gaps).toContain('bear produced no falsifiable claim');
+    });
+
+    it('parses only a stated falsifier, never one inferred from prose', () => {
+        expect(parseFalsifier('FALSIFIER: a close below 61,400')).toBe('a close below 61,400');
+        expect(parseFalsifier('falsifier:   spaced   out  ')).toBe('spaced out');
+        expect(parseFalsifier('I would be wrong if support broke')).toBeNull();
+        expect(parseFalsifier('FALSIFIER:')).toBeNull();
+    });
+
+    it('leaves the debate unchanged when no evidence is supplied', async () => {
+        const d = deps();
+        const r = await runDebate(CTX, REPORTS, d, 1);
+        expect(r.privateEvidence).toEqual({ bull: [], bear: [] });
+        expect(String(d.seen[0][1].content)).not.toContain('the other side has NOT seen this');
     });
 });
