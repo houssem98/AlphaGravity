@@ -495,6 +495,22 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
   - _Row 17's first assertion failed a page that works._ It demanded the submit button sit inside the visible viewport unscrolled; at 320×568 it measured `bottom 657 > 568`. A logo, a banner, two fields and two buttons do not fit 568px, and scrolling to a submit button is ordinary — the row's actual words are "without **horizontal** scroll". Corrected to assert that, with the vertical extent reported rather than enforced.
   - _One half of row 17 stays unverified and is marked so:_ the keyboard must not cover submit. Chromium has no soft keyboard and no visualViewport resize to observe, so it cannot be tested headlessly. Called out rather than faked.
 
+- **MB-11 · company, dashboard, history, billing — mostly a closed path** · `CompanyPage` root goes `min-h-[calc(100dvh-64px)] p-4 sm:p-6`, its quick-actions row gains `flex-wrap`, and `CompanyBrief`'s header gains `flex-wrap` with the strapline `hidden sm:inline`. `Dashboard`, `History` and `Billing` needed **nothing**. · **905 vitest**, tsc 0 errors, **row 18 12/12**, **row 21 30/30**, sweep **103 passed / 0 failed**.
+
+  **Measured on prod at 390px, elements clipped wider than their own box with no scroller:**
+
+  | page | before | after |
+  |---|---|---|
+  | `/companies/AAPL` | **6** — root `390<465`, three inner rows `342<441` | **1** (a decorative `●` glyph, `8<16`) |
+  | `/companies/MSFT` | **5** — root `390<499`, inner `358<475` | **0** |
+  | `/dashboard`, `/history`, `/billing` | 0 | 0 |
+
+  - _Three of the four pages had no work to do, and the spec's premise was wrong about why._ MB-11 was written to "stack the multi-column grids" and "make the peer strip and filing tables scroll". Measured at 390px, these pages render **zero** CSS grids and **zero** `<table>` elements — `/dashboard`, `/history` and `/billing` show empty states for this account, and a fully loaded `/companies/AAPL` (7,341 characters of content) uses flex and divs throughout. There was nothing to stack.
+  - _The real fault was one component, and it was invisible to every existing row._ `CompanyBrief`'s header put a title, a strapline and a three-model picker in one non-wrapping `flex items-center gap-2`: 475px of content in a 358px column, clipped with no way to scroll to it. Page-level rows 9 and 10 cannot see this — an `overflow-hidden` ancestor absorbs it — which is the same blind spot MB-5 found in the topbar. Element-level clipping is a distinct measurement and worth keeping.
+  - _The first fix missed._ I wrapped `CompanyPage`'s quick-actions row on the assumption it was the 441px offender; it was a different `flex items-center gap-2` one component deeper. Printing the clipped element's **text** rather than its class name identified it immediately.
+  - _Staging note:_ `CompanyPage.tsx` carries unrelated in-flight work (an `EdgarLink` swap this loop did not write). Only my own hunks were staged, via a patch applied to the index; the `EdgarLink` change remains uncommitted in the working tree, untouched.
+  - _Left alone:_ 10px text on the brief header controls, below the design system's own 11px `--fs-label` floor. It is pre-existing terminal density, the doctrine says density survives, and the strapline that carried most of it is now hidden below `sm`.
+
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 
 ---

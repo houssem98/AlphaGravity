@@ -313,7 +313,7 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
     const COLORS = ['#00F0FF', '#5B8DF6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'];
 
     return (
-        <div className="min-h-[calc(100vh-64px)] p-6 max-w-5xl mx-auto">
+        <div className="min-h-[calc(100dvh-64px)] p-4 sm:p-6 max-w-5xl mx-auto">
             {/* Back */}
             <button
                 onClick={() => embedded ? setLocalTicker('') : navigate(-1)}
@@ -361,7 +361,9 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                     </div>
 
                     {/* Quick actions */}
-                    <div className="flex gap-2 mb-6">
+                    {/* Three buttons in a non-wrapping row measured 441px inside a
+                        342px column at 390px — clipped, with no scroller. */}
+                    <div className="flex flex-wrap gap-2 mb-6">
                         <button
                             onClick={() => navigate(`/search?q=${encodeURIComponent(`${overview?.Name ?? symbol} latest earnings analysis`)}`)}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-[#00F0FF] text-xs hover:bg-[#00F0FF]/20 transition-colors"

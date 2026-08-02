@@ -214,10 +214,14 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-2">
+            {/* MB-11: title, strapline and the model picker measured 475px in a
+                358px column at 390px and were clipped with no scroller. Wrapping
+                is enough — the picker keeps its own row and the strapline, which
+                is the least load-bearing of the three, drops out under sm. */}
+            <div className="flex flex-wrap items-center gap-2">
                 <Sparkles className="w-4 h-4 text-[#00F0FF]" />
                 <p className="text-sm font-semibold text-white">AI Company Brief</p>
-                <span className="text-[10px] text-[#4A5568]">filings-grounded · every claim cited</span>
+                <span className="hidden sm:inline text-[10px] text-[#4A5568]">filings-grounded · every claim cited</span>
                 {cached && !running && (
                     <span className="text-[10px] text-[#00F0FF]/70 border border-[#00F0FF]/20 rounded px-1.5 py-0.5">cached today</span>
                 )}
