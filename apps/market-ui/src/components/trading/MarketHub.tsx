@@ -130,7 +130,7 @@ function MarketCard({
 
       <button
         onClick={() => onSelectMarket(def.id)}
-        className="mt-3 text-label font-semibold text-[color:var(--accent)] hover:underline flex items-center gap-1 self-start"
+        className="tap mt-3 text-label font-semibold text-[color:var(--accent)] hover:underline flex items-center gap-1 self-start"
       >
         See all {def.label} <ArrowRight className="w-3 h-3" />
       </button>
@@ -189,7 +189,7 @@ export const MarketHub: React.FC<MarketHubProps> = ({ onSelectMarket, onSelectAs
             {[0, 1].map((copy) => (
               <div key={copy} className="flex items-center gap-6 pl-6" aria-hidden={copy === 1}>
                 {tape.map((r, i) => (
-                  <button key={`${r.symbol}-${i}`} onClick={() => onSelectAsset(r.symbol, r.market)} tabIndex={copy === 1 ? -1 : 0} className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
+                  <button key={`${r.symbol}-${i}`} onClick={() => onSelectAsset(r.symbol, r.market)} tabIndex={copy === 1 ? -1 : 0} className="tap flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
                     <span className="text-data font-semibold text-[color:var(--text)]">{r.symbol.replace('^', '')}</span>
                     <span className="font-mono text-data text-[color:var(--text-2)]">{fmtPrice(r.price, r.currency)}</span>
                     <Delta pct={r.changePct} />

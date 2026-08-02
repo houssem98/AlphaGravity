@@ -60,7 +60,7 @@ function citeChildren(children: ReactNode, onCite: (id: number) => void): ReactN
                 <button
                     key={i}
                     onClick={() => onCite(id)}
-                    className="mx-0.5 inline-flex items-center justify-center min-w-4 h-4 px-0.5 rounded-full bg-[#00F0FF]/15 text-[#00F0FF] text-[10px] font-bold hover:bg-[#00F0FF]/30 align-super"
+                    className="tap-cite mx-0.5 inline-flex items-center justify-center min-w-4 h-4 px-0.5 rounded-full bg-[#00F0FF]/15 text-[#00F0FF] text-[10px] font-bold hover:bg-[#00F0FF]/30 align-super"
                 >
                     {id}
                 </button>

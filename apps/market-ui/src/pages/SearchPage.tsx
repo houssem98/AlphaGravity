@@ -389,7 +389,7 @@ function SourceFilterBar({ active, onChange }: { active: SourceFilterId; onChang
                 <button
                     key={f.id}
                     onClick={() => onChange(f.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
+                    className={`tap px-3 py-1 rounded-full text-xs font-medium transition-all border ${
                         active === f.id
                             ? 'bg-[var(--accent)]/15 border-[var(--accent)]/40 text-[var(--accent)]'
                             : 'border-white/[0.08] text-[var(--text-3)] hover:text-[var(--text-2)] hover:border-white/[0.15]'

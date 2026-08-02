@@ -1793,7 +1793,7 @@ function injectCites(
                     key={i}
                     onClick={() => onOpen(num)}
                     title={map.get(num)!.title}
-                    className="mx-0.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[#00f0ff]/20 text-[#00f0ff] text-[10px] font-bold align-super hover:bg-[#00f0ff]/40 hover:shadow-[0_0_8px_rgba(0,240,255,0.5)] active:scale-95 transition-all"
+                    className="tap-cite mx-0.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[#00f0ff]/20 text-[#00f0ff] text-[10px] font-bold align-super hover:bg-[#00f0ff]/40 hover:shadow-[0_0_8px_rgba(0,240,255,0.5)] active:scale-95 transition-all"
                 >
                     {num}
                 </button>

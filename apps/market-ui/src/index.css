@@ -550,3 +550,29 @@
 .noise-overlay{ display: none; }
 .sparkline    { animation: none; stroke-dashoffset: 0; }
 
+/* ── MB-12 · citation markers ────────────────────────────────────────────
+   Inline citation chips ship at 16x16. A 44px hit-slop band is not available
+   to them: they sit inside running prose, `mx-0.5` apart, so a band that tall
+   would overlap the lines above and below and a band that wide would have
+   neighbouring citations stealing each other's taps.
+
+   24x24 with 4px of slop is the honest maximum for an inline superscript —
+   roughly 3.5x the tap area, still short of the 44px floor. Recorded as a
+   compromise in the ledger rather than reported as a pass.
+
+   This block sits last in the file, inside `utilities`, so it outranks the
+   `h-4` / `min-w-4` utilities on the same elements by source order. */
+@layer utilities {
+  @media (pointer: coarse) {
+    .tap-cite {
+      position: relative;
+      min-width: 24px;
+      height: 24px;
+    }
+    .tap-cite::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+    }
+  }
+}
