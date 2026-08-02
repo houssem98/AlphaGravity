@@ -288,7 +288,7 @@ flowchart TD
 - [x] **DI-13 — Institutional note.** Rating, target + horizon, one-line thesis, variant
       perception, dated catalysts, falsifiable invalidation triggers — as a `dexter-note`
       block the DD-8 renderer draws. Missing fields render as explicit gaps. Closes G12. Rows 17, 18.
-- [ ] **DI-14 — Execution realism.** Gap-through fills at the open, partial fills, overnight
+- [x] **DI-14 — Execution realism.** Gap-through fills at the open, partial fills, overnight
       risk. Row 19.
 - [ ] **DI-15 — Ship and prove.** `vercel --prod`, live probe, record net R, contamination
       label, Brier, n and window in §8. Rows 20, 21.
@@ -627,3 +627,16 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   job — so a prod probe today could not confirm the change from a real 200. The
   ledger's own last row is "ship and prove"; this ships there, once, with the
   DI-4/5/6/9 wiring. Closes G12 at the layer.
+- 2026-08-03 — **DI-14 closed. A gapped stop is no longer booked as a clean −1R.**
+  `dexterExecution.ts` fills at `bar.open` whenever the session opens already
+  through the level — for stops **and** targets — because intrabar touch order is
+  unknowable from daily data and the open is the only observable fill price. The
+  size of what was being hidden: long 100 with a stop at 98 that opens at 90 is a
+  **−5R** trade; every prior number in this repo would have booked it **−1R**.
+  Also shipped: **partial fills** capped at **10%** of the bar's volume with the
+  remainder reported as left working (a bar with no volume claims **no** fill
+  rather than assuming one), and **overnight gap risk** measured from the bars —
+  gap rate and worst gap in ATR — so gap-through is treated as a measured property
+  of the instrument rather than a freak event.
+  Tests: dexterExecution 16/16 (row 19), full repo **1147 pass / 0 fail / 7
+  skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy.
