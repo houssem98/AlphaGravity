@@ -283,7 +283,7 @@ flowchart TD
       Closes G8. Row 14.
 - [x] **DI-11 — Analyst iteration budget.** A bounded tool loop per analyst so a thread can be
       pulled, with the budget enforced and truncation recorded. Closes G9. Row 15.
-- [ ] **DI-12 — Thesis memory.** Persist theses per symbol, link new calls to prior ones, flag a
+- [x] **DI-12 — Thesis memory.** Persist theses per symbol, link new calls to prior ones, flag a
       stance flip with no new evidence. Closes G10. Row 16.
 - [ ] **DI-13 — Institutional note.** Rating, target + horizon, one-line thesis, variant
       perception, dated catalysts, falsifiable invalidation triggers — as a `dexter-note`
@@ -588,3 +588,20 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   Tests: dexterGraph **25/25** (18 DX-8 + 7 new for row 15), full repo **1102 pass
   / 0 fail / 7 skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no
   deploy. Closes G9.
+- 2026-08-03 — **DI-12 closed. Dexter can now say "this contradicts the thesis I
+  held in March."** `dexterThesis.ts` links each call to the most recent prior
+  thesis **on the same symbol** (never a later one, never another symbol), reports
+  the age in days, and diffs the evidence into **new** and **dropped** sets. The
+  rule it enforces: a flip is fine, an **unexplained** flip is not. A stance
+  reversal with **zero** new evidence produces a contradiction that quotes both
+  theses — "a reversal with nothing new behind it is a coin toss wearing a
+  thesis" — while the same reversal with something new is recorded as justified
+  and names what justified it. A move through NEUTRAL is a change of degree, not a
+  reversal, so it is not flagged.
+  Comparison is on **evidence keys**, not prose: `evidenceKeysOf` keys on citation
+  source + title, level prices and the regime label, sorted, so two theses built
+  from identical facts but worded differently compare equal — which is the only
+  way the flip check can be honest.
+  Tests: dexterThesis 14/14 (row 16), full repo **1116 pass / 0 fail / 7
+  skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy.
+  Closes G10.
