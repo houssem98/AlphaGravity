@@ -62,6 +62,8 @@ export default function HeroSection() {
       tl.fromTo(chipEls, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.45, stagger: 0.06 }, 0.75);
       tl.fromTo(microcopy, { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.9);
 
+      const mm = gsap.matchMedia();
+      mm.add('(min-width: 768px) and (prefers-reduced-motion: no-preference)', () => {
       const scrollTl = gsap.timeline({
         scrollTrigger: {
           trigger: section, start: 'top top', end: '+=130%', pin: true, scrub: 0.6,
@@ -70,6 +72,7 @@ export default function HeroSection() {
       });
       scrollTl.fromTo(card, { y: 0, scale: 1, opacity: 1 }, { y: '-22vh', scale: 0.96, opacity: 0, ease: 'power2.in' }, 0.7);
       scrollTl.fromTo(bg, { y: 0, scale: 1 }, { y: '-8vh', scale: 1.04 }, 0.7);
+      });
     }, section);
 
     return () => ctx.revert();
@@ -81,7 +84,7 @@ export default function HeroSection() {
   ));
 
   return (
-    <section ref={sectionRef} className="relative w-full h-screen overflow-hidden z-10">
+    <section ref={sectionRef} className="relative w-full min-h-dvh md:h-dvh overflow-hidden z-10 flex flex-col justify-center md:block px-4 py-16 md:p-0">
 
       {/* Background */}
       <div ref={bgRef} className="absolute inset-0 w-full h-full" style={{ opacity: 0 }}>
@@ -95,21 +98,25 @@ export default function HeroSection() {
           <Sparkles className="w-6 h-6 text-[#00F0FF]" />
           <span className="font-bold text-lg tracking-tight text-white">MarketIntelligence</span>
         </div>
-        <div className="hidden md:flex items-center gap-8 text-sm text-[#A7B0C8]">
-          <a href="#features" className="hover:text-white transition-colors">Product</a>
-          <a href="#features" className="hover:text-white transition-colors">Data</a>
-          <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+        {/* The whole block used to be `hidden md:flex`, which left a phone with
+            zero nav links — measured: 0 visible — and therefore no way into the
+            product from the front door. The marketing anchors can go; the way
+            in cannot. */}
+        <div className="flex items-center gap-3 md:gap-8 text-sm text-[#A7B0C8]">
+          <a href="#features" className="hidden md:inline hover:text-white transition-colors">Product</a>
+          <a href="#features" className="hidden md:inline hover:text-white transition-colors">Data</a>
+          <a href="#pricing" className="hidden md:inline hover:text-white transition-colors">Pricing</a>
           {loggedIn ? (
             <>
               <Link
                 to="/search"
-                className="px-5 py-2 rounded-full bg-[#00F0FF] text-[#070A12] hover:bg-[#00F0FF]/90 transition-all text-sm font-semibold"
+                className="min-h-[44px] flex items-center px-4 md:px-5 rounded-full bg-[#00F0FF] text-[#070A12] hover:bg-[#00F0FF]/90 transition-all text-sm font-semibold"
               >
                 Open app
               </Link>
               <button
                 onClick={handleSwitchAccount}
-                className="px-5 py-2 rounded-full border border-[rgba(255,255,255,0.2)] text-white/80 hover:border-white/50 hover:text-white hover:bg-white/5 transition-all text-sm font-medium"
+                className="hidden md:flex min-h-[44px] items-center px-5 rounded-full border border-[rgba(255,255,255,0.2)] text-white/80 hover:border-white/50 hover:text-white hover:bg-white/5 transition-all text-sm font-medium"
               >
                 Switch account
               </button>
@@ -117,7 +124,7 @@ export default function HeroSection() {
           ) : (
             <Link
               to="/auth"
-              className="px-5 py-2 rounded-full border border-[rgba(255,255,255,0.2)] text-white/80 hover:border-white/50 hover:text-white hover:bg-white/5 transition-all text-sm font-medium"
+              className="min-h-[44px] flex items-center px-4 md:px-5 rounded-full border border-[rgba(255,255,255,0.2)] text-white/80 hover:border-white/50 hover:text-white hover:bg-white/5 transition-all text-sm font-medium"
             >
               Sign in
             </Link>
@@ -128,10 +135,10 @@ export default function HeroSection() {
       {/* Hero card */}
       <div
         ref={cardRef}
-        className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[min(880px,90vw)] panel-bg panel-border rounded-2xl z-40"
+        className="relative w-full md:absolute md:left-1/2 md:-translate-x-1/2 md:top-1/2 md:-translate-y-1/2 md:w-[min(880px,90vw)] panel-bg panel-border rounded-2xl z-40"
         style={{ opacity: 0 }}
       >
-        <div className="absolute -inset-10 bg-[radial-gradient(circle,rgba(0,240,255,0.12),transparent_60%)] -z-10 pointer-events-none" />
+        <div className="absolute inset-0 md:-inset-10 bg-[radial-gradient(circle,rgba(0,240,255,0.12),transparent_60%)] -z-10 pointer-events-none" />
         <div className="p-7 md:p-10">
 
           <h1 ref={headlineRef} className="text-4xl md:text-5xl lg:text-[56px] font-bold text-center mb-8 leading-tight tracking-tight">
@@ -148,7 +155,7 @@ export default function HeroSection() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="E.g., 'AI semiconductor demand trends Q2'"
-                className="flex-1 bg-transparent text-[#F4F6FF] placeholder:text-[#A7B0C8]/45 outline-none text-sm md:text-[15px]"
+                className="flex-1 min-w-0 bg-transparent text-[#F4F6FF] placeholder:text-[#A7B0C8]/45 outline-none text-base md:text-[15px]"
                 autoComplete="off"
               />
               <button
@@ -192,7 +199,7 @@ export default function HeroSection() {
       </div>
 
       {/* Microcopy */}
-      <p ref={microcopyRef} className="absolute left-1/2 bottom-[8vh] -translate-x-1/2 text-xs md:text-sm text-[#A7B0C8]/60 z-20 whitespace-nowrap" style={{ opacity: 0 }}>
+      <p ref={microcopyRef} className="relative mt-6 text-center md:absolute md:left-1/2 md:bottom-[8vh] md:-translate-x-1/2 md:mt-0 text-xs md:text-sm text-[#A7B0C8]/60 z-20 md:whitespace-nowrap" style={{ opacity: 0 }}>
         Real-time data. Verified sources. No hallucinations.
       </p>
     </section>

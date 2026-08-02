@@ -54,9 +54,20 @@ test.describe('rows 9 + 10 — no route scrolls sideways on a phone', () => {
       await settle(page, path);
       const escapees = await page.evaluate(() => {
         const frame = document.documentElement.clientWidth;
+        // `auto`/`scroll` contain by letting the user reach the content;
+        // `hidden`/`clip` contain by cutting it off. Both stop the PAGE from
+        // scrolling sideways, which is what row 9 measures and this row
+        // explains — a decorative full-bleed layer inside an overflow-hidden
+        // section is a design choice, not a bug, and counting it as an escapee
+        // buries the real ones.
+        //
+        // Deliberately excludes <body>: index.css sets `overflow-x: hidden`
+        // there as a global safety net, and honouring it would mark every
+        // element on every page as contained and make this row worthless.
         const scrolls = (el: Element) => {
+          if (el === document.body) return false;
           const o = getComputedStyle(el).overflowX;
-          return o === 'auto' || o === 'scroll';
+          return o === 'auto' || o === 'scroll' || o === 'hidden' || o === 'clip';
         };
         const seen = new Map<string, number>();
         for (const el of Array.from(document.body.querySelectorAll('*'))) {

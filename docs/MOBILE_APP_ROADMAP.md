@@ -236,7 +236,7 @@ it names are the acceptance tests.
   nothing changes. One `NAV_ITEMS` import, no forked list.
   *Rows: 4, 6, 9, 10, 15, 16, 18, 19, 20, 22.*
 
-- [ ] **MB-3.5 · The front door.** `/` is the URL a phone user actually types,
+- [x] **MB-3.5 · The front door.** `/` is the URL a phone user actually types,
   and it is the least-covered surface in the app: `LandingPage` composes four
   GSAP `ScrollTrigger` sections (`sections/{Hero,Dashboard,Execution,Closing}Section.tsx`)
   that are each `h-screen` with `pin: true` + `scrub`, behind **614KB** of
@@ -399,6 +399,24 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
   - _Row 18 comparison changed from per-index to set-of-positions._ `/history` failed the desktop guard with 8 landmarks "disappeared" at identical `x=204/571/937 w=355` — the account's card list had shrunk between runs. Row counts are data, not layout. The set still catches a column that moves, resizes, restacks or vanishes; only multiplicity is discarded. Regenerating the baseline was safe because the other 11 routes passed against the pre-MB-3 baseline, which is itself the proof that MB-3 did not move the desktop.
   - _One flake, not a regression:_ `floatingHeader.spec.ts` failed once in a full 30-spec parallel run against live prod, then passed 3/3 alone and 30/30 on a clean re-run.
   - _Cadence changed to 120s_ at the user's instruction, and written into `~/.claude/LOOP_SPEC.md` as the global default for loops that **work** rather than **watch**. Polling loops keep the old rule of matching the tick to the observed process.
+
+- **MB-3.5 · the landing page** · All four `sections/*` moved off `h-screen` onto `min-h-dvh md:h-dvh` and gained a below-`md` stacked column; the pinned `scrub` timelines in Hero, Dashboard and Execution are now inside `gsap.matchMedia('(min-width: 768px) and (prefers-reduced-motion: no-preference)')`, with a `(max-width: 767px), (prefers-reduced-motion: reduce)` branch that reveals the elements outright. Execution's two panels and Hero's card go `relative w-full` below `md`; Dashboard's fake 72px sidebar and header and Execution's notification bell are `hidden md:flex`; the three non-hero city JPEGs are `loading="lazy" decoding="async"`. · **905 vitest**, tsc 0 errors, **row 18 12/12**, **row 21 30/30**. · **Sweep 12 → 6 failures of 88**; `/` is green on rows 9 and 10 at all four widths.
+
+  **Measured on prod at iPhone 14, before → after:**
+
+  | | before | after |
+  |---|---|---|
+  | Execution left panel | `161x449 @x=-170` — off-screen left | **`358x416 @x=16`** |
+  | Execution right panel | `130x680 @x=430` — off-screen right | **`358x382 @x=16`** |
+  | Dashboard fake sidebar | `72x664 @x=-72` — off-screen left | **`0x0`** (hidden) |
+  | Pinned scroll-jacks active | **3** | **0** |
+  | Nav links visible | **0** | **1** (Sign in / Open app) |
+  | Image bytes on load | **614KB** | **325KB** |
+  | Document height | 11,723px | 10,181px |
+
+  - _The gate said this page was fine, and it was not._ Before any edit, `/` passed rows 9 and 10 at every width — no horizontal scroll, nothing uncontained — while Execution's two panels sat entirely off-screen (`x=-170` and `x=430`), the fake sidebar sat at `x=-72`, and there were **zero** nav links, so a phone visitor had no way into the product from the front door. An overflow gate cannot see content that is present, laid out, and invisible. The measurements above are the evidence MB-3.5 needed and rows 9/10 could never have produced; this is the clearest case so far that a passing gate is not a working page.
+  - _The stranding was the animation, not the layout._ Execution's entrance timeline starts its panels at `x: '-50vw'` / `x: '50vw'` and only slides them in as the pinned section scrubs. Below `md` the pin is wrong, so disabling it alone would have left the panels parked off-stage forever at `opacity: 0`. Every disabled timeline needed a matching reveal branch, which is also what makes `prefers-reduced-motion` correct rather than merely quiet.
+  - _Row 10's containment rule was wrong, and it was hiding the real faults._ The evaluator inherited DD-13's `overflow-x: auto|scroll` test, but `hidden` and `clip` also stop the page scrolling sideways — a decorative full-bleed layer inside an `overflow-hidden` section is a design choice. All **12** of `/`'s reported escapees were that false positive. `<body>` is deliberately excluded from the rule, since `index.css` sets `overflow-x: hidden` there as a global net and honouring it would mark every element on every page contained. Fixing the instrument first is why the real faults above were measurable at all.
 
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 

@@ -139,12 +139,14 @@ export default function ClosingSection() {
   return (
     <section
       ref={sectionRef}
-      className="relative w-full min-h-screen z-40 overflow-hidden"
+      className="relative w-full min-h-dvh z-40 overflow-hidden"
     >
       {/* Background image */}
       <div ref={bgRef} className="absolute inset-0 w-full h-[120%]">
         <img
           src="/closing_city_bg.jpg"
+          loading="lazy"
+          decoding="async"
           alt="Closing background"
           className="w-full h-full object-cover"
         />
@@ -152,7 +154,7 @@ export default function ClosingSection() {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-20">
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-dvh px-4 py-20">
         {/* CTA Card */}
         <div
           ref={cardRef}

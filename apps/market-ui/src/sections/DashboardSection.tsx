@@ -102,6 +102,18 @@ export default function DashboardSection() {
     if (!section || !bg || !sidebar || !header || !card1 || !card2 || !card3) return;
 
     const ctx = gsap.context(() => {
+      const mm = gsap.matchMedia();
+
+      // Below md the fake app chrome is stacked in flow, so the pinned
+      // entrance must not run: it leaves every panel at opacity 0 or parked
+      // off-stage. Reveal them and let the page scroll natively.
+      mm.add('(max-width: 767px), (prefers-reduced-motion: reduce)', () => {
+        gsap.set(section.querySelectorAll('[style*="opacity"]'), {
+          opacity: 1, x: 0, y: 0, scale: 1, clearProps: 'transform',
+        });
+      });
+
+      mm.add('(min-width: 768px) and (prefers-reduced-motion: no-preference)', () => {
       const scrollTl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
@@ -181,6 +193,7 @@ export default function DashboardSection() {
         { scale: 1.05, opacity: 0.35, ease: 'power2.in' },
         0.7
       );
+      });
     }, section);
 
     return () => ctx.revert();
@@ -189,13 +202,15 @@ export default function DashboardSection() {
   return (
     <section
       ref={sectionRef}
-      className="relative w-full h-screen overflow-hidden z-20"
+      className="relative w-full min-h-dvh md:h-dvh overflow-hidden z-20 flex flex-col md:block px-4 py-12 md:p-0"
     >
       {/* Background image */}
       <div ref={bgRef} className="absolute inset-0 w-full h-full" style={{ opacity: 0 }}>
         <img
           src="/dashboard_city_bg.jpg"
           alt="Dashboard background"
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-[#070A12]/60" />
@@ -204,7 +219,7 @@ export default function DashboardSection() {
       {/* Sidebar */}
       <div
         ref={sidebarRef}
-        className="absolute left-0 top-0 h-full w-[72px] bg-[rgba(7,10,18,0.85)] border-r border-[rgba(0,240,255,0.10)] z-30 flex flex-col items-center py-6"
+        className="hidden md:flex absolute left-0 top-0 h-full w-[72px] bg-[rgba(7,10,18,0.85)] border-r border-[rgba(0,240,255,0.10)] z-30 flex flex-col items-center py-6"
         style={{ opacity: 0 }}
       >
         <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/10 flex items-center justify-center mb-8">
@@ -226,7 +241,7 @@ export default function DashboardSection() {
       {/* Header */}
       <div
         ref={headerRef}
-        className="absolute top-0 left-[72px] right-0 h-16 bg-[rgba(7,10,18,0.85)] border-b border-[rgba(0,240,255,0.10)] z-30 flex items-center justify-between px-6"
+        className="hidden md:flex absolute top-0 left-[72px] right-0 h-16 bg-[rgba(7,10,18,0.85)] border-b border-[rgba(0,240,255,0.10)] z-30 flex items-center justify-between px-6"
         style={{ opacity: 0 }}
       >
         <div className="text-sm text-[#A7B0C8]">
@@ -243,7 +258,7 @@ export default function DashboardSection() {
       </div>
 
       {/* Main workspace */}
-      <div className="absolute left-[72px] top-16 right-0 bottom-0 p-4 md:p-6 lg:p-8">
+      <div className="relative md:absolute md:left-[72px] md:top-16 md:right-0 md:bottom-0 p-0 md:p-6 lg:p-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 h-full">
           {/* Card 1: Market Movers */}
           <div

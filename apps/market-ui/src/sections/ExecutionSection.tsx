@@ -32,6 +32,25 @@ export default function ExecutionSection() {
     if (!section || !bg || !leftPanel || !rightCard || !bell || !form) return;
 
     const ctx = gsap.context(() => {
+      const mm = gsap.matchMedia();
+
+      // Below md the section is a stacked, natively-scrolling column, so the
+      // pin is off and the entrance transforms must not run: their `from`
+      // states park the panels at +/-50vw, which measured at 390px as
+      // 161x449 @x=-170 and 130x680 @x=430 — both entirely off-screen. Reveal
+      // them outright instead. Also covers reduced-motion, where the same
+      // stranding would otherwise apply at any width.
+      mm.add('(max-width: 767px), (prefers-reduced-motion: reduce)', () => {
+        gsap.set([bg, leftPanel, rightCard, bell], {
+          opacity: 1,
+          x: 0,
+          y: 0,
+          scale: 1,
+          clearProps: 'transform',
+        });
+      });
+
+      mm.add('(min-width: 768px) and (prefers-reduced-motion: no-preference)', () => {
       const scrollTl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
@@ -108,6 +127,7 @@ export default function ExecutionSection() {
         { opacity: 0.4, ease: 'power2.in' },
         0.7
       );
+      });
     }, section);
 
     return () => ctx.revert();
@@ -122,13 +142,17 @@ export default function ExecutionSection() {
   return (
     <section
       ref={sectionRef}
-      className="relative w-full h-screen overflow-hidden z-30"
+      // Below md: a normal column that scrolls with the page. At md and above
+      // it is the pinned full-viewport stage it has always been.
+      className="relative w-full min-h-dvh md:h-dvh overflow-hidden z-30 flex flex-col justify-center gap-5 px-4 py-12 md:block md:gap-0 md:p-0"
     >
       {/* Background image */}
       <div ref={bgRef} className="absolute inset-0 w-full h-full" style={{ opacity: 0 }}>
         <img
           src="/execution_city_bg.jpg"
           alt="Execution background"
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-[#070A12]/50" />
@@ -137,7 +161,9 @@ export default function ExecutionSection() {
       {/* Bell button */}
       <button
         ref={bellRef}
-        className="absolute right-[4vw] top-[4vh] w-11 h-11 rounded-full bg-[rgba(11,16,34,0.8)] border border-[rgba(0,240,255,0.2)] flex items-center justify-center z-40 hover:border-[#00F0FF]/50 transition-colors"
+        // Fake product chrome — a notification badge that notifies nothing.
+        // It reads as decoration on a wide stage and as clutter on a phone.
+        className="hidden md:flex absolute right-[4vw] top-[4vh] w-11 h-11 rounded-full bg-[rgba(11,16,34,0.8)] border border-[rgba(0,240,255,0.2)] items-center justify-center z-40 hover:border-[#00F0FF]/50 transition-colors"
         style={{ opacity: 0 }}
       >
         <Bell className="w-5 h-5 text-[#00F0FF]" />
@@ -149,7 +175,7 @@ export default function ExecutionSection() {
       {/* Left panel - Order Form */}
       <div
         ref={leftPanelRef}
-        className="absolute left-[6vw] top-1/2 -translate-y-1/2 w-[min(520px,42vw)] panel-bg panel-border rounded-2xl p-6 z-40"
+        className="relative w-full md:absolute md:left-[6vw] md:top-1/2 md:-translate-y-1/2 md:w-[min(520px,42vw)] panel-bg panel-border rounded-2xl p-5 md:p-6 z-40"
         style={{ opacity: 0 }}
       >
         <div className="flex items-center gap-3 mb-6">
@@ -264,7 +290,7 @@ export default function ExecutionSection() {
       {/* Right card - Pattern Alert */}
       <div
         ref={rightCardRef}
-        className="absolute right-[6vw] top-1/2 -translate-y-1/2 w-[min(420px,34vw)] panel-bg panel-border rounded-2xl p-6 z-40"
+        className="relative w-full md:absolute md:right-[6vw] md:top-1/2 md:-translate-y-1/2 md:w-[min(420px,34vw)] panel-bg panel-border rounded-2xl p-6 z-40"
         style={{ opacity: 0 }}
       >
         <div className="flex items-center gap-3 mb-4">
