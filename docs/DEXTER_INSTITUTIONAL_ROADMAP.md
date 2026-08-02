@@ -263,7 +263,7 @@ flowchart TD
 - [x] **DI-4 — Deterministic signal layer.** `dexterSignal.ts`: direction proposed from
       `taLevels` output alone (trend / breakout / mean-reversion playbooks), no LLM in the
       path. The LLM may veto or downgrade, never invert. Closes G2. Rows 6, 7.
-- [ ] **DI-5 — Risk-based sizing.** `dexterSizing.ts`: size from ATR, risk budget and equity,
+- [x] **DI-5 — Risk-based sizing.** `dexterSizing.ts`: size from ATR, risk budget and equity,
       Kelly-capped with a hard per-position maximum. Model-supplied `sizePct` is discarded.
       Closes G3. Rows 8, 9.
 - [ ] **DI-6 — Portfolio state and correlation gate.** Open positions, exposure and portfolio
@@ -446,3 +446,25 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   sizing, DI-6 portfolio state and DI-9 debate grounding all modify the same call
   site, and wiring each one separately would ship a half-assembled chain three
   times. Closes G2 at the layer; the live path changes once, at the ship.
+- 2026-08-03 — **DI-5 closed. Size is arithmetic now, and the model's number is
+  thrown away.** `dexterSizing.ts` computes in four ordered steps, naming every
+  bound that binds: risk per unit (the stop distance, **floored at 1.5×ATR** — a
+  stop inside the noise is not a risk level, and sizing off it inflates the
+  position by exactly the ratio the stop was understated by), risk budget
+  (**1.0%** of equity by default), **half-Kelly** (`f* = W − (1−W)/R`, halved,
+  and only above a **20-resolved-trade** floor — below that there is no track
+  record and the cap is skipped with that stated in the reasons), then a hard
+  **20% per-position maximum** nothing may exceed. Worked example, equity 100k,
+  BTC 70k, 1.5×ATR stop 3750: 1% risk = 1000 / 3750 = 0.2667 units = **18.67% of
+  equity**. A finding worth recording: at that price and stop each unit of risk
+  carries ~18.7× its own notional, so **any risk budget above ~1.07% hits the 20%
+  position cap before it hits Kelly** — the position cap, not the risk budget, is
+  the binding constraint in normal conditions, and `riskPct` is restated to the
+  risk actually taken once it binds. A negative Kelly (`W=0.4, R=1` → f* = −0.2)
+  returns **no position**, not a small one. Row 8's discard is literal: the
+  model's `sizePct` is recorded in `modelSizePct`, never compared, averaged or
+  used as a fallback — when sizing cannot be computed at all the note says the
+  model's number "was discarded and not substituted".
+  Tests: dexterSizing 20/20 (rows 8, 9), full repo **1026 pass / 0 fail / 7
+  skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy. Closes
+  G3 at the layer; wiring rides DI-15 with DI-4.
