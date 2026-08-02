@@ -511,6 +511,26 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
   - _Staging note:_ `CompanyPage.tsx` carries unrelated in-flight work (an `EdgarLink` swap this loop did not write). Only my own hunks were staged, via a patch applied to the index; the `EdgarLink` change remains uncommitted in the working tree, untouched.
   - _Left alone:_ 10px text on the brief header controls, below the design system's own 11px `--fs-label` floor. It is pre-existing terminal density, the doctrine says density survives, and the strapline that carried most of it is now hidden below `sm`.
 
+- **MB-12 · touch targets — PARTIAL, ledger line left `[ ]`** · `index.css` gains a coarse-pointer block: `touch-action: manipulation` on every control (drops the 300ms double-tap-zoom wait), and a `.tap` hit-slop utility that centres an invisible 44px band over a control without moving or resizing it. Applied so far to the landing prompt chips and four `AuthPage` controls. · **905 vitest**, tsc 0 errors.
+
+  **Measured on prod at 390px — visible controls under 44px, counting hit-slop as tap area:**
+
+  | route | before | after |
+  |---|---|---|
+  | `/` | 5 | **1** |
+  | `/auth` | 6 | **3** |
+  | `/trading` | 38 | 38 |
+  | `/companies/AAPL` | 35 | 35 |
+  | `/dashboard` | 7 | 7 |
+  | `/search` · `/settings` · `/history` · `/documents` · `/billing` | 6 · 3 · 1 · 1 · 0 | unchanged |
+
+  **102 targets total, 11 fixed. This task is not done and the box stays unchecked.**
+
+  - _The failure is height, not width._ Every measured offender is wide and short — `150x34` prompt chips, `88x26` source-filter tabs, `188x16` ticker rows. So `.tap` grows the band **vertically only**: a horizontal expansion would have adjacent controls in the same row stealing each other's taps.
+  - _Hit-slop, not resizing, per the doctrine._ The control keeps its own box and the terminal keeps its density; only the tap area grows. A blanket `min-height: 44px` would have been one line and would have inflated every dense row on the phone.
+  - _Rejected as unsafe:_ a blanket `button::after` hit-slop across all controls. It needs `position: relative` on the host, and forcing that on a coarse-pointer media query would relocate every absolutely-positioned button on the page — the assistant FAB among them. Per-site tagging is slower but cannot move anything.
+  - _Remaining work is concentrated:_ `/trading` (38) and `/companies` (35) are 72 of the 91 left, and both are repeated instances of a few components, so tagging 3–4 component sites should clear most of them.
+
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 
 ---

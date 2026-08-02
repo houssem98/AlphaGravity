@@ -175,7 +175,7 @@ export default function HeroSection() {
               <button
                 key={i}
                 onClick={() => setSearchQuery(chip)}
-                className="chip px-4 py-1.5 rounded-full text-sm border border-[rgba(255,255,255,0.15)] text-[#A7B0C8] hover:text-white hover:border-white/35 hover:bg-white/05 transition-all"
+                className="tap chip px-4 py-1.5 rounded-full text-sm border border-[rgba(255,255,255,0.15)] text-[#A7B0C8] hover:text-white hover:border-white/35 hover:bg-white/05 transition-all"
               >
                 {chip}
               </button>

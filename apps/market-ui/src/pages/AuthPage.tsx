@@ -91,13 +91,13 @@ export default function AuthPage() {
                         <div className="flex items-center gap-2 shrink-0">
                             <Link
                                 to="/search"
-                                className="px-3 py-1.5 rounded-md bg-[#00F0FF] text-[#070A12] text-xs font-semibold hover:bg-[#00F0FF]/90"
+                                className="tap px-3 py-1.5 rounded-md bg-[#00F0FF] text-[#070A12] text-xs font-semibold hover:bg-[#00F0FF]/90"
                             >
                                 Open app
                             </Link>
                             <button
                                 onClick={handleSignOut}
-                                className="px-3 py-1.5 rounded-md border border-[rgba(255,255,255,0.15)] text-xs text-[#F4F6FF] hover:bg-white/5"
+                                className="tap px-3 py-1.5 rounded-md border border-[rgba(255,255,255,0.15)] text-xs text-[#F4F6FF] hover:bg-white/5"
                             >
                                 Sign out
                             </button>
@@ -220,7 +220,7 @@ export default function AuthPage() {
                             <div className="flex justify-end -mt-1">
                                 <Link
                                     to="/forgot-password"
-                                    className="text-xs text-[#A7B0C8] hover:text-[#00F0FF] transition-colors"
+                                    className="tap text-xs text-[#A7B0C8] hover:text-[#00F0FF] transition-colors"
                                 >
                                     Forgot password?
                                 </Link>
@@ -231,7 +231,7 @@ export default function AuthPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium text-sm transition-all disabled:opacity-50 bg-gradient-to-r from-[#4285F4] via-[#9B72CB] to-[#D96570] text-white hover:shadow-lg hover:shadow-[#9B72CB]/20"
+                            className="tap w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium text-sm transition-all disabled:opacity-50 bg-gradient-to-r from-[#4285F4] via-[#9B72CB] to-[#D96570] text-white hover:shadow-lg hover:shadow-[#9B72CB]/20"
                         >
                             {loading ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />

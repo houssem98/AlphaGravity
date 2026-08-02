@@ -132,6 +132,33 @@
     padding-right: var(--safe-r);
   }
 
+  /* ── MB-12 · touch ─────────────────────────────────────────────────
+     Coarse pointers only, so nothing here reaches a mouse.
+
+     `manipulation` drops the 300ms double-tap-zoom wait on every control.
+
+     `.tap` is hit-slop, not resizing: the control keeps its own box and the
+     terminal keeps its density, while an invisible ::after centres a 44px
+     tap band over it. Measured targets were wide and SHORT — 150x34 chips,
+     88x26 filter tabs — so the band only grows vertically; growing it
+     sideways would have adjacent controls stealing each other's taps. */
+  @media (pointer: coarse) {
+    button, a[href], [role="button"], input, select, textarea, label {
+      touch-action: manipulation;
+    }
+
+    .tap { position: relative; }
+    .tap::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 44px;
+      transform: translateY(-50%);
+    }
+  }
+
   /* Atmospheric layers removed — they were bleeding into the viewport
      as a visible bottom wash on dense trading pages. Clean flat bg. */
 
