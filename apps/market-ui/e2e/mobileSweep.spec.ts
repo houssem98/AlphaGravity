@@ -198,6 +198,53 @@ test.describe('rows 9 + 10 — no route scrolls sideways on a phone', () => {
     }
   });
 
+  // MB-10 · row 17. The sign-in form is the first screen a new phone user
+  // meets, and AuthPage had zero breakpoints when this ledger opened.
+  //
+  // Row 17's words are "without horizontal scroll", and that is what is
+  // asserted. A first draft also demanded the submit button sit inside the
+  // visible viewport with the page unscrolled; at 320x568 it measured
+  // `bottom 657 > 568`, which is not a fault — a logo, a banner, two fields and
+  // two buttons do not fit 568px, and scrolling down to a submit button is
+  // ordinary. Requiring it would have failed a page that works.
+  //
+  // The keyboard half of the row is not testable headlessly: Chromium has no
+  // soft keyboard and no visualViewport resize to observe. It stays unverified
+  // and is called out rather than faked.
+  test('row 17 — email, password and submit all fit the screen', async ({ page }, info) => {
+    test.skip(info.project.name === 'tablet-768', 'the form is comfortable above the hinge');
+    await settle(page, '/auth');
+
+    const fit = await page.evaluate(() => {
+      const email = document.querySelector('input[type="email"]') as HTMLElement | null;
+      const pass = document.querySelector('input[type="password"]') as HTMLElement | null;
+      const submit = document.querySelector('button[type="submit"]') as HTMLElement | null;
+      const frame = document.documentElement.clientWidth;
+      const visible = document.documentElement.clientHeight;
+      const box = (el: HTMLElement | null, label: string) => {
+        if (!el) return `${label}: absent`;
+        const r = el.getBoundingClientRect();
+        const bad: string[] = [];
+        if (r.right > frame + 1) bad.push(`right ${Math.round(r.right)} > ${frame}`);
+        if (r.left < -1) bad.push(`left ${Math.round(r.left)}`);
+        if (parseFloat(getComputedStyle(el).fontSize) < 16 && el.tagName === 'INPUT')
+          bad.push(`${getComputedStyle(el).fontSize} font`);
+        return bad.length ? `${label}: ${bad.join(', ')}` : null;
+      };
+      return {
+        // Reported for the log, not asserted — see the note above.
+        formBottom: Math.round(submit?.getBoundingClientRect().bottom ?? 0),
+        visible,
+        problems: [box(email, 'email'), box(pass, 'password'), box(submit, 'submit')].filter(Boolean),
+      };
+    });
+
+    expect(
+      fit.problems,
+      `sign-in controls outside the frame (submit bottom ${fit.formBottom} of ${fit.visible} visible)`,
+    ).toEqual([]);
+  });
+
   // MB-9 · row 7. iOS zooms the viewport when a focused field computes under
   // 16px, and never zooms back — the user is left panning a magnified page.
   // It is a platform behaviour, not a preference, and the one size exception

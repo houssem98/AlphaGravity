@@ -66,7 +66,7 @@ export default function AuthPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#070A12] flex items-center justify-center p-4">
+        <div className="min-h-dvh bg-[#070A12] flex items-center justify-center p-4">
             {/* Background effects */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#4285F4]/5 rounded-full blur-3xl" />
@@ -75,8 +75,8 @@ export default function AuthPage() {
 
             <div className="relative w-full max-w-md">
                 {/* Logo */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#4285F4] via-[#9B72CB] to-[#D96570] mb-4">
+                <div className="text-center mb-6 sm:mb-8">
+                    <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#4285F4] via-[#9B72CB] to-[#D96570] mb-3 sm:mb-4">
                         <Brain className="w-8 h-8 text-white" />
                     </div>
                     <h1 className="text-2xl font-bold text-[#F4F6FF]">AlphaSense AI</h1>
@@ -84,8 +84,8 @@ export default function AuthPage() {
                 </div>
 
                 {existingEmail && (
-                    <div className="mb-4 p-3 rounded-xl bg-[#0D1225] border border-[rgba(0,240,255,0.15)] text-xs text-[#A7B0C8] flex items-center justify-between gap-3">
-                        <span>
+                    <div className="mb-4 p-3 rounded-xl bg-[#0D1225] border border-[rgba(0,240,255,0.15)] text-xs text-[#A7B0C8] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <span className="min-w-0 break-words">
                             Already signed in as <span className="text-[#F4F6FF]">{existingEmail}</span>
                         </span>
                         <div className="flex items-center gap-2 shrink-0">
@@ -181,7 +181,7 @@ export default function AuthPage() {
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="you@example.com"
                                     required
-                                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-[#0D1225] border border-[rgba(0,240,255,0.1)] text-[#F4F6FF] placeholder-[#A7B0C8]/30 text-sm focus:outline-none focus:border-[#00F0FF]/40 transition-colors"
+                                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-[#0D1225] border border-[rgba(0,240,255,0.1)] text-[#F4F6FF] placeholder-[#A7B0C8]/30 text-base sm:text-sm focus:outline-none focus:border-[#00F0FF]/40 transition-colors"
                                 />
                             </div>
                         </div>
@@ -198,7 +198,7 @@ export default function AuthPage() {
                                     placeholder={isLogin ? 'Enter password' : 'Min 6 characters'}
                                     required
                                     minLength={6}
-                                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-[#0D1225] border border-[rgba(0,240,255,0.1)] text-[#F4F6FF] placeholder-[#A7B0C8]/30 text-sm focus:outline-none focus:border-[#00F0FF]/40 transition-colors"
+                                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-[#0D1225] border border-[rgba(0,240,255,0.1)] text-[#F4F6FF] placeholder-[#A7B0C8]/30 text-base sm:text-sm focus:outline-none focus:border-[#00F0FF]/40 transition-colors"
                                 />
                             </div>
                         </div>

@@ -215,7 +215,7 @@ export default function DocumentsPage() {
                         value={filterTicker}
                         onChange={e => setFilterTicker(e.target.value)}
                         placeholder="Filter by ticker (e.g. AAPL)"
-                        className="flex-1 max-w-[200px] bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-sm text-white placeholder:text-[#4A5568] focus:outline-none focus:border-[#00F0FF]/40"
+                        className="flex-1 max-w-[200px] bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-base sm:text-sm text-white placeholder:text-[#4A5568] focus:outline-none focus:border-[#00F0FF]/40"
                     />
                     <select
                         value={filterType}

@@ -300,7 +300,7 @@ it names are the acceptance tests.
   claim — if the drawer costs a tap, the claim marker gains one.
   *Rows: 7, 9, 10, 18, 19, 20, 21, 22.*
 
-- [ ] **MB-10 · The zero-breakpoint pages.** `AuthPage`, `ForgotPasswordPage`,
+- [x] **MB-10 · The zero-breakpoint pages.** `AuthPage`, `ForgotPasswordPage`,
   `ResetPasswordPage`, `VerifyEmailPage`, `MfaSetupPage`, `DocumentsPage`,
   `SettingsPage`, `ReportViewerPage` — all currently at 0 breakpoint hits. Auth
   first: it is the first screen a new phone user sees. Single-column stacks,
@@ -484,6 +484,16 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
   - _The same reachability fault, twice more._ Hiding the research sidebar reclaims 280px and takes research history with it — the third time in this ledger a surface was hidden without a way back (MB-3.5's landing nav, MB-4's rail, now this). Auditing for it turned up a **fourth**: the QA sidebar has been `hidden md:flex` since before this loop, so on a phone it was never reclaimed width, it was simply gone. Both now have triggers.
   - _The first row-7 assertion looked in the wrong mode._ It checked for the research trigger, but `/search` opens in QA mode; the research sidebar and its trigger live behind `?mode=research`. Finding that is what exposed the QA sidebar having no trigger at all.
   - _Mobile projects now carry `retries: 1`._ Row 14 failed once in a full parallel run and passed alone — the interaction tests navigate three or four steps against a live deployment under four parallel projects. `chromium` deliberately stays at `retries: 0` so the pre-existing suite cannot be masked. That is now both gates leaning on a retry; if flakes keep accruing the settle strategy needs work rather than the retry count.
+
+- **MB-10 · the zero-breakpoint pages** · `AuthPage`: the "already signed in" banner goes `flex-col sm:flex-row` with a `min-w-0 break-words` address, the logo block tightens below `sm`, and both fields take `text-base sm:text-sm`. `ForgotPassword`, `ResetPassword` (×2 fields) and `Documents` get the same 16px treatment; `ForgotPassword`, `ResetPassword`, `VerifyEmail`, `MfaSetup` and `ReportViewer` move to `min-h-dvh`/`h-dvh`. `SettingsPage` needed nothing — 0 inputs, 0 viewport-height roots. · **905 vitest**, tsc 0 errors, **row 18 12/12**, **row 21 30/30**.
+
+  ### The mobile sweep is fully green: **103 passed, 6 skipped, 0 failed.**
+
+  Rows 9 and 10 hold across all 10 routes × 4 widths, alongside rows 5, 7, 11, 12, 13, 14, 15, 16 and 17. The sweep opened at **41 failures of 84** in MB-2 and closed at **0 of 109**.
+
+  - _`/auth`'s last 63px was the banner, not the blur blobs._ The escapee list named the `fixed inset-0 overflow-hidden` decoration first, but that element is viewport-sized by definition — it only measured wide because the document already was. The cause was one row below: `justify-between` with an email that could not shrink and a `shrink-0` button pair. Fixing the cause removed all three reported escapees at once.
+  - _Row 17's first assertion failed a page that works._ It demanded the submit button sit inside the visible viewport unscrolled; at 320×568 it measured `bottom 657 > 568`. A logo, a banner, two fields and two buttons do not fit 568px, and scrolling to a submit button is ordinary — the row's actual words are "without **horizontal** scroll". Corrected to assert that, with the vertical extent reported rather than enforced.
+  - _One half of row 17 stays unverified and is marked so:_ the keyboard must not cover submit. Chromium has no soft keyboard and no visualViewport resize to observe, so it cannot be tested headlessly. Called out rather than faked.
 
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 

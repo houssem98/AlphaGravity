@@ -53,7 +53,7 @@ export default function ReportViewerPage() {
 
     if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen"
+            <div className="flex flex-col items-center justify-center min-h-dvh"
                 style={{ background: '#1E1F22' }}>
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
                     style={{ background: 'rgba(138,180,248,0.08)', border: '1px solid rgba(138,180,248,0.12)' }}>
@@ -66,7 +66,7 @@ export default function ReportViewerPage() {
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen"
+            <div className="flex flex-col items-center justify-center min-h-dvh"
                 style={{ background: '#1E1F22' }}>
                 <AlertCircle className="w-10 h-10 text-[#F28B82] mb-4" />
                 <p className="text-[#E8EAED] font-medium mb-2">{error}</p>
@@ -82,7 +82,7 @@ export default function ReportViewerPage() {
     }
 
     return (
-        <div className="h-screen flex flex-col" style={{ background: '#1E1F22' }}>
+        <div className="h-dvh flex flex-col" style={{ background: '#1E1F22' }}>
             {report && (
                 <ResearchReportComponent
                     report={report}
