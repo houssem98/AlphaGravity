@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { BarChart2, Activity, ChevronDown, TrendingUp, SlidersHorizontal } from 'lucide-react';
 import type { ChartColors } from './Chart';
 
@@ -57,18 +57,31 @@ export const Topbar: React.FC<TopbarProps> = ({
 
   const visibleTf = TIMEFRAMES.slice(0, 3);
 
+  // MB-5 · a strip that scrolls is only usable if the active item is in it.
+  // Switching tab from elsewhere (the TN guard in TradingAssistantPage snaps
+  // Markets/Yield/Holders back to Chart) can otherwise leave the current tab
+  // parked off the visible run of the strip.
+  const activeTabRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  }, [activeTab]);
+
   return (
     <div className="shrink-0 bg-[color:var(--surface)] border-b border-[color:var(--line)]">
       {/* ── Row 1 : section tabs + CTA ─────────────────────────────── */}
-      <div className="flex items-stretch h-10 border-b border-[color:var(--line)]">
-        <div className="flex items-stretch">
+      <div className="flex items-stretch h-11 lg:h-10 border-b border-[color:var(--line)]">
+        {/* min-w-0 lets the strip shrink so it scrolls instead of shoving the
+            CTA out of a clipped row — the buttons were unreachable, not just
+            off-screen, because the ancestor is overflow-hidden. */}
+        <div className="flex items-stretch overflow-x-auto min-w-0 snap-x">
           {tabs.map((tab) => {
             const isActive = activeTab === tab;
             return (
               <button
                 key={tab}
+                ref={isActive ? activeTabRef : undefined}
                 onClick={() => onTabChange?.(tab)}
-                className={`relative flex items-center px-4 text-body font-medium whitespace-nowrap transition-colors ${
+                className={`relative flex items-center px-4 snap-start shrink-0 text-body font-medium whitespace-nowrap transition-colors ${
                   isActive
                     ? 'text-[color:var(--text)]'
                     : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'
@@ -89,7 +102,7 @@ export const Topbar: React.FC<TopbarProps> = ({
         <div className="ml-auto flex items-center gap-2 px-3 shrink-0">
           <button
             onClick={onBuyClick}
-            className="px-3 py-1 rounded-sm text-label font-semibold transition-colors bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 press shiny chrome cta-glow"
+            className="px-3 min-h-[44px] lg:min-h-0 py-1 rounded-sm text-label font-semibold transition-colors bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-110 press shiny chrome cta-glow"
             style={{ letterSpacing: '0.04em' }}
           >
             BUY {currentAsset}
@@ -97,7 +110,7 @@ export const Topbar: React.FC<TopbarProps> = ({
 
           <button
             onClick={() => setDexMode(!dexMode)}
-            className="flex items-center gap-2 px-2.5 py-1 rounded-sm text-label font-semibold transition-colors bg-[color:var(--bg)] border border-[color:var(--line)] text-[color:var(--text-2)] hover:border-[color:var(--line-strong)]"
+            className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-sm text-label font-semibold transition-colors bg-[color:var(--bg)] border border-[color:var(--line)] text-[color:var(--text-2)] hover:border-[color:var(--line-strong)]"
             style={{ letterSpacing: '0.06em' }}
           >
             DEX MODE
@@ -115,7 +128,7 @@ export const Topbar: React.FC<TopbarProps> = ({
       </div>
 
       {/* ── Row 2 : chart controls ──────────────────────────────────── */}
-      <div className="flex items-center h-9 px-2">
+      <div className="flex items-center h-11 lg:h-9 px-2 overflow-x-auto">
         <div className="flex items-center gap-0.5 shrink-0">
           {/* Price / MCap segmented (CP-5: wired) */}
           <div className="flex items-center rounded-sm p-0.5 bg-[color:var(--bg)]">
@@ -157,7 +170,7 @@ export const Topbar: React.FC<TopbarProps> = ({
           </button>
         </div>
 
-        <div className="ml-auto flex items-center gap-0.5 shrink-0">
+        <div className="ml-auto flex items-center gap-0.5 shrink-0 pl-2">
           {/* CP-5: wired — same toggle list as the Sidebar dropdown */}
           <div className="relative">
             <button

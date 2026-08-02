@@ -260,7 +260,7 @@ it names are the acceptance tests.
   `leftW`/`rightW` localStorage keys keep their desktop meaning untouched.
   *Rows: 9, 10, 11, 12, 18, 19, 20, 22.*
 
-- [ ] **MB-5 · Topbar and tab strip.** `components/trading/Topbar.tsx`: below
+- [x] **MB-5 · Topbar and tab strip.** `components/trading/Topbar.tsx`: below
   `md`, the tab row (`Chart/Markets/News/Yield/Holders/About`) and the timeframe
   row become horizontally scrollable snap strips inside their own
   `overflow-x-auto` — never wrapping, never truncating the active tab out of
@@ -435,6 +435,14 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
   - _Fixing the breakpoint opened a hole, briefly._ Moving the rail to `hidden lg:flex` while `MobileNav` was hardcoded `md:hidden` left 768–1023px with **no navigation at all** — the same class of fault MB-3.5 measured on the landing nav, introduced by the fix for a different one. `MobileNav` now takes `hideAt`.
   - _Row 11's own measurement was wrong and read as a regression._ `querySelector('canvas, .tv-lightweight-charts, [class*="chart"]')` returns the first match in document order, which is a 0px hidden canvas or a 52px axis pane — it reported "chart is 0px = 0%" on a chart that was rendering at a full 390px. Now takes the widest candidate. Two of the three gate corrections so far have been the instrument, not the app.
   - _`desktop-baseline` gets `retries: 1`._ `/history` and `/billing` each failed once under twelve parallel workers against a live deployment, then passed alone — a section still mid-render at capture time reads as "landmarks gone". A real layout regression is deterministic and fails both attempts.
+
+- **MB-5 · topbar strips** · `Topbar.tsx`: the section-tab row is `overflow-x-auto min-w-0 snap-x` with `snap-start shrink-0` tabs, and the active tab is scrolled into view on change (`inline: 'center'`, `block: 'nearest'` so a horizontal strip never scrolls the page vertically). The chart-control row is `overflow-x-auto`. Both rows go `h-11` below `lg`, BUY takes `min-h-[44px]`, and DEX MODE — a desktop-only toggle — is `hidden lg:flex`. Breakpoint is `lg`, matching the hinge MB-4 established for this page rather than the roadmap's original `md`. · **905 vitest**, tsc 0 errors, **row 18 12/12**, **row 21 30/30**, sweep **2 failures of 89**.
+
+  **Measured on prod, TN asset view at 390px:** the chart-control rail holds **600px of content in a 390px row** (`390<600`) and now scrolls; BUY measures **`84x44 @x=294..378`** — inside the viewport at exactly the 44px floor; the tab row is 3 tabs / 197px and fits unaided.
+
+  - _Rows 9 and 10 are structurally blind to this fault._ The topbar sits inside an `overflow-hidden` ancestor, so 210px of excess control rail produced no page overflow and no escapee — the content was **clipped and unreachable**, which reads as clean to both rows. Row 5 asserts the property that actually matters: nothing inside the topbar may overflow its own box without being scrollable. That phrasing also passes correctly at 810px, where the whole topbar fits and the list is empty for the right reason.
+  - _First assertion was wrong at the tablet._ It demanded that a scrollable strip *exist*, which fails at 810px where nothing needs to scroll. Rewritten to forbid unreachable overflow instead of requiring overflow.
+  - _One claim withdrawn._ The first version of this test asserted the tabs had pushed BUY out of a clipped row, making the primary CTA unreachable. The sweep navigates to a **TN** asset, whose row is 3 tabs / 197px and fits, so that was never demonstrated; the 6-tab crypto row is the tighter case and the probe could not reach it. The comment now states only what was measured and flags the gap.
 
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 

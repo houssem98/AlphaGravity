@@ -194,6 +194,44 @@ test.describe('rows 9 + 10 — no route scrolls sideways on a phone', () => {
         `side panels measured [${geom.panelWidths.join(', ')}]`,
     ).toBeGreaterThanOrEqual(88);
 
+    // Row 5 — MB-5. The topbar carries more than a phone is wide: measured on
+    // the TN asset view at 390px, the control rail holds 600px of content in a
+    // 390px row. Rows 9 and 10 cannot see that, because an overflow-hidden
+    // ancestor swallows it — the content is simply clipped and unreachable
+    // rather than scrollable. So assert the two things that matter directly:
+    // something in the topbar actually scrolls, and BUY is inside the viewport
+    // at a real touch size.
+    //
+    // Note this runs on a TN asset, whose tab row is 3 tabs / 197px and fits
+    // unaided; the 6-tab crypto row is the tighter case and is not covered here.
+    const clipped = await page.evaluate(() => {
+      // The topbar root is BUY's third ancestor: button -> CTA group -> row 1
+      // -> root. Scoping to it keeps the check off the many legitimately
+      // overflow-hidden decorative wrappers elsewhere on the page.
+      const buy = Array.from(document.querySelectorAll('button')).find((b) =>
+        /^BUY /.test((b.textContent || '').trim()),
+      );
+      const root = buy?.parentElement?.parentElement?.parentElement;
+      if (!root) return ['topbar root not found'];
+      return Array.from(root.querySelectorAll('div'))
+        .filter((d) => {
+          if (d.scrollWidth <= d.clientWidth + 1) return false;
+          const o = getComputedStyle(d).overflowX;
+          return o !== 'auto' && o !== 'scroll';
+        })
+        .map((d) => `${(d.className || '').toString().slice(0, 50)} ${d.clientWidth}<${d.scrollWidth}`);
+    });
+    // A row that fits needs no scroller; a row that does not fit must have one,
+    // or its overflow is unreachable rather than merely off-screen. At 810px
+    // the whole topbar fits and this list is empty for the right reason.
+    expect(clipped, `topbar content clipped with no way to scroll to it`).toEqual([]);
+
+    const buy = page.getByRole('button', { name: /^BUY / });
+    await expect(buy).toBeVisible();
+    const bb = (await buy.boundingBox())!;
+    expect(Math.round(bb.x + bb.width), 'BUY is inside the viewport').toBeLessThanOrEqual(geom.frame + 1);
+    expect(Math.round(bb.height), 'BUY target height').toBeGreaterThanOrEqual(44);
+
     // Row 12 — the two columns the phone gave up are each one tap away and
     // each own the screen when open. Tablet keeps the desktop three-column
     // layout, so there is no strip there to tap.
