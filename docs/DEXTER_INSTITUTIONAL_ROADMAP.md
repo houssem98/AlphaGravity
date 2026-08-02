@@ -269,7 +269,7 @@ flowchart TD
 - [x] **DI-6 — Portfolio state and correlation gate.** Open positions, exposure and portfolio
       heat carried into the decision; a correlated or over-budget position is resized or
       rejected in code. Closes G4. Row 10.
-- [ ] **DI-7 — Regime classifier.** Deterministic regime label from bars, gating which
+- [x] **DI-7 — Regime classifier.** Deterministic regime label from bars, gating which
       playbook DI-4 may apply. Bars-only is the required path and is **not** blocked.
       Macro-conditioned regime is a stretch goal blocked on G13: it needs a free FRED API
       key (user-only input) plus a `process.env` port of `fredService.ts`. Ship the
@@ -491,3 +491,28 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   Tests: dexterPortfolio 19/19 (row 10), full repo **1045 pass / 0 fail / 7
   skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy. Closes
   G4 at the layer; wiring rides DI-15.
+- 2026-08-03 — **DI-7 closed. Bars-only regime shipped; the macro extension stays
+  a ledger note, not a blocker.** `dexterRegime.ts` names one of `trending-up` /
+  `trending-down` / `ranging` / `volatile` / `unknown` from two deliberately slow
+  measurements: least-squares **drift over 20 bars in ATR per bar** (threshold
+  **0.15**, comparable across instruments and price levels) and **recent ATR ÷ the
+  PRIOR baseline ATR** (threshold **1.5**). Volatility is tested first — a violent
+  tape is its own regime whatever the drift says, because both the trend and fade
+  playbooks assume orderly ranges. The gate: trending regimes forbid
+  mean-reversion, ranging forbids trend-following, volatile allows breakout only,
+  and `unknown` permits nothing at all.
+  **A design error the row-11 fixture caught:** the volatility ratio first
+  compared recent ATR to the *whole window's* ATR, but Wilder smoothing weights
+  recent bars heavily, so a window containing the expansion is already
+  half-expanded — a tape whose daily range tripled scored **1.23**, under the 1.5
+  threshold, and was labelled trending rather than volatile. Comparing against the
+  bars *before* the lookback fixes it; `MIN_BARS` rose 30 → 40 so a baseline
+  always exists to compare against.
+  Stability is enforced, not asserted: the row-11 test perturbs bar 0, 40, n−5 and
+  n−1 by ±0.5, ±1.5 and ±3 across all three fixtures — 72 perturbations — and
+  requires the label to hold every time.
+  **Macro extension remains BLOCKED on user-only input** (G13): a macro-conditioned
+  regime needs a free FRED API key plus a `process.env` port of `fredService.ts`.
+  Ship state is the bars-only classifier, which the ledger names as the required
+  path. Tests: dexterRegime 18/18 (row 11), full repo **1063 pass / 0 fail / 7
+  skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy.
