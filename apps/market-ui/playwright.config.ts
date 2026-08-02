@@ -56,10 +56,19 @@ export default defineConfig({
         },
 
         // Rows 9 + 10 — the device matrix from §5.
+        //
+        // All four carry retries: 1, same reasoning as desktop-baseline: the
+        // interaction tests navigate three or four steps against a live
+        // deployment under four parallel projects, and a step caught mid-render
+        // reads as a failure — row 14 flaked exactly this way and passed alone.
+        // Geometry regressions are deterministic and fail both attempts.
+        // `chromium` deliberately keeps retries: 0 so the pre-existing suite
+        // cannot be masked.
         {
             name: 'mobile-320',
             testMatch: SWEEP,
             dependencies: ['setup'],
+            retries: 1,
             use: {
                 ...devices['Desktop Chrome'],
                 viewport: { width: 320, height: 568 },
@@ -73,18 +82,21 @@ export default defineConfig({
             name: 'mobile-390',
             testMatch: SWEEP,
             dependencies: ['setup'],
+            retries: 1,
             use: { ...devices['iPhone 14'], browserName: 'chromium', storageState: STATE },
         },
         {
             name: 'mobile-430',
             testMatch: SWEEP,
             dependencies: ['setup'],
+            retries: 1,
             use: { ...devices['iPhone 14 Pro Max'], browserName: 'chromium', storageState: STATE },
         },
         {
             name: 'tablet-768',
             testMatch: SWEEP,
             dependencies: ['setup'],
+            retries: 1,
             use: { ...devices['iPad (gen 7)'], browserName: 'chromium', storageState: STATE },
         },
     ],

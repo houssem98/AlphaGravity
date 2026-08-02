@@ -293,7 +293,7 @@ it names are the acceptance tests.
   desktop, which §3 forbids. Note it in §8 and move on.
   *Rows: 9, 10, 18, 19, 20, 22.*
 
-- [ ] **MB-9 · Search.** `SearchPage.tsx`: the `w-[256px]`/`w-[280px]` asides
+- [x] **MB-9 · Search.** `SearchPage.tsx`: the `w-[256px]`/`w-[280px]` asides
   (`:1192`, `:1616`) become sheets below `md`; the `w-[400px]` citation drawer
   (`:635`) goes full width; the composer is safe-area padded and its input is
   ≥16px so iOS does not zoom on focus. A citation stays **one tap** from its
@@ -476,6 +476,14 @@ Format: `MB-n · <what changed> · <measured evidence> · <prod confirmation>`
   - _Verification took four attempts, and the first three failed on navigation, not on the change._ The modal needs an asset with sentiment data, which TN stocks do not have. The route that works is: market list → tap a row to **expand** it → **ADVANCED CHART**. The row's own `onClick` only toggles the accordion, and the TRADE button that navigates directly lives in the `spark` column, which is `hidden md:table-cell` — so on a phone the expand path is the only way in. Reading `MarketList.tsx` for the actual handlers settled in one pass what three rounds of DOM guessing could not. That is the fourth time in this ledger the lesson has been the same one.
   - _One iteration shipped this task with the box left unchecked_ rather than claim a verification it did not have. The escalation was the loop working: the answer came back, the route was found, and the box is ticked on evidence.
   - _F10's shape, for the record:_ same as F9 — invisible to rows 9 and 10 because the surface only exists after a tap and carries its own `position: fixed` overlay.
+
+- **MB-9 · search** · All four fields on `/search` take `text-base md:text-[…]` so they compute to 16px on a phone and keep their desktop sizes. Both sidebars — QA `w-[256px]` and research `w-[280px]` — become slide-overs below `md` (`fixed inset-y-0 left-0 z-50` + backdrop, same JSX in both states, no second copy) each with its own 44px `PanelLeft` trigger in the mode bar. The `w-[400px]` citation drawer already carried `max-w-full` and needed nothing. · **905 vitest**, tsc 0 errors, **row 18 12/12**, **row 21 30/30**, sweep **2 failures of 105**.
+
+  **Row 7 — every field was under the iOS zoom threshold, measured computed on prod:** QA history search **12px**, QA composer **13.5px**, research sidebar search **12px**, research composer **15px**. All four now compute to **16px** at 320/390/430. iOS zooms the viewport on focus below 16px and never zooms back, so this was four separate ways to strand a user in a magnified page.
+
+  - _The same reachability fault, twice more._ Hiding the research sidebar reclaims 280px and takes research history with it — the third time in this ledger a surface was hidden without a way back (MB-3.5's landing nav, MB-4's rail, now this). Auditing for it turned up a **fourth**: the QA sidebar has been `hidden md:flex` since before this loop, so on a phone it was never reclaimed width, it was simply gone. Both now have triggers.
+  - _The first row-7 assertion looked in the wrong mode._ It checked for the research trigger, but `/search` opens in QA mode; the research sidebar and its trigger live behind `?mode=research`. Finding that is what exposed the QA sidebar having no trigger at all.
+  - _Mobile projects now carry `retries: 1`._ Row 14 failed once in a full parallel run and passed alone — the interaction tests navigate three or four steps against a live deployment under four parallel projects. `chromium` deliberately stays at `retries: 0` so the pre-existing suite cannot be masked. That is now both gates leaning on a retry; if flakes keep accruing the settle strategy needs work rather than the retry count.
 
   - _Spec corrections made in MB-1:_ **MB-3.5 added** — `/` (`LandingPage` + `sections/*`, four GSAP `pin:true` + `scrub` `h-screen` sections behind 614KB of city JPEGs, `ExecutionSection` at 0 breakpoints) was the front door and owned by no task; budget 15→16. **Row 8 scoped** to `.tsx`/`.css`, exempting `<meta>` and static assets that cannot read a CSS variable. **Row 18 widened** from 3 routes to all 10 plus modal/drawer open states. **MB-8's `rounded-2xl` fix struck** — it is a desktop visual change that row 18 could not have caught, since the modal only exists when opened.
 

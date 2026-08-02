@@ -198,6 +198,38 @@ test.describe('rows 9 + 10 — no route scrolls sideways on a phone', () => {
     }
   });
 
+  // MB-9 · row 7. iOS zooms the viewport when a focused field computes under
+  // 16px, and never zooms back — the user is left panning a magnified page.
+  // It is a platform behaviour, not a preference, and the one size exception
+  // the doctrine allows. Measured computed, not scanned in source, because the
+  // value that matters is what the cascade actually resolves to.
+  test('row 7 — every search field is at least 16px', async ({ page }, info) => {
+    test.skip(info.project.name === 'tablet-768', 'above the hinge the desktop sizes are correct');
+    await settle(page, '/search');
+
+    const small = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('input, textarea'))
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && (el as HTMLInputElement).type !== 'hidden';
+        })
+        .map((el) => ({
+          px: parseFloat(getComputedStyle(el).fontSize),
+          hint:
+            (el as HTMLInputElement).placeholder ||
+            el.getAttribute('aria-label') ||
+            el.tagName.toLowerCase(),
+        }))
+        .filter((f) => f.px < 16)
+        .map((f) => `${f.hint}: ${f.px}px`),
+    );
+    expect(small, `${small.length} field(s) below the iOS zoom threshold`).toEqual([]);
+
+    // Hiding a sidebar has to leave a way back to it. /search opens in QA mode;
+    // research mode has its own trigger and its own sidebar.
+    await expect(page.getByRole('button', { name: 'Conversation history' })).toBeVisible();
+  });
+
   // MB-8 · fault F10. The sentiment modal reserved a fixed 280px stats column
   // inside a `max-w-[96vw]` box: 96vw of 390 is 374px, so the chart pane was
   // left 94px. Like F9 this is invisible to rows 9 and 10 — the modal only

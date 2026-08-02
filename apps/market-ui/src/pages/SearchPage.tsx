@@ -11,7 +11,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import {
     Search, Zap, FileText, Database, ChevronRight, CheckCircle, Clock, Cpu,
     Sparkles, ChevronDown, Check, Feather, Plus, Trash2, ArrowUp, Edit3,
-    Settings as SettingsIcon, Bookmark, BookmarkCheck, X, Grid3x3, Building2,
+    Settings as SettingsIcon, Bookmark, BookmarkCheck, X, Grid3x3, Building2, PanelLeft,
 } from 'lucide-react';
 import GridView from '../components/grid/GridView';
 import CompanyPage from './CompanyPage';
@@ -796,6 +796,11 @@ export default function SearchPage() {
     const history        = useResearchStore((s) => s.history);
     const activeId       = useResearchStore((s) => s.activeId);
     const sidebarSearch  = useResearchStore((s) => s.sidebarSearch);
+    // MB-9 · the research sidebar is a slide-over below md and a static
+    // column above it. Same JSX either way — a second copy is how the two
+    // drift apart.
+    const [researchNavOpen, setResearchNavOpen] = useState(false);
+    const [qaNavOpen, setQaNavOpen] = useState(false);
 
     const setIsResearching  = useResearchStore((s) => s.setIsResearching);
     const setProgress        = useResearchStore((s) => s.setProgress);
@@ -1189,7 +1194,19 @@ export default function SearchPage() {
                 )}
 
                 {/* ═══════════════ HISTORY SIDEBAR ═══════════════ */}
-                <aside className="w-[256px] flex-shrink-0 flex-col hidden md:flex border-r border-[var(--line)]">
+                {qaNavOpen && (
+                    <div
+                        className="md:hidden fixed inset-0 z-40"
+                        style={{ background: 'rgba(0,0,0,0.6)' }}
+                        onClick={() => setQaNavOpen(false)}
+                    />
+                )}
+                <aside
+                    className={`w-[256px] flex-shrink-0 flex-col md:flex md:static md:z-auto border-r border-[var(--line)] ${
+                        qaNavOpen ? 'flex fixed inset-y-0 left-0 z-50 bg-[color:var(--bg)]' : 'hidden'
+                    }`}
+                    onClick={() => setQaNavOpen(false)}
+                >
                     <div className="flex items-center justify-between px-4 pt-4 pb-2">
                         <span className="label" style={{ letterSpacing: '0.12em' }}>Quick Answer</span>
                         <button
@@ -1218,7 +1235,7 @@ export default function SearchPage() {
                                 value={qaSidebarSearch}
                                 onChange={e => setQaSidebarSearch(e.target.value)}
                                 placeholder="Search history…"
-                                className="flex-1 bg-transparent text-[12px] text-[var(--text-2)] placeholder:text-[var(--text-4)] outline-none"
+                                className="flex-1 bg-transparent text-base md:text-[12px] text-[var(--text-2)] placeholder:text-[var(--text-4)] outline-none"
                             />
                         </div>
                     </div>
@@ -1269,7 +1286,17 @@ export default function SearchPage() {
                 <div className="flex-1 flex flex-col min-w-0">
 
                     {/* Top bar — mode toggle + live result metadata */}
-                    <div className="border-b border-[var(--line)] px-6 py-2.5 flex items-center gap-3">
+                    <div className="border-b border-[var(--line)] px-4 md:px-6 py-2.5 flex items-center gap-3">
+                        {/* The QA history sidebar has been `hidden md:flex` since
+                            before this loop, so on a phone it was not reclaimed
+                            width — it was simply gone, with no trigger. */}
+                        <button
+                            onClick={() => setQaNavOpen(true)}
+                            aria-label="Conversation history"
+                            className="md:hidden w-11 h-11 -ml-2 shrink-0 flex items-center justify-center rounded-[var(--radius)] text-[var(--text-3)] hover:bg-white/[0.06] transition-colors"
+                        >
+                            <PanelLeft className="w-4 h-4" />
+                        </button>
                         <ModeToggle mode={mode} onChange={setMode} />
                         {currentQuery && qaState.status === 'complete' && (
                             <div className="ml-auto flex items-center gap-3 text-[11px] text-[var(--text-3)] font-num">
@@ -1556,7 +1583,7 @@ export default function SearchPage() {
                                         value={qaInput}
                                         onChange={e => setQaInput(e.target.value)}
                                         placeholder={hasThread ? 'Ask a follow-up…' : 'Ask anything about any company, filing, or market trend…'}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-transparent border-0 rounded-[var(--radius-lg)] text-[13.5px] text-[var(--text)] placeholder:text-[var(--text-4)] focus:outline-none"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-transparent border-0 rounded-[var(--radius-lg)] text-base md:text-[13.5px] text-[var(--text)] placeholder:text-[var(--text-4)] focus:outline-none"
                                     />
                                 </div>
                                 {isQaSearching ? (
@@ -1613,7 +1640,20 @@ export default function SearchPage() {
         <div className="flex h-[calc(100dvh-64px)]" style={{ background: 'var(--bg)' }}>
 
             {/* ═══════════════ SIDEBAR ═══════════════ */}
-            <aside className="w-[280px] flex-shrink-0 flex flex-col" style={{ background: 'var(--bg)', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+            {researchNavOpen && (
+                <div
+                    className="md:hidden fixed inset-0 z-40"
+                    style={{ background: 'rgba(0,0,0,0.6)' }}
+                    onClick={() => setResearchNavOpen(false)}
+                />
+            )}
+            <aside
+                className={`w-[280px] flex-shrink-0 flex-col md:flex md:static md:z-auto ${
+                    researchNavOpen ? 'flex fixed inset-y-0 left-0 z-50' : 'hidden'
+                }`}
+                style={{ background: 'var(--bg)', borderRight: '1px solid rgba(255,255,255,0.05)' }}
+                onClick={() => setResearchNavOpen(false)}
+            >
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="text-[15px] font-medium text-white/80">Research</span>
                     <button
@@ -1644,7 +1684,7 @@ export default function SearchPage() {
                             value={sidebarSearch}
                             onChange={e => setSidebarSearch(e.target.value)}
                             placeholder="Search research..."
-                            className="flex-1 bg-transparent text-xs text-white/70 placeholder:text-white/25 outline-none"
+                            className="flex-1 bg-transparent text-base md:text-xs text-white/70 placeholder:text-white/25 outline-none"
                         />
                     </div>
                 </div>
@@ -1699,7 +1739,18 @@ export default function SearchPage() {
             <div className="flex-1 flex flex-col min-w-0" style={{ background: 'var(--bg)' }}>
 
                 {/* Mode toggle bar */}
-                <div className="border-b border-white/[0.05] px-6 py-3 flex items-center">
+                <div className="border-b border-white/[0.05] px-4 md:px-6 py-3 flex items-center gap-3">
+                    {/* Hiding the 280px sidebar below md reclaims the width, but
+                        research history goes with it. Three tasks in this ledger
+                        have now shipped a surface with no way back to what it
+                        replaced; this is the trigger that pays for the hide. */}
+                    <button
+                        onClick={() => setResearchNavOpen(true)}
+                        aria-label="Research history"
+                        className="md:hidden w-11 h-11 -ml-1 shrink-0 flex items-center justify-center rounded-[var(--radius)] text-white/70 hover:bg-white/[0.06] transition-colors"
+                    >
+                        <PanelLeft className="w-4 h-4" />
+                    </button>
                     <ModeToggle mode={mode} onChange={setMode} />
                 </div>
 
@@ -1818,7 +1869,7 @@ export default function SearchPage() {
                                     placeholder="Ask a market research question…"
                                     rows={1}
                                     disabled={isResearching}
-                                    className="w-full resize-none bg-transparent text-[15px] text-white/90 placeholder:text-white/30 outline-none leading-relaxed min-h-[26px] max-h-[180px] disabled:opacity-40"
+                                    className="w-full resize-none bg-transparent text-base md:text-[15px] text-white/90 placeholder:text-white/30 outline-none leading-relaxed min-h-[26px] max-h-[180px] disabled:opacity-40"
                                     style={{ scrollbarWidth: 'none' }}
                                 />
                             </div>
