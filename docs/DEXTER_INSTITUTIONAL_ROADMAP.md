@@ -799,8 +799,62 @@ lazy, through the same `envVar()` accessor, and its throw is a
 Tests: fredService 14/14, full repo **1161 pass / 0 fail / 7 skipped**, `tsc` 0 on
 both projects. Deployed `vercel --prod`.
 
-**Remaining, and deliberately not started:** the macro-conditioned regime
-extension in DI-7. The data is live now, so it is buildable — but it is new
-modelling work (which macro series gate which playbook, at what thresholds,
-validated against history), not a wiring job, and inventing thresholds without a
-backtest is what doctrine 5 forbids.
+**Remaining at the time of writing:** the macro-conditioned regime extension in
+DI-7 — now also done, see below.
+
+### DI-7 macro extension — SHIPPED 2026-08-03
+
+The stretch goal DI-7 ledger-noted as blocked. Built only after the data was live,
+and built so that no threshold had to be invented.
+
+**Thresholds are percentiles of each series' own history, not constants.**
+"VIX above 28" is a number someone chose in a particular decade; "VIX in the top
+quintile of its own last 10 years" describes the distribution and travels across
+eras without re-tuning. Nothing was fitted to returns — no threshold was moved to
+make a result look better (doctrine 5). Stress = the **80th** percentile of VIX or
+HY credit; calm = the **20th** of VIX with credit no worse than its median.
+Curve inversion is **reported and never gated on**.
+
+**Macro may only restrict, never expand.** `gateWithMacro` is a set
+*intersection* with the bars-only permission set, so macro can remove a playbook
+and can never add one back — the same asymmetry as the LLM's veto in DI-4. The
+test asserts the subset property across all 5 bars-regimes × 4 macro states, and
+asserts that a bars-regime of `unknown` (which permits nothing) stays empty under
+every macro state.
+
+**Fail-open by design.** No key, a slow feed or a 500 all yield `unknown`, which
+constrains nothing; a decision never waits on macro and a network problem can
+never become a trading constraint. History is cached for 6h — macro percentiles
+move slowly, and re-fetching 10 years per decision would be absurd.
+
+Measured live, `npx tsx scripts/macro-regime.mts` (committed):
+
+```
+history since 2016-08-05 (10y): VIX 2541 obs, HY 787 obs, 10Y-2Y 2496 obs
+latest: VIX 17.09, HY 2.84, 10Y-2Y 0.47
+macro normal — VIX 17.09 at the 51.16th percentile; HY 2.84 at the 27.06th;
+              10Y-2Y 0.47 curve positive (reported, not gated); neither tail
+gate: trending-up → [trend, breakout] · ranging → [mean-reversion, breakout]
+      volatile → [breakout] · unknown → [none]      (nothing removed today)
+```
+
+Wired into `api/agent/[fn].ts` and deployed. Prod probe, real payload:
+**HTTP 200 in 126.3s**, trust **B/72**, 11 calls, and the note's thesis now
+carries the macro read verbatim: *"macro normal — VIX 17.09 sits at the 51.16th
+percentile of its own history"*. The regime gate is visibly doing work in the same
+line: *"trend is not permitted in a ranging regime (allowed: mean-reversion,
+breakout)"* → rating **HOLD** even though the research manager returned BEARISH
+and the arbitration accepted it.
+
+**One honest caveat from the probe run.** An earlier probe of the same build
+returned trust **F / score 0, "no answer produced"** — the final completion came
+back **empty from the provider**, while the server-emitted note block rendered
+normally. The immediately following probe returned **B/72** with a 3,985-character
+answer, so this is transient provider behaviour (the same empty-completion
+behaviour observed from `deepseek-v4-flash` during the DI-1 probe), not a
+regression from the macro wiring. It is recorded rather than smoothed over: the
+answer path has no retry on an empty completion, and that is a real gap worth its
+own task if it recurs.
+
+Tests: dexterMacroRegime 21/21, full repo **1182 pass / 0 fail / 7 skipped**,
+`tsc` 0 on both projects.

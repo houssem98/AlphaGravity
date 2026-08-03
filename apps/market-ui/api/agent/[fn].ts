@@ -41,6 +41,8 @@ import type { Bar, TaLevels } from '../../src/services/taLevels.js';
 import { renderLevelsBlock, MAX_LEVELS_PER_SIDE } from '../../src/services/dexterBlocks.js';
 import { signalFrom, arbitrate, describeSignal } from '../../src/services/dexterSignal.js';
 import { classifyRegime, allowsPlaybook, explainGate } from '../../src/services/dexterRegime.js';
+import { readMacro, gateWithMacro, describeMacro, MACRO_UNKNOWN } from '../../src/services/dexterMacroRegime.js';
+import { MACRO_SERIES, hasFredKey } from '../../src/services/fredService.js';
 import { applySizing, DEFAULT_RISK_BUDGET_PCT } from '../../src/services/dexterSizing.js';
 import { calibrationOf, renderCalibration } from '../../src/services/dexterCalibration.js';
 import { buildNote, renderNoteBlock, type InstitutionalNote, type Rating } from '../../src/services/institutionalNote.js';
@@ -325,14 +327,38 @@ export default async function handler(req: any, res: any) {
       if (effectiveMode === 'decide' && levels) {
         const signal = signalFrom(levels);
         const regime = classifyRegime(bars);
-        const permitted = allowsPlaybook(regime.regime, signal.playbook);
+
+        // DI-7 stretch, unblocked by G13. Macro can only REMOVE a playbook, and
+        // the read fails open — no key, a slow feed or a 500 all yield `unknown`,
+        // which constrains nothing. A decision must never wait on macro.
+        const macro = hasFredKey()
+            ? await readMacro({
+                series: async (seriesId, since) => {
+                    const url = new URL('https://api.stlouisfed.org/fred/series/observations');
+                    url.searchParams.set('series_id', seriesId);
+                    url.searchParams.set('api_key', process.env.FRED_API_KEY!);
+                    url.searchParams.set('file_type', 'json');
+                    url.searchParams.set('observation_start', since);
+                    url.searchParams.set('sort_order', 'asc');
+                    const r = await fetch(url.toString());
+                    if (!r.ok) throw new Error(`FRED ${seriesId}: HTTP ${r.status}`);
+                    const j = await r.json() as { observations?: Array<{ value: string }> };
+                    return (j.observations ?? []).map(o => Number(o.value)).filter(v => Number.isFinite(v));
+                },
+            }, { vix: MACRO_SERIES.vix.id, hy: MACRO_SERIES.credit_spread_hy.id, curve: MACRO_SERIES.yield_spread.id })
+            : MACRO_UNKNOWN;
+        const macroGate = gateWithMacro(regime.regime, macro);
+        const permitted = allowsPlaybook(regime.regime, signal.playbook)
+            && (signal.playbook === 'none' || macroGate.allowed.includes(signal.playbook));
         const arb = arbitrate(signal, {
           direction: debate?.stance === 'BULLISH' ? 'long' : debate?.stance === 'BEARISH' ? 'short' : 'flat',
           confidence: debate?.confidence === null || debate?.confidence === undefined ? undefined : debate.confidence / 100,
           reason: `research manager verdict ${debate?.stance ?? 'NEUTRAL'}`,
         });
         const direction = permitted ? arb.direction : 'flat';
-        signalLine = `${describeSignal(arb)} · ${arb.arbitration} · ${explainGate(regime.regime, signal.playbook)}`;
+        signalLine = `${describeSignal(arb)} · ${arb.arbitration} · ${explainGate(regime.regime, signal.playbook)}` +
+          (macro.regime === 'unknown' ? '' : ` · ${describeMacro(macro)}`) +
+          (macroGate.removed.length > 0 ? ` · macro removed ${macroGate.removed.join(', ')}` : '');
 
         if (risk?.plan) {
           sized = applySizing(risk.plan.sizePct, {
