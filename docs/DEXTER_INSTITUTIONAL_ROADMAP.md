@@ -745,7 +745,7 @@ Deployed `vercel --prod` → `https://market-ui-self.vercel.app`; post-deploy pr
 quoted from the feed) — the change is inert until a key exists, and nothing
 regressed.
 
-**STILL BLOCKED, user-only:** a registered FRED key. Set `FRED_API_KEY` in
+**UNBLOCKED 2026-08-03 — key supplied.** (Original text kept for the record.) A registered FRED key. Set `FRED_API_KEY` in
 `apps/market-ui/.env` **and** in the Vercel project env (and `VITE_FRED_API_KEY`
 if the browser build should also fetch). Free, instant, no card:
 https://fredaccount.stlouisfed.org/apikeys — with it, `fetchFREDVintage`'s real
@@ -754,3 +754,53 @@ available, and the macro-conditioned regime extension noted in DI-7 becomes
 buildable. It is deliberately NOT built yet: a regime classifier that has never
 seen a real VIX print is untestable, and building it blind is the speculative
 work this ledger's doctrine forbids.
+
+### G13 CLOSED — 2026-08-03, key supplied and macro layer verified alive
+
+`FRED_API_KEY` set locally (`apps/market-ui/.env`, gitignored — confirmed via
+`git check-ignore` before writing) and on Vercel production. `VITE_FRED_API_KEY`
+deliberately left **empty**: a `VITE_` variable is compiled into the client
+bundle, i.e. published, and this key is server-side only.
+
+Probed live, key redacted from all output:
+
+| call | result |
+|---|---|
+| `GET /fred/series/observations?series_id=VIXCLS` | **HTTP 200**, 9,543 observations available |
+| ALFRED `realtime_start=realtime_end=2026-03-01` on `T10Y2Y` | **HTTP 200**, `realtime_start` echoed back |
+
+`npx tsx scripts/fred-probe.mts` (committed) against the real module:
+
+```
+FRED key present: true
+asOf 2026-08-03 · series 5 · error none
+  VIX Volatility Index          17.09 Index @ 2026-07-30 (8 obs)
+  10Y-2Y Yield Spread            0.47 bps   @ 2026-07-31 (8 obs)
+  Fed Funds Rate                 3.63 %     @ 2026-06-01 (8 obs)
+  10-Year Treasury Yield         4.47 %     @ 2026-06-01 (8 obs)
+  HY Credit Spread               2.84 bps   @ 2026-07-30 (8 obs)
+ALFRED vintage 2026-03-01 — 10Y-2Y Yield Spread:
+  6 observation(s); latest 2026-02-27 = 0.59
+```
+
+**The point-in-time primitive demonstrably works**: the 10Y-2Y spread as published
+on 2026-03-01 was **0.59**, against **0.47** today — a different number, which is
+exactly the property a look-ahead-free backtest needs and the reason G13 called
+`fetchFREDVintage` "the right primitive… currently worth zero". It is worth
+something now.
+
+**A third `import.meta.env` fault, found by running the probe rather than by
+reading:** `BEA_API_KEY` at module scope (line 489) threw
+`TypeError: Cannot read properties of undefined` **at import time** under Node —
+so any `api/` import of this module died on load regardless of the FRED fix. Now
+lazy, through the same `envVar()` accessor, and its throw is a
+`MissingCredentialError` like the others.
+
+Tests: fredService 14/14, full repo **1161 pass / 0 fail / 7 skipped**, `tsc` 0 on
+both projects. Deployed `vercel --prod`.
+
+**Remaining, and deliberately not started:** the macro-conditioned regime
+extension in DI-7. The data is live now, so it is buildable — but it is new
+modelling work (which macro series gate which playbook, at what thresholds,
+validated against history), not a wiring job, and inventing thresholds without a
+backtest is what doctrine 5 forbids.

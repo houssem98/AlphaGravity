@@ -486,7 +486,10 @@ export async function fetchECBSeries(
 // this commit; they're identical request shape if a caller needs them.
 
 export const BEA_BASE = 'https://apps.bea.gov/api/data/';
-const BEA_API_KEY = import.meta.env.VITE_BEA_API_KEY || '';
+// Same G13(b) fault as the FRED key had: a bare `import.meta.env` at module
+// scope throws in the Node runtime before any function is called, so importing
+// this file from `api/` crashed on load. Read lazily, through the same accessor.
+const beaApiKey = (): string => envVar('BEA_API_KEY', 'VITE_BEA_API_KEY');
 
 export interface BEAObservation {
     date: string;            // YYYY-MM-01 anchored to first day of period
@@ -550,9 +553,9 @@ export interface FetchBEAOptions {
 }
 
 export async function fetchBEANIPATable(opts: FetchBEAOptions): Promise<BEAObservation[]> {
-    const apiKey = opts.apiKey ?? BEA_API_KEY;
+    const apiKey = opts.apiKey ?? beaApiKey();
     if (!apiKey) {
-        throw new Error('BEA: no API key set (VITE_BEA_API_KEY required)');
+        throw new MissingCredentialError('BEA: no API key set — set BEA_API_KEY (or VITE_BEA_API_KEY for the browser build)');
     }
     const url = new URL(BEA_BASE);
     url.searchParams.set('UserID', apiKey);
