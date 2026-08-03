@@ -39,6 +39,17 @@ import {
 } from '../../src/services/dexterMemory.js';
 import type { Bar, TaLevels } from '../../src/services/taLevels.js';
 import { renderLevelsBlock, MAX_LEVELS_PER_SIDE } from '../../src/services/dexterBlocks.js';
+import { signalFrom, arbitrate, describeSignal } from '../../src/services/dexterSignal.js';
+import { classifyRegime, allowsPlaybook, explainGate } from '../../src/services/dexterRegime.js';
+import { applySizing, DEFAULT_RISK_BUDGET_PCT } from '../../src/services/dexterSizing.js';
+import { calibrationOf, renderCalibration } from '../../src/services/dexterCalibration.js';
+import { buildNote, renderNoteBlock, type InstitutionalNote, type Rating } from '../../src/services/institutionalNote.js';
+import { MAX_OPEN_DAYS } from '../../src/services/dexterOutcome.js';
+
+// DI-5/DI-15: sizing needs an equity to size against and this deployment holds
+// no account state, so the number is STATED rather than implied — every size in
+// the answer is a percent of this, and the answer says so.
+const NOTIONAL_EQUITY = 100_000;
 import { plannedStages } from '../../src/services/dexterStages.js';
 import { newTrace } from '../../src/services/gridTrace.js';
 
@@ -273,8 +284,9 @@ export default async function handler(req: any, res: any) {
       // prepended to the answer, so the ladder the user scans and the stop the
       // manager was held to can never come from two different reads.
       let levels: TaLevels | null = null;
+      let bars: Bar[] = [];
       if (deps.getBars) {
-        try { levels = taLevels(await deps.getBars()); } catch { levels = null; }
+        try { bars = await deps.getBars(); levels = taLevels(bars); } catch { levels = null; }
       }
 
       // DX-9: on a decision-shaped request the reports go to a bull/bear debate
@@ -302,6 +314,63 @@ export default async function handler(req: any, res: any) {
           { meta: r => r.plan
               ? `${r.plan.action} ${r.plan.sizePct}% · stop ${r.plan.stop} · R:R ${r.plan.rr}:1`
               : `no position (${r.commentary ? `downgraded: ${r.rejectReason}` : 'HOLD'})` });
+      }
+
+      // DI-15: the deterministic layers, wired once at the ship rather than four
+      // times as they were built. The engine proposes, the debate arbitrates, the
+      // regime gates which playbook may fire at all, and size is arithmetic.
+      let note: InstitutionalNote | null = null;
+      let sized: ReturnType<typeof applySizing> | null = null;
+      let signalLine = '';
+      if (effectiveMode === 'decide' && levels) {
+        const signal = signalFrom(levels);
+        const regime = classifyRegime(bars);
+        const permitted = allowsPlaybook(regime.regime, signal.playbook);
+        const arb = arbitrate(signal, {
+          direction: debate?.stance === 'BULLISH' ? 'long' : debate?.stance === 'BEARISH' ? 'short' : 'flat',
+          confidence: debate?.confidence === null || debate?.confidence === undefined ? undefined : debate.confidence / 100,
+          reason: `research manager verdict ${debate?.stance ?? 'NEUTRAL'}`,
+        });
+        const direction = permitted ? arb.direction : 'flat';
+        signalLine = `${describeSignal(arb)} · ${arb.arbitration} · ${explainGate(regime.regime, signal.playbook)}`;
+
+        if (risk?.plan) {
+          sized = applySizing(risk.plan.sizePct, {
+            equity: NOTIONAL_EQUITY,
+            entry: risk.plan.entry,
+            stop: risk.plan.stop,
+            atr: levels.atr,
+          });
+          // Doctrine 2: the model's size is discarded and the computed one substituted.
+          risk = { ...risk, plan: { ...risk.plan, sizePct: sized.sizePct } };
+        }
+
+        const rating: Rating = direction === 'flat'
+          ? 'HOLD'
+          : direction === 'long'
+            ? (arb.strength >= 0.7 ? 'BUY' : 'ACCUMULATE')
+            : (arb.strength >= 0.7 ? 'SELL' : 'REDUCE');
+
+        note = buildNote({
+          symbol: ctx.symbol,
+          rating,
+          target: risk?.plan ? { price: risk.plan.target, horizon: `${MAX_OPEN_DAYS} sessions (the grading window)` } : null,
+          thesis: [
+            signalLine,
+            debate?.verdict?.split(/\r?\n/).filter(l => !/^(STANCE|CONFIDENCE):/i.test(l)).join(' ').trim(),
+          ].filter(Boolean).join(' — ') || null,
+          // Nothing in this pipeline identifies what the market is missing, and
+          // nothing supplies dated catalysts, so both gap rather than inventing.
+          variantPerception: null,
+          catalysts: [],
+          invalidations: (debate?.falsifiers ?? []).map(f => ({
+            condition: f.claim,
+            kills: `the ${f.side} case the manager weighed`,
+          })),
+          stop: risk?.plan?.stop ?? null,
+          unit: ctx.isTN ? ' TND' : '',
+          calibration: renderCalibration(calibrationOf([])),
+        });
       }
 
       const final = await trace.step('Answering from the analyst reports', 'llm',
@@ -361,7 +430,15 @@ export default async function handler(req: any, res: any) {
           resistance: levels.resistance.slice(0, MAX_LEVELS_PER_SIDE).map(l => ({ price: l.price, touches: l.touches })),
         })}\n\n${answer}`;
       }
+      // DI-13: the institutional skeleton goes above everything — a PM reads the
+      // rating and the invalidation trigger before the ladder.
+      if (note) answer = `${renderNoteBlock(note)}\n\n${answer}`;
       if (effectiveMode === 'decide') answer = `${answer}\n\n_${DISCLOSURE}_`;
+      if (sized) {
+        answer = `${answer}\n\n_Size is computed, not quoted: ${sized.note}. ` +
+          `Stated notional equity $${NOTIONAL_EQUITY.toLocaleString('en-US')}; ` +
+          `risk budget ${DEFAULT_RISK_BUDGET_PCT}% per trade._`;
+      }
 
       const deepTrust = scoreAnswerTrust({ answer: final.text, citations, steps: trace.done() });
 

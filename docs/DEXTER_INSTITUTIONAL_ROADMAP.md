@@ -290,7 +290,7 @@ flowchart TD
       block the DD-8 renderer draws. Missing fields render as explicit gaps. Closes G12. Rows 17, 18.
 - [x] **DI-14 — Execution realism.** Gap-through fills at the open, partial fills, overnight
       risk. Row 19.
-- [ ] **DI-15 — Ship and prove.** `vercel --prod`, live probe, record net R, contamination
+- [x] **DI-15 — Ship and prove.** `vercel --prod`, live probe, record net R, contamination
       label, Brier, n and window in §8. Rows 20, 21.
 
 ---
@@ -640,3 +640,62 @@ _(real numbers only — n, window, net R, contamination label, Brier, probe stat
   of the instrument rather than a freak event.
   Tests: dexterExecution 16/16 (row 19), full repo **1147 pass / 0 fail / 7
   skipped**, `tsc` 0 errors (exit 0). No UI or api change, so no deploy.
+- 2026-08-03 — **DI-15 closed. LEDGER COMPLETE 15/15.** The four layers built
+  against the ledger were wired into `api/agent/[fn].ts` **once**, as planned:
+  `signalFrom(levels)` proposes, `classifyRegime(bars)` gates the playbook,
+  `arbitrate()` lets the research manager's stance veto or downgrade but never
+  invert, `applySizing()` **discards the model's `sizePct` and substitutes the
+  computed one**, and `buildNote()` emits the `dexter-note` block above the
+  ladder. Sizing needs an equity and this deployment holds no account state, so
+  the number is **stated, not implied**: `NOTIONAL_EQUITY = $100,000`, echoed into
+  the answer with the risk budget whenever a plan exists.
+  **`vercel --prod` from repo root → `https://market-ui-self.vercel.app`.**
+  Live probe, real payload
+  `{messages,asset:{symbol:BTC,isTN:false,isCrypto:true,name:Bitcoin},stream:false,mode:decide,confirmed:true}`:
+  **HTTP 200 in 236.9s**, 11 LLM calls, `deepseek/deepseek-v4-flash`, trust **B/76**,
+  5 steps green (recall → analysts → debate → risk → answer).
+  **Row 21 satisfied — every row-17 field populated or explicitly gapped:**
+
+  | field | live value |
+  |---|---|
+  | rating | **HOLD** |
+  | price target | **GAP** — "no valuation anchor with a horizon was computed" |
+  | thesis | "SHORT · trend · conviction 0.58 — pivot sequence is down over 56 swings; resistance at 65654.98 (6 touches)…" |
+  | variant perception | **GAP** — "nothing identified that the market is missing" |
+  | catalysts | **GAP** — "no scheduled event was found, and an undated catalyst is a hope" |
+  | invalidation triggers | "a BTC daily close below 62,227.4 → the bull case the manager weighed; a daily close above 64,934.13 → the bear case" |
+  | calibration | "not yet calibrated (n=0 of 20 resolved calls with a stated confidence)" |
+
+  The hybrid rule is visible in that output: the deterministic engine read
+  **SHORT at 0.58**, the manager did not carry it, and the rating came out
+  **HOLD** — a veto, which is allowed, rather than a flip, which is not. The
+  DI-9 falsifiers flowed straight through into row-18 invalidation triggers as
+  real conditions distinct from a stop. Three fields gapped honestly because
+  nothing in this pipeline produces a valuation anchor, a variant perception or a
+  dated catalyst — that is the ledger working, not the ledger failing.
+  **A defect found and fixed during the ship:** `tsconfig.app.json` includes only
+  `src`, so **nothing was typechecking `api/`** — the serverless functions have
+  been shipping unchecked this whole time, which is exactly how the repo's own
+  "builds fine, 500s at request time" note happens. `tsconfig.api.json` now checks
+  the agent handler, and it caught a broken string literal in the wiring on its
+  first run. Scoped to `api/agent` deliberately: all of `api/` reports 100+
+  pre-existing errors that are not this ledger's to fix. **Follow-up: widen it.**
+  Row 20: full repo **1147 pass / 0 fail / 7 skipped**, `tsc -p tsconfig.app.json`
+  0, `tsc -p tsconfig.api.json` 0. Row 21: proven above from the real 200.
+  Every number in this ledger carries **contamination `suspect`** and is **net of
+  12.001 bps per side**; the honest summary of the whole exercise is that the
+  architecture is now defensible and **no edge has been demonstrated** — floor ON
+  −0.39R net (mean/SE −0.15), floor OFF −10.17R net (mean/SE −3.61), n=30 per arm.
+
+---
+
+## LEDGER COMPLETE — 15/15
+
+All 21 regression rows covered, 1147 tests, `tsc` 0 on both projects, deployed and
+probed. G1-G12 closed; **G13 (macro) remains blocked on a user-supplied FRED API
+key** and is the only open item.
+
+**What this ledger did not do:** find an edge. It made the absence of one
+measurable — contamination labelled by probe rather than assumed, costs charged,
+folds split in time, size derived instead of asserted, and the note's holes
+visible. That is the honest state, and it is worth more than a tuned constant.

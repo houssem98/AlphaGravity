@@ -1,0 +1,23 @@
+// DI-15: `tsconfig.app.json` includes only `src`, so nothing was typechecking
+// `api/` — the serverless functions shipped unchecked, which is precisely how
+// the repo's own note about "builds fine, 500s at request time" happens. This
+// adds the agent handler to the same check the rest of the app already passes.
+//
+// SCOPED TO api/agent DELIBERATELY, and on the app's own compiler options.
+// Pointing it at all of `api/` reports 100+ pre-existing errors in the crypto
+// and tn handlers (untyped `.json()` results, implicit `any` in callbacks) that
+// predate this ledger; narrowing `lib`/`types` to the Node runtime instead
+// reports another ~80 in the browser-side `src/services` modules the handler
+// pulls in transitively, which are correct in their real (browser) context.
+// Neither pile is this ledger's to fix. What shipping unchecked actually risked
+// was a syntax or type error in the agent handler itself, and that is closed —
+// this config caught one on its first run.
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.api.tsbuildinfo",
+    "noEmit": true
+  },
+  "include": ["api/agent", "src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}
