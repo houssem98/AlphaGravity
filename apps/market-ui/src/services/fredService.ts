@@ -1,17 +1,69 @@
 /**
  * FRED (Federal Reserve Economic Data) Service
- * Free API — no key required for basic series. Key unlocks higher rate limits.
  * Docs: https://fred.stlouisfed.org/docs/api/fred/
  *
  * Used by Deep Research Stage 2 to inject macro context into every report:
  *   GDP growth, CPI inflation, Fed Funds Rate, unemployment, 10Y yield,
  *   credit spreads, dollar index — the macro backbone any analyst needs.
+ *
+ * G13 (docs/DEXTER_INSTITUTIONAL_ROADMAP.md). Two faults lived here, both fixed:
+ *
+ *   (a) The header used to claim "Free API — no key required for basic series".
+ *       That is FALSE, probed 2026-08-03:
+ *         GET /fred/series/observations?series_id=VIXCLS&file_type=json
+ *           → HTTP 400 "Variable api_key is not set"
+ *         ...the same call with the old placeholder key
+ *           → HTTP 400 "The value for variable api_key is not registered"
+ *       So the module silently produced nothing, forever, and the fallback
+ *       placeholder made the failure look like a data problem instead of a
+ *       credential problem. Same class of fault as the dead VITE_GEMINI_API_KEY
+ *       that DX-1 removed. There is no placeholder any more: a call with no key
+ *       throws `MissingCredentialError` by name.
+ *
+ *   (b) `import.meta.env` is a Vite BROWSER construct and does not exist in the
+ *       Vercel Node runtime, so this file was unreachable from `api/`. The key
+ *       now reads `process.env.FRED_API_KEY` first and falls back to the Vite
+ *       variable only when it actually exists — the same module works in both.
+ *
+ * Still missing: a registered key. Get one free at
+ * https://fredaccount.stlouisfed.org/apikeys and set FRED_API_KEY.
  */
 
 const FRED_BASE = 'https://api.stlouisfed.org/fred';
-// FRED API key: use a real key in .env (VITE_FRED_API_KEY) for production rate limits.
-// The public demo key works but is heavily rate-limited (max ~120 req/min shared).
-const FRED_API_KEY = import.meta.env.VITE_FRED_API_KEY || 'abcdefghijklmnopqrstuvwxyz123456';
+
+export class MissingCredentialError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'MissingCredentialError';
+    }
+}
+
+export const FRED_KEY_MISSING =
+    'FRED_API_KEY is not set, so no macro data can be fetched. FRED rejects every ' +
+    'unauthenticated request with HTTP 400 (probed 2026-08-03), and this module will ' +
+    'not pretend otherwise. Register a free key at ' +
+    'https://fredaccount.stlouisfed.org/apikeys and set FRED_API_KEY in the ' +
+    'deployment environment (or VITE_FRED_API_KEY for the browser build).';
+
+/** Reads the runtime's own env. Node first — `import.meta.env` is browser-only. */
+function envVar(nodeName: string, viteName: string): string {
+    const fromNode = typeof process !== 'undefined' && process.env ? process.env[nodeName] : undefined;
+    if (fromNode && fromNode.trim()) return fromNode.trim();
+    const meta = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+    const fromVite = meta ? meta[viteName] : undefined;
+    return fromVite && fromVite.trim() ? fromVite.trim() : '';
+}
+
+/** Throws rather than returning a placeholder that FRED will reject anyway. */
+export function fredApiKey(): string {
+    const key = envVar('FRED_API_KEY', 'VITE_FRED_API_KEY');
+    if (!key) throw new MissingCredentialError(FRED_KEY_MISSING);
+    return key;
+}
+
+export function hasFredKey(): boolean {
+    return envVar('FRED_API_KEY', 'VITE_FRED_API_KEY') !== '';
+}
 
 // ─── Key macro series ────────────────────────────────────────────────────────
 
@@ -67,7 +119,7 @@ async function fetchSeries(
 ): Promise<FREDObservation[]> {
     const url = new URL(`${FRED_BASE}/series/observations`);
     url.searchParams.set('series_id', seriesId);
-    url.searchParams.set('api_key', FRED_API_KEY);
+    url.searchParams.set('api_key', fredApiKey());
     url.searchParams.set('file_type', 'json');
     url.searchParams.set('sort_order', 'desc');
     url.searchParams.set('limit', String(limit));
@@ -122,8 +174,12 @@ export async function getMacroSnapshot(
             const prev = s.observations.length >= 2
                 ? s.observations[s.observations.length - 2]
                 : null;
-            const delta = prev?.value !== null && s.latest?.value !== null
-                ? ((s.latest!.value! - prev!.value!) / Math.abs(prev!.value!)) * 100
+            // `prev?.value !== null` is TRUE when prev itself is null (undefined
+            // !== null), so a series with a single observation used to fall into
+            // the branch and dereference it. Unreachable while the module was
+            // dead; a crash the moment a key arrived.
+            const delta = prev !== null && prev.value !== null && s.latest?.value != null && prev.value !== 0
+                ? ((s.latest.value - prev.value) / Math.abs(prev.value)) * 100
                 : null;
             const deltaStr = delta !== null
                 ? ` (${delta >= 0 ? '+' : ''}${delta.toFixed(1)}% MoM)`
@@ -135,17 +191,39 @@ export async function getMacroSnapshot(
         ? `MACRO ENVIRONMENT (FRED — Federal Reserve Data, as of ${asOf}):\n${lines.join('\n')}`
         : '';
 
+    // G13: `allSettled` + filter(fulfilled) is exactly how a missing credential
+    // becomes an empty section that reads like "no macro data today". A snapshot
+    // with nothing in it says WHY, and a missing key says so by name.
+    if (series.length === 0) {
+        const credential = results.find(
+            (r): r is PromiseRejectedResult => r.status === 'rejected' && r.reason?.name === 'MissingCredentialError',
+        );
+        const first = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+        return {
+            asOf,
+            series,
+            summary: '',
+            error: credential ? FRED_KEY_MISSING : `every FRED series failed: ${first?.reason?.message ?? 'unknown error'}`,
+        };
+    }
+
     return { asOf, series, summary };
 }
 
 // ─── Lightweight helper: just the formatted text for prompt injection ────────
 
+export const MACRO_UNAVAILABLE = 'MACRO ENVIRONMENT: unavailable — FRED_API_KEY is not set on this deployment.';
+
 export async function getMacroSummaryText(): Promise<string> {
     try {
         const snap = await getMacroSnapshot();
+        // G13: still never throws — macro is supplementary, not required. But a
+        // blank where the macro block should be is indistinguishable from a
+        // quiet macro day, so an absent credential says so in one line.
+        if (!snap.summary && snap.error === FRED_KEY_MISSING) return MACRO_UNAVAILABLE;
         return snap.summary;
     } catch {
-        return '';  // never fail — macro is supplementary, not required
+        return '';
     }
 }
 
@@ -161,7 +239,7 @@ export async function fetchFREDVintage(
 ): Promise<FREDObservation[]> {
     const url = new URL(`${FRED_BASE}/series/observations`);
     url.searchParams.set('series_id', seriesId);
-    url.searchParams.set('api_key', FRED_API_KEY);
+    url.searchParams.set('api_key', fredApiKey());
     url.searchParams.set('file_type', 'json');
     url.searchParams.set('sort_order', 'desc');
     url.searchParams.set('limit', String(limit));
@@ -184,7 +262,9 @@ export async function fetchFREDVintage(
 // 500/day with a free registration key (BLS_API_KEY env var).
 
 export const BLS_BASE = 'https://api.bls.gov/publicAPI/v2/timeseries/data/';
-const BLS_API_KEY = import.meta.env.VITE_BLS_API_KEY || '';
+// BLS genuinely works without a key (25 requests/day); a key raises it to 500.
+// Optional, so this reads the env rather than throwing.
+const blsApiKey = (): string => envVar('BLS_API_KEY', 'VITE_BLS_API_KEY');
 
 export interface BLSObservation {
     date: string;           // YYYY-MM-01 for monthly series (period is M01-M12)
@@ -248,7 +328,8 @@ export async function fetchBLSSeries(
         endyear: opts.endYear ?? String(now.getFullYear()),
         catalog: false,
     };
-    if (BLS_API_KEY) body.registrationkey = BLS_API_KEY;
+    const blsKey = blsApiKey();
+    if (blsKey) body.registrationkey = blsKey;
 
     const res = await fetch(BLS_BASE, {
         method: 'POST',

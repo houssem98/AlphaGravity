@@ -699,3 +699,58 @@ key** and is the only open item.
 measurable — contamination labelled by probe rather than assumed, costs charged,
 folds split in time, size derived instead of asserted, and the note's holes
 visible. That is the honest state, and it is worth more than a tuned constant.
+
+### G13 follow-up — 2026-08-03
+
+**Two of G13's three parts are now closed; only the key itself is outstanding.**
+
+Re-probed rather than trusted (doctrine: never trust that what exists works).
+`GET /fred/series/observations?series_id=VIXCLS&file_type=json&limit=1`:
+
+| call | result |
+|---|---|
+| no key | **HTTP 400** `"Variable api_key is not set"` |
+| old placeholder `abcdefghijklmnopqrstuvwxyz123456` | **HTTP 400** `"The value for variable api_key is not registered"` |
+
+Note the placeholder's rejection reason has **changed** since the 2026-08-02 probe
+recorded in G13 ("not a 32 character alpha-numeric lower-case string" → "not
+registered"); it is 32 lowercase alphanumerics, so FRED now rejects it as an
+unregistered key. Same 400, different cause. **The file header's claim "Free API —
+no key required for basic series" is false** and has been deleted.
+
+Fixed in `fredService.ts`:
+- **(a) loud failure** — the placeholder fallback is gone. `fredApiKey()` throws
+  `MissingCredentialError` naming the variable and linking
+  `https://fredaccount.stlouisfed.org/apikeys`. `getMacroSnapshot` no longer lets
+  `Promise.allSettled` + `filter(fulfilled)` turn a missing credential into an
+  empty macro section: an empty snapshot now carries `error`, and distinguishes a
+  **missing key** from a **dead feed**. `getMacroSummaryText` still never throws
+  (macro is supplementary) but returns `MACRO_UNAVAILABLE` instead of `''` when
+  the cause is the credential — a transient 503 stays quiet on purpose, since it
+  is self-healing and a line in every report over a blip is noise.
+- **(b) `process.env` port** — `envVar()` reads Node's env first and falls back to
+  `import.meta.env` only when it exists, so the module is reachable from
+  `api/agent/[fn].ts` instead of throwing on a browser-only construct. BLS reads
+  the same way (its key is genuinely optional — 25 req/day without, 500 with).
+- **A second real bug, found by the new tests and previously unreachable:** the
+  MoM delta guard read `prev?.value !== null`, which is **true when `prev` itself
+  is null**, so a series with exactly one observation dereferenced it and crashed
+  `getMacroSnapshot`. Dead code while the module was dead; a crash the moment a
+  key arrived. Now guarded on `prev !== null` and on a zero prior value.
+
+Tests: fredService **14/14** new, full repo **1161 pass / 0 fail / 7 skipped**,
+`tsc -p tsconfig.app.json` 0, `tsc -p tsconfig.api.json` 0, `vite build` clean.
+Deployed `vercel --prod` → `https://market-ui-self.vercel.app`; post-deploy probes
+**app HTTP 200**, **agent HTTP 200 in 4.1s** (trust C, 2 calls, live BTC close
+quoted from the feed) — the change is inert until a key exists, and nothing
+regressed.
+
+**STILL BLOCKED, user-only:** a registered FRED key. Set `FRED_API_KEY` in
+`apps/market-ui/.env` **and** in the Vercel project env (and `VITE_FRED_API_KEY`
+if the browser build should also fetch). Free, instant, no card:
+https://fredaccount.stlouisfed.org/apikeys — with it, `fetchFREDVintage`'s real
+ALFRED `realtime_start`/`realtime_end` support makes look-ahead-free macro
+available, and the macro-conditioned regime extension noted in DI-7 becomes
+buildable. It is deliberately NOT built yet: a regime classifier that has never
+seen a real VIX print is untestable, and building it blind is the speculative
+work this ledger's doctrine forbids.
