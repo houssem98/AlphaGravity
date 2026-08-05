@@ -33,6 +33,13 @@ tests. Nothing else in the ledger is in scope.
 | 5 | any measurement came from a **committed, seeded** script with a stated window and a recorded command line | not a scratch file |
 | 6 | deployed **and** probed *(only if the UI or an api function changed)* | `vercel --prod` from repo root, then POST the real payload and read the actual response |
 
+**Acceptance rows are written before the task that satisfies them**, not in the
+same breath as the implementation. `LOOP_STANDARD.md` §2 says never let one model
+grade its own work; a ledger cannot hire a second model, but it can stop a task
+from authoring its own pass mark. Adding a §6 row while implementing the thing it
+grades is the failure mode — if a task needs a row that does not exist, add the
+row, say so in the log, and treat that as a finding about the ledger.
+
 Then, in this order: flip the ledger box to `[x]`; append **one** Section 8
 progress line with real numbers (n, window, counts, status codes, measured
 pixels — **no adjectives**); commit.
@@ -151,7 +158,12 @@ is true of all of them, it belongs in this file.
 ```bash
 node scripts/loop-lint.mjs                     # every *_LOOP.sh
 node scripts/loop-lint.mjs GRID_LOOP.sh        # one
+node scripts/loop-lint.test.mjs                # the linter's own self-check
 ```
+
+The self-check is mutation-tested: disabling the CLOSED skip, forcing delegation
+true, or removing the hard cap each make it fail. A check that cannot be made to
+fail is a check that proves nothing.
 
 The linter reduces `~/.claude/LOOP_STANDARD.md`'s nine parts to what a machine can
 verify. A rule with no check is a wish.
@@ -217,3 +229,18 @@ pointed at. A loop prompt should name sections, not paraphrase them.
 Remaining failure: `QA_LOOP.sh` names a ledger doc that does not exist. Its work
 is finished, so it is a dead file rather than a broken loop — deliberately not
 repaired.
+
+---
+
+## 10. Known decoration
+
+Three roadmaps (`AI_TRADING_AGENT`, `DEXTER_DESIGN`, `DEXTER_INSTITUTIONAL`) carry
+a mermaid "graph of loops". **No loop prompt references one, and none was consulted
+across the 15 DI tasks.** They restate doctrine the ledger already states in prose.
+
+Left in place rather than deleted, but recorded here as unused: either cite one
+from a loop prompt so it earns its keep, or delete it. An unread diagram rots into
+a lie, because nothing fails when it stops matching the code.
+
+The same test applies to anything else in a ledger: if no task ever reads it, it is
+not doctrine, it is decoration.
