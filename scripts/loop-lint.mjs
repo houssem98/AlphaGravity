@@ -77,6 +77,20 @@ for (const file of files) {
     const head = lines.slice(0, -1).join('\n');
     const conventions = prompt.includes(CONVENTIONS);
 
+    // A loop whose ledger has no unchecked boxes cannot run again, so its
+    // prompt costs nothing and its missing stop conditions cannot bite. Report
+    // it and move on — a linter that fails on dead files teaches you to ignore
+    // the linter. It still fails if its ledger is missing entirely.
+    const ledger = prompt.match(/docs\/[A-Z0-9_]+\.md/)?.[0];
+    if (ledger && existsSync(ledger)) {
+        const open = (readFileSync(ledger, 'utf8').match(/^- \[ \]/gm) ?? []).length;
+        if (open === 0) {
+            console.log(`\n${file}  —  CLOSED  ·  ${ledger} has no open tasks, not linted`);
+            rows.push({ file, chars: 0, bad: [] });
+            continue;
+        }
+    }
+
     const ctx = { raw, head, prompt, conventions };
     const results = CHECKS.map(([id, desc, test]) => {
         let ok = false;

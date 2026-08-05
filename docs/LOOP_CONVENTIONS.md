@@ -187,6 +187,33 @@ verbosity:
 so they could not stop on stall and could not stop on budget — they ran until
 someone noticed.
 
-`DEXTER_INSTITUTIONAL_LOOP.sh` is the converted reference: **7,469 → 1,623 chars,
-a 78% cut**, every check green, with all eight of its remaining clauses being
-doctrine that is true of no other loop.
+### After conversion
+
+A loop whose ledger has **no unchecked boxes cannot run again**, so its prompt
+costs nothing and its missing stop conditions cannot bite. The linter reports
+those as `CLOSED` and does not lint them — a linter that fails on dead files
+teaches you to ignore the linter. It still fails a loop whose ledger is missing
+entirely.
+
+Only **one** of the 15 loops was live: `MOBILE_FIELD_LOOP.sh` (10 open, 2 done).
+Both it and the reference loop were converted; the other 13 were left alone,
+because converting a ledger that will never run again is the exact waste this
+file exists to remove.
+
+| loop | before | after | cut |
+|---|---|---|---|
+| `DEXTER_INSTITUTIONAL_LOOP.sh` (reference) | 7,469 | **1,623** | 78% |
+| `MOBILE_FIELD_LOOP.sh` (live) | 11,592 | **2,164** | 81% |
+
+Total across all 15 fell 60,770 → 4,723 chars, because the 13 closed loops are no
+longer counted at all.
+
+**The biggest single win was not the shared contract.** `MOBILE_FIELD_LOOP.sh`
+restated its own ledger's §3 doctrine, §4 hard constraints, §5 device matrix, §9
+stop, §10 escalation and §11 cadence — in a prompt whose first instruction was to
+read that ledger. Eleven of its fourteen clauses were already in the file it
+pointed at. A loop prompt should name sections, not paraphrase them.
+
+Remaining failure: `QA_LOOP.sh` names a ledger doc that does not exist. Its work
+is finished, so it is a dead file rather than a broken loop — deliberately not
+repaired.
