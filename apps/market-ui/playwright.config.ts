@@ -13,6 +13,11 @@ const STATE = join(dirname(fileURLToPath(import.meta.url)), 'e2e', '.auth', 'use
 const SWEEP = /mobileSweep\.spec\.ts/;
 const BASELINE = /desktopBaseline\.spec\.ts/;
 const SETUP = /auth\.setup\.ts/;
+// MF-1 · row R1. The field gates run on the six mobile classes of
+// docs/MOBILE_FIELD_ROADMAP.md §5 and skip themselves per row from the project
+// name, so adding them to the four V1 projects costs those projects nothing
+// they do not opt into.
+const FIELD = /mobileField\.spec\.ts/;
 
 export default defineConfig({
     testDir: './e2e',
@@ -33,7 +38,7 @@ export default defineConfig({
         {
             name: 'chromium',
             use: { ...devices['Desktop Chrome'] },
-            testIgnore: [SWEEP, BASELINE, SETUP],
+            testIgnore: [SWEEP, BASELINE, SETUP, FIELD],
         },
 
         // Row 18 — the desktop no-op guard.
@@ -66,7 +71,7 @@ export default defineConfig({
         // cannot be masked.
         {
             name: 'mobile-320',
-            testMatch: SWEEP,
+            testMatch: [SWEEP, FIELD],
             dependencies: ['setup'],
             retries: 1,
             use: {
@@ -80,18 +85,70 @@ export default defineConfig({
         },
         {
             name: 'mobile-390',
-            testMatch: SWEEP,
+            testMatch: [SWEEP, FIELD],
             dependencies: ['setup'],
             retries: 1,
             use: { ...devices['iPhone 14'], browserName: 'chromium', storageState: STATE },
         },
         {
             name: 'mobile-430',
-            testMatch: SWEEP,
+            testMatch: [SWEEP, FIELD],
             dependencies: ['setup'],
             retries: 1,
             use: { ...devices['iPhone 14 Pro Max'], browserName: 'chromium', storageState: STATE },
         },
+        // MF-1 · rows R1 and R6 — the three classes §5 added.
+        //
+        // `mobile-360` is the real device in portrait: the screenshots render
+        // MobileNav, which is `md:hidden`, so the CSS width is below 768, and
+        // 720 device px at the DPR 2 the frames imply is 360.
+        //
+        // The two landscape projects are 788x360 and 740x360 — the same short
+        // viewport either side of `md`. MF-8's fix for G12 is only about height
+        // if BOTH pass; a moved width threshold passes one and fails the other.
+        {
+            name: 'mobile-360',
+            testMatch: FIELD,
+            dependencies: ['setup'],
+            retries: 1,
+            use: {
+                ...devices['Desktop Chrome'],
+                viewport: { width: 360, height: 780 },
+                isMobile: true,
+                hasTouch: true,
+                deviceScaleFactor: 2,
+                storageState: STATE,
+            },
+        },
+        {
+            name: 'mobile-landscape',
+            testMatch: FIELD,
+            dependencies: ['setup'],
+            retries: 1,
+            use: {
+                ...devices['Desktop Chrome'],
+                viewport: { width: 788, height: 360 },
+                isMobile: true,
+                hasTouch: true,
+                deviceScaleFactor: 2,
+                storageState: STATE,
+            },
+        },
+        {
+            name: 'mobile-landscape-740',
+            testMatch: FIELD,
+            dependencies: ['setup'],
+            retries: 1,
+            use: {
+                ...devices['Desktop Chrome'],
+                viewport: { width: 740, height: 360 },
+                isMobile: true,
+                hasTouch: true,
+                deviceScaleFactor: 2,
+                storageState: STATE,
+            },
+        },
+
         {
             name: 'tablet-768',
             testMatch: SWEEP,
