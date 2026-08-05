@@ -110,14 +110,18 @@ test.describe('G1 — the market table must not print a price the server did not
 
         // The DOM text is the server's number; only the pixels are wrong. Prove
         // both halves, or a future "fix" that mangles the text passes R7.
+        // Read the price off the element that says it is the price, and only
+        // the one actually rendered at this width — MF-2 moved it inside the
+        // pinned identity cell below md and left the column in place above it.
         const shown = await page.evaluate(() =>
             Array.from(document.querySelectorAll('tbody tr')).slice(0, 8).map((tr) => {
-                const tds = Array.from(tr.querySelectorAll('td'));
-                const sym = tr.querySelector('td:nth-child(3) span:last-of-type')?.textContent?.trim() || '';
-                const price = tds.find((td) => /^\$[\d,.]+$/.test((td.textContent || '').trim()));
+                const sym = tr.querySelector('[data-testid="symbol"]')?.textContent?.trim() || '';
+                const price = Array.from(tr.querySelectorAll('[data-testid="price"]'))
+                    .find((e) => e.getClientRects().length > 0);
                 return { sym, text: (price?.textContent || '').trim() };
             }),
         );
+        expect(shown.filter((r) => r.text).length, 'no rendered price cell found').toBeGreaterThan(0);
         for (const row of shown) {
             const served = wire.get(row.sym);
             if (served === undefined || !row.text) continue;
@@ -127,6 +131,20 @@ test.describe('G1 — the market table must not print a price the server did not
         }
 
         expect(faults, `${faults.length} price glyph(s) painted over`).toEqual([]);
+    });
+
+    // R8 proper: the whole route, not just the table. A numeral a user cannot
+    // read is the same fault wherever it is painted over.
+    test('R8: no numeral is painted over on /trading or /search', async ({ page }, info) => {
+        test.skip(!['N', 'LS'].includes(cls(info)), 'row R8 is specified at N and LS');
+        const faults: string[] = [];
+        for (const path of ['/trading', '/search']) {
+            await settle(page, path);
+            for (const p of overpaintPairs(await boxes(page), { numeralsOnly: true })) {
+                faults.push(`${path}: ${p.over} covers ${p.overlapX}x${p.overlapY}px of "${p.covered}"`);
+            }
+        }
+        expect(faults, `${faults.length} covered numeral(s)`).toEqual([]);
     });
 });
 

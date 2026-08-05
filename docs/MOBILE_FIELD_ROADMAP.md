@@ -329,7 +329,7 @@ it names are the acceptance tests.
       G1–G16, either the failing assertion or the sentence explaining why it does
       not reproduce. **Rows R1, R2, R3, R4, R5, R6.**
 
-- [ ] **MF-2 · G1 — the table must never print a price the server did not send.**
+- [x] **MF-2 · G1 — the table must never print a price the server did not send.**
       The `sticky left-0` identity cell paints over its neighbour's leading
       digits. Fix so that at every horizontal scroll offset the price cell's
       rendered text is the whole number. Do not solve it by removing the pin —
@@ -422,6 +422,39 @@ mobile-landscape-740 25, tablet-768 27, setup 1). `npx tsc --noEmit -p
 tsconfig.app.json` 0 errors. vitest 1193 passed / 3 failed (the 3 are G3's own
 gates) / 7 skipped. `vercel --prod` from repo root, aliased
 `https://market-ui-self.vercel.app`. Rows R1 R2 R3 R4 R5 R6.
+
+**MF-2** — G1 closed. `Markets.tsx`: below `md` the price renders inside the
+pinned identity cell (`data-testid="price"`, `md:hidden`), the price column
+becomes `hidden md:table-cell`, and the `Price` header with it; one `priceText`
+string feeds both. The pin is untouched — MB-6 and V1 row 13 stay green. On the
+alias at N 360x780 the G1 gate went from **20 covered price glyphs**
+(`td.py-2.5.px-4.sticky.left-0@-97,320 210x45` covering **39px** of
+`"$64,602.82"` at scrollLeft 150) to **0** at offsets 0/150/400; **@LS 788x360
+0** as before. V1 row 13 green at 320/390/430 — identity cell still
+`position: sticky`. `mobileSweep` **103 passed / 6 skipped / 0 failed = 109**
+(R19). `tsc --noEmit -p tsconfig.app.json` 0 errors. `vercel --prod` from repo
+root, alias `market-ui-self.vercel.app`. Rows R7 R19 green.
+
+**R8 is green on the surface G1 owns and red on one it does not, and is left
+red.** Zero numeral overpaint in the market table at N and LS. On `/search` the
+route-wide R8 gate catches `header.h-12.bg-[color:var(--surface)]@0,0 360x48`
+covering **112x12px** of `"5 retrieval channels"`, **108x43px** of `"Tesla gross
+margin trend from 2023 to 20"` and **11x7px** of `"04"` — at **N**, in
+portrait. That is G13's mechanism (content under the fixed header) at a width
+MB-15's `pt-12 md:pt-0` was supposed to cover, and it belongs to **MF-8**, which
+must re-run R8 at N and LS before closing.
+
+**R18's `/trading asset view` row was already red before MF-2 and MF-2 did not
+move it.** Measured: `gone: [style*="width:"] x=72 w=242`,
+`new: [style*="width:"] x=72 w=255`, `new: [style*="width:"] x=1156 w=249` — a
+left panel 13px wider and a Social Intelligence right panel that the baseline
+does not have. Three proofs it is not this task's: the **other 10 routes pass**,
+including `/trading` itself, which is where the MF-2 diff renders; the asset
+view mounts `MarketsTab` (`TradingAssistantPage.tsx:667`), not `<Markets>`
+(`:570`); and `e2e/baselines/desktop-trading-asset.json` was captured at **MB-2
+(db3c184, 2026-08-02)**, after which **7 commits** touched the asset view —
+MB-4, MB-5, MB-6, MB-7, MB-8, MB-12, DI-13. The baseline is stale by design of
+V1's own work. Escalated per §10; not re-baselined without a decision.
 
 **R4 — the device's CSS viewport, and how it was obtained.** No JS was run on
 the phone; reading `innerWidth`/`innerHeight`/`devicePixelRatio` there needs the
