@@ -104,11 +104,23 @@ code, and the ledger tick. `LOOP_CONVENTIONS.md` §1 already forbids a task from
 authoring its own pass mark ("acceptance rows are written before the task"), but nothing
 verified it. A rule with no check is a wish — the file says so itself.
 
-**What changed.** `~/.claude/scripts/gate-guard.mjs`. A gate may grow; it may not shrink silently.
-The guard reads a diff and refuses it if a test file, an `e2e/` spec, or a `scripts/*lint*`
-/ `*gate*` / `*sweep*` / `*eval*` script has an **assertion line deleted** or a test
-**muted** (`.skip` / `.todo` / `.only` / `xit`). Its self-check includes the DGM-shaped
-diff, so the check is proven against the failure it was built for.
+**What changed.** `~/.claude/scripts/gate-guard.mjs`. A gate may grow; it may not shrink
+silently. The guard reads a diff over test files, `e2e/` specs and `scripts/*lint*` /
+`*gate*` / `*sweep*` / `*eval*` scripts, and refuses three shapes of shrinkage: **net
+assertion loss**, **weakened matcher** (the count held but `toBe(42)` became
+`toBeDefined()`), and **muted test**. Its self-check includes the DGM-shaped diff, so the
+check is proven against the failure it was built for.
+
+Matcher strength is scored by a token lookup rather than an AST parse. The matcher *name*
+is the entire signal — `toBe` constrains, `toBeDefined` does not — so a Babel or TypeScript
+parser would add a dependency and buy precision that nothing downstream consumes.
+
+The rule is judged **per file**, and a rewrite at equal or greater strength prints a note
+instead of failing. That is not leniency: a line-by-line rule fires on every edit to a
+test, including strengthening one, and a guard that always fires is a guard that gets
+bypassed with `--acknowledged` out of habit. Measured on this repo: editing an assertion's
+message string now prints a note and exits 0, while `assert.equal(code, 1)` →
+`assert.ok(code)` reports `constraint 3 -> 1` and exits 1.
 
 ```bash
 node ~/.claude/scripts/gate-guard.mjs              # everything since HEAD, staged or not

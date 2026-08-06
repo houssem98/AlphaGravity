@@ -321,9 +321,22 @@ not doctrine, it is decoration.
 
 A gate may grow. A gate may not shrink in the same change that claims it green.
 
-`~/.claude/scripts/gate-guard.mjs` refuses a diff that deletes an assertion from a
-test file, an `e2e/` spec, or a `scripts/*lint*|*gate*|*sweep*|*eval*` script, or that
-adds a `.skip` / `.todo` / `.only` / `xit`. Run it before the commit that flips a `[ ]`.
+`~/.claude/scripts/gate-guard.mjs` refuses a diff that shrinks a gate — a test file, an
+`e2e/` spec, or a `scripts/*lint*|*gate*|*sweep*|*eval*` script. Run it before the commit
+that flips a `[ ]`. Three ways to shrink one:
+
+| finding | what it caught |
+|---|---|
+| `net assertion loss` | the file ends with fewer assertions than it started with |
+| `weakened matcher` | the count held but the constraint dropped — `toBe(42)` → `toBeDefined()`, `toEqual({a:1})` → `toBeTruthy()` |
+| `muted test` | a `.skip` / `.todo` / `.only` / `xit` was added |
+
+Matcher strength is a token lookup, not an AST parse: the matcher *name* carries the whole
+signal, so a parser dependency would buy precision nothing here consumes.
+
+**Judged per file, and a rewrite at equal or greater strength is a printed note, not a
+failure.** A line-by-line rule fires on every edit to a test — including strengthening one
+— and a guard that always fires is a guard that gets bypassed. The bypass is the real loss.
 
 Why, precisely: in the Darwin Gödel Machine (arXiv 2505.22954 Appendix H) the agent
 was scored on whether tool-use hallucination markers appeared in its logs. Node 114
