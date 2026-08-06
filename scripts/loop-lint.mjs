@@ -19,9 +19,24 @@ const CONVENTIONS = 'docs/LOOP_CONVENTIONS.md';
 const PROMPT_TARGET = 1500;
 const PROMPT_HARD_CAP = 3000;
 
+// A loop stops on a number a model produced, rather than on a command's exit code.
+// Threshold-shaped only: QA_LOOP.sh mentions "judge-scored loop runs" as a
+// category of verification, which is not a stop rule, and flagging it would
+// train the reader to skim past this check.
+const JUDGED = /MIN_SCORE|\b(?:judge|rubric|rating|score)\b[^\n]{0,40}(?:>=|≥|threshold|at least\s*\d|\d\s*\/\s*\d)/i;
+// The checks that still mean something for a file with no /loop prompt line — a
+// bash harness that runs the loop itself, or a markdown loop spec. Stop conditions
+// and judge discipline are properties of the loop, not of the prompt, so those
+// files are held to these four and excused the prompt-shaped rest.
+const WHOLE_FILE_CHECKS = new Set(['stop-target', 'stop-budget', 'stop-stall', 'judge-threshold']);
+
+// Scope by the word LOOP, not by the `_LOOP.sh` suffix, and not by extension.
+// The suffix let ten .sh files opt out (CRYPTO_LOOP_V2..V10, LOOP_SELF_IMPROVE);
+// the extension let seven .md loop specs opt out on top of that. A checker whose
+// scope is a naming convention checks whatever agrees to be checked.
 const files = process.argv.slice(2).length
     ? process.argv.slice(2)
-    : readdirSync('.').filter(f => /_LOOP\.sh$/.test(f)).sort();
+    : readdirSync('.').filter(f => /\.(sh|md)$/.test(f) && f.includes('LOOP')).sort();
 
 if (files.length === 0) {
     console.log('no *_LOOP.sh files found');
@@ -63,6 +78,18 @@ const CHECKS = [
         ({ prompt, conventions }) => /REAL numbers|no adjectives/i.test(prompt) || conventions],
     ['conventions', `points at ${CONVENTIONS} instead of inlining it`,
         ({ conventions }) => conventions],
+    // A loop that stops on a model-graded score is stopping on a noisy measurement.
+    // "The Coin Flip Judge?" (arXiv 2606.13685) reports pairwise preferences
+    // flipping 13.6% of the time on identical repeated evaluations, 76% cross-judge
+    // agreement (kappa 0.51), and ~11 trials needed for a majority vote to recover
+    // the 50-trial verdict at 95%. LOOP_STANDARD.md §2 already demands a holdout and
+    // a different model for verification; this makes those two mechanical, and adds
+    // the trial count, because one judge call at a threshold is a coin with a bias.
+    ['judge-threshold', 'a score-graded stop names a holdout, a distinct judge, and a trial count',
+        ({ raw }) => !JUDGED.test(raw)
+            || (/holdout|held-out|hold-out/i.test(raw)
+                && /judge[ _-]?model|(?:different|distinct|separate|second)\s+(?:model|judge)/i.test(raw)
+                && /trials?|n\s*=\s*\d|repeat/i.test(raw))],
     ['budget-size', `prompt under the ${PROMPT_HARD_CAP}-char hard cap`,
         ({ prompt }) => prompt.length <= PROMPT_HARD_CAP],
 ];
@@ -77,11 +104,25 @@ for (const file of files) {
     const head = lines.slice(0, -1).join('\n');
     const conventions = prompt.includes(CONVENTIONS);
 
+    // Three shapes of loop file live here. Most are a header plus one long prompt
+    // line fed to /loop. Some are bash harnesses that run the loop themselves, and
+    // some are markdown loop specs pasted in whole — neither has a prompt line to
+    // lint, but stop conditions and judge discipline still apply, so those are held
+    // to the four loop-level rules and excused the prompt-shaped rest rather than
+    // drowned in irrelevant failures.
+    //
+    // A .md loop is a whole-file spec by definition. For .sh, shell expansion in the
+    // final line means that line is code being run, not prose being sent — length
+    // cannot separate the two, because a terse delegating prompt is legitimately short.
+    const wholeFile = file.endsWith('.md') || /\$\{|\$\(|\|\||2>|>>/.test(prompt);
+
     // A loop whose ledger has no unchecked boxes cannot run again, so its
     // prompt costs nothing and its missing stop conditions cannot bite. Report
     // it and move on — a linter that fails on dead files teaches you to ignore
     // the linter. It still fails if its ledger is missing entirely.
-    const ledger = prompt.match(/docs\/[A-Z0-9_]+\.md/)?.[0];
+    // Search the whole file for the shapes that have no prompt line: a .md spec
+    // names its ledger in prose, not on its last line.
+    const ledger = (wholeFile ? raw : prompt).match(/docs\/[A-Z0-9_]+\.md/)?.[0];
     if (ledger && existsSync(ledger)) {
         const open = (readFileSync(ledger, 'utf8').match(/^- \[ \]/gm) ?? []).length;
         if (open === 0) {
@@ -91,20 +132,30 @@ for (const file of files) {
         }
     }
 
-    const ctx = { raw, head, prompt, conventions };
-    const results = CHECKS.map(([id, desc, test]) => {
-        let ok = false;
-        try { ok = !!test(ctx); } catch { ok = false; }
-        return { id, desc, ok };
-    });
+    const ctx = wholeFile
+        ? { raw, head: '', prompt: raw, conventions: false }
+        : { raw, head, prompt, conventions };
+    const results = CHECKS
+        .filter(([id]) => !wholeFile || WHOLE_FILE_CHECKS.has(id))
+        .map(([id, desc, test]) => {
+            let ok = false;
+            try { ok = !!test(ctx); } catch { ok = false; }
+            return { id, desc, ok };
+        });
 
     const bad = results.filter(r => !r.ok);
     if (bad.length) failed++;
-    rows.push({ file, chars: prompt.length, bad });
+    // A .md spec is pasted whole, so its per-wakeup cost is the file. A .sh harness
+    // is executed, not sent, so its last line costs nothing per tick.
+    const chars = file.endsWith('.md') ? raw.length : wholeFile ? 0 : prompt.length;
+    rows.push({ file, chars, bad });
 
-    const warn = bad.length === 0 && prompt.length > PROMPT_TARGET;
+    const warn = !wholeFile && bad.length === 0 && prompt.length > PROMPT_TARGET;
     const status = bad.length === 0 ? (warn ? 'PASS (warn)' : 'PASS') : `FAIL ${bad.length}`;
-    console.log(`\n${file}  —  ${status}  ·  prompt ${prompt.length} chars`);
+    const shape = wholeFile
+        ? `${file.endsWith('.md') ? 'spec' : 'harness'}, ${results.length} checks apply`
+        : `prompt ${prompt.length} chars`;
+    console.log(`\n${file}  —  ${status}  ·  ${shape}`);
     for (const b of bad) console.log(`   ✗ ${b.id.padEnd(16)} ${b.desc}`);
     if (warn) {
         console.log(`   ! size             ${prompt.length - PROMPT_TARGET} over the ${PROMPT_TARGET}-char target — confirm every line is a real delta`);

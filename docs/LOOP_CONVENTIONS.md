@@ -156,10 +156,24 @@ is true of all of them, it belongs in this file.
 ## 9. Checking a loop file
 
 ```bash
-node scripts/loop-lint.mjs                     # every *_LOOP.sh
+npm run loops                                  # all three checkers
+npm run loops:test                             # all three self-checks
+
+node scripts/loop-lint.mjs                     # every *.sh / *.md with LOOP in the name
 node scripts/loop-lint.mjs GRID_LOOP.sh        # one
-node scripts/loop-lint.test.mjs                # the linter's own self-check
+node scripts/graph-lint.mjs                    # do the loop graphs still resolve?
+node ~/.claude/scripts/gate-guard.mjs          # did this diff weaken a gate?
 ```
+
+`npm run loops` runs graph-lint and gate-guard **before** loop-lint on purpose. The
+chain is `&&`, and loop-lint currently exits 1 on a known ledger backlog; running it
+last means the two checks that are green today still report, and a new failure in
+either surfaces immediately instead of hiding behind the backlog.
+
+`gate-guard` lives in `~/.claude/scripts/`, not here: it has no repo assumptions —
+just `git diff` and a regex — and every project needs it on day one. One copy, so
+there is nothing to drift. The other two read this repo's `docs/` and root loop
+files, so they stay repo-local.
 
 The self-check is mutation-tested: disabling the CLOSED skip, forcing delegation
 true, or removing the hard cap each make it fail. A check that cannot be made to
@@ -168,10 +182,35 @@ fail is a check that proves nothing.
 The linter reduces `~/.claude/LOOP_STANDARD.md`'s nine parts to what a machine can
 verify. A rule with no check is a wish.
 
-Sixteen checks: usage header, single-line prompt, the ledger doc exists on disk,
+Seventeen checks: usage header, single-line prompt, the ledger doc exists on disk,
 first-unchecked-only, acceptance rows named, the three stop conditions, escalation,
 a numeric cadence, persistence through a 429, commit format, the no-push rule,
-real-numbers-in-the-log, and the two size bands.
+real-numbers-in-the-log, judge-threshold discipline, and the two size bands.
+
+**Scope is the word `LOOP`, not the suffix and not the extension.** `*_LOOP.sh` let
+ten files opt out by how they were named — `LOOP_SELF_IMPROVE.sh` and
+`CRYPTO_LOOP_V2..V10.sh` — and `.sh` let seven markdown loop specs opt out on top of
+that. **15 → 25 → 32 files.** A checker whose scope is a naming convention checks
+whatever agrees to be checked.
+
+**Three shapes of loop file.** Most are a header plus one prompt line fed to `/loop`.
+Some are bash harnesses that run the loop themselves (detected by shell expansion in
+the last line — length cannot separate the two, because a terse delegating prompt is
+legitimately short). Some are `.md` specs pasted in whole. The latter two have no
+prompt line, so they are held to the four rules that belong to the **loop** rather
+than to the **prompt** — target, budget, stall, judge-threshold — instead of being
+drowned in prompt-shaped failures they cannot satisfy.
+
+The `CLOSED` skip searches the whole file for those two shapes: a `.md` spec names
+its ledger in prose, not on its last line. `COMPANY_LOOP.md` was failing three checks
+purely because the skip only ever read the final line.
+
+**`judge-threshold`.** A stop condition graded by a model score must name a
+holdout, a distinct judge model, and a trial count. Identical repeated LLM-judge
+evaluations flip their pairwise preference 13.6% of the time on average, agree
+across judges only 76% (κ = 0.51), and need ~11 trials for a majority vote to
+recover the 50-trial verdict at 95% confidence (arXiv 2606.13685). One judge call
+at a fixed threshold is a coin with a bias. See `docs/LOOP_RESEARCH.md` §4.
 
 Most checks pass either by stating the rule inline **or** by pointing at this file
 — a loop that delegates gets them for free, which is the point.
@@ -230,6 +269,29 @@ Remaining failure: `QA_LOOP.sh` names a ledger doc that does not exist. Its work
 is finished, so it is a dead file rather than a broken loop — deliberately not
 repaired.
 
+### Second run 2026-08-06, after the scope fix
+
+**32 files, 8 failing.** Widening scope past the `.sh` extension found seven markdown
+loop specs that had never been linted. Six of the seven have **no stall condition**;
+five have no numeric budget:
+
+| file | missing |
+|---|---|
+| `ARCHITECTURE_DISCOVERY_LOOP.md` | budget, stall, judge-threshold |
+| `LOOP_PROMPT.md` | target, stall, judge-threshold |
+| `GAMMA_LOOP_TASK.md` | budget, judge-threshold |
+| `LOOP_TASK.md` · `WC_LOOP_TASK.md` · `DR_LOOP_TASK.md` | budget, stall |
+| `COMPANY_LOOP.md` | — (now correctly `CLOSED`) |
+| `LOOP_SELF_IMPROVE.sh` | target, stall, judge-threshold |
+| `QA_LOOP.sh` | 7, pre-existing, dead file |
+
+None of these seven carries its own task boxes and only one named a ledger, so the
+`CLOSED` skip cannot prove any of them dead. They can be pasted into `/loop` tomorrow
+and would run without a stall condition — which is why they fail rather than being
+excused. `ARCHITECTURE_DISCOVERY_LOOP.md` is the sharpest case: its only stop is
+"continue while the completeness score < 95%", a score the agent computes about its
+own documentation. That is a judged stop at n = 1 with no budget and no stall.
+
 ---
 
 ## 10. Known decoration
@@ -242,5 +304,35 @@ Left in place rather than deleted, but recorded here as unused: either cite one
 from a loop prompt so it earns its keep, or delete it. An unread diagram rots into
 a lie, because nothing fails when it stops matching the code.
 
+**Resolved 2026-08-06 by making them fail.** `scripts/graph-lint.mjs` resolves every
+concrete thing a graph node names — repo paths, `§N` sections, task IDs, camelCase
+code symbols — and exits 1 when one stops resolving. A graph naming none of those is
+reported as `DECORATION`. First run: 3 graphs, **17/17 refs resolve, 0 drifted** — the
+diagrams were accurate, they were merely unchecked. The linter prints the *mix* of
+reference kinds, because `DEXTER_INSTITUTIONAL`'s graph names no file and no code
+symbol (4 sections, 3 task IDs) and is therefore checked far more weakly than the
+other two. Mutation-verified against the real file: breaking one path yields
+`FAIL 1/7`.
+
 The same test applies to anything else in a ledger: if no task ever reads it, it is
 not doctrine, it is decoration.
+
+## 11. Gate integrity
+
+A gate may grow. A gate may not shrink in the same change that claims it green.
+
+`~/.claude/scripts/gate-guard.mjs` refuses a diff that deletes an assertion from a
+test file, an `e2e/` spec, or a `scripts/*lint*|*gate*|*sweep*|*eval*` script, or that
+adds a `.skip` / `.todo` / `.only` / `xit`. Run it before the commit that flips a `[ ]`.
+
+Why, precisely: in the Darwin Gödel Machine (arXiv 2505.22954 Appendix H) the agent
+was scored on whether tool-use hallucination markers appeared in its logs. Node 114
+scored a perfect 2.0 after two modifications — by deleting the marker emission,
+"despite instructions not to change the special tokens". The paper reports that
+objective hacking "occurs more frequently when these functions are not hidden" from
+the agent. Our loops cannot hide their gates — the same agent writes the test, the
+code, and the ledger tick — so the next-cheapest defence is that a shrinking gate
+cannot pass unnoticed.
+
+If a deletion is genuinely correct, record in §8 which assertion went and why it no
+longer grades anything real, then re-run with `--acknowledged`. Do not silence it.

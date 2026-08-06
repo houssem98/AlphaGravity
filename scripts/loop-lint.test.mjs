@@ -73,5 +73,50 @@ const huge = run('HUGE_LOOP.sh');
 assert.match(huge.out, /FAIL/, 'over the hard cap must fail');
 assert.match(huge.out, /budget-size/, 'and must name the size check');
 
+// A bash harness has no prompt line to lint, but its stop conditions and its
+// judge discipline still apply. It must be linted on those and excused the rest,
+// or a real loop escapes review by not being shaped like a prompt file.
+writeFileSync(join(dir, 'HARNESS_LOOP.sh'),
+    '#!/usr/bin/env bash\nMIN_SCORE=7.0\nMAX_ITER=3\n'
+    + 'npm run eval 2>&1 | tee "${LOG}"\n');
+const harness = run('HARNESS_LOOP.sh');
+assert.match(harness.out, /harness, 4 checks apply/, 'a shell harness is linted on the 4 loop-level rules');
+assert.match(harness.out, /judge-threshold/, 'a MIN_SCORE stop with no holdout must fail');
+assert.doesNotMatch(harness.out, /usage|one-line|conventions/, 'prompt-shaped rules do not apply to a harness');
+assert.equal(harness.code, 1, 'a failing harness exits 1');
+
+// The same harness with the three named parts present must pass — otherwise
+// judge-threshold is unsatisfiable and would just be noise.
+writeFileSync(join(dir, 'FIXED_LOOP.sh'),
+    '#!/usr/bin/env bash\n# TARGET: no [ ] remain.  BUDGET: 3 iterations.  STALL: 3 consecutive.\n'
+    + '# Scored on a holdout split, graded by a distinct judge model, 11 trials per item.\n'
+    + 'MIN_SCORE=7.0\nnpm run eval 2>&1 | tee "${LOG}"\n');
+assert.match(run('FIXED_LOOP.sh').out, /FIXED_LOOP\.sh\s+—\s+PASS/, 'a disciplined harness passes');
+
+// Threshold-shaped only: a passing mention of judging is not a judged stop.
+writeFileSync(join(dir, 'MENTION_LOOP.sh'),
+    '#!/usr/bin/env bash\n# TARGET: no [ ] remain.  BUDGET: 3 iterations.  STALL: 3 consecutive.\n'
+    + '# some verification is live-run-only (judge-scored loop runs)\n'
+    + 'npm run eval 2>&1 | tee "${LOG}"\n');
+assert.doesNotMatch(run('MENTION_LOOP.sh').out, /judge-threshold/, 'a descriptive mention is not a judged stop');
+
+// A markdown loop spec has no prompt line either, and is pasted whole, so it is
+// held to the same four rules — otherwise a loop escapes by being a .md file.
+writeFileSync(join(dir, 'SPEC_LOOP.md'),
+    '# Discovery Loop\n\nRepeat until the completeness score >= 95%.\n');
+const spec = run('SPEC_LOOP.md');
+assert.match(spec.out, /spec, 4 checks apply/, 'a .md loop spec is linted as a whole file');
+assert.match(spec.out, /stop-stall/, 'and must still name a stall condition');
+assert.match(spec.out, /judge-threshold/, 'a self-assessed score threshold is a judged stop');
+assert.equal(spec.code, 1, 'a .md loop with no stall exits 1');
+
+// Scope: the linter must not be opt-out-able by filename or by extension. Ten .sh
+// files sat outside the old `_LOOP.sh` suffix; seven .md specs sat outside .sh.
+writeFileSync(join(dir, 'CRYPTO_LOOP_V2.sh'), header + 'Read docs/OPEN_LEDGER.md.\n');
+const all = run().out;
+assert.match(all, /CRYPTO_LOOP_V2\.sh/, 'a *_LOOP_V2.sh file is in scope');
+assert.match(all, /HARNESS_LOOP\.sh/, 'LOOP-prefixed harnesses are in scope');
+assert.match(all, /SPEC_LOOP\.md/, 'markdown loop specs are in scope');
+
 rmSync(dir, { recursive: true, force: true });
-console.log('loop-lint self-check: 14 assertions passed');
+console.log('loop-lint self-check: 29 assertions passed');
