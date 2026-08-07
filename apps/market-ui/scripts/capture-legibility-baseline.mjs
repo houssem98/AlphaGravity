@@ -14,7 +14,7 @@ import { chromium, devices } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { clippedText } from '../src/lib/legibility.ts';
+import { clippedText, visiblePairs } from '../src/lib/legibility.ts';
 import { collectPaintBoxes, overpaintPairs } from '../src/lib/overpaint.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -68,6 +68,42 @@ const openCrypto = async (page) => {
     await page.locator('tbody tr').first().scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(600);
 };
+// MP-4 · `overpaintPairs` compares raw rects, so it reports a cover over text
+// that is not painted there at all: a tab scrolled out of its own
+// `overflow-x: auto` strip still reports its rect, and the chooser sitting
+// beside the strip "covers" it. That is the mirror of V3's premise — V2 cannot
+// see clipping, in either direction. The instrument stays unchanged (R5 says
+// "reuses V2's instrument"); the pairs it returns are re-checked here against
+// the covered element's VISIBLE box, which is its rect clamped to the nearest
+// ancestor that clips.
+const clipMapOf = (page) =>
+    page.evaluate(() => {
+        const out = [];
+        for (const el of Array.from(document.querySelectorAll('*'))) {
+            const own = Array.from(el.childNodes)
+                .filter((n) => n.nodeType === 3).map((n) => n.textContent || '').join('').trim();
+            if (!own) continue;
+            let r = el.getBoundingClientRect();
+            const rg = document.createRange();
+            rg.selectNodeContents(el);
+            const rr = rg.getBoundingClientRect();
+            if (rr.width > 0 && rr.height > 0) r = rr;
+            if (r.width <= 0 || r.height <= 0) continue;
+            let p = el.parentElement, c = null;
+            while (p) {
+                const s = getComputedStyle(p);
+                if (s.overflowX !== 'visible' || s.overflowY !== 'visible') { c = p.getBoundingClientRect(); break; }
+                p = p.parentElement;
+            }
+            if (!c) continue;
+            out.push([
+                `${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)}`,
+                [c.left, c.top, c.right, c.bottom],
+            ]);
+        }
+        return out;
+    });
+
 const scrollTableTo = (page, x) =>
     page.evaluate((v) => {
         for (const el of Array.from(document.querySelectorAll('div'))) {
@@ -226,11 +262,48 @@ if (wanted('R5')) {
         const faults = [];
         for (const path of ['/trading', '/search']) {
             await settle(page, path);
-            for (const p of overpaintPairs(await page.evaluate(collectPaintBoxes, 'body'))) {
+            // MP-4 · a cover is a fault when the text can never be read, not
+            // when it happens to be under fixed chrome at one scroll position.
+            // /search autofocuses its composer, so the thread pane loads at
+            // scrollTop 448 of 448 and the marketing hero sits under the 48px
+            // header; scrolled to the top instead, the last example card sits
+            // under the composer. Both are what fixed chrome does. So collect at
+            // BOTH ends of every scroller and keep only the pairs present in
+            // both — the chooser over the tab strip was one of those, and a
+            // header that covers content at every offset still is.
+            const at = async (where) => {
+                await page.evaluate((w) => {
+                    document.activeElement?.blur?.();
+                    for (const el of Array.from(document.querySelectorAll('*'))) {
+                        if (el.scrollHeight > el.clientHeight) el.scrollTop = w === 'top' ? 0 : el.scrollHeight;
+                    }
+                }, where);
+                await page.waitForTimeout(500);
+                return visiblePairs(
+                    overpaintPairs(await page.evaluate(collectPaintBoxes, 'body')),
+                    await clipMapOf(page),
+                );
+            };
+            const key = (p) => `${p.overText || p.over.split('@')[0]}|${p.covered}`;
+            const bottom = new Set((await at('bottom')).map(key));
+            for (const p of (await at('top')).filter((p) => bottom.has(key(p)))) {
                 faults.push(`${path}: "${p.overText || p.over}" over "${p.covered}" ${p.overlapX}x${p.overlapY}px`);
             }
         }
-        log('R5', cls, faults.length ? 'RED' : 'GREEN', `${faults.length} pair(s)` + (faults[0] ? ` · ${faults[0]}` : ''));
+        // MP-4 · F3's surface is one tap in from /trading, so R5 as written never
+        // visits it (MP-1 §8 finding). The chooser prints glyphs with no
+        // background of its own, which is the `requireOpaque: false` case — text
+        // on text is text a user cannot read.
+        await openCrypto(page);
+        const chooser = visiblePairs(
+            overpaintPairs(await page.evaluate(collectPaintBoxes, 'body'), { requireOpaque: false })
+                .filter((p) => /Columns/.test(p.overText) || /Columns/.test(p.covered)),
+            await clipMapOf(page),
+        );
+        for (const p of chooser) faults.push(`crypto table: "${p.overText}" over "${p.covered}" ${p.overlapX}x${p.overlapY}px`);
+        log('R5', cls, faults.length ? 'RED' : 'GREEN',
+            `${faults.length} pair(s), ${chooser.length} on the chooser` + (faults[0] ? ` · ${faults[0]}` : ''),
+            { faults });
         await ctx.close();
     }
 }

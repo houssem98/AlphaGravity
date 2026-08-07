@@ -766,7 +766,14 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
             with the columns when the page scrolls sideways. */}
         <div className="w-full bg-[color:var(--surface)] border border-[color:var(--line)]">
         <div className="flex items-center gap-0 mb-0 border-b border-[color:var(--line)]">
-          <div className="flex items-center gap-0 overflow-x-auto flex-none sticky left-0 max-w-[100vw]">
+          {/* MP-4 · F3. `flex-none max-w-[100vw]` let this row claim the whole
+              viewport, and the chooser beside it was `ml-auto sticky right-0`,
+              so the two occupied the same pixels: frame 122124 shows "+ Columns"
+              printed through "Categories" and over "Portfolio". `flex-1 min-w-0`
+              makes the tab row yield instead — the tabs still scroll inside
+              their own box, and the chooser takes its width from the flex row
+              rather than floating over it. */}
+          <div className="flex items-center gap-0 overflow-x-auto flex-1 min-w-0">
             {['all', 'watchlist', 'categories', 'portfolio', 'exchanges', 'nfts', 'converter'].map((tab) => {
               const isActive = activeTab === tab;
               const label = tab === 'watchlist' ? `Watchlist (${watchlist.length})` : tab === 'all' ? 'Cryptocurrencies' : tab;
@@ -795,7 +802,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
           {/* z-50: sticky makes the wrapper a stacking context, so without it
               the table paints over the column popover it contains. */}
           {(activeTab === 'all' || activeTab === 'watchlist') && (
-            <div className="relative shrink-0 mb-1 ml-auto sticky right-0 z-50">
+            <div className="relative shrink-0 mb-1 z-50">
               <button
                 onClick={() => setColMenu((v) => !v)}
                 title="Add or remove columns"

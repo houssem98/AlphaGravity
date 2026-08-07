@@ -19,6 +19,8 @@
 // it may not close over anything in this module. Its only inputs are the
 // selector and the DOM.
 
+import type { OverpaintPair } from './overpaint';
+
 export type Clipped = {
     tag: string;
     cls: string;
@@ -98,4 +100,44 @@ export function clippedText(rootSel: string): Clipped[] {
         });
     }
     return out;
+}
+
+/**
+ * MP-4 · the same blind spot, pointed the other way.
+ *
+ * `overpaintPairs` compares raw rects, so it reports a cover over text that is
+ * not painted where it claims to be: a tab scrolled out of its own
+ * `overflow-x: auto` strip still reports its rect, and the control sitting
+ * beside the strip "covers" it. V2's instrument stays unchanged — R5 says it
+ * must — and its output is re-checked here against what is actually on screen.
+ *
+ * `clips` is `[rectKey, [left, top, right, bottom]]` for every element with own
+ * text that has a clipping ancestor, keyed exactly as `desc()` rounds it:
+ * `"x,y WxH"`. A pair survives when the covering rect still overlaps the
+ * covered element's rect **clamped to that clipper** by more than 2px on both
+ * axes — the same floor `overpaintPairs` uses.
+ */
+export function visiblePairs(
+    pairs: OverpaintPair[],
+    clips: [string, [number, number, number, number]][],
+): OverpaintPair[] {
+    const rectOf = (d: string) => {
+        const m = /@(-?\d+),(-?\d+) (\d+)x(\d+)$/.exec(d);
+        return m ? { x: +m[1], y: +m[2], w: +m[3], h: +m[4] } : null;
+    };
+    const map = new Map(clips);
+    return pairs.filter((p) => {
+        const u = rectOf(p.under);
+        const o = rectOf(p.over);
+        if (!u || !o) return true;
+        const c = map.get(`${u.x},${u.y} ${u.w}x${u.h}`);
+        if (!c) return true;
+        const vl = Math.max(u.x, c[0]);
+        const vt = Math.max(u.y, c[1]);
+        const vr = Math.min(u.x + u.w, c[2]);
+        const vb = Math.min(u.y + u.h, c[3]);
+        const ox = Math.min(o.x + o.w, vr) - Math.max(o.x, vl);
+        const oy = Math.min(o.y + o.h, vb) - Math.max(o.y, vt);
+        return ox > 2 && oy > 2;
+    });
 }

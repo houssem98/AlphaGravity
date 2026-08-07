@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { clippedText } from './legibility';
+import { clippedText, visiblePairs } from './legibility';
 
 // MP-1 · row R1 of docs/MOBILE_PARITY_ROADMAP.md.
 //
@@ -203,5 +203,37 @@ describe('R1 — the legibility evaluator sees what overpaintPairs structurally 
         expect(hits).toHaveLength(1);
         expect(hits[0].clippedPx).toBe(20); // 380 - 360 beats 55 - 40
         expect(hits[0].reason).toBe('ancestor');
+    });
+});
+
+// MP-4 · row R5. `visiblePairs` exists to drop covers over text that is not on
+// screen — which is exactly the shape of a filter that could quietly drop
+// everything and report a green gate. These four fix what it may not drop.
+describe('R5 — visiblePairs keeps a real cover and drops one over clipped text', () => {
+    const pair = (over: string, under: string, covered = 'Categories') => ({
+        over, overText: '+ Columns', under, overlapX: 60, overlapY: 13, covered, numeral: false,
+    });
+
+    it('keeps a pair whose covered element has no clipping ancestor at all', () => {
+        // F3 as the phone showed it: the tab is painted where it says it is.
+        expect(visiblePairs([pair('button@246,880 97x31', 'button@260,880 88x20')], [])).toHaveLength(1);
+    });
+
+    it('keeps a pair whose covered text is still visible inside its clipper', () => {
+        const clips: [string, [number, number, number, number]][] = [['260,880 88x20', [17, 870, 340, 916]]];
+        expect(visiblePairs([pair('button@246,880 97x31', 'button@260,880 88x20')], clips)).toHaveLength(1);
+    });
+
+    it('drops a pair whose covered text was scrolled out of its own strip', () => {
+        // The strip ends at x=246; the tab's rect says 260..348 but none of it
+        // is painted. That is the pair MP-4's fix left behind on prod.
+        const clips: [string, [number, number, number, number]][] = [['260,880 88x20', [17, 870, 246, 916]]];
+        expect(visiblePairs([pair('button@246,880 97x31', 'button@260,880 88x20')], clips)).toEqual([]);
+    });
+
+    it('drops only the clipped pair when both kinds are present', () => {
+        const clips: [string, [number, number, number, number]][] = [['260,880 88x20', [17, 870, 246, 916]]];
+        const kept = pair('div@0,0 360x48', 'span@10,10 100x20', 'Retrieval online');
+        expect(visiblePairs([pair('button@246,880 97x31', 'button@260,880 88x20'), kept], clips)).toEqual([kept]);
     });
 });

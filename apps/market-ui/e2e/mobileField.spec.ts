@@ -1,5 +1,6 @@
 import { test, expect, type Page, type TestInfo } from '@playwright/test';
 import { collectPaintBoxes, overpaintPairs } from '../src/lib/overpaint';
+import { visiblePairs } from '../src/lib/legibility';
 
 // MF-1 · row R5 of docs/MOBILE_FIELD_ROADMAP.md — a named gate per fault G1–G16.
 //
@@ -41,6 +42,39 @@ async function settle(page: Page, path: string) {
 }
 
 const boxes = (page: Page, sel = 'body') => page.evaluate(collectPaintBoxes, sel);
+
+// MP-4 · what `visiblePairs` needs: for every element with own text, its rect
+// keyed the way overpaint's `desc()` rounds it, and the rect of the nearest
+// ancestor that clips. Elements nothing clips are absent, and a pair over one
+// of those is always kept.
+const clipsOf = (page: Page) =>
+    page.evaluate(() => {
+        const out: [string, [number, number, number, number]][] = [];
+        for (const el of Array.from(document.querySelectorAll('*'))) {
+            const own = Array.from(el.childNodes)
+                .filter((n) => n.nodeType === 3).map((n) => n.textContent || '').join('').trim();
+            if (!own) continue;
+            let r = el.getBoundingClientRect();
+            const rg = document.createRange();
+            rg.selectNodeContents(el);
+            const rr = rg.getBoundingClientRect();
+            if (rr.width > 0 && rr.height > 0) r = rr;
+            if (r.width <= 0 || r.height <= 0) continue;
+            let p = el.parentElement;
+            let c: DOMRect | null = null;
+            while (p) {
+                const s = getComputedStyle(p);
+                if (s.overflowX !== 'visible' || s.overflowY !== 'visible') { c = p.getBoundingClientRect(); break; }
+                p = p.parentElement;
+            }
+            if (!c) continue;
+            out.push([
+                `${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)}`,
+                [c.left, c.top, c.right, c.bottom],
+            ]);
+        }
+        return out;
+    });
 
 // /trading opens the hub — "Markets at a Glance", a card per market — not a
 // table. The crypto table G1 and G5 live in is one tap further, behind
@@ -248,8 +282,20 @@ test.describe('G5 — sticky chrome must not print on the content beneath', () =
         await page.waitForTimeout(600);
         // requireOpaque:false — the chooser has NO background, which is the
         // fault: it prints glyphs straight onto Categories and Portfolio.
-        const pairs = overpaintPairs(await boxes(page), { requireOpaque: false }).filter(
-            (p) => /Columns/.test(p.overText) || /Columns/.test(p.covered),
+        //
+        // MP-4 · `visiblePairs` re-checks each pair against the covered
+        // element's rect clamped to the ancestor that clips it. After MP-4's fix
+        // the tab strip is `overflow-x: auto flex-1 min-w-0`, so `categories`
+        // scrolls out of its own box: its rect still overlaps the chooser, and
+        // nothing of it is painted there. This test failed on exactly that pair
+        // while its own failure screenshot showed a clean tab row. The
+        // assertion below is unchanged; only the false positive is removed, and
+        // src/lib/legibility.test.ts fixes what the filter may not drop.
+        const pairs = visiblePairs(
+            overpaintPairs(await boxes(page), { requireOpaque: false }).filter(
+                (p) => /Columns/.test(p.overText) || /Columns/.test(p.covered),
+            ),
+            await clipsOf(page),
         );
         expect(pairs.map((p) => `"${p.overText}" over "${p.covered}"`), 'chooser overpaints').toEqual([]);
     });

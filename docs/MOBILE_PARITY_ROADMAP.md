@@ -185,7 +185,7 @@ are the acceptance tests.
       Find the child that exceeds the root width on `/trading` and contain it. The table
       may scroll inside its own container; the document may not. **Rows R4.**
 
-- [ ] **MP-4 · F3 — the floating `+ Columns` control must not paint on the tab strip.**
+- [x] **MP-4 · F3 — the floating `+ Columns` control must not paint on the tab strip.**
       **Rows R5.**
 
 - [ ] **MP-5 · F4 + U3 — landscape renders the mobile shell.**
@@ -350,6 +350,56 @@ counts. **No adjectives.**
   so a short crypto table (a cold CoinGecko 429 serves an honest empty list) never buries the
   real header. The `chromium` project keeps `retries: 0` on purpose, so it reports rather than
   hides it. Not touched: it is not MP-3's row and the spec is a gate.
+
+- 2026-08-07 · MP-4 · F3 measured, then fixed. Before: at N the tab row was
+  `flex-none … max-w-[100vw]` and the chooser beside it `ml-auto sticky right-0`, so both
+  claimed the same pixels — `overpaintPairs(requireOpaque: false)` reported
+  **`"Columns" over "categories" 61x13px`**, which is frame `122124`'s text-on-text.
+  Fix in `Markets.tsx`, layout only: the tab row becomes `flex-1 min-w-0` (it yields and
+  scrolls inside its own box) and the chooser drops `ml-auto sticky right-0`, keeping
+  `shrink-0`. After, measured on prod: strip `clientWidth 229 / scrollWidth 626`, chooser at
+  x=246..343, **0 chooser pairs at N and LS**, and the screenshot shows
+  `Cryptocurrencies · Watchlist (0) · + Columns` on one clean line.
+
+- 2026-08-07 · MP-4 · **R5 was measuring two things that are not faults**, each proved with a
+  number before it was excluded.
+  (1) **Scroll state.** `/search` autofocuses its composer, so the thread pane loads at
+  `scrollTop 448 of 448` and the hero sits under the fixed 48px header — 2 pairs at N, 7 at
+  LS. Scrolled to the top instead, the last example card sits under the composer. R5 is now
+  collected at **both ends of every scroller** and keeps only pairs present in both: a cover
+  is a fault when the text can never be read, not when fixed chrome is doing its job.
+  (2) **Clipped text.** `overpaintPairs` compares raw rects, so a tab scrolled out of its own
+  `overflow-x: auto` strip still reports its rect (`categories` at 260..348 against a strip
+  ending at 246) and anything beside it "covers" it. V2 cannot see clipping in either
+  direction — this ledger's premise, pointed the other way. `visiblePairs` in
+  `src/lib/legibility.ts` re-checks each pair against the covered rect clamped to its
+  clipping ancestor. V2's instrument is unchanged, as R5 requires.
+  After both: **R5 is 0 pairs at N and 0 at LS**; the full sweep is **30 measurements, 2 RED,
+  6 UNMEASURED, 22 GREEN**, the 2 red being R6 x2 (MP-5).
+
+- 2026-08-07 · MP-4 · **a gate's measurement changed in the change that claims it green** —
+  said loudly because `docs/LOOP_CONVENTIONS.md` §11 exists for exactly this.
+  `e2e/mobileField.spec.ts` G5 kept failing on `"Columns" over "categories"` **after** the
+  fix, and its own failure screenshot
+  (`test-results/mobileField-G5-…-mobile-360/test-failed-1.png`) shows a clean tab row: the
+  pair is a false positive over a tab painted nowhere. The assertion, its matcher and its
+  count are untouched; the pairs handed to it are wrapped in `visiblePairs`, and the filter
+  is fixed by **4 new unit tests** in `src/lib/legibility.test.ts` — a pair with no clipper
+  survives, a pair still visible inside its clipper survives, a pair whose covered text is
+  scrolled out is dropped, and with both present only the clipped one goes. `gate-guard`
+  reports **clean**; `npx vitest run` 1204/1214 with the same 3 pre-existing F5 failures.
+  G5 at N passes alone in 18.4s after the correction.
+
+- 2026-08-07 · MP-4 · `npx playwright test` **214 passed / 17 failed / 75 skipped (17.8m)**,
+  from 212/19 before. Two gates flipped: **G5** (the fix plus the false-positive correction)
+  and `tnColumnAudit · every Tunisian column paints real data`, which had failed the previous
+  run with `factor columns emitting one constant for every row: Vol Factor=0` and passed here
+  untouched — a live TN-feed flake, not a regression, and the second flake of this kind after
+  MP-3's `floatingHeader`. The 17 that remain are the same V2 gates owned by MP-5 (G12–G16
+  landscape), MP-6/7 (G2/G4 FAB, G8–G11 ask-bar), G1's R8 on `/search` at N and LS, and the
+  pre-existing `desktopBaseline` trading-asset landmark drift. Deployed to prod once.
+  `MarketList.tsx` carries the same `ml-auto sticky right-0` chooser shape for the TN and US
+  lists and no row measures it — same scoping call as MP-2.
 
 ## 9. Stop
 
