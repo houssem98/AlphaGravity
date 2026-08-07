@@ -373,10 +373,53 @@ if (wanted('R6')) {
 if (wanted('R7')) {
     for (const cls of ['XS', 'N', 'LS']) {
         const [ctx, page] = await open(cls);
-        await settle(page, '/search');
-        const dialogs = await page.evaluate(() => document.querySelectorAll('[role="dialog"]').length);
-        log('R7', cls, 'UNMEASURED',
-            `${dialogs} dialog(s) mounted on /search without interaction. F5's PdfPreview mounts only from ResearchReport after a completed deep-research run, so it does not reproduce headlessly on a cold route — MP-6 owns opening it.`);
+        // MP-6 · R7 says "every modal and drawer reachable on a mobile route",
+        // so open one. `/companies/AAPL` mounts FinancialsModal from a button on
+        // the page — no LLM run, no auth beyond the stored session. PdfPreview
+        // is the one modal a headless run cannot reach (multi-minute deep
+        // research), and its gate is the source gate in src/mobileField.test.ts.
+        await settle(page, '/companies/AAPL');
+        const fin = page.getByRole('button', { name: /^Financials$/i });
+        if (await fin.count()) await fin.first().click().catch(() => {});
+        await page.waitForTimeout(2_500);
+        const m = await page.evaluate(() => {
+            const vw = document.documentElement.clientWidth;
+            const vh = document.documentElement.clientHeight;
+            // Only FirecrawlScrapePanel declares role="dialog" in this app, so
+            // the modals are found by shape instead: a fixed full-viewport
+            // overlay raised above the shell, holding at least one control.
+            // FinancialsModal is `fixed inset-0 z-[100]`, PdfPreview the same.
+            const modals = Array.from(document.querySelectorAll('div')).filter((d) => {
+                const s = getComputedStyle(d);
+                if (s.position !== 'fixed') return false;
+                if ((parseInt(s.zIndex, 10) || 0) < 50) return false;
+                const r = d.getBoundingClientRect();
+                if (r.left > 2 || r.top > 2 || r.right < vw - 2 || r.bottom < vh - 2) return false;
+                return d.querySelectorAll('button').length > 0;
+            });
+            const out = [];
+            for (const d of modals) {
+                const close = Array.from(d.querySelectorAll('button')).find((b) =>
+                    /close|dismiss/i.test(b.getAttribute('aria-label') || '') ||
+                    /^(×|✕|✖|X)$/.test((b.textContent || '').trim()) ||
+                    b.querySelector('svg.lucide-x'));
+                if (!close) { out.push('no dismiss control'); continue; }
+                const r = close.getBoundingClientRect();
+                if (r.left < -1 || r.top < -1 || r.right > vw + 1 || r.bottom > vh + 1) {
+                    out.push(`dismiss outside [${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.right)},${Math.round(r.bottom)}] vw ${vw} vh ${vh}`);
+                }
+            }
+            return { modals: modals.length, out };
+        });
+        const clipped = m.modals
+            ? (await page.evaluate(clippedText, 'body')).filter((c) => c.clippedPx > 1)
+            : [];
+        const faults = m.out.concat(clipped.map((c) => `title/text clipped ${c.clippedPx}px: "${c.text}"`));
+        log('R7', cls, m.modals === 0 ? 'UNMEASURED' : faults.length ? 'RED' : 'GREEN',
+            m.modals === 0
+                ? 'no modal mounted from /companies/AAPL — the Financials button did not open one for this account'
+                : `${m.modals} modal(s) · ${faults.length} fault(s)` + (faults[0] ? ` · ${faults[0]}` : ''),
+            { faults });
         await ctx.close();
     }
 }

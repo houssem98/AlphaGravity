@@ -23,7 +23,12 @@ import { readFileSync } from 'node:fs';
 // The fix is two classes. This gate names them, and fails until they land.
 const SRC = readFileSync(new URL('./components/research/PdfPreview.tsx', import.meta.url), 'utf8');
 
-const toolbar = SRC.slice(SRC.indexOf('── Toolbar ──'), SRC.indexOf('── Toolbar ──') + 2600);
+// MP-6 · the window was 2600 chars and the close button sits 4510 chars past
+// the marker, so the `aria-label` assertion below was reading source that ends
+// before the control it grades — it could not have passed whatever the code
+// did. Widened to the whole toolbar block, which is where the toolbar ends
+// (`── Preview area ──`). The gate now sees more source, not less.
+const toolbar = SRC.slice(SRC.indexOf('── Toolbar ──'), SRC.indexOf('── Preview area ──'));
 const leftGroup = toolbar.slice(toolbar.indexOf('Left: traffic lights'), toolbar.indexOf('Right: zoom'));
 const rightGroup = toolbar.slice(toolbar.indexOf('Right: zoom'));
 

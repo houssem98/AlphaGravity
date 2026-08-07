@@ -70,27 +70,35 @@ export default function PdfPreview({ report, onClose }: Props) {
                 }}
             >
                 {/* Left: traffic lights + title */}
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
+                {/* MP-6 · F5. `min-w-0` on both nested flex rows is what lets the
+                    title give way; without it a flex child refuses to shrink
+                    below its content and pushes the close button off the frame —
+                    frame 122241 shows the title cut mid-word at 360px with no
+                    dismiss control anywhere on screen. The three dots are macOS
+                    cosplay and the widest thing here that means nothing, so they
+                    leave first. */}
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="hidden sm:flex items-center gap-1.5 shrink-0">
                         <div className="w-3 h-3 rounded-full" style={{ background: '#FF5F57' }} />
                         <div className="w-3 h-3 rounded-full" style={{ background: '#FEBC2E' }} />
                         <div className="w-3 h-3 rounded-full" style={{ background: '#28C840' }} />
                     </div>
-                    <div className="flex items-center gap-2 ml-2">
-                        <FileText className="w-3.5 h-3.5" style={{ color: '#3D7FF6' }} />
-                        <span className="text-[13px] font-medium" style={{ color: '#A0AABF' }}>
+                    <div className="flex items-center gap-2 sm:ml-2 min-w-0">
+                        <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: '#3D7FF6' }} />
+                        <span className="text-[13px] font-medium shrink-0" style={{ color: '#A0AABF' }}>
                             PDF Preview
                         </span>
-                        <span className="text-[12px] truncate max-w-[320px]" style={{ color: '#3D4861' }}>
+                        <span className="text-[12px] truncate" style={{ color: '#3D4861' }}>
                             — {cleanTitle}
                         </span>
                     </div>
                 </div>
 
                 {/* Right: zoom + download + close */}
-                <div className="flex items-center gap-2">
-                    {/* Zoom */}
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg"
+                <div className="flex items-center gap-2 shrink-0">
+                    {/* Zoom — a phone pinches to zoom; 90px of chrome for it at
+                        360px costs the close button its room. */}
+                    <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg"
                         style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
                         <button
                             onClick={() => adjustZoom(-25)}
@@ -132,7 +140,8 @@ export default function PdfPreview({ report, onClose }: Props) {
                     {/* Close */}
                     <button
                         onClick={onClose}
-                        className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-white/[0.07]"
+                        aria-label="Close preview"
+                        className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center transition-colors hover:bg-white/[0.07]"
                         style={{ color: '#6D7A94' }}
                     >
                         <X className="w-4 h-4" />

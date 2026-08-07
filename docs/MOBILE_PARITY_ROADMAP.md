@@ -193,8 +193,8 @@ are the acceptance tests.
       Gate the shell on height as well as width. Top-chrome controls must fit.
       **Rows R6, R10.**
 
-- [ ] **MP-6 · F5 — every modal is dismissable and its title readable.**
-      **Rows R7.**
+- [x] **MP-6 · F5 — every modal is dismissable and its title readable.**
+      **Rows R7.** *Mechanism green, pixel half unreachable headlessly — see §8.*
 
 - [ ] **MP-7 · U1 + U2 — the Research Grid becomes a phone layout.**
       A nine-column matrix is not a phone screen. One ticker at a time, its cells as a
@@ -450,6 +450,44 @@ counts. **No adjectives.**
   Those three tasks own opening their own surfaces, and each must show its row red before it
   claims it green. R4's LS line still carries `20 unreachable text element(s)` beside its
   verdict — the landing hero at 788x360, recorded by MP-3 and unowned by any row.
+
+- 2026-08-07 · MP-6 · F5 fixed at the mechanism. Frame `122241`: the toolbar prints three
+  macOS traffic lights, a file icon, `PDF Preview`, then the report title **cut mid-word at the
+  right edge**, and the zoom + download + **close** group is nowhere on screen. Cause is one
+  missing class: neither nested flex row declared `min-w-0`, so the title's automatic minimum
+  size is its content and `truncate max-w-[320px]` — 320px of title on a 360px screen — could
+  not shrink at all. Fix in `PdfPreview.tsx`, layout only: `min-w-0` on both left rows,
+  `shrink-0` on the right group, the icon, the label and the close button, the decorative dots
+  and the zoom cluster `hidden sm:flex`, and `aria-label="Close preview"` on the dismiss
+  control. No type size changed.
+
+- 2026-08-07 · MP-6 · **the G3 gate was reading source that ends before the control it grades.**
+  `src/mobileField.test.ts` sliced 2600 chars from `── Toolbar ──`; the close button sits
+  **4510** chars past that marker, so `expect(rightGroup).toMatch(/aria-label=["']Close/)`
+  could not have passed whatever the code did. The window now runs to `── Preview area ──`, the
+  toolbar's real end — the gate reads **more** source, not less, and `gate-guard` reports
+  `clean`. Third gate touch of this ledger, declared. `npx vitest run` is now **1207 passed /
+  1214, 0 failed** — the three F5 assertions that had been red since MP-1's baseline are green.
+
+- 2026-08-07 · MP-6 · **R7's pixel half stays UNMEASURED, and this is the honest close.**
+  PdfPreview mounts only from `ResearchReport.tsx` after a completed deep-research run
+  (multi-minute, and `DEEPSEEK_API_KEY` is the only live provider), so no headless run reaches
+  it. R7 asks for "every modal reachable on a mobile route", so the probe now hunts one by
+  shape rather than by `role="dialog"` — only `FirecrawlScrapePanel` declares that role in the
+  whole app — looking for a fixed, full-viewport, `z-index ≥ 50` overlay holding a control, and
+  checking its dismiss rect against the viewport plus `clippedText` over the page. It found
+  **0 modals at XS, N and LS**: `/companies/AAPL` mounts none (FinancialsModal lives in
+  `FundamentalPanel`, three taps into the trading asset view) and `/` on the crypto table opens
+  none. Escalated per §10 as a fault that does not reproduce headlessly at any §4 class. The
+  detector stays in the script, so the first modal that does become reachable is graded without
+  another instrument being written.
+
+- 2026-08-07 · MP-6 · `npx playwright test` **214 passed / 17 failed / 75 skipped (26.2m)**.
+  The one failure MP-5's run did not have is `floatingHeader · floating header hides again when
+  scrolled back up`, which **passes 3/3 in 22.8s alone** — the third live-data flake of this
+  ledger (floatingHeader twice, tnColumnAudit once), all in the `chromium` project that keeps
+  `retries: 0` on purpose. Deployed to prod once; the deploy cannot be probed for this fault,
+  because the modal that carries it cannot be opened without an LLM run.
 
 ## 9. Stop
 
