@@ -33,6 +33,26 @@ tests. Nothing else in the ledger is in scope.
 | 5 | any measurement came from a **committed, seeded** script with a stated window and a recorded command line | not a scratch file |
 | 6 | deployed **and** probed *(only if the UI or an api function changed)* | `vercel --prod` from repo root, then POST the real payload and read the actual response |
 
+### Long gates: scope them, then background them. Never poll.
+
+The Bash tool caps at **600,000 ms (10 minutes)**. `apps/market-ui` has **9 Playwright
+projects plus setup**, seven with `retries: 1` and a 90s per-test timeout, so a full
+`npx playwright test` **cannot** finish in the foreground. It is not flaky — it is
+arithmetic.
+
+1. **Scope to the classes the row names.** A row specified at N and LS does not need nine
+   projects. Measured 2026-08-07: `npx playwright test --list` is **306 tests in 15
+   files**; adding `mobileField --project=mobile-360 --project=mobile-landscape` is
+   **53 tests in 2 files** — 5.8× less, same evidence. Run the full sweep once, at the end.
+2. **Background what is still long.** `run_in_background: true`; the harness re-invokes
+   you when it exits. No `&`, no redirect-to-a-file.
+3. **Never write a wait loop.** `until grep -qE ... ; do sleep 6; done` converts "wait for
+   a result" into "burn the entire timeout and return exit 143". A foreground `sleep` is
+   blocked anyway. If you genuinely must wait on external state, use `Monitor`.
+
+The same applies to any gate that can exceed ten minutes — a full `vitest run`, a
+`vercel --prod` build, a long replay.
+
 **Acceptance rows are written before the task that satisfies them**, not in the
 same breath as the implementation. `LOOP_STANDARD.md` §2 says never let one model
 grade its own work; a ledger cannot hire a second model, but it can stop a task
