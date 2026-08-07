@@ -196,7 +196,7 @@ are the acceptance tests.
 - [x] **MP-6 · F5 — every modal is dismissable and its title readable.**
       **Rows R7.** *Mechanism green, pixel half unreachable headlessly — see §8.*
 
-- [ ] **MP-7 · U1 + U2 — the Research Grid becomes a phone layout.**
+- [x] **MP-7 · U1 + U2 — the Research Grid becomes a phone layout.**
       A nine-column matrix is not a phone screen. One ticker at a time, its cells as a
       list, the comparison behind a control. Badges may not overlap. **Rows R8, R9, R5.**
 
@@ -488,6 +488,43 @@ counts. **No adjectives.**
   ledger (floatingHeader twice, tnColumnAudit once), all in the `chromium` project that keeps
   `retries: 0` on purpose. Deployed to prod once; the deploy cannot be probed for this fault,
   because the modal that carries it cannot be opened without an LLM run.
+
+- 2026-08-07 · MP-7 · **R8 and R9 were never unmeasurable — the probe was on the wrong
+  surface, for the fourth time in this ledger.** The Research Grid sits behind the
+  "Research Grid" mode tab and `GridView` restores the account's last saved run on mount, so a
+  cold `/search` shows none of it. Clicking the tab first: **8 `<th>`, 16 `<td>`** at N, no LLM
+  run needed. Red then measured: **R8 8/8 headers taller than 3 line-heights** (`TICKER` 153px
+  against a 16px line box) and **R9 7/16 cells rendering 12+ characters inside 34px**
+  (`"⚡ declineRAGB⚡3·30.7"` in 34px) — frame `121203`'s `THE/SIS`, `CAT/ALY/STS`, and its
+  `DECLINE` over `RAG` badges.
+
+- 2026-08-07 · MP-7 · the phone layout: below md the same grid state renders as **one card per
+  ticker** (`<details>`, first open), each prompt a full-width row — label above, `CellContent`
+  below, the whole row a button that opens the existing cell detail — and the synthesis column
+  as its own `<details>` at the end. Nine columns sharing 360px is not a screen; the table
+  stays for md and up, untouched. After, on prod at 360x780: **R8 0/7 headers over 3
+  line-heights, R9 0/7 cells under 60px, R5 0 pairs at N and LS** — R5's probe now visits the
+  grid too, which is where U2's badges live and where its two route roots never looked.
+
+- 2026-08-07 · MP-7 · **the fix broke a gate, and the fix for that was document order.**
+  `e2e/gridTrust.spec.ts` asserts `getByText(/Searching SEC filings…|…/).first()` is visible at
+  1280px. With the card list rendered first, `.first()` resolved to the hidden copy —
+  `unexpected value "hidden"`. Rendering one branch instead (a `useIsMobile()` hook) made it
+  worse: the run's **Run Grid** button never returned and the spec failed **3/3**, while the
+  identical flow driven by hand — same account, same 1280x720, same click path — completed in
+  **45s with 7/8 DONE**. Controlled: prod redeployed **without** the change passed **2/2**
+  (54.8s, 46.0s), so the change was the cause whatever the mechanism. The shipped answer keeps
+  both copies in CSS and puts the **table first in document order**, so every existing desktop
+  selector resolves to the node CSS actually shows: gridTrust **2 passed (51.5s)**.
+
+- 2026-08-07 · MP-7 · gates: `tsc` clean; `npx playwright test` **215 passed / 15 failed / 1
+  flaky (17.3m)** — the ledger's best, from 213/18 at MP-6, with gridTrust and the floatingHeader
+  flake both green. `npx vitest run` **1206 / 1214, 1 failed**: `dexterLlm.test.ts · no
+  @google/genai import survives in src/`, which **passes 21/21 alone** — a whole-source grep
+  test timing out under parallel load, not a regression. Deployed to prod three times this
+  task (one of them the deliberate control). Whole-ledger sweep: **30 measurements, 0 RED,
+  4 UNMEASURED, 26 GREEN** — R8 and R9 left the unmeasured set, leaving R7 x3 (no modal a
+  headless run can open) and R11 (MP-8's, needs a company selected).
 
 ## 9. Stop
 

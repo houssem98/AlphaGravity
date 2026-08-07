@@ -1132,7 +1132,7 @@ export default function GridView() {
                 {/* Grid */}
                 {state && (
                     <div className="mt-6 rounded-lg border border-[#d4af37]/30 overflow-hidden shadow-2xl shadow-[#d4af37]/20 bg-[#0a0a0a]">
-                        <div className="overflow-x-hidden">
+                        <div className="hidden md:block overflow-x-hidden">
                             <table className="w-full table-fixed text-xs border-collapse">
                                 <colgroup>
                                     {/* Fixed narrow TICKER column; all prompt columns split the remaining width equally so the whole table fits without horizontal scroll / zoom-out */}
@@ -1310,6 +1310,70 @@ export default function GridView() {
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+                        {/* MP-7 · U1 + U2. Nine prompt columns share 360px of phone, so
+                            `table-fixed` gave each ~32px: measured on prod, 8 of 8 headers ran
+                            taller than 3 line-heights (TICKER at 153px against a 16px line box)
+                            and 7 of 16 cells rendered 12+ characters inside 34px. That is not
+                            overflow, it is a matrix pretending to be a screen. Below md the same
+                            state renders as one card per ticker, its cells as a list, and the
+                            comparison behind its own control.
+
+                            It sits AFTER the table on purpose. Both copies are in the DOM and CSS
+                            picks one, so a `.first()` selector resolves to whichever comes first
+                            in document order — with the cards first, e2e/gridTrust.spec.ts read
+                            `unexpected value "hidden"` for a step label at 1280px. Table first
+                            keeps every existing desktop selector on the node CSS actually shows. */}
+                        <div className="md:hidden divide-y divide-[#333]">
+                            {filteredTickers.map((ticker, idx) => (
+                                <details key={ticker} open={idx === 0} className="bg-[#0a0a0a]">
+                                    <summary className="px-3 py-3 font-mono font-bold text-xs text-[#00d9ff] cursor-pointer select-none">
+                                        {ticker}
+                                    </summary>
+                                    <div className="divide-y divide-[#1a1a22]">
+                                        {state.def.prompts.filter(p => !p.synthesis).map(p => {
+                                            const cell = state.cells[cellKey(ticker, p.id)];
+                                            return (
+                                                <button
+                                                    key={p.id}
+                                                    type="button"
+                                                    onClick={() => cell?.status === 'done' && setSelectedCell(cell)}
+                                                    className="w-full text-left px-3 py-2.5 hover:bg-[#1a1a2e]/40 transition-colors"
+                                                >
+                                                    <span
+                                                        data-testid="grid-col-label"
+                                                        className="block text-[10px] font-bold uppercase tracking-wider text-[#d4af37]"
+                                                    >
+                                                        {p.label}
+                                                    </span>
+                                                    <span className="block mt-1">
+                                                        <CellContent cell={cell} loading={running} stepLabel={cellSteps[cellKey(ticker, p.id)]} />
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </details>
+                            ))}
+                            {state.def.prompts.filter(p => p.synthesis).map(p => {
+                                const cell = state.cells[cellKey('ALL', p.id)];
+                                return (
+                                    <details key={p.id} className="bg-[#0b0c12]">
+                                        <summary
+                                            data-testid="grid-col-label"
+                                            className="px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-[#00f0ff] cursor-pointer select-none"
+                                        >
+                                            {p.label}
+                                        </summary>
+                                        <div
+                                            onClick={() => cell?.status === 'done' && setSelectedCell(cell)}
+                                            className="px-3 pb-3 text-[10px] leading-snug text-[#e0e4f0]"
+                                        >
+                                            <CellContent cell={cell} loading={running} stepLabel={cellSteps[cellKey('ALL', p.id)]} />
+                                        </div>
+                                    </details>
+                                );
+                            })}
                         </div>
                     </div>
                 )}

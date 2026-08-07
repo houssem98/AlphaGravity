@@ -260,8 +260,15 @@ if (wanted('R5')) {
     for (const cls of ['N', 'LS']) {
         const [ctx, page] = await open(cls);
         const faults = [];
-        for (const path of ['/trading', '/search']) {
-            await settle(page, path);
+        // MP-7 · U2's badges (`DECLINE` over `RAG`) live in the Research Grid,
+        // which is behind the mode tab — R5's two route roots never saw it.
+        for (const path of ['/trading', '/search', 'GRID']) {
+            if (path === 'GRID') {
+                await settle(page, '/search');
+                const tab = page.getByRole('button', { name: /Research Grid/i });
+                if (await tab.count()) await tab.first().click().catch(() => {});
+                await page.waitForTimeout(3_000);
+            } else await settle(page, path);
             // MP-4 · a cover is a fault when the text can never be read, not
             // when it happens to be under fixed chrome at one scroll position.
             // /search autofocuses its composer, so the thread pane loads at
@@ -427,10 +434,21 @@ if (wanted('R7')) {
 // ─── R8 + R9 · the Research Grid at N ───
 if (wanted('R8') || wanted('R9')) {
     const [ctx, page] = await open('N');
+    // MP-7 · the grid is behind the "Research Grid" mode tab, and GridView
+    // restores the account's last saved run on mount. Measuring a cold /search
+    // read 0 headers and called the row UNMEASURED for five iterations — the
+    // fourth wrong-surface finding in this ledger.
     await settle(page, '/search');
+    const tab = page.getByRole('button', { name: /Research Grid/i });
+    if (await tab.count()) await tab.first().click().catch(() => {});
+    await page.waitForTimeout(3_000);
     const grid = await page.evaluate(() => {
-        const heads = Array.from(document.querySelectorAll('th'));
-        const cells = Array.from(document.querySelectorAll('tbody td'));
+        // Below md the matrix is a card list, so the column label is a span, not
+        // a <th>. R8 grades whichever one is rendered.
+        const heads = Array.from(document.querySelectorAll('th, [data-testid="grid-col-label"]'))
+            .filter((h) => h.getBoundingClientRect().height > 0);
+        const cells = Array.from(document.querySelectorAll('tbody td, [data-testid="grid-col-label"] ~ *'))
+            .filter((c) => c.getBoundingClientRect().height > 0);
         const tall = heads
             .map((h) => {
                 const s = getComputedStyle(h);
