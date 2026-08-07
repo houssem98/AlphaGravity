@@ -185,7 +185,7 @@ are the acceptance tests.
       third-state figures on `/company` for 5 tickers — that number is Q1's red baseline
       and row 7 is meaningless without it. **Rows R1, R2.**
 
-- [ ] **CT-2 · G1 + G2 — the palette, with a keyboard contract that is asserted.**
+- [x] **CT-2 · G1 + G2 — the palette, with a keyboard contract that is asserted.**
       Hook `handleResearchKeyDown` at `SearchPage.tsx:1868`. No editor dependency: a
       `<textarea>` plus an absolutely positioned listbox. All seven assertions in row 4
       must be separate. **Rows R3, R4.**
@@ -271,6 +271,33 @@ counts. **No adjectives.**
   added and the row re-run red. Gate grew, did not shrink.
   Gates: `npx vitest run` **1230 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
   0 errors; `gate-guard` clean. Not deployed — no rendered surface changed.
+
+- 2026-08-07 · **CT-2** · palette wired to the **corrected** anchor — the Quick Answer
+  `<input>` at `SearchPage.tsx:1582`, which had no `onKeyDown` before this task. A `<ul
+  role="listbox">` positioned above the composer; no editor dependency, no new package.
+  Deployed `vercel --prod` → `market-l8wmvs2km`, aliased `market-ui-self.vercel.app`.
+  Probed on **desktop-baseline + mobile-360**, `--retries=0`: **5 of 5 passed** in 14.9s.
+  **R3 green both projects** — listbox after `/` **1** (was 0), options after `/comp` **1**
+  (was 0), hidden after Escape, hidden after blur.
+  **R4 green both projects** — **0 of 7** keyboard checks fail, was **7 of 7**.
+  First probe after deploy read **3 of 7** still failing (4.2, 4.6, 4.7) on both projects.
+  Cause was the instrument, not the UI: re-filling the *same* value does not re-fire React's
+  `onChange` (its value tracker suppresses it), so each check inherited the previous check's
+  palette state. Added a `retype()` that clears before typing. Assertions unchanged in number
+  and strength.
+  Row 3 names blur and the spec did not assert it — **assertion added**, then run green.
+  Gates: `npx vitest run` **1230 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
+  0 errors; `gate-guard` clean; own-diff grep for `#hex`, `text-[Npx]`, `rounded-2xl`,
+  `prose-*` → **0 hits**.
+  **Not caused by this task, recorded not fixed:** `desktopBaseline.spec.ts` `/trading asset
+  view` fails **11 passed / 1 failed** — 2 width-pinned landmarks moved, `x=72 w=242` gone,
+  `x=1194 w=230` new. The geometry baseline was last committed at `94000bc` (MB-3); `07ab0f4`
+  (MB-4) and `3d07bd8` (MB-7) restacked `TradingAssistantPage` after it. Stale baseline, not a
+  CT-2 regression, and re-recording it here would be shrinking a gate this ledger did not earn.
+  **Escalation:** `vercel --prod` publishes the working tree, so this deploy also shipped
+  uncommitted changes this loop did not author — `src/pages/CompanyPage.tsx`,
+  `src/components/EdgarLink.tsx`, `src/components/EdgarLink.test.ts`. They were in the tree
+  before the loop opened; the loop put them on prod. Flagged per §10, not reverted.
 
 ## 9. Stop
 

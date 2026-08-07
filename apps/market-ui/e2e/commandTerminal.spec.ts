@@ -111,6 +111,12 @@ test('R3 · the palette opens on / and filters as characters are typed', async (
     await expect(page.locator('[role="option"]')).toHaveCount(1);
     await page.keyboard.press('Escape');
     await expect(listbox).toBeHidden();
+
+    // row 3 also names blur
+    await input.fill('/');
+    await expect(listbox).toBeVisible();
+    await input.blur();
+    await expect(listbox).toBeHidden();
 });
 
 test('R4 · seven keyboard assertions, each separate', async ({ page }) => {
@@ -120,43 +126,49 @@ test('R4 · seven keyboard assertions, each separate', async ({ page }) => {
     const options = page.locator('[role="option"]');
     const listbox = page.locator('[role="listbox"]');
 
+    // Refilling the SAME value does not re-fire React's onChange (its value
+    // tracker suppresses it), so a check that re-types '/' after the previous
+    // one left '/' in the field would inherit that check's palette state.
+    // Clear first — this is a reset, not a weaker assertion.
+    const retype = async (v: string) => { await input.fill(''); await input.fill(v); };
+
     // Seven checks, run and reported individually so a red baseline records all
     // seven rather than only the first one to fail.
     const checks: [string, () => Promise<void>][] = [
         ['4.1 ArrowDown moves the active option', async () => {
-            await input.fill('/');
+            await retype('/');
             await page.keyboard.press('ArrowDown');
             await expect(options.nth(1)).toHaveAttribute('aria-selected', 'true', { timeout: 4000 });
         }],
         ['4.2 ArrowUp wraps at the top', async () => {
-            await input.fill('/');
+            await retype('/');
             await page.keyboard.press('ArrowUp');
             await expect(options.last()).toHaveAttribute('aria-selected', 'true', { timeout: 4000 });
         }],
         ['4.3 Enter commits the active option', async () => {
-            await input.fill('/');
+            await retype('/');
             await page.keyboard.press('ArrowDown');
             await page.keyboard.press('Enter');
             await expect(input).toHaveValue(/^\/\S+ $/, { timeout: 4000 });
         }],
         ['4.4 Tab completes the common prefix', async () => {
-            await input.fill('/se');
+            await retype('/se');
             await page.keyboard.press('Tab');
             await expect(input).toHaveValue(/^\/sentiment/, { timeout: 4000 });
         }],
         ['4.5 Escape closes and returns focus to the composer', async () => {
-            await input.fill('/');
+            await retype('/');
             await page.keyboard.press('Escape');
             await expect(listbox).toBeHidden({ timeout: 4000 });
             await expect(input).toBeFocused({ timeout: 4000 });
         }],
         ['4.6 listbox and option roles are exposed', async () => {
-            await input.fill('/');
+            await retype('/');
             await expect(listbox).toHaveCount(1, { timeout: 4000 });
             await expect(options.first()).toHaveAttribute('role', 'option', { timeout: 4000 });
         }],
         ['4.7 aria-activedescendant names the active option', async () => {
-            await input.fill('/');
+            await retype('/');
             await page.keyboard.press('ArrowDown');
             const active = await options.nth(1).getAttribute('id').catch(() => null);
             await expect(input).toHaveAttribute('aria-activedescendant', active ?? '__unset__', { timeout: 4000 });

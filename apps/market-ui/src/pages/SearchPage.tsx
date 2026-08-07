@@ -48,6 +48,7 @@ type SearchMode = 'grid' | 'company' | 'qa' | 'research';
 
 // HistoryItem is defined in researchStore.ts
 import type { HistoryItem } from '../stores/researchStore';
+import { parseCommand, matchCommands, type CommandSpec } from '../lib/commands';
 
 // ─── QA Example queries ───────────────────────────────────────────────────────
 
@@ -772,6 +773,65 @@ export default function SearchPage() {
     const [openCitation, setOpenCitation] = useState<GravityCitation | null>(null);
     const [savedSearches, setSavedSearches] = useState<Set<string>>(new Set());
     const qaInputRef = useRef<HTMLInputElement>(null);
+
+    // ── CT-2 · slash-command palette (docs/COMMAND_TERMINAL_ROADMAP.md §6 rows 3, 4)
+    // Derived from the composer value, not stored, so there is one source of
+    // truth. `paletteClosed` is the one bit that is not derivable: Escape must
+    // close a palette whose value still parses, until the value changes again.
+    const [qaCaret, setQaCaret] = useState(0);
+    const [paletteIndex, setPaletteIndex] = useState(0);
+    const [paletteClosed, setPaletteClosed] = useState(false);
+    const parsed = parseCommand(qaInput, qaCaret);
+    // Only while the NAME is being typed — once arguments start, the palette has
+    // nothing left to offer and Enter belongs to the command, not to the list.
+    const paletteOptions: CommandSpec[] = parsed && !parsed.complete && parsed.args.length === 0
+        ? matchCommands(parsed.name)
+        : [];
+    const paletteOpen = !paletteClosed && paletteOptions.length > 0;
+    const activeOption = paletteOptions[Math.min(paletteIndex, paletteOptions.length - 1)];
+    const optionId = (i: number) => `qa-command-option-${i}`;
+
+    const commitCommand = (spec: CommandSpec) => {
+        setQaInput(`/${spec.name} `);
+        setQaCaret(spec.name.length + 2);
+        setPaletteIndex(0);
+        qaInputRef.current?.focus();
+    };
+
+    const handleQaKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Escape' && paletteOpen) {
+            e.preventDefault();
+            setPaletteClosed(true);
+            qaInputRef.current?.focus();
+            return;
+        }
+        if (!paletteOpen) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setPaletteIndex(i => (i + 1) % paletteOptions.length);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setPaletteIndex(i => (i - 1 + paletteOptions.length) % paletteOptions.length);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeOption) commitCommand(activeOption);
+        } else if (e.key === 'Tab') {
+            e.preventDefault();
+            // Longest common prefix of what is still reachable. One match left
+            // completes fully and adds the space that ends the name.
+            const names = paletteOptions.map(o => o.name);
+            let lcp = names[0] ?? '';
+            for (const n of names) {
+                let k = 0;
+                while (k < lcp.length && k < n.length && lcp[k] === n[k]) k++;
+                lcp = lcp.slice(0, k);
+            }
+            const next = names.length === 1 ? `/${names[0]} ` : `/${lcp}`;
+            setQaInput(next);
+            setQaCaret(next.length);
+        }
+    };
 
     // ── QA history (persistent — Supabase qa_conversations/qa_turns) ──────────
     const [qaConversations, setQaConversations] = useState<QaConversationMeta[]>([]);
@@ -1578,10 +1638,53 @@ export default function SearchPage() {
                             >
                                 <div className="flex-1 relative input-halo rounded-[var(--radius-lg)] border border-[var(--line)]" style={{ background: 'color-mix(in oklch, var(--surface) 60%, transparent)' }}>
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-3)]" />
+
+                                    {/* CT-2 · the command palette. Absolutely positioned
+                                        above the composer — no editor dependency. */}
+                                    {paletteOpen && (
+                                        <ul
+                                            id="qa-command-palette"
+                                            role="listbox"
+                                            aria-label="Commands"
+                                            className="absolute bottom-full left-0 right-0 mb-2 z-30 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)] shadow-lg"
+                                        >
+                                            {paletteOptions.map((opt, i) => (
+                                                <li
+                                                    key={opt.name}
+                                                    id={optionId(i)}
+                                                    role="option"
+                                                    aria-selected={opt === activeOption}
+                                                    onMouseDown={e => { e.preventDefault(); commitCommand(opt); }}
+                                                    className={`flex items-center gap-2 px-3 py-2 text-sm cursor-pointer ${opt === activeOption
+                                                        ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
+                                                        : 'text-[var(--text-2)]'
+                                                        }`}
+                                                >
+                                                    <span className="font-mono">/{opt.name}</span>
+                                                    <span className="text-[var(--text-4)]">{opt.usage}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+
                                     <input
                                         ref={qaInputRef}
                                         value={qaInput}
-                                        onChange={e => setQaInput(e.target.value)}
+                                        onChange={e => {
+                                            setQaInput(e.target.value);
+                                            setQaCaret(e.target.selectionStart ?? e.target.value.length);
+                                            setPaletteClosed(false);
+                                            setPaletteIndex(0);
+                                        }}
+                                        onKeyDown={handleQaKeyDown}
+                                        onBlur={() => setPaletteClosed(true)}
+                                        role="combobox"
+                                        aria-expanded={paletteOpen}
+                                        aria-controls="qa-command-palette"
+                                        aria-autocomplete="list"
+                                        aria-activedescendant={paletteOpen && activeOption
+                                            ? optionId(paletteOptions.indexOf(activeOption))
+                                            : undefined}
                                         placeholder={hasThread ? 'Ask a follow-up…' : 'Ask anything about any company, filing, or market trend…'}
                                         className="w-full pl-10 pr-4 py-2.5 bg-transparent border-0 rounded-[var(--radius-lg)] text-base md:text-[13.5px] text-[var(--text)] placeholder:text-[var(--text-4)] focus:outline-none"
                                     />
