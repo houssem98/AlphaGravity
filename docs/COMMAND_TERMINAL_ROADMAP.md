@@ -205,7 +205,7 @@ are the acceptance tests.
       payload omits a field, render the null marker for that part — never infer it.
       Fiscal periods carry their period-end. **Rows R7, R7c.**
 
-- [ ] **CT-6 · Q1b — measure the provenance gap and escalate it.**
+- [x] **CT-6 · Q1b — measure the provenance gap and escalate it.** ⚠️ ESCALATED
       Count how many rendered figures can be traced to a source document today. Record
       the number and the exact fields `GravityMetric` would need to carry. Then **stop**
       and escalate: the fix is in gravity-api, outside this ledger. Do not add a route, do
@@ -377,6 +377,39 @@ counts. **No adjectives.**
   and was unannotated. Row 7 says *every* figure.
   Gates: `npx vitest run` **1247 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
   0 errors; `gate-guard` clean. Deployed `vercel --prod`, aliased `market-ui-self.vercel.app`.
+
+- 2026-08-07 · **CT-6 · ESCALATION. The ledger's own premise was wrong, and the correct fix is
+  NOT the obvious one.**
+  **Traceable: 0 of 400 rendered figures** (R7's census, 5 tickers). That number stands.
+  **But §1 and §5-Q1b are falsified.** They say `GravityMetric` carries "no accession, no
+  source document id, no report date". Read off the wire in the authenticated session, one
+  metric row is:
+  `{"metric":"Accounts Receivable Net (Net AR)","value":38466000000,"unit":"USD",`
+  `"period":"FY2026","ticker":"NVDA","filing_type":"10-K","filing_date":"2026-01-25"}`
+  The server sends **`filing_type` and `filing_date`**. `CompanyPage.tsx:65` declares
+  `{ metric, value, unit?, period?, ticker? }` and **drops both**. `unit` is also populated
+  (`"USD"`), which corrects CT-5's reading: the 400 nulls are caused by the missing
+  fiscal-year-end alone, not by a missing unit.
+  **The obvious fix would fabricate citations.** `filing_date` for NVDA FY2026 is
+  **2026-01-25, a Sunday** — the SEC accepts no filings on a Sunday. The column is named
+  `filing_date` but holds the **fiscal period end** (NVDA's year ends the last Sunday of
+  January). `EdgarLink`'s own test already encodes the hazard: given a period-end instead of
+  an exact filed date, `/v1/documents/filing-url` silently returns the issuer's **LATEST**
+  filing. Wiring this field into a citation would therefore link FY2019 figures to the FY2026
+  10-K — confidently, and wrongly. **Not wired. Doctrine 4.**
+  **Escalated to gravity-api** (`app/api/routes/company.py:67`, out of this ledger's scope):
+  1. `sb_select` already filters `document_id: like.xbrl:*` but does not `select` it. Adding
+     `document_id` to the select list is a one-line change and is the actual join key.
+  2. Establish whether `financials.filing_date` is the filed date or the period end, and
+     either rename the column or add a separate `filed_date`. As it stands the name asserts
+     something the data contradicts.
+  3. `basis` (GAAP / non-GAAP) is genuinely absent and still needed for row 6's comparisons.
+  Only after 1 and 2 can market-ui widen `GravityMetric` and render a source without guessing.
+  **R7b is red on its own plumbing, and that is new information.** Its loop currently
+  censuses **0 figures**, so its `expect(traceable).toBe(0)` was passing vacuously — the same
+  false green as R7c in CT-3. A `expect(total).toBeGreaterThan(0)` guard was added and the row
+  now fails loudly instead. The traceable count above is sourced from R7, which measured 400
+  figures under the identical census. R7b's loop needs repair before it grades anything.
 
 ## 9. Stop
 

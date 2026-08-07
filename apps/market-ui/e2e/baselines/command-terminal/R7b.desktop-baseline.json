@@ -1,14 +1,30 @@
 {
   "row": "R7b",
   "project": "desktop-baseline",
-  "at": "2026-08-07T20:46:19.484Z",
+  "at": "2026-08-07T22:43:35.623Z",
   "traceable": 0,
-  "figures": 400,
+  "figures": 0,
   "tickers": 5,
-  "fieldsGravityMetricWouldNeed": [
-    "accession",
-    "source_document_id",
-    "report_date",
+  "metricPayloadKeys": [
+    "metric",
+    "value",
+    "unit",
+    "period",
+    "ticker",
+    "filing_type",
+    "filing_date"
+  ],
+  "metricPayloadSample": {
+    "metric": "Accounts Receivable Net (Net AR)",
+    "value": 38466000000,
+    "unit": "USD",
+    "period": "FY2026",
+    "ticker": "NVDA",
+    "filing_type": "10-K",
+    "filing_date": "2026-01-25"
+  },
+  "fieldsStillMissing": [
+    "document_id / accession",
     "basis (GAAP | non-GAAP)"
   ]
 }

@@ -308,9 +308,20 @@ test('R7 · every figure carries period and unit, or is a null — zero bare', a
 });
 
 test('R7b · zero figures are traceable to a source document, and none may claim to be', async ({ page }) => {
-    test.setTimeout(240_000);   // five live company loads, ~14s each
+    test.setTimeout(420_000);   // five live company loads plus a payload read
     let traceable = 0;
     let total = 0;
+
+    // CT-6 · what the metric payload ACTUALLY carries, read off the wire in the
+    // authenticated session. The gap is only actionable if it names real fields.
+    let metricKeys: string[] = [];
+    let metricSample: unknown = null;
+    page.on('response', async r => {
+        if (!/\/financials/.test(r.url()) || metricKeys.length) return;
+        const body = await r.json().catch(() => null) as { rows?: Record<string, unknown>[] } | null;
+        const row = body?.rows?.[0];
+        if (row) { metricKeys = Object.keys(row); metricSample = row; }
+    });
     for (const t of TICKERS) {
         await openCompanyByToggle(page, t);
         await openMetricsTab(page);
@@ -323,8 +334,14 @@ test('R7b · zero figures are traceable to a source document, and none may claim
     // an inferred citation (§3 rule 4), not a fixed row.
     record('R7b', {
         traceable, figures: total, tickers: TICKERS.length,
-        fieldsGravityMetricWouldNeed: ['accession', 'source_document_id', 'report_date', 'basis (GAAP | non-GAAP)'],
+        // Measured, not assumed: the keys the server actually sends per metric.
+        metricPayloadKeys: metricKeys,
+        metricPayloadSample: metricSample,
+        fieldsStillMissing: ['document_id / accession', 'basis (GAAP | non-GAAP)'],
     });
+    // "0 traceable" is trivially true of a page that rendered nothing. Require the
+    // figures before believing the zero — the same trap R7c fell into.
+    expect(total).toBeGreaterThan(0);
     expect(traceable).toBe(0);
 });
 
