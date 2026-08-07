@@ -242,8 +242,13 @@ test('R6 · the command path performs no request the toggle path does not', asyn
     const seen: string[] = [];
     page.on('request', r => seen.push(r.url()));
 
+    // Both paths get the SAME settle window. A longer window on one side counts
+    // the other side's lazy panels as extra requests and reads as a regression.
+    const SETTLE = 12_000;
     await openCompanyByToggle(page, 'NVDA');
-    const toggleCount = seen.filter(u => /\/api\/|gravity|alphavantage/i.test(u)).length;
+    await page.waitForTimeout(SETTLE);
+    const toggleSeen = [...seen];
+    const toggleCount = toggleSeen.filter(u => /\/api\/|gravity|alphavantage/i.test(u)).length;
 
     seen.length = 0;
     await page.goto('/search');
@@ -251,11 +256,24 @@ test('R6 · the command path performs no request the toggle path does not', asyn
     await input.click();
     await input.fill('/company NVDA');
     await page.keyboard.press('Enter');
-    await page.waitForTimeout(8000);
+    await page.waitForTimeout(SETTLE);
     const commandCount = seen.filter(u => /\/api\/|gravity|alphavantage/i.test(u)).length;
     const mounted = await page.getByRole('tab', { name: /^Filings/ }).count();
 
-    record('R6', { toggleRequests: toggleCount, commandRequests: commandCount, surfaceMounted: mounted });
+    // What the command path asks for that the toggle path does not is the whole
+    // question, so record the per-endpoint counts, not just the totals.
+    const tally = (urls: string[]) => {
+        const out: Record<string, number> = {};
+        for (const u of urls.filter(x => /\/api\/|gravity|alphavantage/i.test(x))) {
+            const key = new URL(u).pathname.replace(/\/[A-Z]{1,5}(\/|$)/, '/<T>$1');
+            out[key] = (out[key] ?? 0) + 1;
+        }
+        return out;
+    };
+    record('R6', {
+        toggleRequests: toggleCount, commandRequests: commandCount, surfaceMounted: mounted,
+        toggleByEndpoint: tally(toggleSeen), commandByEndpoint: tally(seen),
+    });
 
     // The count comparison is only meaningful once the command path renders the
     // SAME surface. Without this, "fewer requests" is satisfied by a command that

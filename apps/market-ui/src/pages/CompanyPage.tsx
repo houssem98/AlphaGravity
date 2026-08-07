@@ -165,12 +165,18 @@ function FilingRow({ doc, ticker, isNew }: { doc: GravityDocument; ticker: strin
 // every existing mount passes nothing and keeps landing on Overview.
 export type CompanyTab = 'overview' | 'filings' | 'data' | 'sentiment';
 
-export default function CompanyPage({ embedded = false, tab }: { embedded?: boolean; tab?: CompanyTab }) {
+export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker }: {
+    embedded?: boolean;
+    tab?: CompanyTab;
+    // CT-4 · the ticker a command resolved. Seeds the embedded mount, which
+    // otherwise opens on its own ticker-entry form.
+    ticker?: string;
+}) {
     const { ticker } = useParams<{ ticker: string }>();
     const navigate = useNavigate();
     // Embedded in the /search mode toggle → ticker lives in local state instead
     // of the route, so switching companies never leaves the search page.
-    const [localTicker, setLocalTicker] = useState('');
+    const [localTicker, setLocalTicker] = useState(fixedTicker ?? '');
     const symbol = (ticker ?? localTicker).toUpperCase();
     const openTicker = (t: string) => embedded
         ? setLocalTicker(t.toUpperCase())

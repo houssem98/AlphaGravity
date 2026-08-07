@@ -1,9 +1,11 @@
 // Unified Search Page — QA (Gravity WebSocket) + Deep Research (Gemini Pipeline)
 // User toggles between ⚡ Quick Answer and 📄 Deep Research before searching.
 
-import { useState, useRef, useEffect, useCallback, Children, type ReactNode } from 'react';
-import ReactMarkdown from 'react-markdown';
+import { useState, useRef, useEffect, useCallback, useMemo, Children, isValidElement, type ReactNode, type ReactElement } from 'react';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+const REMARK_PLUGINS = [remarkGfm];
 import { useResearchStore } from '../stores/researchStore';
 import { useBackgroundStore } from '../stores/backgroundStore';
 import EdgarLink, { parseFilingTitle } from '../components/EdgarLink';
@@ -49,6 +51,8 @@ type SearchMode = 'grid' | 'company' | 'qa' | 'research';
 // HistoryItem is defined in researchStore.ts
 import type { HistoryItem } from '../stores/researchStore';
 import { parseCommand, matchCommands, type CommandSpec } from '../lib/commands';
+import { COMMAND_LANG, dexterLang, isCommandBlock, parseBlock, renderCommandBlock } from '../services/dexterBlocks';
+import type { CompanyTab } from './CompanyPage';
 
 // ─── QA Example queries ───────────────────────────────────────────────────────
 
@@ -120,21 +124,61 @@ function injectCitations(
     });
 }
 
+// CT-4 · which Company tab each command addresses. The two `⛔` commands and the
+// two CT-9 commands are absent on purpose: an unmapped name falls through to the
+// plain code block rather than mounting the wrong surface.
+const COMMAND_TABS: Record<string, CompanyTab> = {
+    company: 'overview',
+    filings: 'filings',
+    sentiment: 'sentiment',
+    data: 'data',
+};
+
+/** Turn a `<pre>`'s child `<code>` into the surface a command addresses, or null
+ *  to keep the code block. Mirrors `dexterBlock` in trading/Assistant.tsx —
+ *  same fence, same parser, same fall-through. */
+function commandBlock(children: ReactNode): ReactElement | null {
+    const child = Children.toArray(children)[0];
+    if (!isValidElement(child)) return null;
+    const props = child.props as { className?: string; children?: ReactNode };
+    if (dexterLang(props.className) !== COMMAND_LANG) return null;
+
+    const body = Children.toArray(props.children).filter(c => typeof c === 'string').join('');
+    const parsed = parseBlock(body);
+    if (!isCommandBlock(parsed)) return null;
+
+    const tab = COMMAND_TABS[parsed.name];
+    const ticker = parsed.args[0]?.toUpperCase();
+    if (!tab || !ticker) return null;
+
+    return (
+        <div className="rounded-[var(--radius-lg)] border border-[var(--line)] overflow-hidden">
+            <CompanyPage embedded ticker={ticker} tab={tab} />
+        </div>
+    );
+}
+
+// A stable empty array. `citations || []` would hand `AnswerText` a new array
+// identity every render and bust the memo below.
+const NO_CITATIONS: GravityCitation[] = [];
+
 function AnswerText({ text, citations, onCitationOpen }: {
     text: string;
     citations: GravityCitation[];
     onCitationOpen?: (c: GravityCitation) => void;
 }) {
-    const citationMap = new Map(citations.map(c => [c.citation_number, c]));
-    const onOpen = onCitationOpen ?? (() => {});
-    const cite = (children: ReactNode) => injectCitations(children, citationMap, onOpen);
     const md = cleanAnswer(text);
 
-    return (
-        <div className="text-[var(--text)] text-[13.5px] leading-7 space-y-3.5 break-words">
-            <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
+    // CT-4 · memoised, and that is load-bearing, not tidiness. Built inline, every
+    // entry is a NEW function identity each render, so React sees a new component
+    // TYPE and remounts the whole markdown subtree. Measured: a CompanyPage
+    // mounted by a `dexter-command` fence refetched all seven of its endpoints
+    // three times over, 23 requests against the toggle path's 9 (row 6).
+    const components = useMemo((): Components => {
+        const citationMap = new Map(citations.map(c => [c.citation_number, c]));
+        const onOpen = onCitationOpen ?? (() => { });
+        const cite = (children: ReactNode) => injectCitations(children, citationMap, onOpen);
+        return {
                     p: ({ children }) => <p className="leading-7">{cite(children)}</p>,
                     strong: ({ children }) => <strong className="font-semibold text-white">{cite(children)}</strong>,
                     em: ({ children }) => <em className="italic">{cite(children)}</em>,
@@ -157,7 +201,10 @@ function AnswerText({ text, citations, onCitationOpen }: {
                     code: ({ children }) => (
                         <code className="font-mono text-[12px] bg-white/[0.06] text-[var(--accent)] px-1 py-0.5 rounded">{children}</code>
                     ),
-                    pre: ({ children }) => (
+                    // A `dexter-command` fence mounts the surface the command
+                    // addressed. Anything else — unknown name, unparseable body —
+                    // stays the plain code block it always was.
+                    pre: ({ children }) => commandBlock(children) ?? (
                         <pre className="font-mono text-[12px] bg-white/[0.03] border border-white/[0.06] rounded-lg p-3 overflow-x-auto">{children}</pre>
                     ),
                     table: ({ children }) => (
@@ -172,11 +219,15 @@ function AnswerText({ text, citations, onCitationOpen }: {
                             {cite(children)}
                         </th>
                     ),
-                    td: ({ children }) => (
-                        <td className="px-3 py-2 text-[var(--text)] align-top whitespace-nowrap">{cite(children)}</td>
-                    ),
-                }}
-            >
+            td: ({ children }) => (
+                <td className="px-3 py-2 text-[var(--text)] align-top whitespace-nowrap">{cite(children)}</td>
+            ),
+        };
+    }, [citations, onCitationOpen]);
+
+    return (
+        <div className="text-[var(--text)] text-[13.5px] leading-7 space-y-3.5 break-words">
+            <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={components}>
                 {md}
             </ReactMarkdown>
         </div>
@@ -909,8 +960,34 @@ export default function SearchPage() {
 
     // ── QA handlers ───────────────────────────────────────────────────────────
 
+    // CT-4 · a resolved command is answered by mounting a surface, not by asking
+    // a model. Appends the exchange to the SAME thread, so the prior conversation
+    // is still there afterwards, and performs no request of its own — the mounted
+    // surface makes exactly the calls it makes through the mode toggle.
+    const commitCommandTurn = (raw: string): boolean => {
+        const cmd = parseCommand(raw.trimEnd() + ' ', raw.length + 1);
+        if (!cmd?.complete || !COMMAND_TABS[cmd.name] || cmd.args.length === 0) return false;
+
+        const entry = useQaStore.getState().byConv[activeConvId] ?? qaDefault;
+        useQaStore.getState().patch(activeConvId, {
+            thread: [
+                ...entry.thread,
+                { role: 'user', content: raw },
+                { role: 'assistant', content: renderCommandBlock({ name: cmd.name, args: cmd.args }) },
+            ],
+        });
+        setQaInput('');
+        setActiveTab('answer');
+        return true;
+    };
+
     const handleQaSubmit = (q: string) => {
-        if (!q.trim() || isQaSearching) return;
+        if (!q.trim()) return;
+        // Before the in-flight guard on purpose: a command mounts a surface and
+        // never touches the stream, so a search still running is no reason to
+        // drop it. Only the model path has to wait its turn.
+        if (commitCommandTurn(q.trim())) return;
+        if (isQaSearching) return;
 
         // Build filters from active source selection. For SEC Filings, honor the
         // user's filing-type sub-selection (falls back to the default set if none).
@@ -1459,7 +1536,7 @@ export default function SearchPage() {
                                         </div>
                                     ) : (
                                         <div key={i} className="space-y-3">
-                                            <AnswerText text={turn.content} citations={turn.citations || []} onCitationOpen={setOpenCitation} />
+                                            <AnswerText text={turn.content} citations={turn.citations || NO_CITATIONS} onCitationOpen={setOpenCitation} />
                                             {(turn.citations?.length ?? 0) > 0 && (
                                                 <SourcePills citations={turn.citations!} onOpen={setOpenCitation} />
                                             )}

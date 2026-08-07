@@ -37,8 +37,18 @@ export interface DexterPlanBlock {
     unit: string;
 }
 
+// CT-4 · a resolved slash command is a block like any other. It carries no
+// model-authored numbers at all — only the name the parser resolved and the
+// arguments the user typed — so the surface it mounts fetches its own data
+// exactly as it does when reached through the mode toggle.
+export interface DexterCommandBlock {
+    name: string;
+    args: string[];
+}
+
 export const LEVELS_LANG = 'dexter-levels';
 export const PLAN_LANG = 'dexter-plan';
+export const COMMAND_LANG = 'dexter-command';
 
 /** How many levels a side may contribute. The ladder is a glance, not a table. */
 export const MAX_LEVELS_PER_SIDE = 4;
@@ -52,6 +62,16 @@ export function renderLevelsBlock(block: DexterLevelsBlock): string {
 
 export function renderPlanBlock(block: DexterPlanBlock): string {
     return fence(PLAN_LANG, block);
+}
+
+export function renderCommandBlock(block: DexterCommandBlock): string {
+    return fence(COMMAND_LANG, block);
+}
+
+export function isCommandBlock(v: unknown): v is DexterCommandBlock {
+    const b = v as Partial<DexterCommandBlock> | null;
+    if (!b || typeof b !== 'object') return false;
+    return typeof b.name === 'string' && b.name.length > 0 && Array.isArray(b.args);
 }
 
 /** A plan is a card only if it carries all four numbers a trade needs. A

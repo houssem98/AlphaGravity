@@ -195,7 +195,7 @@ are the acceptance tests.
       value as its default, so nothing that mounts it today changes behaviour.
       **Rows R5** (the filings half).
 
-- [ ] **CT-4 · G4 — a committed command mounts into the answer feed.**
+- [x] **CT-4 · G4 — a committed command mounts into the answer feed.**
       Reuse `parseBlock` / `dexterLang` from `src/services/dexterBlocks.ts` — the feed
       already renders tagged blocks as components. Do not build a second widget system.
       **Rows R5, R6.**
@@ -320,6 +320,35 @@ counts. **No adjectives.**
   **red at 80 periods / 80 without a period-end**, as CT-1 measured. Gate grew.
   Gates: `npx vitest run` **1230 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
   0 errors; `gate-guard` clean.
+
+- 2026-08-07 · **CT-4** · a resolved command is answered by mounting a surface, never by
+  asking a model. `dexterBlocks.ts` gains `COMMAND_LANG`/`renderCommandBlock`/`isCommandBlock`
+  — the same fence, parser and fall-through the trading Assistant already uses — and
+  `SearchPage`'s `pre` handler mirrors `dexterBlock()` in `trading/Assistant.tsx`. No second
+  widget system, no new package, no new route. 8 new unit tests on the block round trip.
+  `CompanyPage` gains a `ticker` prop so the embedded mount opens on the resolved symbol
+  instead of its ticker-entry form. Unmapped names fall through to the plain code block, so
+  `/peer-compare` and `/screening` are untouched until CT-9.
+  **R5 green**: `/filings NVDA` → Filings tab count **1**, `aria-selected` **"true"** — read,
+  never clicked — and prior turns **12 → 12**, so the conversation survives.
+  **R6 green**: toggle **9** requests, command **9**, and identical endpoint-for-endpoint.
+  Two real defects found by the probes, both fixed:
+  1. **The command was dropped while an answer streamed.** `handleQaSubmit` returns early on
+     `isQaSearching`, and R5 types a command 3s into a live search. First probe:
+     `filingsTabCount` **0**. A command mounts a surface and never touches the stream, so the
+     command branch now runs BEFORE the in-flight guard.
+  2. **The mounted surface refetched everything 3×.** First probe: **23** command requests vs
+     **9** toggle, every CompanyPage endpoint exactly tripled. `AnswerText` built its
+     ReactMarkdown `components` object inline, so each entry was a new function identity and
+     therefore a new component TYPE every render — React remounted the whole markdown subtree.
+     `Assistant.tsx` defines its `components` at module scope, which is why the trading cards
+     never showed this. Fixed with `useMemo` keyed on `[citations, onCitationOpen]`, a stable
+     `REMARK_PLUGINS`, and a module-level `NO_CITATIONS` so `turn.citations || []` stops
+     handing the memo a fresh array. 23 → 9.
+  The per-endpoint breakdown that found defect 2 is now recorded by the row itself, not
+  reconstructed by hand.
+  Gates: `npx vitest run` **1238 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
+  0 errors; `gate-guard` clean. Deployed `vercel --prod`, aliased `market-ui-self.vercel.app`.
 
 ## 9. Stop
 

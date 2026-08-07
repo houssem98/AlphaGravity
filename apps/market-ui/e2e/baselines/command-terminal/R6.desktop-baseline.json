@@ -1,8 +1,30 @@
 {
   "row": "R6",
   "project": "desktop-baseline",
-  "at": "2026-08-07T20:50:28.369Z",
-  "toggleRequests": 8,
-  "commandRequests": 1,
-  "surfaceMounted": 0
+  "at": "2026-08-07T21:52:06.329Z",
+  "toggleRequests": 9,
+  "commandRequests": 9,
+  "surfaceMounted": 1,
+  "toggleByEndpoint": {
+    "/v1/documents/filing-types": 1,
+    "/api/quote": 1,
+    "/v1/company/<T>/filings": 1,
+    "/v1/company/<T>/financials": 1,
+    "/v1/analytics/sentiment/<T>": 1,
+    "/v1/analytics/sentiment/<T>/delta": 1,
+    "/v1/analytics/longitudinal/<T>": 1,
+    "/api/market/overview/<T>": 1,
+    "/v1/documents/filing-url": 1
+  },
+  "commandByEndpoint": {
+    "/v1/documents/filing-types": 1,
+    "/api/quote": 1,
+    "/v1/company/<T>/filings": 1,
+    "/v1/company/<T>/financials": 1,
+    "/v1/analytics/sentiment/<T>": 1,
+    "/v1/analytics/sentiment/<T>/delta": 1,
+    "/v1/analytics/longitudinal/<T>": 1,
+    "/api/market/overview/<T>": 1,
+    "/v1/documents/filing-url": 1
+  }
 }
