@@ -139,8 +139,9 @@ verified step. Log partial progress **before** any long or risky operation — a
 
 **Starting one.** The documented invocation `/loop $(tail -1 X_LOOP.sh)` is POSIX: in
 PowerShell there is no `tail` and `$( )` does not substitute the same way, so the line
-silently fails to expand and you paste the literal string instead. `loop-prompt.mjs`
-reads the file in Node, which behaves identically in both shells, and with `-c` puts the
+silently fails to expand and you paste the literal string instead.
+`~/.claude/scripts/loop-prompt.mjs` — global, like `gate-guard`, so it works in any
+project — reads the file in Node, which behaves identically in both shells, and `-c` puts the
 `/loop` line on the clipboard (`clip` / `pbcopy` / `xclip`, printing if none is there).
 With no argument it lists the loops whose ledger still has open tasks — a closed ledger
 cannot run, so it is not offered.
@@ -164,8 +165,8 @@ is true of all of them, it belongs in this file.
 ## 9. Checking a loop file
 
 ```bash
-node scripts/loop-prompt.mjs                   # which loops can still run
-node scripts/loop-prompt.mjs MOBILE_PARITY -c  # its /loop line, onto the clipboard
+node ~/.claude/scripts/loop-prompt.mjs                   # which loops can still run
+node ~/.claude/scripts/loop-prompt.mjs MOBILE_PARITY -c  # its /loop line, onto the clipboard
 
 npm run loops                                  # all three checkers
 npm run loops:test                             # all three self-checks

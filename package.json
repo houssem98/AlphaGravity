@@ -16,8 +16,8 @@
         "market:ui": "npm -w market-ui run dev",
         "build": "npm -w shared-types run build && npm -w market-ui run build && npm -w market-server run build",
         "loops": "node scripts/graph-lint.mjs && node C:/Users/unicentrale/.claude/scripts/gate-guard.mjs && node scripts/loop-lint.mjs",
-    "loops:test": "node scripts/loop-lint.test.mjs && node scripts/graph-lint.mjs --self-check && node scripts/loop-prompt.mjs --self-check && node C:/Users/unicentrale/.claude/scripts/gate-guard.mjs --self-check",
-    "lint": "npm -ws run lint --if-present",
+        "loops:test": "node scripts/loop-lint.test.mjs && node scripts/graph-lint.mjs --self-check && node C:/Users/unicentrale/.claude/scripts/loop-prompt.mjs --self-check && node C:/Users/unicentrale/.claude/scripts/gate-guard.mjs --self-check",
+        "lint": "npm -ws run lint --if-present",
         "typecheck": "npm -ws run typecheck --if-present",
         "install:all": "npm install && cd services/gravity-api && pip install -r requirements.txt",
         "clean": "rimraf apps/*/node_modules services/*/node_modules packages/*/node_modules node_modules services/gravity-api/.venv"
