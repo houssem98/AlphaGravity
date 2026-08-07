@@ -92,6 +92,15 @@ async function openCompanyByToggle(page: Page, ticker: string): Promise<number> 
     return taps;
 }
 
+// Opens the Metrics tab and reports whether it actually opened. A swallowed
+// click made R7c pass at 0 periods — an empty table satisfies "no bare periods".
+async function openMetricsTab(page: Page): Promise<boolean> {
+    const tab = page.getByRole('tab', { name: /^Metrics/ });
+    const ok = await tab.click({ timeout: 8000 }).then(() => true).catch(() => false);
+    await page.waitForTimeout(1500);
+    return ok;
+}
+
 // ─── G1 + G2 + Q3 · rows 3 and 4 ──────────────────────────────────────────────
 
 test('R3 · the palette opens on / and filters as characters are typed', async ({ page }) => {
@@ -198,7 +207,7 @@ test('R5 · a committed command mounts in the feed and opens the named tab', asy
     await page.keyboard.press('Enter');
     await page.waitForTimeout(8000);
 
-    const filingsTab = page.getByRole('button', { name: /^Filings/ });
+    const filingsTab = page.getByRole('tab', { name: /^Filings/ });
     record('R5', {
         priorTurnsBefore: priorTurns,
         priorTurnsAfter: await page.locator('text=What is NVDA revenue?').count(),
@@ -210,6 +219,23 @@ test('R5 · a committed command mounts in the feed and opens the named tab', asy
     await expect(page.locator('text=What is NVDA revenue?')).toHaveCount(priorTurns);
     // the filings tab is already active — read, never clicked
     await expect(filingsTab).toHaveAttribute('aria-selected', 'true');
+});
+
+test('R5a · the Company tabs expose readable selection state (CT-3, the filings half of row 5)', async ({ page }) => {
+    await page.goto('/companies/NVDA');
+    const tabs = page.getByRole('tab');
+    await expect(tabs.first()).toBeVisible();
+    const names = await tabs.allTextContents();
+    const selected = await Promise.all((await tabs.all()).map(t => t.getAttribute('aria-selected')));
+    record('R5a', { tabs: names.length, names, ariaSelected: selected, tablists: await page.getByRole('tablist').count() });
+
+    // Row 5 proves the active tab by READING it. That is only possible once the
+    // tabs say which one is active — CT-1 measured aria-selected as null.
+    await expect(page.getByRole('tablist')).toHaveCount(1);
+    expect(selected.filter(v => v === 'true')).toHaveLength(1);
+    // Not ^-anchored: the tab renders an icon before its label, so its text
+    // content starts with a space.
+    await expect(tabs.filter({ hasText: /Overview/ })).toHaveAttribute('aria-selected', 'true');
 });
 
 test('R6 · the command path performs no request the toggle path does not', async ({ page }) => {
@@ -227,7 +253,7 @@ test('R6 · the command path performs no request the toggle path does not', asyn
     await page.keyboard.press('Enter');
     await page.waitForTimeout(8000);
     const commandCount = seen.filter(u => /\/api\/|gravity|alphavantage/i.test(u)).length;
-    const mounted = await page.getByRole('button', { name: /^Filings/ }).count();
+    const mounted = await page.getByRole('tab', { name: /^Filings/ }).count();
 
     record('R6', { toggleRequests: toggleCount, commandRequests: commandCount, surfaceMounted: mounted });
 
@@ -248,8 +274,7 @@ test('R7 · every figure carries period and unit, or is a null — zero bare', a
     const perTicker: Record<string, Census> = {};
     for (const t of TICKERS) {
         await openCompanyByToggle(page, t);
-        await page.getByRole('button', { name: /^Metrics/ }).click({ timeout: 4000 }).catch(() => { });
-        await page.waitForTimeout(1500);
+        await openMetricsTab(page);
         const c = await census(page);
         perTicker[t] = c;
         for (const k of Object.keys(totals) as (keyof Census)[]) totals[k] += c[k];
@@ -264,8 +289,7 @@ test('R7b · zero figures are traceable to a source document, and none may claim
     let total = 0;
     for (const t of TICKERS) {
         await openCompanyByToggle(page, t);
-        await page.getByRole('button', { name: /^Metrics/ }).click({ timeout: 4000 }).catch(() => { });
-        await page.waitForTimeout(1500);
+        await openMetricsTab(page);
         const c = await census(page);
         traceable += c.traceable;
         total += c.total;
@@ -282,11 +306,14 @@ test('R7b · zero figures are traceable to a source document, and none may claim
 
 test('R7c · a fiscal period never renders without its period-end', async ({ page }) => {
     await openCompanyByToggle(page, 'NVDA');   // FY2026 ended January 2026
-    await page.getByRole('button', { name: /^Metrics/ }).click({ timeout: 4000 }).catch(() => { });
-    await page.waitForTimeout(1500);
+    const clicked = await openMetricsTab(page);
     const periods = await page.locator('table tbody tr td:nth-child(3)').allTextContents();
     const bareFiscal = periods.filter(p => /FY\s?\d{4}/i.test(p) && !/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(p));
-    record('R7c', { ticker: 'NVDA', periods: periods.length, fiscalWithoutPeriodEnd: bareFiscal.length, sample: periods.slice(0, 8) });
+    record('R7c', { ticker: 'NVDA', metricsTabClicked: clicked, periods: periods.length, fiscalWithoutPeriodEnd: bareFiscal.length, sample: periods.slice(0, 8) });
+
+    // "No bare fiscal periods" is trivially true when the table never rendered.
+    // Require the evidence before judging it.
+    expect(periods.length).toBeGreaterThan(0);
     expect(bareFiscal).toHaveLength(0);
 });
 

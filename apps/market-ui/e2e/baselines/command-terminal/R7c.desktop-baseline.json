@@ -1,8 +1,9 @@
 {
   "row": "R7c",
   "project": "desktop-baseline",
-  "at": "2026-08-07T20:36:48.311Z",
+  "at": "2026-08-07T21:21:37.316Z",
   "ticker": "NVDA",
+  "metricsTabClicked": true,
   "periods": 80,
   "fiscalWithoutPeriodEnd": 80,
   "sample": [

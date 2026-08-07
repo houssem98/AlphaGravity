@@ -19,6 +19,7 @@ import CompanyBrief from '../components/company/CompanyBrief';
 import LatestQuarterCard from '../components/company/LatestQuarterCard';
 import TranscriptSummary from '../components/company/TranscriptSummary';
 import DevilsAdvocate from '../components/company/DevilsAdvocate';
+import EdgarLink from '../components/EdgarLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -160,7 +161,11 @@ function FilingRow({ doc, ticker, isNew }: { doc: GravityDocument; ticker: strin
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function CompanyPage({ embedded = false }: { embedded?: boolean }) {
+// CT-3 · the tabs are addressable. `tab` is the DEFAULT, not a controlled value:
+// every existing mount passes nothing and keeps landing on Overview.
+export type CompanyTab = 'overview' | 'filings' | 'data' | 'sentiment';
+
+export default function CompanyPage({ embedded = false, tab }: { embedded?: boolean; tab?: CompanyTab }) {
     const { ticker } = useParams<{ ticker: string }>();
     const navigate = useNavigate();
     // Embedded in the /search mode toggle → ticker lives in local state instead
@@ -179,7 +184,7 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
     const [sentimentDelta, setSentimentDelta] = useState<SentimentDelta | null>(null);
     const [longitudinal, setLongitudinal] = useState<LongitudinalPoint[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'filings' | 'data' | 'sentiment'>('overview');
+    const [activeTab, setActiveTab] = useState<CompanyTab>(tab ?? 'overview');
     // Watermark captured at page open (newest filing_date the user saw last
     // time); filings newer than this get a NEW badge. Captured before markSeen.
     const [watermark, setWatermark] = useState<string | null>(null);
@@ -380,13 +385,14 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                         >
                             <FileText className="w-3.5 h-3.5" /> Full Primer
                         </button>
-                        <a
-                            href={`https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${symbol}&type=10-K&dateb=&owner=include&count=10`}
-                            target="_blank" rel="noopener noreferrer"
+                        {/* Resolves to the latest 10-K document itself (same resolver as
+                            Quick Answer); falls back to EDGAR search while/if unresolved. */}
+                        <EdgarLink
+                            ticker={symbol}
+                            filingType="10-K"
+                            allowLatest
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] text-[#A7B0C8] text-xs hover:border-white/20 hover:text-white transition-colors"
-                        >
-                            <ExternalLink className="w-3.5 h-3.5" /> SEC EDGAR
-                        </a>
+                        />
                     </div>
 
                     {/* Peer strip — sector peers + 1-click compare in Research Grid */}
@@ -430,7 +436,7 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                     )}
 
                     {/* Tabs */}
-                    <div className="flex gap-1 border-b border-white/[0.06] mb-5">
+                    <div role="tablist" aria-label="Company sections" className="flex gap-1 border-b border-white/[0.06] mb-5">
                         {([
                             { key: 'overview', label: 'Overview', icon: BarChart3 },
                             { key: 'filings', label: `Filings (${documents.length})${newCount(documents.map(d => d.filing_date), watermark) > 0 ? ` · ${newCount(documents.map(d => d.filing_date), watermark)} new` : ''}`, icon: FileText },
@@ -441,6 +447,8 @@ export default function CompanyPage({ embedded = false }: { embedded?: boolean }
                         ] as const).map(({ key, label, icon: Icon }) => (
                             <button
                                 key={key}
+                                role="tab"
+                                aria-selected={activeTab === key}
                                 onClick={() => setActiveTab(key)}
                                 className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${activeTab === key
                                     ? 'border-[#00F0FF] text-[#00F0FF]'

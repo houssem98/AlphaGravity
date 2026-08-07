@@ -190,7 +190,7 @@ are the acceptance tests.
       `<textarea>` plus an absolutely positioned listbox. All seven assertions in row 4
       must be separate. **Rows R3, R4.**
 
-- [ ] **CT-3 · G3 — make the Company tabs addressable.**
+- [x] **CT-3 · G3 — make the Company tabs addressable.**
       `CompanyPage`'s tab state at line 183 becomes a controlled prop with the current
       value as its default, so nothing that mounts it today changes behaviour.
       **Rows R5** (the filings half).
@@ -298,6 +298,28 @@ counts. **No adjectives.**
   uncommitted changes this loop did not author — `src/pages/CompanyPage.tsx`,
   `src/components/EdgarLink.tsx`, `src/components/EdgarLink.test.ts`. They were in the tree
   before the loop opened; the loop put them on prod. Flagged per §10, not reverted.
+
+- 2026-08-07 · **CT-3** · `CompanyPage` takes an optional `tab` DEFAULT (`CompanyTab`), so the
+  two existing mounts pass nothing and still land on Overview. Tabs now carry `role="tablist"`,
+  `role="tab"` and `aria-selected`, which is what row 5's "read the tab state, do not click it"
+  actually requires — CT-1 measured `aria-selected` as **null**.
+  Row 5's filings half is asserted by **R5a**, added to the instrument this task (not a new §6
+  row — row 5 already demands readable tab state; logged here as required).
+  Shown **red on prod before the change**: 1 failed, `tablists` 0.
+  Deployed `vercel --prod`, aliased `market-ui-self.vercel.app`. Re-probed
+  **desktop-baseline + mobile-360**: **3 of 3 passed**, identical on both — tabs **3**
+  (`Overview`, `Filings (5)`, `Metrics (80)`), `aria-selected` **["true","false","false"]`,
+  tablists **1**.
+  One instrument fix: `filter({ hasText: /^Overview/ })` matched nothing because a tab renders
+  its icon first, so its text content starts with a space. Anchor dropped.
+  **A false green was caught and closed.** Adding `role="tab"` moved the tabs off
+  `getByRole('button')`; after swapping the locators, R7c passed at **0 periods** — an empty
+  table trivially has no bare fiscal periods. Root cause was a swallowed 4s click, not the
+  locator. Fixed by an `openMetricsTab()` helper that reports whether the click landed, an 8s
+  timeout, and `expect(periods.length).toBeGreaterThan(0)` before the judgement. R7c re-runs
+  **red at 80 periods / 80 without a period-end**, as CT-1 measured. Gate grew.
+  Gates: `npx vitest run` **1230 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
+  0 errors; `gate-guard` clean.
 
 ## 9. Stop
 
