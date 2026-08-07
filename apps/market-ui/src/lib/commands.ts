@@ -27,7 +27,15 @@ export const COMMANDS: CommandSpec[] = [
     { name: 'sentiment', usage: '<ticker>', status: 'buildable' },
     { name: 'data', usage: '<ticker>', status: 'buildable' },
     { name: 'peer-compare', usage: '<t1> <t2>', status: 'buildable' },
-    { name: 'screening', usage: '<query>', status: 'buildable' },
+    {
+        // CT-9 · probed, then closed. GridView runs authored prompts over a NAMED
+        // ticker list; it takes no query, ranks nothing and filters no universe,
+        // so a free-text screen has no target to reach. Wiring it would mean
+        // reading the query as a ticker list, which is wrong, or inventing a
+        // screening capability, which is worse.
+        name: 'screening', usage: '<query>', status: 'blocked',
+        blocked: 'the Research Grid runs prompts over a named ticker list — it is not a screener, and no service ranks or filters a universe',
+    },
     {
         name: 'capex', usage: '<ticker>', status: 'blocked',
         blocked: 'no service supplies capex, and apps/market-ui/api holds 12 of 12 Vercel functions',

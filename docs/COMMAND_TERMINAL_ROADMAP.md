@@ -82,8 +82,8 @@ number came from is not institutional, it is quicker.
 | `/filings <ticker>` | `CompanyPage` filings tab | **buildable** — deep-link a tab |
 | `/sentiment <ticker>` | `CompanyPage` sentiment tab | **buildable** — deep-link a tab |
 | `/data <ticker>` | `CompanyPage` data tab | **buildable** — deep-link a tab |
-| `/peer-compare <t1> <t2>` | the peer strip already shipped | **buildable, verify first** — probe before wiring |
-| `/screening <query>` | the Research Grid, `src/components/grid/GridView.tsx` | **buildable, verify first** |
+| `/peer-compare <t1> <t2>` | the Research Grid on the named tickers | **buildable, wired CT-9** — `GridView` gained a `tickers` prop |
+| `/screening <query>` | nothing it can honour | **⛔ blocked — CT-9 probe.** `GridView` runs authored prompts over a NAMED ticker list. It takes no query, ranks nothing, filters no universe. A free-text screen has no target |
 | `/capex <ticker>` | nothing | **⛔ blocked** — no service, no route budget |
 | `/tariff-risk <ticker>` | nothing | **⛔ blocked** — no service, no route budget |
 
@@ -219,7 +219,7 @@ are the acceptance tests.
       `/capex` and `/tariff-risk` state what is missing. Do not add a route; do not invent
       a number. **Rows R10.**
 
-- [ ] **CT-9 · `/peer-compare` and `/screening` — probe before wiring.**
+- [x] **CT-9 · `/peer-compare` and `/screening` — probe before wiring.**
       Both are listed "verify before reuse". Probe each surface first and log what it
       actually returns. If either cannot render without a new route, close its row as a
       `⛔` with the measurement. **Rows R2, R5.**
@@ -447,6 +447,30 @@ counts. **No adjectives.**
   No route added, no dependency added, no number invented. The two `⛔` rows in §4 stay `⛔`.
   Gates: `npx vitest run` **1247 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
   0 errors; `gate-guard` clean. Shown red on the deployed tree first.
+
+- 2026-08-08 · **CT-9 · probed both, wired one, closed one.**
+  **`/screening` closes as ⛔.** `GridView` runs authored prompts over a **named ticker list**:
+  it takes no query, ranks nothing and filters no universe (`DEFAULT_TICKERS` is a fixed list
+  of 4). A free-text screen has no target to reach, so wiring it would mean reading the query
+  as a ticker list, which is wrong, or inventing a screening capability, which is worse. The
+  §4 matrix and `COMMANDS` now say **5 buildable / 3 blocked**, and `commands.test.ts` asserts
+  the new split with every one of the eight still named.
+  **`/peer-compare` is wired and green. R5b: grid mounted 1, ticker field `"NVDA, AMD"`**, from
+  `"NVDA"`. `GridView` gained a `tickers` prop.
+  **The bug this probe existed to find.** A block-mounted grid has no URL to read, so it fell
+  through to `loadLatestGridRun()`, which **overwrote the caller's tickers with whatever the
+  user last ran** — the field read `NVDA` for a command that named NVDA and AMD. The restore
+  is now guarded: a caller that names tickers outranks the restored run. The prop is also
+  applied by effect, not only as `useState`'s initial argument, so a remount cannot silently
+  win either.
+  **A correction to this log.** An earlier reading of this probe recorded that
+  `/search?mode=grid&tickers=…` was "dropped on the floor". That was **wrong** — `GridView`
+  reads the param at `GridView.tsx:277` and clears it afterwards. The grep that found "0
+  matches" had its quoted pattern mangled by the shell wrapper. The peer strip's "Compare in
+  grid" button was never broken.
+  Gates: `npx vitest run` **1247 passed / 0 failed / 7 skipped**; `tsc` 0 errors; `gate-guard`
+  clean (2 assertions rewritten at equal or greater strength, in `commands.test.ts`, tracking
+  the ⛔ closure). R3, R4 and R10 re-run green after the matrix change — **4 passed**.
 
 ## 9. Stop
 

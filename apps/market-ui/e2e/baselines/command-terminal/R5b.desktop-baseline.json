@@ -1,0 +1,16 @@
+{
+  "row": "R5b",
+  "project": "desktop-baseline",
+  "at": "2026-08-07T23:32:51.353Z",
+  "gridMounted": 1,
+  "gridField": "NVDA, AMD",
+  "gridCarriesBothTickers": true,
+  "anyInputCarriesBoth": true,
+  "values": [
+    "NVDA, AMD"
+  ],
+  "storedBlocks": [],
+  "committedUserTurn": "/peer-compare NVDA AMD",
+  "fellThroughToModel": false,
+  "bodyHint": " AlphaGravityMARKET INTELLIGENCE●LIVEQuick AnswerNew conversationToday/capex NVDAWhat is NVDA revenue?What is NVDA revenue?What is NVDA revenue?/company NVDAWhat is NVDA revenue?What is NVDA revenue?What is NVDA revenue?/capex NVDA/company "
+}

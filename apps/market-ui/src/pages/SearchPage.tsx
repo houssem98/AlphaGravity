@@ -147,6 +147,17 @@ function commandBlock(children: ReactNode): ReactElement | null {
     const parsed = parseBlock(body);
     if (!isCommandBlock(parsed)) return null;
 
+    // CT-9 · /peer-compare mounts the Research Grid on the tickers it names.
+    if (parsed.name === 'peer-compare') {
+        const tickers = parsed.args.map(a => a.toUpperCase()).filter(Boolean);
+        if (tickers.length < 2) return null;
+        return (
+            <div className="rounded-[var(--radius-lg)] border border-[var(--line)] overflow-hidden">
+                <GridView tickers={tickers} />
+            </div>
+        );
+    }
+
     const tab = COMMAND_TABS[parsed.name];
     const ticker = parsed.args[0]?.toUpperCase();
     if (!tab || !ticker) return null;
@@ -992,7 +1003,8 @@ export default function SearchPage() {
         }
 
         const cmd = parseCommand(raw.trimEnd() + ' ', raw.length + 1);
-        if (!cmd?.complete || !COMMAND_TABS[cmd.name] || cmd.args.length === 0) return false;
+        const mountable = COMMAND_TABS[cmd?.name ?? ''] || cmd?.name === 'peer-compare';
+        if (!cmd?.complete || !mountable || cmd.args.length === 0) return false;
 
         commitTurn(raw, renderCommandBlock({ name: cmd.name, args: cmd.args }));
         return true;
@@ -1296,7 +1308,7 @@ export default function SearchPage() {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                    <GridView />
+                    <GridView tickers={searchParams.get('tickers')?.split(',').map(t => t.trim().toUpperCase()).filter(Boolean)} />
                 </div>
             </div>
         );

@@ -64,7 +64,10 @@ describe('parseCommand — row 2, each of the eight §4 commands', () => {
     it('/data resolves', () => expect(resolves('data')?.name).toBe('data'));
     it('/peer-compare resolves with two tickers', () =>
         expect(resolves('peer-compare')).toEqual({ name: 'peer-compare', args: ['NVDA', 'AMD'], complete: true }));
-    it('/screening resolves', () => expect(resolves('screening')?.name).toBe('screening'));
+    // CT-9 · probed and closed. GridView takes no query and screens nothing, so
+    // /screening joins the blocked rows rather than mounting a surface that
+    // cannot answer it.
+    it('/screening does not resolve — blocked after probe', () => expect(resolves('screening')).toBeNull());
 
     it('/capex does not resolve — blocked', () => expect(resolves('capex')).toBeNull());
     it('/tariff-risk does not resolve — blocked', () => expect(resolves('tariff-risk')).toBeNull());
@@ -73,18 +76,23 @@ describe('parseCommand — row 2, each of the eight §4 commands', () => {
         expect(findCommand('capex')?.status).toBe('blocked');
         expect(findCommand('capex')?.blocked).toContain('12 of 12');
         expect(findCommand('tariff-risk')?.blocked).toContain('12 of 12');
+        expect(findCommand('screening')?.status).toBe('blocked');
+        expect(findCommand('screening')?.blocked).toContain('not a screener');
     });
 
-    it('the matrix carries exactly the eight §4 rows, six buildable', () => {
+    it('the matrix carries exactly the eight §4 rows, five buildable after the CT-9 probe', () => {
         expect(COMMANDS).toHaveLength(8);
-        expect(COMMANDS.filter(c => c.status === 'buildable')).toHaveLength(6);
+        expect(COMMANDS.filter(c => c.status === 'buildable')).toHaveLength(5);
+        expect(COMMANDS.filter(c => c.status === 'blocked').map(c => c.name))
+            .toEqual(['screening', 'capex', 'tariff-risk']);
     });
 
     it('a blocked name is never offered by the palette', () => {
         expect(matchCommands('').map(c => c.name)).toEqual(
-            ['company', 'filings', 'sentiment', 'data', 'peer-compare', 'screening'],
+            ['company', 'filings', 'sentiment', 'data', 'peer-compare'],
         );
         expect(matchCommands('cap')).toEqual([]);
         expect(matchCommands('tariff')).toEqual([]);
+        expect(matchCommands('scr')).toEqual([]);
     });
 });

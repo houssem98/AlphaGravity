@@ -243,6 +243,48 @@ test('R5a · the Company tabs expose readable selection state (CT-3, the filings
     await expect(tabs.filter({ hasText: /Overview/ })).toHaveAttribute('aria-selected', 'true');
 });
 
+test('R5b · /peer-compare mounts the Research Grid on the tickers it names (CT-9)', async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.goto('/search');
+    const input = page.getByPlaceholder(/Ask anything about any company|Ask a follow-up/);
+    await input.click();
+    await input.fill('/peer-compare NVDA AMD');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(8000);
+
+    const values = await page.locator('input, textarea').evaluateAll(
+        els => els.map(e => (e as HTMLInputElement).value).filter(Boolean),
+    );
+    const carries = values.some(v => /NVDA/.test(v) && /AMD/.test(v));
+    const gridMounted = await page.getByText(/Tickers \(comma-separated\)/i).count();
+    // The grid's OWN field, not whatever input happens to be on the page.
+    const gridField = await page.locator('input[placeholder="NVDA, AAPL, MSFT"]').inputValue().catch(() => '<absent>');
+    // What the committed turn actually stored, straight from the store.
+    const userTurn = await page.getByText(/^\/peer-compare/).last().textContent().catch(() => '<none>');
+    const stored = await page.evaluate(() => {
+        const raw = document.body.innerText.match(/\{"name":"[^}]+\}/g) ?? [];
+        return raw.slice(-3);
+    });
+    const body = (await page.locator('body').textContent()) ?? '';
+    record('R5b', {
+        gridMounted, gridField, gridCarriesBothTickers: /NVDA/.test(gridField) && /AMD/.test(gridField),
+        anyInputCarriesBoth: carries, values: values.slice(0, 6), storedBlocks: stored,
+        committedUserTurn: userTurn,
+        // If the command fell through to the model instead of mounting, the feed
+        // says so rather than leaving us to guess.
+        fellThroughToModel: /peer-compare/i.test(body) && gridMounted === 0,
+        bodyHint: body.replace(/\s+/g, ' ').slice(0, 240),
+    });
+
+    expect(gridMounted).toBeGreaterThan(0);
+    expect(gridField).toMatch(/NVDA/);
+    expect(gridField).toMatch(/AMD/);
+
+    // The command named two tickers. A grid that opened on DEFAULT_TICKERS
+    // instead has answered a different question.
+    expect(carries).toBe(true);
+});
+
 test('R6 · the command path performs no request the toggle path does not', async ({ page }) => {
     const seen: string[] = [];
     page.on('request', r => seen.push(r.url()));

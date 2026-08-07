@@ -159,8 +159,21 @@ interface SourceViewerData {
     char_offset_end?: number;
 }
 
-export default function GridView() {
-    const [tickersInput, setTickersInput] = useState(DEFAULT_TICKERS.join(', '));
+export default function GridView({ tickers }: { tickers?: string[] } = {}) {
+    // CT-9 · the caller's tickers when it named any, the defaults otherwise.
+    // `/search?mode=grid&tickers=…` — the URL the peer strip's "Compare in grid"
+    // has always produced — was read by nobody, so the grid silently opened on
+    // DEFAULT_TICKERS and the comparison you asked for never happened.
+    const [tickersInput, setTickersInput] = useState(
+        (tickers?.length ? tickers : DEFAULT_TICKERS).join(', '),
+    );
+    // A caller that names tickers is authoritative, not merely an initial value:
+    // useState reads its argument once, and anything that remounts or restores
+    // this component afterwards would otherwise silently win.
+    const named = tickers?.length ? tickers.join(', ') : '';
+    useEffect(() => {
+        if (named) setTickersInput(named);
+    }, [named]);
     const [promptIds, setPromptIds] = useState<string[]>(SEED_GRID_PROMPTS.map(p => p.id));
     // NL custom columns: analyst-authored prompts on top of the seed set.
     const [customPrompts, setCustomPrompts] = useState<GridPrompt[]>([]);
@@ -274,7 +287,11 @@ export default function GridView() {
             .then(last => {
                 if (cancelled || !last) return;
                 setState(last);
-                setTickersInput(last.def.tickers.join(', '));
+                // CT-9 · a caller that NAMED tickers outranks the restored run.
+                // `/peer-compare NVDA AMD` mounts this grid with no URL to read,
+                // so without this the last run's list silently answers a question
+                // nobody asked.
+                if (!named) setTickersInput(last.def.tickers.join(', '));
                 setPromptIds(last.def.prompts.map(p => p.id));
                 setCustomPrompts(customFromDef(last.def));
             })
