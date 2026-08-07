@@ -4,6 +4,15 @@ module.exports = {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      screens: {
+        // MP-5 · F4. `md` is a width, and a phone in landscape is 788x360 — wide
+        // enough for md, 360px tall. That handed /search a 72px icon rail plus a
+        // second panel in 360px of height (frame 121426) and dropped MobileNav
+        // entirely. The app shell is gated on `desk` instead: wide AND tall
+        // enough to be a desktop. Tablet portrait (768x1024) still qualifies;
+        // both landscape classes in §4 (360px tall) do not.
+        desk: { raw: '(min-width: 768px) and (min-height: 500px)' },
+      },
       colors: {
         // Semantic tokens resolve from CSS vars (oklch under the hood)
         background:   "var(--bg)",

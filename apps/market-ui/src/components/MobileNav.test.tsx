@@ -96,14 +96,14 @@ describe('row 6 — every mobile target clears 44px', () => {
     // classes it warns against, and a bare source scan would match the warning.
     expect(NAV_SRC).not.toMatch(/className="[^"]*\bfixed\b[^"]*bottom-0/);
     expect(render('/search')).not.toMatch(/class="[^"]*\bfixed\b/);
-    expect(LAYOUT_SRC).toContain('h-dvh md:h-auto pt-12 md:pt-0 flex flex-col md:block');
+    expect(LAYOUT_SRC).toContain('h-dvh desk:h-auto pt-12 desk:pt-0 flex flex-col desk:block');
   });
 });
 
 describe('row 6 — the shell hands the phone its space back', () => {
   it('hides the rail and its margin below md', () => {
-    expect(LAYOUT_SRC).toContain('hidden md:flex');
-    expect(LAYOUT_SRC).toContain('md:ml-14');
+    expect(LAYOUT_SRC).toContain('hidden desk:flex');
+    expect(LAYOUT_SRC).toContain('desk:ml-14');
     expect(LAYOUT_SRC).not.toMatch(/className="flex-1 ml-14"/);
   });
 
@@ -112,7 +112,7 @@ describe('row 6 — the shell hands the phone its space back', () => {
   });
 
   it('spans the header full-width below md', () => {
-    expect(LAYOUT_SRC).toContain('left-0 md:left-14');
+    expect(LAYOUT_SRC).toContain('left-0 desk:left-14');
   });
 
   it('scrolls the content column so the bar is a sibling, not an overlay', () => {
@@ -124,9 +124,9 @@ describe('row 6 — the shell hands the phone its space back', () => {
     // content and anything that scrolled main slid under the fixed header —
     // measured scrollTop 30 with the mode tabs at y=31 behind a 48px header.
     // Below md the offset belongs to the column; at md the original stands.
-    expect(LAYOUT_SRC).toContain('pt-12 md:pt-0 flex flex-col');
+    expect(LAYOUT_SRC).toContain('pt-12 desk:pt-0 flex flex-col');
     expect(LAYOUT_SRC).not.toMatch(/<main className="pt-12/);
-    expect(LAYOUT_SRC).toContain('md:pt-12 md:min-h-dvh');
+    expect(LAYOUT_SRC).toContain('desk:pt-12 desk:min-h-dvh');
   });
 
   it('mounts the mobile nav', () => {

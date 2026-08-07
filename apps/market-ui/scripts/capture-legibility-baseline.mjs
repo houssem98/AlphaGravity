@@ -312,25 +312,60 @@ if (wanted('R5')) {
 if (wanted('R6')) {
     for (const cls of ['LS', 'LX']) {
         const [ctx, page] = await open(cls);
-        await settle(page, '/trading');
-        const outside = await page.evaluate(() => {
-            const vw = document.documentElement.clientWidth;
-            const vh = document.documentElement.clientHeight;
-            const out = [];
-            for (const el of Array.from(document.querySelectorAll('header button, header a, nav button, nav a, button, a'))) {
-                const t = (el.textContent || '').trim();
-                if (!t || t.length > 24) continue;
-                const r = el.getBoundingClientRect();
-                if (r.width === 0 || r.height === 0) continue;
-                if (r.top > 120) continue; // top chrome only
-                if (r.left < -1 || r.top < -1 || r.right > vw + 1 || r.bottom > vh + 1) {
+        const outside = [];
+        // MP-5 · the surface, not the session. Frame 121607's `LOG IN` /
+        // `SIGN UP` live in TradingAssistantPage.tsx:536-541, inside a header
+        // that renders only when `currentView !== 'hub' && activeMarket ===
+        // 'crypto'` — one tap in from /trading, the same surface F1 and F3 were
+        // on. Those two buttons are unconditional in the source, so an
+        // authenticated run sees them too; /trading's root never does.
+        for (const path of ['/trading', '/search', 'CRYPTO']) {
+            const label = path;
+            if (path === 'CRYPTO') await openCrypto(page);
+            else await settle(page, path);
+            // Top chrome is judged where the frame shows it: at the top of the
+            // scroll. `openCrypto` scrolls the first row into view, which pushes
+            // this header to y=-38, and "the control is above the viewport
+            // because the user scrolled" is not F4.
+            await page.evaluate(() => {
+                for (const el of Array.from(document.querySelectorAll('*'))) {
+                    if (el.scrollTop) el.scrollTop = 0;
+                }
+            });
+            await page.waitForTimeout(400);
+            for (const o of await page.evaluate(() => {
+                const vw = document.documentElement.clientWidth;
+                const vh = document.documentElement.clientHeight;
+                const out = [];
+                for (const el of Array.from(document.querySelectorAll('header button, header a, nav button, nav a, button, a'))) {
+                    const t = (el.textContent || '').trim();
+                    if (!t || t.length > 24) continue;
+                    const r = el.getBoundingClientRect();
+                    if (r.width === 0 || r.height === 0) continue;
+                    if (r.top > 120) continue; // top chrome only
+                    if (r.left >= -1 && r.top >= -1 && r.right <= vw + 1 && r.bottom <= vh + 1) continue;
+                    // MP-5 · MP-3's finding: the worst offender this probe used
+                    // to name — `GSPC $7,709.96 -0.18%` at x=-265 — lives in the
+                    // market ticker, an `overflow-x: auto` strip that owns it.
+                    // A control a user can scroll to is not a control that fell
+                    // off the chrome.
+                    let p = el.parentElement, owned = false;
+                    while (p) {
+                        const ox = getComputedStyle(p).overflowX;
+                        if (ox === 'auto' || ox === 'scroll') { owned = true; break; }
+                        if (p === document.body) break;
+                        p = p.parentElement;
+                    }
+                    if (owned) continue;
                     out.push(`${t} [${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.right)},${Math.round(r.bottom)}] vw ${vw}`);
                 }
-            }
-            return out;
-        });
-        log('R6', cls, outside.length ? 'RED' : 'GREEN', `${outside.length} control(s) outside` + (outside[0] ? ` · ${outside[0]}` : ''));
+                return out;
+            })) outside.push(`${label}: ${o}`);
+        }
+        log('R6', cls, outside.length ? 'RED' : 'GREEN',
+            `${outside.length} control(s) outside` + (outside[0] ? ` · ${outside[0]}` : ''), { outside });
         await ctx.close();
+
     }
 }
 
@@ -385,18 +420,37 @@ if (wanted('R8') || wanted('R9')) {
 if (wanted('R10')) {
     for (const cls of ['LS', 'LX']) {
         const [ctx, page] = await open(cls);
-        await settle(page, '/trading');
-        const m = await page.evaluate(() => {
-            const nav = document.querySelector('[data-testid="mobile-nav"]');
-            return {
-                nav: !!nav && nav.getBoundingClientRect().height > 0,
-                rail: Array.from(document.querySelectorAll('aside, nav')).filter((e) => {
+        const bad = [];
+        // MP-5 · the shell is per route, so one route cannot answer R10. Frame
+        // 121607 shows /trading with MobileNav; frame 121426 shows /search with
+        // the 72px desktop icon rail AND a second panel, in 360px of height.
+        // Measuring only /trading reported green for a fault the frames show.
+        for (const path of ['/', '/search', '/trading', '/companies', '/history']) {
+            await settle(page, path);
+            const m = await page.evaluate(() => {
+                const nav = document.querySelector('[data-testid="mobile-nav"]');
+                const rail = Array.from(document.querySelectorAll('*')).filter((e) => {
                     const r = e.getBoundingClientRect();
-                    return r.height > 200 && r.width > 0 && r.width < 120 && r.left < 120;
-                }).length,
-            };
-        });
-        log('R10', cls, m.nav && m.rail === 0 ? 'GREEN' : 'RED', `MobileNav ${m.nav ? 'present' : 'absent'}, desktop rail candidates ${m.rail}`);
+                    if (!(r.height > 200 && r.width > 24 && r.width < 120 && r.left < 120)) return false;
+                    // A rail is a column of controls, not any narrow box.
+                    return e.querySelectorAll('a, button').length >= 4;
+                });
+                return {
+                    nav: !!nav && nav.getBoundingClientRect().height > 0,
+                    rail: rail.map((e) => `${e.tagName.toLowerCase()}.${(e.getAttribute('class') || '').slice(0, 40)}`),
+                };
+            });
+            // `/` is LandingPage — a public route outside AppLayout
+            // (AppRouter.tsx:163), so it carries no app chrome at ANY width:
+            // measured `nav: false` at 360x780 as well as at 788x360. R10 asks
+            // whether the APP renders the mobile shell; the rail half below
+            // still covers every route, so a desktop rail appearing on the
+            // landing page would still fail.
+            if (!m.nav && path !== '/') bad.push(`${path}: MobileNav absent`);
+            for (const r of m.rail) bad.push(`${path}: desktop rail ${r}`);
+        }
+        log('R10', cls, bad.length ? 'RED' : 'GREEN',
+            `${bad.length} shell fault(s) over 5 routes` + (bad[0] ? ` · ${bad[0]}` : ''), { bad });
         await ctx.close();
     }
 }

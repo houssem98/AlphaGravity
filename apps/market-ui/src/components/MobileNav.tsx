@@ -70,7 +70,7 @@ export default function MobileNav({ hideAt = 'md' }: { hideAt?: 'md' | 'lg' } = 
             // Instead the bar is a normal flex child at the end of AppLayout's
             // h-dvh column, so it lands on the bottom of whatever is actually
             // visible. --safe-b then clears the home indicator.
-            className={`${hideAt === 'lg' ? 'lg:hidden' : 'md:hidden'} shrink-0 flex bg-[color:var(--surface)] border-t border-[color:var(--line)]`}
+            className={`${hideAt === 'lg' ? 'lg:hidden' : 'desk:hidden'} shrink-0 flex bg-[color:var(--surface)] border-t border-[color:var(--line)]`}
             style={{ paddingBottom: 'var(--safe-b)' }}
         >
             {PRIMARY.map(({ to, icon: Icon, label }) => {

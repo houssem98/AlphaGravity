@@ -188,7 +188,7 @@ are the acceptance tests.
 - [x] **MP-4 · F3 — the floating `+ Columns` control must not paint on the tab strip.**
       **Rows R5.**
 
-- [ ] **MP-5 · F4 + U3 — landscape renders the mobile shell.**
+- [x] **MP-5 · F4 + U3 — landscape renders the mobile shell.**
       788 ≥ `md`, so LS currently gets the desktop three-panel layout in 360px of height.
       Gate the shell on height as well as width. Top-chrome controls must fit.
       **Rows R6, R10.**
@@ -400,6 +400,47 @@ counts. **No adjectives.**
   pre-existing `desktopBaseline` trading-asset landmark drift. Deployed to prod once.
   `MarketList.tsx` carries the same `ml-auto sticky right-0` chooser shape for the TN and US
   lists and no row measures it — same scoping call as MP-2.
+
+- 2026-08-07 · MP-5 · **R10 was green on one route and red on three.** The probe only visited
+  `/trading`, and the shell is per route: frame `121607` shows `/trading` with MobileNav,
+  frame `121426` shows `/search` with the 72px desktop icon rail plus a second panel in 360px
+  of height. Measured across five routes at LS (788x360): **10 shell faults** — `/search`,
+  `/companies` and `/history` each rendering `aside.w-14` + `nav.flex flex-col gap-1 flex-1
+  stagger` with **MobileNav absent**. At LX (740x360, below `md`) only `/` — 1 fault.
+
+- 2026-08-07 · MP-5 · fix: the app shell is gated on a new Tailwind screen
+  **`desk: (min-width: 768px) and (min-height: 500px)`** instead of `md`, in
+  `tailwind.config.js`, `AppLayout.tsx` (11 class positions) and `MobileNav.tsx`. A phone in
+  landscape is wide enough for `md` and 360px tall; tablet portrait (768x1024) still resolves
+  desktop, and both §4 landscape classes no longer do. After, on prod: **R10 0 shell faults
+  over 5 routes at LS and LX.**
+
+- 2026-08-07 · MP-5 · **F4's top-chrome half does not reproduce.** `LOG IN` / `SIGN UP` live
+  in `TradingAssistantPage.tsx:536-541`, inside a header that renders only when
+  `currentView !== 'hub' && activeMarket === 'crypto'` — one tap in from `/trading`, the
+  surface F1 and F3 were on. R6 had been measuring `/trading`'s root, where that header does
+  not exist, so it could not have seen the fault it names. Measured on the real surface at the
+  top of the scroll: LS `LOG IN [631,-38,694,-11]`, `SIGN UP [702,-39,776,-10]` against
+  vw 788 — **both fit horizontally** (776 ≤ 788; at LX 728 ≤ 740). Frame `121607` shows SIGN
+  UP cut at the right edge; today's build does not. Two measurement corrections were needed to
+  say that honestly: MP-3's finding that the ticker strip is an `overflow-x: auto` scroller
+  that owns its items (that alone took the count 23–24 → 0), and judging top chrome at
+  `scrollTop 0`, because `openCrypto` scrolls the first row into view and pushes the header to
+  y=-38. R6 **GREEN at LS and LX**.
+
+- 2026-08-07 · MP-5 · `/` is `LandingPage`, a public route outside `AppLayout`
+  (`AppRouter.tsx:163`), so it carries no app chrome at any width — measured `nav: false` at
+  **360x780** as well as 788x360. R10's MobileNav half is scoped to app routes; its rail half
+  still covers all five, so a desktop rail on the landing page would still fail.
+
+- 2026-08-07 · MP-5 · gates: `tsc --noEmit -p tsconfig.app.json` clean;
+  `npx playwright test` **215 passed / 16 failed / 75 skipped (16.4m)**, from 214/17 — V2's
+  `G12–G16 · R14: the shell renders the mobile layout at a short viewport` flipped green at
+  mobile-landscape, which is F4 measured by someone else's gate. **Second gate touch of this
+  ledger, declared:** `src/components/MobileNav.test.tsx` asserts AppLayout's class strings by
+  name, so 6 `toContain` arguments moved from `md:` to `desk:` — same count, same matcher, same
+  constraint under a renamed breakpoint. `gate-guard` reports `note · 6 assertion(s) rewritten
+  at equal or greater strength`, then `clean`. Deployed to prod once.
 
 ## 9. Stop
 
