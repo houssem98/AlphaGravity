@@ -531,7 +531,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   const tfLong = TF_LONG;
   const colCount = 5 + Object.values(cols).filter(Boolean).length; // star, #, name, price, spark
   const techTh = (field: string, label: string, cls = 'text-right hidden xl:table-cell') => (
-    <th className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group ${cls}`} onClick={() => handleTechSort(field)}>
+    <th className={`py-2 px-2 md:px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group ${cls}`} onClick={() => handleTechSort(field)}>
       <div className="flex items-center gap-1 justify-end">
         {label}
         <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -540,7 +540,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   );
 
   const sortTh = (k: keyof MarketData, label: string, cls: string) => (
-    <th className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group ${cls}`} onClick={() => handleSort(k)}>
+    <th className={`py-2 px-2 md:px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group ${cls}`} onClick={() => handleSort(k)}>
       <div className={`flex items-center gap-1 ${cls.includes('text-right') ? 'justify-end' : ''}`}>
         {label}
         <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -556,7 +556,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
     else setTechSort({ field, dir });
   };
   const menuTh = (kk: ColKey, label: string, cls: string, kind: 'base' | 'tech' | 'none', field?: string) => (
-    <th className={`py-2 px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group relative ${cls}`} onClick={() => setHeadMenu(headMenu === kk ? null : kk)}>
+    <th className={`py-2 px-2 md:px-4 label cursor-pointer hover:text-[color:var(--text)] transition-colors group relative ${cls}`} onClick={() => setHeadMenu(headMenu === kk ? null : kk)}>
       <div className={`flex items-center gap-1 ${cls.includes('text-right') ? 'justify-end' : ''}`}>
         {label}
         {kind !== 'none' && <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />}
@@ -589,7 +589,7 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
   const headerFor = (kk: ColKey) => {
     switch (kk) {
       case 'change': return (
-                      <th className="py-2 px-4 label text-right relative">
+                      <th className="py-2 px-2 md:px-4 label text-right relative hidden md:table-cell">
                         <button onClick={() => setChangeMenu((v) => !v)} className="inline-flex items-center gap-1 hover:text-[color:var(--text)] transition-colors ml-auto">
                           {tfLabel}
                           <ChevronDown className="w-2.5 h-2.5" />
@@ -899,14 +899,14 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
               <table className="sticky-head w-full lg:min-w-[1200px] text-left border-collapse whitespace-nowrap">
                 <thead>
                   <tr className="border-b border-[color:var(--line)] bg-[color:var(--surface-2)]">
-                    <th className="py-2 px-4 label w-8" />
-                    <th className="py-2 px-4 label w-10">#</th>
+                    <th className="py-2 px-2 md:px-4 label w-8" />
+                    <th className="py-2 px-2 md:px-4 label w-10 hidden md:table-cell">#</th>
                     {sortTh('name', 'Name', 'sticky left-0 z-20 bg-[color:var(--surface-2)]')}
                     {sortTh('priceUsd', 'Price', 'text-right')}
                     {orderedCols.map((k) => <React.Fragment key={k}>{headerFor(k)}</React.Fragment>)}
                     {/* Matches the rows' trailing spacer cell — without it the
                         header row is one cell short and ends before the table. */}
-                    <th className="py-2 px-4" />
+                    <th className="py-2 px-2 md:px-4 hidden md:table-cell" />
                   </tr>
                 </thead>
                 <tbody>
@@ -957,28 +957,28 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                           </div>
                         ) : dash2;
                         const cell = (on: boolean, body: React.ReactNode, cls = 'hidden xl:table-cell') =>
-                          on ? <td className={`py-2.5 px-4 text-right font-mono text-data ${cls}`}>{body}</td> : null;
+                          on ? <td className={`py-2.5 px-2 md:px-4 text-right font-mono text-data ${cls}`}>{body}</td> : null;
                         void t0; void sp; void me; void dv; void dash; void dash2; void mcapN; void vol; void px; void pct; void num; void pill; void pair; void cell;
                         switch (kk) {
                           case 'change': return (
-                              <td className={`py-2.5 px-4 text-right font-mono text-data ${!isFinite(chg) ? '' : chgPos ? 'up' : 'down'}`}>
+                              <td className={`py-2.5 px-2 md:px-4 text-right font-mono text-data hidden md:table-cell ${!isFinite(chg) ? '' : chgPos ? 'up' : 'down'}`}>
                                 {!isFinite(chg) ? <Dash /> : <>{chgPos ? '+' : '-'}{Math.abs(chg).toFixed(2)}%</>}
                               </td>
                             );
                           case 'marketCap': return (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden sm:table-cell">
+                              <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden sm:table-cell">
                                 {parseFloat(market.marketCapUsd || '0') > 0 ? '$' + formatNumber(market.marketCapUsd) : <Dash />}
                               </td>
                             );
                           case 'fdv': return (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                              <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
                                 {market.fdvUsd && parseFloat(market.fdvUsd) > 0
                                   ? '$' + formatNumber(market.fdvUsd)
                                   : fdvSupply > 0 ? '$' + formatNumber(fdvSupply * parseFloat(market.priceUsd || '0')) : <Dash />}
                               </td>
                             );
                           case 'volume': return (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
+                              <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden lg:table-cell">
                                 <div className="flex flex-col items-end leading-tight">
                                   <span>${formatNumber(market.volumeUsd24Hr || '0')}</span>
                                   <span className="text-label text-[color:var(--text-3)]">{formatNumber(parseFloat(market.volumeUsd24Hr || '0') / parseFloat(market.priceUsd || '1'))} {market.symbol}</span>
@@ -986,12 +986,12 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                               </td>
                             );
                           case 'volMcap': return (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                              <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
                                 {mcapNum > 0 ? (parseFloat(market.volumeUsd24Hr || '0') / mcapNum).toFixed(4) : <Dash />}
                               </td>
                             );
                           case 'circulating': return (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                              <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
                                 <div className="flex flex-col items-end leading-tight">
                                   <span>{parseFloat(market.csupply || '0') > 0 ? <>{formatNumber(market.csupply)} {market.symbol}</> : <Dash />}</span>
                                   {parseFloat(market.csupply || '0') > 0 && market.msupply && market.msupply !== '0' && (
@@ -1006,52 +1006,52 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                               </td>
                             );
                           case 'tsupply': return (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                              <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
                                 {parseFloat(market.tsupply || '0') > 0 ? <>{formatNumber(market.tsupply)} {market.symbol}</> : <Dash />}
                               </td>
                             );
                           case 'msupply': return (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                              <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
                                 {market.msupply && market.msupply !== '0' ? `${formatNumber(market.msupply)} ${market.symbol}` : '∞'}
                               </td>
                             );
                           case 'p14d': return (
-                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent14d} /></td>
+                              <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent14d} /></td>
                             );
                           case 'p30d': return (
-                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent30d} /></td>
+                              <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent30d} /></td>
                             );
                           case 'p1y': return (
-                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent1y} /></td>
+                              <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.changePercent1y} /></td>
                             );
                           case 'athVal': return (
-                              <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                              <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
                                 {market.ath && parseFloat(market.ath) > 0 ? '$' + formatCurrency(market.ath) : <Dash />}
                               </td>
                             );
                           case 'athPct': return (
-                              <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.athChangePct} /></td>
+                              <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell"><PctVal v={market.athChangePct} /></td>
                             );
-                          case 'openC': return <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.open)}</td>;
-                          case 'highC': return <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.high)}</td>;
-                          case 'lowC': return <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.low)}</td>;
-                          case 'cfoPct': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(sp?.changeFromOpenPct)}</td>;
-                          case 'gapPct': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(sp?.gapPct)}</td>;
+                          case 'openC': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.open)}</td>;
+                          case 'highC': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.high)}</td>;
+                          case 'lowC': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">{px(sp?.low)}</td>;
+                          case 'cfoPct': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">{pct(sp?.changeFromOpenPct)}</td>;
+                          case 'gapPct': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">{pct(sp?.gapPct)}</td>;
                           case 'volaPct': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
                                       {sp?.volatilityPct != null ? sp.volatilityPct.toFixed(2) + '%' : dash}
                                     </td>
                                   );
                           case 'chgAbs': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">
                                       {sp?.chgAbs != null ? (
                                         <span className={sp.chgAbs >= 0 ? 'up' : 'down'}>{(sp.chgAbs >= 0 ? '+$' : '-$') + formatCurrency(Math.abs(sp.chgAbs))}</span>
                                       ) : dash}
                                     </td>
                                   );
-                          case 'volD': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{pct(t0?.volChangePct)}</td>;
+                          case 'volD': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">{pct(t0?.volChangePct)}</td>;
                           case 'catCol': return (
-                                    <td className="py-2.5 px-4 text-right hidden md:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right hidden md:table-cell">
                                       {me?.categories?.length ? (
                                         <div className="flex flex-wrap gap-1 justify-end">
                                           {me.categories.slice(0, 2).map((c) => (
@@ -1063,22 +1063,22 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                     </td>
                                   );
                           case 'trendCol': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden md:table-cell">
                                       {me?.trending != null ? <span className="text-[color:var(--accent)]">🔥 #{me.trending}</span> : dash}
                                     </td>
                                   );
                           case 'tvlCol': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden md:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden md:table-cell">
                                       {me?.tvl != null ? '$' + formatNumber(me.tvl) : dash}
                                     </td>
                                   );
                           case 'mcapTvl': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
                                       {me?.tvl != null && me.tvl > 0 && mcapN > 0 ? (mcapN / me.tvl).toFixed(2) : dash}
                                     </td>
                                   );
                           case 'rating': return (
-                                    <td className="py-2.5 px-4 text-right hidden md:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right hidden md:table-cell">
                                       {t?.rating ? (
                                         <span className={`text-label font-semibold px-1.5 py-0.5 rounded-sm border border-[color:var(--line)] bg-[color:var(--bg)] ${t.rating.includes('Buy') ? 'up' : t.rating.includes('Sell') ? 'down' : 'text-[color:var(--text-3)]'}`} style={{ letterSpacing: '0.04em' }}>
                                           {t.rating.toUpperCase()}
@@ -1087,20 +1087,20 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                     </td>
                                   );
                           case 'rsi': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden md:table-cell">
                                       {t?.rsi != null ? (
                                         <span className={t.rsi > 70 ? 'down' : t.rsi < 30 ? 'up' : 'text-[color:var(--text-2)]'}>{t.rsi.toFixed(1)}</span>
                                       ) : <Dash />}
                                     </td>
                                   );
-                          case 'ema20': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema20)}</td>;
-                          case 'ema50': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema50)}</td>;
-                          case 'ema200': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema200)}</td>;
-                          case 'sma20': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma20)}</td>;
-                          case 'sma50': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma50)}</td>;
-                          case 'sma200': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma200)}</td>;
+                          case 'ema20': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema20)}</td>;
+                          case 'ema50': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema50)}</td>;
+                          case 'ema200': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.ema200)}</td>;
+                          case 'sma20': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma20)}</td>;
+                          case 'sma50': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma50)}</td>;
+                          case 'sma200': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.sma200)}</td>;
                           case 'macd': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">
                                       {t?.macd != null ? (
                                         <div className="flex flex-col items-end leading-tight">
                                           <span className={t.macdSignal != null && t.macd > t.macdSignal ? 'up' : 'down'}>{fmtTech(t.macd)}</span>
@@ -1109,9 +1109,9 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                       ) : <Dash />}
                                     </td>
                                   );
-                          case 'bbU': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbUpper)}</td>;
-                          case 'bbL': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbLower)}</td>;
-                          case 'atr': return <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.atr)}</td>;
+                          case 'bbU': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbUpper)}</td>;
+                          case 'bbL': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.bbLower)}</td>;
+                          case 'atr': return <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">{num(t?.atr)}</td>;
                           case 'maR': return cell(true, pill(t?.maRating), 'hidden md:table-cell');
                           case 'oscR': return cell(true, pill(t?.oscRating), 'hidden md:table-cell');
                           case 'stoch': return cell(true, pair(t?.stochK, t?.stochD, (n) => n.toFixed(1)));
@@ -1151,39 +1151,39 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                           case 'fib': return cell(true, pair(t?.fibR1, t?.fibS1));
                           case 'atrPct': return cell(true, t?.atrPct != null ? t.atrPct.toFixed(2) + '%' : dash2);
                           case 'funding': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden md:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden md:table-cell">
                                       {dv?.fundingRate != null ? (
                                         <span className={dv.fundingRate >= 0 ? 'up' : 'down'}>{(dv.fundingRate * 100).toFixed(4)}%</span>
                                       ) : dash}
                                     </td>
                                   );
                           case 'oi': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden md:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden md:table-cell">
                                       {dv?.oiUsd != null ? '$' + formatNumber(dv.oiUsd) : dash}
                                     </td>
                                   );
                           case 'oiVol': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text-2)] hidden xl:table-cell">
                                       {dv?.oiUsd != null && vol > 0 ? (dv.oiUsd / vol).toFixed(2) : dash}
                                     </td>
                                   );
                           case 'oiChg': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">
                                       {dv?.oiChangePct != null ? <PctVal v={String(dv.oiChangePct)} /> : dash}
                                     </td>
                                   );
                           case 'lsRatio': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">
                                       {dv?.lsRatio != null ? <span className={dv.lsRatio >= 1 ? 'up' : 'down'}>{dv.lsRatio.toFixed(2)}</span> : dash}
                                     </td>
                                   );
                           case 'takerR': return (
-                                    <td className="py-2.5 px-4 text-right font-mono text-data hidden xl:table-cell">
+                                    <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data hidden xl:table-cell">
                                       {dv?.takerRatio != null ? <span className={dv.takerRatio >= 1 ? 'up' : 'down'}>{dv.takerRatio.toFixed(2)}</span> : dash}
                                     </td>
                                   );
                           case 'spark': return (
-                              <td className="py-2.5 px-4 text-right hidden md:table-cell">
+                              <td className="py-2.5 px-2 md:px-4 text-right hidden md:table-cell">
                                 <div className="flex items-center justify-end gap-3 relative">
                                   <div className="w-24 h-10 transition-opacity group-hover:opacity-0">
                                     <Sparkline id={market.symbol} color={isPositive7d ? 'var(--up)' : 'var(--down)'} />
@@ -1213,17 +1213,24 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                             className={`border-b border-[color:var(--line)] transition-colors hover:bg-[color:var(--surface-2)] group cursor-pointer ${isExpanded ? 'bg-[color:var(--surface-2)]' : ''}`}
                             onClick={() => setExpandedCoin(isExpanded ? null : market.id)}
                           >
-                            <td className="py-2.5 px-4" onClick={(e) => {
+                            <td className="py-2.5 px-2 md:px-4" onClick={(e) => {
                               e.stopPropagation();
                               if (market.symbol) toggleWatchlist(e, market.symbol);
                             }}>
                               <Star className={`w-3.5 h-3.5 transition-colors ${isStarred ? 'text-[color:var(--accent)] fill-[color:var(--accent)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text)]'}`} />
                             </td>
-                            <td className="py-2.5 px-4 font-mono text-data text-[color:var(--text-3)]">
+                            {/* MP-2 · the rank spent 49px of a 326px scroller on
+                                the row's least useful number. */}
+                            <td className="py-2.5 px-2 md:px-4 font-mono text-data text-[color:var(--text-3)] hidden md:table-cell">
                               {(currentPage - 1) * itemsPerPage + index + 1}
                             </td>
-                            <td className="py-2.5 px-4 sticky left-0 z-20 bg-[color:var(--bg)]">
-                              <div className="flex items-center gap-2.5">
+                            <td className="py-2.5 px-2 md:px-4 sticky left-0 z-20 bg-[color:var(--bg)]">
+                              {/* MP-2 · min-w-0 is what lets the name give way. Without it a
+                                  flex item refuses to shrink below its content, the identity
+                                  cell stays 210px wide at 360px of viewport, and the price is
+                                  pushed to x=322 inside a 326px scroller — 78px of
+                                  "$64,377.21" rendered outside it. */}
+                              <div className="flex items-center gap-2.5 min-w-0">
                                 <img
                                   src={market.image || `https://assets.coincap.io/assets/icons/${(market.symbol || 'btc').toLowerCase()}@2x.png`}
                                   alt={market.name}
@@ -1232,19 +1239,33 @@ export const Markets: React.FC<MarketsProps> = ({ onAssetSelect }) => {
                                     (e.target as HTMLImageElement).src = 'https://assets.coincap.io/assets/icons/btc@2x.png';
                                   }}
                                 />
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
                                   {/* MB-6: same reason as MarketList — the name
                                       cannot be allowed to eat the price. */}
-                                  <span className="text-body font-semibold text-[color:var(--text)] truncate max-w-[110px] lg:max-w-none">{market.name || 'Unknown'}</span>
-                                  <span className="font-mono text-label text-[color:var(--text-3)] bg-[color:var(--bg)] border border-[color:var(--line)] px-1.5 py-0.5 rounded-sm">{market.symbol || '???'}</span>
+                                  {/* MP-2 · 72px below md. The cell's min-content is what the
+                                      table cannot shrink past, and at 320px of viewport a
+                                      110px name plus the chip left the price 69px outside the
+                                      scroller. The name truncates; the chip beside it is the
+                                      exact identity, and both keep their type size. */}
+                                  <span className="text-body font-semibold text-[color:var(--text)] truncate max-w-[72px] md:max-w-[110px] lg:max-w-none">{market.name || 'Unknown'}</span>
+                                  <span data-testid="symbol" className="font-mono text-label text-[color:var(--text-3)] bg-[color:var(--bg)] border border-[color:var(--line)] px-1.5 py-0.5 rounded-sm shrink-0">{market.symbol || '???'}</span>
                                 </div>
                               </div>
                             </td>
-                            <td className="py-2.5 px-4 text-right font-mono text-data text-[color:var(--text)]">
-                              ${(livePrice(market, spot[market.symbol]) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                            {/* MP-2 · F1. Below md the timeframe-change column is hidden so
+                                the row fits the viewport with no horizontal scroller at all,
+                                and its value rides under the price at the same type size
+                                rather than leaving with its column. */}
+                            <td className="py-2.5 px-2 md:px-4 text-right font-mono text-data text-[color:var(--text)]">
+                              <span data-testid="price">
+                                ${(livePrice(market, spot[market.symbol]) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                              </span>
+                              <span className={`md:hidden block text-data ${!isFinite(chg) ? '' : chgPos ? 'up' : 'down'}`}>
+                                {!isFinite(chg) ? <Dash /> : <>{chgPos ? '+' : '-'}{Math.abs(chg).toFixed(2)}%</>}
+                              </span>
                             </td>
                             {orderedCols.map((k) => <React.Fragment key={k}>{cellFor(k)}</React.Fragment>)}
-                            <td className="py-2.5 px-4" />
+                            <td className="py-2.5 px-2 md:px-4 hidden md:table-cell" />
                           </tr>
 
                           <AnimatePresence>

@@ -115,17 +115,16 @@ for (const cls of ['XS', 'N', 'S', 'M', 'LS', 'LX', 'T']) {
     if (wanted('R3')) {
         await scrollTableTo(page, 0);
         await page.waitForTimeout(300);
-        // No data-testid exists in src/ — e2e/mobileField.spec.ts row R7 reads
-        // [data-testid="price"] and [data-testid="symbol"], and MarketList.tsx
-        // emits neither. Read the cells MarketList.tsx actually renders: the
-        // symbol chip is the `font-mono` span inside the pinned identity cell
-        // (MarketList.tsx:405) and the price is the first visible right-aligned
-        // `font-mono` <td> (MarketList.tsx:407), which is the price column
-        // because `price` precedes every other numeric column in COLS.
+        // MP-2 added the two testids e2e/mobileField.spec.ts already read and
+        // MarketList.tsx did not emit. Fall back to the structural selectors for
+        // a deployment that predates them: the symbol chip is the `font-mono`
+        // span in the pinned identity cell (MarketList.tsx:414) and the price is
+        // the first visible right-aligned `font-mono` <td> (MarketList.tsx:420).
+        // The testid matters below md, where that <td> also holds the delta.
         const shown = await page.evaluate(() =>
             Array.from(document.querySelectorAll('tbody tr')).slice(0, 8).map((tr) => {
-                const sym = tr.querySelector('td span.font-mono')?.textContent?.trim() || '';
-                const cell = Array.from(tr.querySelectorAll('td.text-right.font-mono')).find((e) => e.getClientRects().length > 0);
+                const sym = (tr.querySelector('[data-testid="symbol"]') || tr.querySelector('td span.font-mono'))?.textContent?.trim() || '';
+                const cell = Array.from(tr.querySelectorAll('[data-testid="price"], td.text-right.font-mono')).find((e) => e.getClientRects().length > 0);
                 return {
                     sym,
                     text: (cell?.textContent || '').trim(),

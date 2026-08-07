@@ -35,7 +35,8 @@ Every path and symbol below was verified to exist. Never invent one.
 
 | what | where |
 |---|---|
-| markets table, price cell, sticky identity column | `src/components/trading/MarketList.tsx` — `price` column def ~line 64, price `<td>` ~line 407, pinned identity `<td>` ~line 395 |
+| **crypto** markets table — the surface F1's frames show | `src/components/trading/Markets.tsx` — price `<td>` ~line 1243, pinned identity `<td>` ~line 1225, `change` cell ~line 963, header row ~line 898. `TradingAssistantPage.tsx:569` routes `crypto` here and every other market to `MarketList` |
+| every **other** market's table (TN, US, …) | `src/components/trading/MarketList.tsx` — `price` column def ~line 64, price `<td>` ~line 407, pinned identity `<td>` ~line 395 |
 | overpaint evaluator (V2's instrument) | `src/lib/overpaint.ts` — `overpaintPairs`, `collectPaintBoxes` |
 | V2 field gates | `e2e/mobileField.spec.ts` — rows R7, R8, R9, R11 |
 | V1 sweep | `e2e/mobileSweep.spec.ts` |
@@ -172,7 +173,7 @@ are the acceptance tests.
       exists makes the graph red from ledger open, and a permanently red check is one
       you learn to skip. The graph grows with the code. **Rows R1.**
 
-- [ ] **MP-2 · F1 — the markets table must never render a price the server did not send.**
+- [x] **MP-2 · F1 — the markets table must never render a price the server did not send.**
       The price `<td>` in `src/components/trading/MarketList.tsx` is right-aligned and
       clips its own leading digits inside the pinned identity column's shadow. Fix so
       that at every offset in row 2 the rendered price is the whole number. Do not solve
@@ -261,6 +262,56 @@ counts. **No adjectives.**
   green" is **false on today's prod** and the corrected statement is that V2's gates are red for
   faults V3 has not yet fixed and, in one case, for a selector that no longer exists.
   No deploy: this task changed no UI and no api function, so contract gate 6 does not apply.
+
+- 2026-08-07 · MP-2 · **§2's anchor named the wrong file.** F1's frames (`122124`, `121925`)
+  show the tab strip `Cryptocurrencies / Watchlist / Categories / Portfolio` and the floating
+  `+ Columns` — that is `src/components/trading/Markets.tsx`, not `MarketList.tsx`.
+  `TradingAssistantPage.tsx:569` sends `crypto` to `Markets` and every other market to
+  `MarketList`. The frame wins (loop rule 2); §2 is corrected above. A first fix was written
+  against `MarketList.tsx`, deployed, measured **identical numbers**, and reverted — the
+  reverted file has the same 210px identity cell and is covered by no row here.
+
+- 2026-08-07 · MP-2 · diagnosis at N, live alias, before the fix: scroller
+  `div.w-full.overflow-x-auto` client **326px**, table **371px**; row = star 46 + rank 49 +
+  identity **210** + price 115. Price `<td>` at x=322..437 with its glyphs at 338..421, so
+  **78px of "$64,377.21" rendered outside a 343px-wide window** — and `min-w-0` was the
+  missing ingredient: a flex item will not shrink below its content, so the identity cell
+  never gave the price room.
+
+- 2026-08-07 · MP-2 · fix, layout only, in `Markets.tsx`: `min-w-0` on the identity flex row
+  and `shrink-0` on the symbol chip; the name capped at **72px below md** (110px from md,
+  uncapped from lg); cell padding **px-2 below md, px-4 from md** (57 cells and headers);
+  rank column, `change` column and the trailing spacer `hidden md:table-cell`; the change
+  value moved **under the price at the same `text-data` size** so the number survives its
+  column; `data-testid="price"` / `data-testid="symbol"` added — the two attributes
+  `e2e/mobileField.spec.ts` had been reading since V2 and no source file emitted. No font
+  size was reduced anywhere in the diff.
+
+- 2026-08-07 · MP-2 · measured on prod after `vercel --prod` (alias
+  `https://market-ui-self.vercel.app`), `cd apps/market-ui && node
+  scripts/capture-legibility-baseline.mjs`:
+  **R2 and R3 green at every class.** Client viewports 320x568 / 360x780 / 390x844 / 430x932 /
+  788x360 / 740x360, `scrollWidth - clientWidth` **0px** on five routes at each.
+  `clippedText('table')` numeric entries at offsets 0/150/400: **XS 9→0, N 15→0, S 11→0,
+  M 12→0, LS 0→0**; worst clipped px **78→0**. `overpaintPairs` on the same table at the same
+  instant: **XS 32→0, N 25→0, S 22→0, M 8→0**. R3 at N: 8 rows, 200 payload symbols, **0
+  faults, 0 unpaired** — e.g. BTC rendered `$64,350.19` against payload `64305`, 0.07%, and 0
+  clipped px. Ledger total **11 RED → 4 RED**, the remainder R5 x2 (MP-4) and R6 x2 (MP-5).
+
+- 2026-08-07 · MP-2 · gates: `npx tsc --noEmit -p tsconfig.app.json` clean; `npx vitest run`
+  1200/1210 with the same 3 pre-existing F5 failures and no new one; `gate-guard` clean;
+  diff grepped for `#hex`, `text-[Npx]`, `rounded-2xl`, `prose-*` — none.
+  `npx playwright test` **213 passed / 18 failed / 75 skipped (18.9m)**, against 211/20 before:
+  both `G1 · R7 + R8 — no opaque cell covers a price glyph at any scroll offset` runs (N and
+  LS) flipped green, and that gate had been failing on `no rendered price cell found`. The 18
+  that remain are the same V2 gates owned by MP-4 (G5 chooser), MP-5 (G12–G16 landscape),
+  MP-6/7 (G2/G4 FAB, G8–G11) plus the one `desktopBaseline` trading-asset landmark drift that
+  predates this ledger. The loop's "playwright green" is a whole-ledger condition, not one
+  MP-2 can satisfy alone; MP-2's own rows are green and the suite moved two gates in the right
+  direction.
+  Deploy note: the working tree carried another loop's `CompanyPage.tsx` + untracked
+  `EdgarLink.tsx`; escalated before deploying and the user chose "deploy tree as-is", so those
+  shipped in the same three prod deploys.
 
 ## 9. Stop
 
