@@ -212,7 +212,7 @@ are the acceptance tests.
       not map metrics to filings by period. A closed path is a valid output.
       **Rows R7b.**
 
-- [ ] **CT-7 · Q2 + Q3 — loading is not empty, and failure is stated.**
+- [x] **CT-7 · Q2 + Q3 — loading is not empty, and failure is stated.**
       **Rows R8, R9.**
 
 - [ ] **CT-8 · The two blocked commands refuse honestly.**
@@ -410,6 +410,26 @@ counts. **No adjectives.**
   false green as R7c in CT-3. A `expect(total).toBeGreaterThan(0)` guard was added and the row
   now fails loudly instead. The traceable count above is sourced from R7, which measured 400
   figures under the identical census. R7b's loop needs repair before it grades anything.
+
+- 2026-08-07 · **CT-7** · **R8 green**: `aria-busy` nodes while loading **1** (was 0), spinner
+  nodes **0** (was 1). The spinner is now a skeleton — eight card outlines and a table block —
+  carrying `aria-busy="true"` and an `sr-only` "Loading <T>…"; the resolved region carries
+  `aria-busy="false"`. A spinner says "something is happening"; a skeleton says "a value is
+  coming *here*", and the empty card that follows is no longer indistinguishable from it.
+  **R9 green**: error stated **true** (was false), failing surface named **true**, and the
+  page still renders its **21** null markers rather than placeholder numbers.
+  `Promise.allSettled` now separates a FAILURE (rejected, or a body carrying `error`) from an
+  EMPTY (well-formed, no data). Failures are collected by name — "Company overview (Alpha
+  Vantage)", "Filings index", "XBRL financials" — and rendered in a `role="alert"` banner
+  saying the figures are *unavailable, not zero*.
+  **The row 9 baseline in CT-1 was measured against a page that never failed.** The spec
+  forced 500s on `**/api/overview**`; the real path is `/api/market/overview/<T>`, so the glob
+  matched nothing and "errorStated false" described an ordinary render. Fixed, and the row now
+  asserts `interceptedOverviewCalls > 0` first — **3** on this run — so a forced failure that
+  never reaches the app can no longer be mistaken for a passing gate. Two assertions added: the
+  `role="alert"` exists, and the failing surface is named rather than "something went wrong".
+  Gates: `npx vitest run` **1247 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
+  0 errors; `gate-guard` clean. Both rows shown red on the deployed tree first.
 
 ## 9. Stop
 

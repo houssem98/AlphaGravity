@@ -1,7 +1,9 @@
 {
   "row": "R9",
   "project": "desktop-baseline",
-  "at": "2026-08-07T20:43:56.537Z",
-  "errorStated": false,
+  "at": "2026-08-07T22:57:12.544Z",
+  "interceptedOverviewCalls": 3,
+  "errorStated": true,
+  "surfaceNamed": true,
   "nullMarkers": 21
 }

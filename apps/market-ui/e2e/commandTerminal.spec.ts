@@ -376,15 +376,28 @@ test('R8 · loading is a skeleton with aria-busy, empty is the null marker', asy
 });
 
 test('R9 · a failed overview names the surface that failed', async ({ page }) => {
-    await page.route('**/api/overview**', r => r.fulfill({ status: 500, body: '{"error":"forced"}' }));
-    await page.route('**/query**', r => r.fulfill({ status: 500, body: '{"error":"forced"}' }));
+    // The real path is /api/market/overview/<T>. The old glob matched nothing, so
+    // the CT-1 baseline for this row was taken against a page that never failed.
+    let intercepted = 0;
+    await page.route('**/api/market/overview/**', r => {
+        intercepted++;
+        return r.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"forced"}' });
+    });
     await openCompanyByToggle(page, 'NVDA');
     const body = (await page.locator('body').textContent()) ?? '';
     record('R9', {
+        interceptedOverviewCalls: intercepted,
         errorStated: /could not load|failed to load|unavailable/i.test(body),
+        surfaceNamed: /Alpha Vantage/i.test(body),
         nullMarkers: (body.match(/—/g) ?? []).length,
     });
-    await expect(page.getByText(/could not load|failed to load|unavailable/i).first()).toBeVisible();
+    // A forced 500 that never reached the app would make every assertion below
+    // meaningless.
+    expect(intercepted).toBeGreaterThan(0);
+    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(page.getByText(/could not load/i).first()).toBeVisible();
+    // Row 9: the FAILING SURFACE is named, not just "something went wrong".
+    await expect(page.getByText(/Alpha Vantage/i).first()).toBeVisible();
 });
 
 // ─── Row 10 · the two blocked commands ────────────────────────────────────────

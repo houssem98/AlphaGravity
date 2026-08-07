@@ -203,6 +203,10 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
     const [sentimentDelta, setSentimentDelta] = useState<SentimentDelta | null>(null);
     const [longitudinal, setLongitudinal] = useState<LongitudinalPoint[]>([]);
     const [loading, setLoading] = useState(true);
+    // CT-7 · row 9. A surface that failed is NAMED. A credential fault and a data
+    // gap look identical when both render an empty card, and only one of them is
+    // the user's problem.
+    const [failedSurfaces, setFailedSurfaces] = useState<string[]>([]);
     const [activeTab, setActiveTab] = useState<CompanyTab>(tab ?? 'overview');
     // Watermark captured at page open (newest filing_date the user saw last
     // time); filings newer than this get a NEW badge. Captured before markSeen.
@@ -211,6 +215,7 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
     useEffect(() => {
         if (!symbol) return;
         setLoading(true);
+        setFailedSurfaces([]);
         setWatermark(lastSeen(symbol));
 
         const authed = (tok: string | null): HeadersInit =>
@@ -247,6 +252,18 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
             }).then(r => r.ok ? r.json() : null).catch(() => null),
         ]).then(([ov, qt, docs, met, sent, sentDelta, longit]) => {
             const arr = (v: unknown): any[] => Array.isArray(v) ? v : [];
+
+            // A rejected fetch, or a body carrying an `error`, is a FAILURE and is
+            // stated. A well-formed body with no data is an EMPTY and renders the
+            // null marker — the two are not the same event and must not look it.
+            const failures: string[] = [];
+            const failed = (r: PromiseSettledResult<any>) =>
+                r.status === 'rejected' || (r.value && typeof r.value === 'object' && 'error' in r.value);
+            if (failed(ov)) failures.push('Company overview (Alpha Vantage)');
+            if (failed(docs)) failures.push('Filings index');
+            if (failed(met)) failures.push('XBRL financials');
+            if (failures.length) setFailedSurfaces(failures);
+
             if (ov.status === 'fulfilled' && ov.value?.Symbol) setOverview(ov.value);
             if (qt.status === 'fulfilled') {
                 const q = qt.value?.quoteResponse?.result?.[0];
@@ -347,11 +364,34 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
             </button>
 
             {loading ? (
-                <div className="flex items-center justify-center h-64">
-                    <div className="w-8 h-8 rounded-full border-2 border-[#00F0FF] border-t-transparent animate-spin" />
+                /* CT-7 · row 8. A skeleton says "a value is coming here"; a spinner
+                   says only "something is happening", and an empty card after it
+                   says nothing at all. `aria-busy` is what makes the difference
+                   readable to a screen reader and to the gate. */
+                <div aria-busy="true" aria-live="polite" className="space-y-4" data-testid="company-skeleton">
+                    <span className="sr-only">Loading {symbol}…</span>
+                    <div className="h-10 w-64 rounded-xl bg-white/[0.06] animate-pulse" />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {Array.from({ length: 8 }).map((_, i) => (
+                            <div key={i} className="h-20 rounded-xl border border-white/[0.06] bg-white/[0.03] animate-pulse" />
+                        ))}
+                    </div>
+                    <div className="h-40 rounded-xl border border-white/[0.06] bg-white/[0.03] animate-pulse" />
                 </div>
             ) : (
-                <>
+                <div aria-busy="false">
+                    {/* CT-7 · row 9. Named, not a shrug. */}
+                    {failedSurfaces.length > 0 && (
+                        <div role="alert" className="mb-6 rounded-xl border border-[#F59E0B]/40 bg-[#F59E0B]/10 p-4">
+                            <p className="text-sm text-[#F59E0B] font-medium">
+                                Could not load: {failedSurfaces.join(', ')}
+                            </p>
+                            <p className="text-xs text-[#A7B0C8] mt-1">
+                                The figures those surfaces supply are unavailable, not zero. Nothing below is a placeholder.
+                            </p>
+                        </div>
+                    )}
+
                     {/* Header */}
                     <div className="flex items-start justify-between gap-4 mb-6">
                         <div>
@@ -671,7 +711,7 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                             }
                         </div>
                     )}
-                </>
+                </div>
             )}
         </div>
     );
