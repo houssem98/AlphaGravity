@@ -18,6 +18,9 @@ const SETUP = /auth\.setup\.ts/;
 // name, so adding them to the four V1 projects costs those projects nothing
 // they do not opt into.
 const FIELD = /mobileField\.spec\.ts/;
+// CT-1 · the command-terminal instrument (docs/COMMAND_TERMINAL_ROADMAP.md §6).
+// Row 3 names desktop-baseline and mobile-360, so it runs on exactly those two.
+const COMMAND = /commandTerminal\.spec\.ts/;
 
 export default defineConfig({
     testDir: './e2e',
@@ -38,13 +41,13 @@ export default defineConfig({
         {
             name: 'chromium',
             use: { ...devices['Desktop Chrome'] },
-            testIgnore: [SWEEP, BASELINE, SETUP, FIELD],
+            testIgnore: [SWEEP, BASELINE, SETUP, FIELD, COMMAND],
         },
 
         // Row 18 — the desktop no-op guard.
         {
             name: 'desktop-baseline',
-            testMatch: BASELINE,
+            testMatch: [BASELINE, COMMAND],
             dependencies: ['setup'],
             // One retry. These captures race a live deployment: under twelve
             // parallel workers a section can still be mid-render at capture
@@ -108,7 +111,7 @@ export default defineConfig({
         // if BOTH pass; a moved width threshold passes one and fails the other.
         {
             name: 'mobile-360',
-            testMatch: FIELD,
+            testMatch: [FIELD, COMMAND],
             dependencies: ['setup'],
             retries: 1,
             use: {

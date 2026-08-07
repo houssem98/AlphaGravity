@@ -1,0 +1,16 @@
+{
+  "row": "R4",
+  "project": "desktop-baseline",
+  "at": "2026-08-07T20:36:18.055Z",
+  "checks": 7,
+  "failed": 7,
+  "failing": [
+    "4.1 ArrowDown moves the active option",
+    "4.2 ArrowUp wraps at the top",
+    "4.3 Enter commits the active option",
+    "4.4 Tab completes the common prefix",
+    "4.5 Escape closes and returns focus to the composer",
+    "4.6 listbox and option roles are exposed",
+    "4.7 aria-activedescendant names the active option"
+  ]
+}

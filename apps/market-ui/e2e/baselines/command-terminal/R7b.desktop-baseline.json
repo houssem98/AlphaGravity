@@ -1,0 +1,14 @@
+{
+  "row": "R7b",
+  "project": "desktop-baseline",
+  "at": "2026-08-07T20:46:19.484Z",
+  "traceable": 0,
+  "figures": 400,
+  "tickers": 5,
+  "fieldsGravityMetricWouldNeed": [
+    "accession",
+    "source_document_id",
+    "report_date",
+    "basis (GAAP | non-GAAP)"
+  ]
+}

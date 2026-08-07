@@ -1,0 +1,83 @@
+// CT-1 · the slash-command parser (docs/COMMAND_TERMINAL_ROADMAP.md §6 rows 1, 2).
+//
+// A command is only a command when it OPENS the input. `http://x/y` and `a/b`
+// carry slashes that are text, and a parser that fires on those turns every
+// pasted URL into a palette. The caret matters for the same reason: a `/` the
+// caret has not reached yet is not being typed.
+//
+// Resolution lives here too, because the palette and the committer must agree
+// on which eight names exist and which two cannot ship — §4 of the ledger.
+
+export type CommandStatus = 'buildable' | 'blocked';
+
+export interface CommandSpec {
+    name: string;
+    /** Usage hint shown in the palette, e.g. `<ticker>`. */
+    usage: string;
+    status: CommandStatus;
+    /** What is missing. Set on `blocked` rows only — read by CT-8's refusal. */
+    blocked?: string;
+}
+
+// §4 command matrix. The two blocked rows are listed, not omitted: a name that
+// exists and cannot ship must be distinguishable from a typo (row 10).
+export const COMMANDS: CommandSpec[] = [
+    { name: 'company', usage: '<ticker>', status: 'buildable' },
+    { name: 'filings', usage: '<ticker>', status: 'buildable' },
+    { name: 'sentiment', usage: '<ticker>', status: 'buildable' },
+    { name: 'data', usage: '<ticker>', status: 'buildable' },
+    { name: 'peer-compare', usage: '<t1> <t2>', status: 'buildable' },
+    { name: 'screening', usage: '<query>', status: 'buildable' },
+    {
+        name: 'capex', usage: '<ticker>', status: 'blocked',
+        blocked: 'no service supplies capex, and apps/market-ui/api holds 12 of 12 Vercel functions',
+    },
+    {
+        name: 'tariff-risk', usage: '<ticker>', status: 'blocked',
+        blocked: 'no service supplies tariff risk, and apps/market-ui/api holds 12 of 12 Vercel functions',
+    },
+];
+
+export interface ParsedCommand {
+    /** Lower-cased, may be `''` while the user has typed only `/`. */
+    name: string;
+    args: string[];
+    /** The name is settled — the value ends in whitespace. */
+    complete: boolean;
+}
+
+const buildable = () => COMMANDS.filter(c => c.status === 'buildable');
+
+/** The buildable commands a partially typed name could still become. */
+export function matchCommands(prefix: string): CommandSpec[] {
+    const p = prefix.toLowerCase();
+    return buildable().filter(c => c.name.startsWith(p));
+}
+
+export function findCommand(name: string): CommandSpec | undefined {
+    return COMMANDS.find(c => c.name === name.toLowerCase());
+}
+
+/**
+ * Parse the composer value at `caret`. Returns `null` for anything that is not
+ * a buildable command or a live prefix of one — blocked names included, so the
+ * palette never offers a command that cannot render.
+ */
+export function parseCommand(value: string, caret: number): ParsedCommand | null {
+    if (caret < 1) return null;              // caret sits before the slash
+    if (value[0] !== '/') return null;       // mid-word slashes and URLs are text
+
+    const rest = value.slice(1);
+    const name = (rest.match(/^\S*/)?.[0] ?? '').toLowerCase();
+    const args = rest.slice(name.length).split(/\s+/).filter(Boolean);
+    const complete = /\s$/.test(value);
+
+    // `/` alone opens the palette; `/ anything` is prose that starts with a slash.
+    if (!name) return complete || args.length > 0 ? null : { name, args: [], complete };
+
+    // Settled name → must be a real buildable command. Still typing → any
+    // buildable command it could still become keeps the palette open.
+    return complete || args.length > 0
+        ? (findCommand(name)?.status === 'buildable' ? { name, args, complete } : null)
+        : (matchCommands(name).length > 0 ? { name, args, complete } : null);
+}

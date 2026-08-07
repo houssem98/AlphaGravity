@@ -1,0 +1,56 @@
+{
+  "row": "R7",
+  "project": "desktop-baseline",
+  "at": "2026-08-07T20:41:31.377Z",
+  "tickers": [
+    "NVDA",
+    "AAPL",
+    "MSFT",
+    "JPM",
+    "XOM"
+  ],
+  "perTicker": {
+    "NVDA": {
+      "total": 80,
+      "labelled": 0,
+      "nulls": 0,
+      "bare": 80,
+      "traceable": 0
+    },
+    "AAPL": {
+      "total": 80,
+      "labelled": 0,
+      "nulls": 0,
+      "bare": 80,
+      "traceable": 0
+    },
+    "MSFT": {
+      "total": 80,
+      "labelled": 0,
+      "nulls": 0,
+      "bare": 80,
+      "traceable": 0
+    },
+    "JPM": {
+      "total": 80,
+      "labelled": 0,
+      "nulls": 0,
+      "bare": 80,
+      "traceable": 0
+    },
+    "XOM": {
+      "total": 80,
+      "labelled": 0,
+      "nulls": 0,
+      "bare": 80,
+      "traceable": 0
+    }
+  },
+  "totals": {
+    "total": 400,
+    "labelled": 0,
+    "nulls": 0,
+    "bare": 400,
+    "traceable": 0
+  }
+}

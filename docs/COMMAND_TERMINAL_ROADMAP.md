@@ -39,7 +39,7 @@ number came from is not institutional, it is quicker.
 |---|---|
 | the Company surface, all four tabs | `src/pages/CompanyPage.tsx` — `embedded` prop line 164, tab state line 183, filing row `FilingRow` line 131, `StatCard` line 121 |
 | where it is already mounted inline | `src/pages/SearchPage.tsx:1161`, under `mode === 'company'` (line 1152); mode union at line 45 |
-| the Quick Answer input to parse | `src/pages/SearchPage.tsx:1864` `<textarea>`, `handleResearchKeyDown` line 1868 |
+| ~~the Quick Answer input to parse~~ **corrected CT-1** | `SearchPage.tsx:1864` + `handleResearchKeyDown` is the **Deep Research** composer, not Quick Answer — it renders in the `mode === 'research'` fallthrough, whose sidebar reads "No research yet" (line 1694). Quick Answer is the default mode (`useState<SearchMode>('qa')`, line 746) and composes through an `<input ref={qaInputRef}>` at **`SearchPage.tsx:1582`**, which has **no `onKeyDown` at all** — only `onChange`. CT-2 hooks *that* element and adds the handler |
 | the Quick Answer answer canvas | `src/pages/SearchPage.tsx:1454`, `activeTab === 'answer'` |
 | **the existing inline-widget mechanism** | `src/services/dexterBlocks.ts` — `parseBlock`, `dexterLang`, `LEVELS_LANG`, `PLAN_LANG`. Rendered by `src/components/trading/Assistant.tsx`. Fenced code blocks tagged with a language, parsed, rendered as a component |
 | the one Company data call | `apiGetOverview` in `src/services/api.ts` |
@@ -177,7 +177,7 @@ them.** `R1` is the instrument; the rest are assertions.
 Do the **first unchecked** task only. Its spec text is the requirement; the rows it names
 are the acceptance tests.
 
-- [ ] **CT-1 · Build the parser that can fail.**
+- [x] **CT-1 · Build the parser that can fail.**
       Nothing else may start. Write `src/lib/commands.ts` exporting `parseCommand`, with
       the unit tests row 1 names. Then run every §6 row against the **unmodified** tree
       and record, per gap G1–G4 and Q1–Q3, either the failing assertion with its measured
@@ -238,6 +238,39 @@ counts. **No adjectives.**
   `CompanyPage` tabs `overview|filings|data|sentiment` at line 183, `<CompanyPage embedded />`
   already mounted at `SearchPage.tsx:1161`, 16 honest-null markers and 1 citation-shaped
   string in `CompanyPage.tsx` · R1 not built, so every row below R1 is unmeasured, not green.
+
+- 2026-08-07 · **CT-1** · `src/lib/commands.ts` + 23 unit tests, all pass — **R1, R2 green**.
+  Instrument `e2e/commandTerminal.spec.ts`, 11 rows, `--project=desktop-baseline --retries=0`,
+  4.3m: **10 failed / 1 passed**, then R6 hardened and re-run → **11/11 red**. Numbers written
+  per row to `e2e/baselines/command-terminal/*.json`; window 2026-08-07 20:34–20:50Z against
+  `https://market-ui-self.vercel.app`.
+  **G1/G2** R3 `[role=listbox]` after `/` = **0**, `[role=option]` after `/comp` = **0**.
+  **Q3** R4 **7 of 7** keyboard checks fail, each recorded by name.
+  **G3/G4** R5 typing `/filings NVDA` in the live Quick Answer composer added it to the feed
+  as prose (prior turns 8 → 9) and mounted nothing: Filings-tab count **0**, `aria-selected`
+  **null** — no tab exposes selection state at all, so R5's "read the tab state" needs
+  `aria-selected` added in CT-3.
+  **R6** toggle path **8** requests, command path **1**, surface mounted **0**.
+  **Q1a** R7 over 5 tickers: **400 figures / 0 labelled / 0 null / 400 bare**, 80 per ticker —
+  every one a metrics row (`/v1/company/<t>/financials?limit=80`). **Zero StatCards rendered
+  on any of the 5**: `overview` was null throughout, so the eight Alpha Vantage cards are
+  outside the red baseline and CT-5 must re-measure them when a key is live.
+  **Q1b** R7b traceable **0 of 400**. `GravityMetric` would need `accession`,
+  `source_document_id`, `report_date`, `basis (GAAP | non-GAAP)`. Row 7b asserts the zero, so
+  it now fires if any later change renders a source the payload cannot support.
+  **Q1c** R7c NVDA **80 periods, 80 without a period-end**, all the bare string `FY2026` —
+  a fiscal year that ended January 2026.
+  **Q2** R8 `aria-busy` nodes while loading **0**, spinner nodes **1**.
+  R9 forced 500: error stated **false**, **21** null markers rendered instead.
+  R10 `/capex` refused **false**, `/tariff-risk` refused **false**.
+  **R11** toggle **3** taps, command **2** taps, surface reached **false**.
+  Findings: (1) §2's Quick Answer anchor was wrong — corrected in place; `SearchPage.tsx:1864`
+  is the Deep Research composer, Quick Answer is the `<input>` at `SearchPage.tsx:1582` with no
+  `onKeyDown`. (2) **R6 as written could not fail** — the command path fetches nothing, so
+  "fewer requests than the toggle path" was trivially true; a `surfaceMounted > 0` assertion was
+  added and the row re-run red. Gate grew, did not shrink.
+  Gates: `npx vitest run` **1230 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
+  0 errors; `gate-guard` clean. Not deployed — no rendered surface changed.
 
 ## 9. Stop
 
