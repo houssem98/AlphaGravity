@@ -1,7 +1,592 @@
 {
   "base": "https://market-ui-self.vercel.app",
-  "at": "2026-08-07T10:00:52.085Z",
+  "at": "2026-08-07T14:07:10.992Z",
   "rows": [
+    {
+      "row": "R2",
+      "cls": "XS",
+      "status": "GREEN",
+      "detail": "0 clipped numeric element(s) · overpaintPairs 0",
+      "clipped": 0,
+      "overpaint": 0,
+      "worst": null
+    },
+    {
+      "row": "R3",
+      "cls": "XS",
+      "status": "GREEN",
+      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
+      "faults": [],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$65,059.13+1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,925.27+1.50%",
+          "clip": 0
+        },
+        {
+          "sym": "BNB",
+          "text": "$593.11-0.10%",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.0006+0.00%",
+          "clip": 0
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.037-1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$74.20+0.70%",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3276+0.20%",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$56.382+2.40%",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        65055,
+        1925.22,
+        592.64,
+        0.99968,
+        1.036,
+        74.2,
+        0.327541,
+        56.36
+      ]
+    },
+    {
+      "row": "R2",
+      "cls": "N",
+      "status": "GREEN",
+      "detail": "0 clipped numeric element(s) · overpaintPairs 0",
+      "clipped": 0,
+      "overpaint": 0,
+      "worst": null
+    },
+    {
+      "row": "R3",
+      "cls": "N",
+      "status": "GREEN",
+      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
+      "faults": [],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$65,034.00+1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,924.00+1.50%",
+          "clip": 0
+        },
+        {
+          "sym": "BNB",
+          "text": "$592.79-0.10%",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.00061+0.00%",
+          "clip": 0
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0365-1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$74.14+0.70%",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3277+0.20%",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$56.347+2.40%",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        65055,
+        1925.22,
+        592.64,
+        0.99968,
+        1.036,
+        74.2,
+        0.327541,
+        56.36
+      ]
+    },
+    {
+      "row": "R2",
+      "cls": "S",
+      "status": "GREEN",
+      "detail": "0 clipped numeric element(s) · overpaintPairs 0",
+      "clipped": 0,
+      "overpaint": 0,
+      "worst": null
+    },
+    {
+      "row": "R3",
+      "cls": "S",
+      "status": "GREEN",
+      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
+      "faults": [],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$65,014.70+1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,923.21+1.50%",
+          "clip": 0
+        },
+        {
+          "sym": "BNB",
+          "text": "$592.76-0.10%",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.0006+0.00%",
+          "clip": 0
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0365-1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$74.15+0.70%",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3276+0.20%",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$56.343+2.40%",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        65055,
+        1925.22,
+        592.64,
+        0.99968,
+        1.036,
+        74.2,
+        0.327541,
+        56.36
+      ]
+    },
+    {
+      "row": "R2",
+      "cls": "M",
+      "status": "GREEN",
+      "detail": "0 clipped numeric element(s) · overpaintPairs 0",
+      "clipped": 0,
+      "overpaint": 0,
+      "worst": null
+    },
+    {
+      "row": "R3",
+      "cls": "M",
+      "status": "GREEN",
+      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
+      "faults": [],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$65,008.05+1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,922.64+1.50%",
+          "clip": 0
+        },
+        {
+          "sym": "BNB",
+          "text": "$592.62-0.10%",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.00062+0.00%",
+          "clip": 0
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0363-1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$74.13+0.70%",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3277+0.20%",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$56.308+2.40%",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        65055,
+        1925.22,
+        592.64,
+        0.99968,
+        1.036,
+        74.2,
+        0.327541,
+        56.36
+      ]
+    },
+    {
+      "row": "R2",
+      "cls": "LS",
+      "status": "GREEN",
+      "detail": "0 clipped numeric element(s) · overpaintPairs 0",
+      "clipped": 0,
+      "overpaint": 0,
+      "worst": null
+    },
+    {
+      "row": "R3",
+      "cls": "LS",
+      "status": "GREEN",
+      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
+      "faults": [],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$65,000.01+1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,922.32+1.50%",
+          "clip": 0
+        },
+        {
+          "sym": "BNB",
+          "text": "$592.63-0.10%",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.0006+0.00%",
+          "clip": 0
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0361-1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$74.10+0.70%",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3277+0.20%",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$56.308+2.40%",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        65055,
+        1925.22,
+        592.64,
+        0.99968,
+        1.036,
+        74.2,
+        0.327541,
+        56.36
+      ]
+    },
+    {
+      "row": "R3",
+      "cls": "LX",
+      "status": "GREEN",
+      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
+      "faults": [],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$65,002.05+1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,922.90+1.50%",
+          "clip": 0
+        },
+        {
+          "sym": "BNB",
+          "text": "$592.57-0.10%",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.0006+0.00%",
+          "clip": 0
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0363-1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$74.12+0.70%",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3277+0.20%",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$56.293+2.40%",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        65055,
+        1925.22,
+        592.64,
+        0.99968,
+        1.036,
+        74.2,
+        0.327541,
+        56.36
+      ]
+    },
+    {
+      "row": "R3",
+      "cls": "T",
+      "status": "GREEN",
+      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
+      "faults": [],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$64,985.22+1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,922.45+1.50%",
+          "clip": 0
+        },
+        {
+          "sym": "BNB",
+          "text": "$592.61-0.10%",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.0006+0.00%",
+          "clip": 0
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0358-1.10%",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$74.11+0.70%",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3278+0.20%",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$56.287+2.40%",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        65055,
+        1925.22,
+        592.64,
+        0.99968,
+        1.036,
+        74.2,
+        0.327541,
+        56.36
+      ]
+    },
+    {
+      "row": "R4",
+      "cls": "XS",
+      "status": "GREEN",
+      "detail": "client 320x568 · 5 routes, 0px document overflow · 0 unreachable text element(s)",
+      "client": "320x568",
+      "escaped": []
+    },
+    {
+      "row": "R4",
+      "cls": "N",
+      "status": "GREEN",
+      "detail": "client 360x780 · 5 routes, 0px document overflow · 0 unreachable text element(s)",
+      "client": "360x780",
+      "escaped": []
+    },
+    {
+      "row": "R4",
+      "cls": "S",
+      "status": "GREEN",
+      "detail": "client 390x844 · 5 routes, 0px document overflow · 0 unreachable text element(s)",
+      "client": "390x844",
+      "escaped": []
+    },
+    {
+      "row": "R4",
+      "cls": "M",
+      "status": "GREEN",
+      "detail": "client 430x932 · 5 routes, 0px document overflow · 0 unreachable text element(s)",
+      "client": "430x932",
+      "escaped": []
+    },
+    {
+      "row": "R4",
+      "cls": "LS",
+      "status": "GREEN",
+      "detail": "client 788x360 · 5 routes, 0px document overflow · 20 unreachable text element(s) · /: <h3> \"New Order\" [-268..-141]",
+      "client": "788x360",
+      "escaped": [
+        "/: <h3> \"New Order\" [-268..-141]",
+        "/: <p> \"Execute with confidenc\" [-268..-141]",
+        "/: <label> \"Symbol\" [-319..-44]",
+        "/: <label> \"Side\" [-319..-189]",
+        "/: <button> \"Buy\" [-318..-254]",
+        "/: <button> \"Sell\" [-254..-190]",
+        "/: <label> \"Quantity\" [-173..-44]",
+        "/: <label> \"Order Type\" [-319..-44]",
+        "/: <button> \"Place Order\" [-319..-143]",
+        "/: <button> \"Save\" [-132..-44]",
+        "/: <h3> \"Pattern Alert\" [945..1027]",
+        "/: <span> \"2 min ago\" [945..996]",
+        "/: <p> \"Breakout detected on h\" [911..1091]",
+        "/: <span> \"Pattern\" [894..938]",
+        "/: <span> \"Bull Flag\" [1054..1108]",
+        "/: <span> \"Confidence\" [894..964]",
+        "/: <span> \"87%\" [1079..1108]",
+        "/: <span> \"Volume\" [894..940]",
+        "/: <span> \"2.4x avg\" [1055..1108]",
+        "/: <button> \"Open Chart\" [894..1108]"
+      ]
+    },
+    {
+      "row": "R4",
+      "cls": "LX",
+      "status": "GREEN",
+      "detail": "client 740x360 · 5 routes, 0px document overflow · 0 unreachable text element(s)",
+      "client": "740x360",
+      "escaped": []
+    },
+    {
+      "row": "R5",
+      "cls": "N",
+      "status": "GREEN",
+      "detail": "0 pair(s), 0 on the chooser",
+      "faults": []
+    },
+    {
+      "row": "R5",
+      "cls": "LS",
+      "status": "GREEN",
+      "detail": "0 pair(s), 0 on the chooser",
+      "faults": []
+    },
+    {
+      "row": "R6",
+      "cls": "LS",
+      "status": "GREEN",
+      "detail": "0 control(s) outside",
+      "outside": []
+    },
+    {
+      "row": "R6",
+      "cls": "LX",
+      "status": "GREEN",
+      "detail": "0 control(s) outside",
+      "outside": []
+    },
+    {
+      "row": "R7",
+      "cls": "XS",
+      "status": "UNMEASURED",
+      "detail": "0 dialog(s) mounted on /search without interaction. F5's PdfPreview mounts only from ResearchReport after a completed deep-research run, so it does not reproduce headlessly on a cold route — MP-6 owns opening it."
+    },
+    {
+      "row": "R7",
+      "cls": "N",
+      "status": "UNMEASURED",
+      "detail": "0 dialog(s) mounted on /search without interaction. F5's PdfPreview mounts only from ResearchReport after a completed deep-research run, so it does not reproduce headlessly on a cold route — MP-6 owns opening it."
+    },
+    {
+      "row": "R7",
+      "cls": "LS",
+      "status": "UNMEASURED",
+      "detail": "0 dialog(s) mounted on /search without interaction. F5's PdfPreview mounts only from ResearchReport after a completed deep-research run, so it does not reproduce headlessly on a cold route — MP-6 owns opening it."
+    },
+    {
+      "row": "R8",
+      "cls": "N /search",
+      "status": "UNMEASURED",
+      "detail": "no <th> on a cold /search — the Research Grid of frame 121203 renders only after a run, so MP-7 must open it first"
+    },
+    {
+      "row": "R9",
+      "cls": "N /search",
+      "status": "UNMEASURED",
+      "detail": "no grid cells on a cold /search — same gate as R8"
+    },
     {
       "row": "R10",
       "cls": "LS",
@@ -15,6 +600,12 @@
       "status": "GREEN",
       "detail": "0 shell fault(s) over 5 routes",
       "bad": []
+    },
+    {
+      "row": "R11",
+      "cls": "N /search",
+      "status": "UNMEASURED",
+      "detail": "no prior-period/delta pair on a cold /search (0 money, 0 percent elements) — the Company tab of frame 121333 needs a company selected, MP-8 owns opening it"
     }
   ]
 }

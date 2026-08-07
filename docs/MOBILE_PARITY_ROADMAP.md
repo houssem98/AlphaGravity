@@ -442,6 +442,15 @@ counts. **No adjectives.**
   constraint under a renamed breakpoint. `gate-guard` reports `note · 6 assertion(s) rewritten
   at equal or greater strength`, then `clean`. Deployed to prod once.
 
+- 2026-08-07 · MP-5 · whole-ledger sweep after the shell fix:
+  **30 measurements, 0 RED, 6 UNMEASURED, 24 GREEN** — from 11 RED at MP-1. Every row that can
+  be measured on a cold route is green (R2, R3, R4, R5, R6, R10 across their classes). The 6
+  unmeasured all need an interaction the sweep does not perform: **R7 x3** a modal to open
+  (MP-6), **R8 and R9** a Research Grid to exist (MP-7), **R11** a company selected (MP-8).
+  Those three tasks own opening their own surfaces, and each must show its row red before it
+  claims it green. R4's LS line still carries `20 unreachable text element(s)` beside its
+  verdict — the landing hero at 788x360, recorded by MP-3 and unowned by any row.
+
 ## 9. Stop
 
 - **TARGET** — no `[ ]` remains in §7 **and** MP-9's sweep actually ran.
