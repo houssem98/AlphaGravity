@@ -215,7 +215,7 @@ are the acceptance tests.
 - [x] **CT-7 · Q2 + Q3 — loading is not empty, and failure is stated.**
       **Rows R8, R9.**
 
-- [ ] **CT-8 · The two blocked commands refuse honestly.**
+- [x] **CT-8 · The two blocked commands refuse honestly.**
       `/capex` and `/tariff-risk` state what is missing. Do not add a route; do not invent
       a number. **Rows R10.**
 
@@ -430,6 +430,23 @@ counts. **No adjectives.**
   `role="alert"` exists, and the failing surface is named rather than "something went wrong".
   Gates: `npx vitest run` **1247 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
   0 errors; `gate-guard` clean. Both rows shown red on the deployed tree first.
+
+- 2026-08-08 · **CT-8** · **R10 green on desktop-baseline AND mobile-360**: both blocked
+  commands refuse — `/capex` **true**, `/tariff-risk` **true**, from false/false — and
+  **fabricated figures 0 and 0**.
+  Before this task the two `⛔` names parsed to `null`, fell through the command branch, and
+  were sent to the model as prose. The reply was a confident capex number with **no service
+  behind it** — the one outcome worse than refusing. `commitCommandTurn` now matches the typed
+  name against the §4 matrix and commits a refusal turn carrying `CommandSpec.blocked`
+  verbatim: no service supplies it, and `apps/market-ui/api` holds 12 of 12 Vercel functions.
+  **Row 10 asks for two things and the row now checks both.** "Returns a stated refusal" was
+  asserted; "never a fabricated answer" was not. The row now reads the reply itself and greps
+  it for currency amounts and billion/million magnitudes — anything nothing could have sourced
+  — and asserts the list is empty. That assertion is what would have caught the old behaviour
+  even if a refusal string had happened to appear alongside the invented number.
+  No route added, no dependency added, no number invented. The two `⛔` rows in §4 stay `⛔`.
+  Gates: `npx vitest run` **1247 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
+  0 errors; `gate-guard` clean. Shown red on the deployed tree first.
 
 ## 9. Stop
 

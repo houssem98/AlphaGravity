@@ -406,15 +406,25 @@ test('R10 · /capex and /tariff-risk refuse, naming what is missing', async ({ p
     await page.goto('/search');
     const input = page.getByPlaceholder(/Ask anything about any company|Ask a follow-up/);
     const refused: Record<string, boolean> = {};
+    const fabricated: Record<string, string[]> = {};
     for (const cmd of ['/capex NVDA', '/tariff-risk NVDA']) {
         await input.click();
         await input.fill(cmd);
         await page.keyboard.press('Enter');
-        await page.waitForTimeout(4000);
+        await page.waitForTimeout(6000);
         refused[cmd] = await page.getByText(/no service|12 of 12/i).first().isVisible().catch(() => false);
+
+        // Row 10 forbids a fabricated answer, not merely a missing refusal. Read
+        // the reply itself and look for figures nothing could have sourced.
+        const reply = await page.getByText(/is not available/i).first()
+            .locator('xpath=ancestor::*[self::div][1]').textContent().catch(() => null);
+        fabricated[cmd] = (reply ?? '').match(/\$\s?[\d,.]+|\d[\d,.]*\s?(billion|million|bn|mn)/gi) ?? [];
     }
-    record('R10', refused);
-    for (const cmd of Object.keys(refused)) expect(refused[cmd], cmd).toBe(true);
+    record('R10', { refused, fabricatedFigures: fabricated });
+    for (const cmd of Object.keys(refused)) {
+        expect(refused[cmd], cmd).toBe(true);
+        expect(fabricated[cmd], `${cmd} invented a figure`).toEqual([]);
+    }
 });
 
 // ─── Row 11 · parity ──────────────────────────────────────────────────────────

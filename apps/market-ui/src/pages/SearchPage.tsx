@@ -50,7 +50,7 @@ type SearchMode = 'grid' | 'company' | 'qa' | 'research';
 
 // HistoryItem is defined in researchStore.ts
 import type { HistoryItem } from '../stores/researchStore';
-import { parseCommand, matchCommands, type CommandSpec } from '../lib/commands';
+import { parseCommand, matchCommands, findCommand, type CommandSpec } from '../lib/commands';
 import { COMMAND_LANG, dexterLang, isCommandBlock, parseBlock, renderCommandBlock } from '../services/dexterBlocks';
 import type { CompanyTab } from './CompanyPage';
 
@@ -964,20 +964,37 @@ export default function SearchPage() {
     // a model. Appends the exchange to the SAME thread, so the prior conversation
     // is still there afterwards, and performs no request of its own — the mounted
     // surface makes exactly the calls it makes through the mode toggle.
-    const commitCommandTurn = (raw: string): boolean => {
-        const cmd = parseCommand(raw.trimEnd() + ' ', raw.length + 1);
-        if (!cmd?.complete || !COMMAND_TABS[cmd.name] || cmd.args.length === 0) return false;
-
+    const commitTurn = (raw: string, answer: string) => {
         const entry = useQaStore.getState().byConv[activeConvId] ?? qaDefault;
         useQaStore.getState().patch(activeConvId, {
-            thread: [
-                ...entry.thread,
-                { role: 'user', content: raw },
-                { role: 'assistant', content: renderCommandBlock({ name: cmd.name, args: cmd.args }) },
-            ],
+            thread: [...entry.thread, { role: 'user', content: raw }, { role: 'assistant', content: answer }],
         });
         setQaInput('');
         setActiveTab('answer');
+    };
+
+    const commitCommandTurn = (raw: string): boolean => {
+        // CT-8 · row 10. A command that cannot be answered says so. Sending
+        // `/capex NVDA` to the model instead would return a confident number with
+        // no service behind it, which is the one outcome worse than refusing.
+        const typed = raw.trim().match(/^\/([\w-]+)/)?.[1];
+        const blocked = typed ? findCommand(typed) : undefined;
+        if (blocked?.status === 'blocked') {
+            commitTurn(raw, [
+                `**\`/${blocked.name}\` is not available.**`,
+                '',
+                `${blocked.blocked}.`,
+                '',
+                'No figure is estimated here, and none is inferred from a neighbouring one.',
+                'This command needs a service and a function slot that do not exist yet.',
+            ].join('\n'));
+            return true;
+        }
+
+        const cmd = parseCommand(raw.trimEnd() + ' ', raw.length + 1);
+        if (!cmd?.complete || !COMMAND_TABS[cmd.name] || cmd.args.length === 0) return false;
+
+        commitTurn(raw, renderCommandBlock({ name: cmd.name, args: cmd.args }));
         return true;
     };
 
