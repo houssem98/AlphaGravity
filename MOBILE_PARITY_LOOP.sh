@@ -1,5 +1,9 @@
 # MOBILE_PARITY_LOOP — feed the last line of this file to /loop:
-#   /loop $(tail -1 MOBILE_PARITY_LOOP.sh)
+#   /loop $(tail -1 MOBILE_PARITY_LOOP.sh)          bash / WSL / IDE terminal
+#   /loop $(Get-Content MOBILE_PARITY_LOOP.sh -Tail 1)   PowerShell
+#
+# Neither expanding? Any shell, straight to the clipboard:
+#   node scripts/loop-prompt.mjs MOBILE_PARITY -c
 #
 # Ledger:   docs/MOBILE_PARITY_ROADMAP.md   (faults F1-F5 / U1-U4, rows R1-R12, MP-1..MP-9)
 # Contract: docs/LOOP_CONVENTIONS.md — done-criteria, truth rules, repo hard
