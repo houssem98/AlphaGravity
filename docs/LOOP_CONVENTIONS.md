@@ -137,14 +137,25 @@ verified step. Log partial progress **before** any long or risky operation — a
 
 ## 8. Writing a loop prompt
 
-**Starting one.** The documented invocation `/loop $(tail -1 X_LOOP.sh)` is POSIX: in
-PowerShell there is no `tail` and `$( )` does not substitute the same way, so the line
-silently fails to expand and you paste the literal string instead.
-`~/.claude/scripts/loop-prompt.mjs` — global, like `gate-guard`, so it works in any
-project — reads the file in Node, which behaves identically in both shells, and `-c` puts the
-`/loop` line on the clipboard (`clip` / `pbcopy` / `xclip`, printing if none is there).
-With no argument it lists the loops whose ledger still has open tasks — a closed ledger
-cannot run, so it is not offered.
+**Starting one.** `/loop $(tail -1 X_LOOP.sh)` is POSIX — PowerShell has no `tail` and
+does not substitute `$( )` the same way, so it silently fails to expand and you paste the
+literal string — and either way it is 1,855 characters to paste by hand.
+
+`/loop` accepts a slash command, so the prompt lives in `.claude/commands/<name>.md` and
+starting a loop is `/loop /mobile-parity`. Generate them with
+`node ~/.claude/scripts/loop-prompt.mjs --install` (global, like `gate-guard`, so it works
+in any project). **Per-wakeup cost is unchanged** — the command body is exactly what
+`/loop` re-sends either way; only the typing shrinks.
+
+The loop file stays the single source. Only loops with open tasks are installed, because a
+dead ledger's command would sit in the menu forever and picking it starts a loop with
+nothing to do. The listing marks a command **STALE** when its source has moved on — a
+generated command that no longer matches is worse than none, since you would start
+yesterday's loop and never notice.
+
+Install respects the three shapes from §9: a `.sh` loop installs its last line, a `.md`
+spec installs whole, and a `.sh` harness installs nothing — it is executed, not sent.
+`-c` remains for the raw line, onto the clipboard.
 
 With this file in place a loop's last line is a pointer plus its deltas:
 
@@ -165,7 +176,8 @@ is true of all of them, it belongs in this file.
 ## 9. Checking a loop file
 
 ```bash
-node ~/.claude/scripts/loop-prompt.mjs                   # which loops can still run
+node ~/.claude/scripts/loop-prompt.mjs --install         # -> /loop /mobile-parity
+node ~/.claude/scripts/loop-prompt.mjs                   # what runs, and what is STALE
 node ~/.claude/scripts/loop-prompt.mjs MOBILE_PARITY -c  # its /loop line, onto the clipboard
 
 npm run loops                                  # all three checkers
