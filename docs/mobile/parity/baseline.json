@@ -1,6 +1,6 @@
 {
   "base": "https://market-ui-self.vercel.app",
-  "at": "2026-08-07T07:25:17.410Z",
+  "at": "2026-08-07T08:25:24.271Z",
   "rows": [
     {
       "row": "R2",
@@ -20,17 +20,17 @@
       "shown": [
         {
           "sym": "BTC",
-          "text": "$64,343.55-0.80%",
+          "text": "$64,422.79-0.80%",
           "clip": 0
         },
         {
           "sym": "ETH",
-          "text": "$1,905.92-0.40%",
+          "text": "$1,905.78-0.50%",
           "clip": 0
         },
         {
           "sym": "BNB",
-          "text": "$587.34-1.60%",
+          "text": "$587.47-1.60%",
           "clip": 0
         },
         {
@@ -40,33 +40,33 @@
         },
         {
           "sym": "XRP",
-          "text": "$1.0277-2.30%",
+          "text": "$1.0282-2.10%",
           "clip": 0
         },
         {
           "sym": "SOL",
-          "text": "$72.93-1.80%",
+          "text": "$72.96-1.40%",
           "clip": 0
         },
         {
           "sym": "TRX",
-          "text": "$0.3272+0.30%",
+          "text": "$0.3271+0.00%",
           "clip": 0
         },
         {
           "sym": "HYPE",
-          "text": "$55.654-1.30%",
+          "text": "$55.678-0.60%",
           "clip": 0
         }
       ],
       "payload": [
-        64294,
-        1905.06,
-        586.86,
-        0.999646,
+        64370,
+        1904.31,
+        586.83,
+        0.99959,
         1.027,
-        72.93,
-        0.326927,
+        72.92,
+        0.326893,
         55.66
       ]
     },
@@ -88,17 +88,17 @@
       "shown": [
         {
           "sym": "BTC",
-          "text": "$64,343.56-0.80%",
+          "text": "$64,422.79-0.80%",
           "clip": 0
         },
         {
           "sym": "ETH",
-          "text": "$1,905.92-0.40%",
+          "text": "$1,905.78-0.50%",
           "clip": 0
         },
         {
           "sym": "BNB",
-          "text": "$587.34-1.60%",
+          "text": "$587.47-1.60%",
           "clip": 0
         },
         {
@@ -108,34 +108,34 @@
         },
         {
           "sym": "XRP",
-          "text": "$1.0278-2.30%",
+          "text": "$1.0282-2.10%",
           "clip": 0
         },
         {
           "sym": "SOL",
-          "text": "$72.93-1.80%",
+          "text": "$72.95-1.40%",
           "clip": 0
         },
         {
           "sym": "TRX",
-          "text": "$0.3272+0.30%",
+          "text": "$0.3272+0.00%",
           "clip": 0
         },
         {
           "sym": "HYPE",
-          "text": "$55.641-1.30%",
+          "text": "$55.678-0.60%",
           "clip": 0
         }
       ],
       "payload": [
-        64294,
-        1905.06,
-        586.86,
-        0.999646,
-        1.027,
-        72.93,
-        0.326927,
-        55.66
+        64323,
+        1904.48,
+        586.54,
+        0.999597,
+        1.028,
+        72.94,
+        0.326865,
+        55.73
       ]
     },
     {
@@ -156,17 +156,17 @@
       "shown": [
         {
           "sym": "BTC",
-          "text": "$64,339.55-0.80%",
+          "text": "$64,405.75-0.80%",
           "clip": 0
         },
         {
           "sym": "ETH",
-          "text": "$1,905.70-0.40%",
+          "text": "$1,905.35-0.50%",
           "clip": 0
         },
         {
           "sym": "BNB",
-          "text": "$587.34-1.60%",
+          "text": "$587.47-1.60%",
           "clip": 0
         },
         {
@@ -176,34 +176,34 @@
         },
         {
           "sym": "XRP",
-          "text": "$1.0278-2.30%",
+          "text": "$1.0275-2.10%",
           "clip": 0
         },
         {
           "sym": "SOL",
-          "text": "$72.92-1.80%",
+          "text": "$72.95-1.40%",
           "clip": 0
         },
         {
           "sym": "TRX",
-          "text": "$0.3272+0.30%",
+          "text": "$0.3272+0.00%",
           "clip": 0
         },
         {
           "sym": "HYPE",
-          "text": "$55.631-1.30%",
+          "text": "$55.679-0.60%",
           "clip": 0
         }
       ],
       "payload": [
-        64294,
-        1905.06,
-        586.86,
-        0.999646,
-        1.027,
-        72.93,
-        0.326927,
-        55.66
+        64422.8,
+        1905.78,
+        587.47,
+        1.00067,
+        1.0282,
+        72.96,
+        0.3271,
+        55.678
       ]
     },
     {
@@ -224,85 +224,17 @@
       "shown": [
         {
           "sym": "BTC",
-          "text": "$64,339.54-0.80%",
+          "text": "$64,405.74-0.80%",
           "clip": 0
         },
         {
           "sym": "ETH",
-          "text": "$1,905.71-0.40%",
+          "text": "$1,905.52-0.50%",
           "clip": 0
         },
         {
           "sym": "BNB",
-          "text": "$587.33-1.60%",
-          "clip": 0
-        },
-        {
-          "sym": "USDC",
-          "text": "$1.00067+0.00%",
-          "clip": 0
-        },
-        {
-          "sym": "XRP",
-          "text": "$1.0277-2.30%",
-          "clip": 0
-        },
-        {
-          "sym": "SOL",
-          "text": "$72.93-1.80%",
-          "clip": 0
-        },
-        {
-          "sym": "TRX",
-          "text": "$0.3272+0.30%",
-          "clip": 0
-        },
-        {
-          "sym": "HYPE",
-          "text": "$55.631-1.30%",
-          "clip": 0
-        }
-      ],
-      "payload": [
-        64294,
-        1905.06,
-        586.86,
-        0.999646,
-        1.027,
-        72.93,
-        0.326927,
-        55.66
-      ]
-    },
-    {
-      "row": "R2",
-      "cls": "LS",
-      "status": "GREEN",
-      "detail": "0 clipped numeric element(s) · overpaintPairs 0",
-      "clipped": 0,
-      "overpaint": 0,
-      "worst": null
-    },
-    {
-      "row": "R3",
-      "cls": "LS",
-      "status": "GREEN",
-      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
-      "faults": [],
-      "shown": [
-        {
-          "sym": "BTC",
-          "text": "$64,339.55-0.80%",
-          "clip": 0
-        },
-        {
-          "sym": "ETH",
-          "text": "$1,905.65-0.40%",
-          "clip": 0
-        },
-        {
-          "sym": "BNB",
-          "text": "$587.39-1.60%",
+          "text": "$587.51-1.60%",
           "clip": 0
         },
         {
@@ -312,34 +244,102 @@
         },
         {
           "sym": "XRP",
-          "text": "$1.0275-2.30%",
+          "text": "$1.0275-2.10%",
           "clip": 0
         },
         {
           "sym": "SOL",
-          "text": "$72.93-1.80%",
+          "text": "$72.94-1.40%",
           "clip": 0
         },
         {
           "sym": "TRX",
-          "text": "$0.3272+0.30%",
+          "text": "$0.3272+0.00%",
           "clip": 0
         },
         {
           "sym": "HYPE",
-          "text": "$55.613-1.30%",
+          "text": "$55.679-0.60%",
           "clip": 0
         }
       ],
       "payload": [
-        64294,
-        1905.06,
-        586.86,
-        0.999646,
+        64370,
+        1904.31,
+        586.83,
+        0.99959,
         1.027,
-        72.93,
-        0.326927,
+        72.92,
+        0.326893,
         55.66
+      ]
+    },
+    {
+      "row": "R2",
+      "cls": "LS",
+      "status": "GREEN",
+      "detail": "0 clipped numeric element(s) · overpaintPairs 0",
+      "clipped": 0,
+      "overpaint": 0,
+      "worst": null
+    },
+    {
+      "row": "R3",
+      "cls": "LS",
+      "status": "GREEN",
+      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
+      "faults": [],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$64,405.74-0.80%",
+          "clip": 0
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,905.55-0.50%",
+          "clip": 0
+        },
+        {
+          "sym": "BNB",
+          "text": "$587.50-1.60%",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.00067+0.00%",
+          "clip": 0
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0276-2.10%",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$72.95-1.40%",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3271+0.00%",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$55.677-0.60%",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        64323,
+        1904.48,
+        586.54,
+        0.999597,
+        1.028,
+        72.94,
+        0.326865,
+        55.73
       ]
     },
     {
@@ -351,17 +351,17 @@
       "shown": [
         {
           "sym": "BTC",
-          "text": "$64,339.54-0.80%",
+          "text": "$64,405.74-0.80%",
           "clip": 0
         },
         {
           "sym": "ETH",
-          "text": "$1,905.66-0.40%",
+          "text": "$1,905.66-0.50%",
           "clip": 0
         },
         {
           "sym": "BNB",
-          "text": "$587.41-1.60%",
+          "text": "$587.51-1.60%",
           "clip": 0
         },
         {
@@ -371,34 +371,34 @@
         },
         {
           "sym": "XRP",
-          "text": "$1.0274-2.30%",
+          "text": "$1.0276-2.10%",
           "clip": 0
         },
         {
           "sym": "SOL",
-          "text": "$72.92-1.80%",
+          "text": "$72.95-1.40%",
           "clip": 0
         },
         {
           "sym": "TRX",
-          "text": "$0.3272+0.30%",
+          "text": "$0.3272+0.00%",
           "clip": 0
         },
         {
           "sym": "HYPE",
-          "text": "$55.613-1.30%",
+          "text": "$55.677-0.60%",
           "clip": 0
         }
       ],
       "payload": [
-        64339.54,
-        1905.63,
-        587.34,
-        1.00066,
-        1.0276,
-        72.93,
+        64405.74,
+        1905.36,
+        587.46,
+        1.00067,
+        1.0274,
+        72.95,
         0.3272,
-        55.625
+        55.679
       ]
     },
     {
@@ -410,97 +410,124 @@
       "shown": [
         {
           "sym": "BTC",
-          "text": "$64,339.55-0.80%",
+          "text": "$64,409.79-0.80%",
           "clip": 0
         },
         {
           "sym": "ETH",
-          "text": "$1,905.66-0.40%",
+          "text": "$1,905.84-0.50%",
           "clip": 0
         },
         {
           "sym": "BNB",
-          "text": "$587.41-1.60%",
+          "text": "$587.50-1.60%",
           "clip": 0
         },
         {
           "sym": "USDC",
-          "text": "$1.00067+0.00%",
+          "text": "$1.00066+0.00%",
           "clip": 0
         },
         {
           "sym": "XRP",
-          "text": "$1.0274-2.30%",
+          "text": "$1.0276-2.10%",
           "clip": 0
         },
         {
           "sym": "SOL",
-          "text": "$72.93-1.80%",
+          "text": "$72.95-1.40%",
           "clip": 0
         },
         {
           "sym": "TRX",
-          "text": "$0.3272+0.30%",
+          "text": "$0.3272+0.00%",
           "clip": 0
         },
         {
           "sym": "HYPE",
-          "text": "$55.601-1.30%",
+          "text": "$55.677-0.60%",
           "clip": 0
         }
       ],
       "payload": [
-        64339.54,
-        1905.63,
-        587.34,
-        1.00066,
-        1.0276,
-        72.93,
-        0.3272,
-        55.625
+        64370,
+        1904.31,
+        586.83,
+        0.99959,
+        1.027,
+        72.92,
+        0.326893,
+        55.66
       ]
     },
     {
       "row": "R4",
       "cls": "XS",
       "status": "GREEN",
-      "detail": "client 320x568 · 5 routes, 0px overflow",
-      "client": "320x568"
+      "detail": "client 320x568 · 5 routes, 0px document overflow · 0 unreachable text element(s)",
+      "client": "320x568",
+      "escaped": []
     },
     {
       "row": "R4",
       "cls": "N",
       "status": "GREEN",
-      "detail": "client 360x780 · 5 routes, 0px overflow",
-      "client": "360x780"
+      "detail": "client 360x780 · 5 routes, 0px document overflow · 0 unreachable text element(s)",
+      "client": "360x780",
+      "escaped": []
     },
     {
       "row": "R4",
       "cls": "S",
       "status": "GREEN",
-      "detail": "client 390x844 · 5 routes, 0px overflow",
-      "client": "390x844"
+      "detail": "client 390x844 · 5 routes, 0px document overflow · 0 unreachable text element(s)",
+      "client": "390x844",
+      "escaped": []
     },
     {
       "row": "R4",
       "cls": "M",
       "status": "GREEN",
-      "detail": "client 430x932 · 5 routes, 0px overflow",
-      "client": "430x932"
+      "detail": "client 430x932 · 5 routes, 0px document overflow · 0 unreachable text element(s)",
+      "client": "430x932",
+      "escaped": []
     },
     {
       "row": "R4",
       "cls": "LS",
       "status": "GREEN",
-      "detail": "client 788x360 · 5 routes, 0px overflow",
-      "client": "788x360"
+      "detail": "client 788x360 · 5 routes, 0px document overflow · 20 unreachable text element(s) · /: <h3> \"New Order\" [-268..-141]",
+      "client": "788x360",
+      "escaped": [
+        "/: <h3> \"New Order\" [-268..-141]",
+        "/: <p> \"Execute with confidenc\" [-268..-141]",
+        "/: <label> \"Symbol\" [-319..-44]",
+        "/: <label> \"Side\" [-319..-189]",
+        "/: <button> \"Buy\" [-318..-254]",
+        "/: <button> \"Sell\" [-254..-190]",
+        "/: <label> \"Quantity\" [-173..-44]",
+        "/: <label> \"Order Type\" [-319..-44]",
+        "/: <button> \"Place Order\" [-319..-143]",
+        "/: <button> \"Save\" [-132..-44]",
+        "/: <h3> \"Pattern Alert\" [945..1027]",
+        "/: <span> \"2 min ago\" [945..996]",
+        "/: <p> \"Breakout detected on h\" [911..1091]",
+        "/: <span> \"Pattern\" [894..938]",
+        "/: <span> \"Bull Flag\" [1054..1108]",
+        "/: <span> \"Confidence\" [894..964]",
+        "/: <span> \"87%\" [1079..1108]",
+        "/: <span> \"Volume\" [894..940]",
+        "/: <span> \"2.4x avg\" [1055..1108]",
+        "/: <button> \"Open Chart\" [894..1108]"
+      ]
     },
     {
       "row": "R4",
       "cls": "LX",
       "status": "GREEN",
-      "detail": "client 740x360 · 5 routes, 0px overflow",
-      "client": "740x360"
+      "detail": "client 740x360 · 5 routes, 0px document overflow · 0 unreachable text element(s)",
+      "client": "740x360",
+      "escaped": []
     },
     {
       "row": "R5",
@@ -518,13 +545,13 @@
       "row": "R6",
       "cls": "LS",
       "status": "RED",
-      "detail": "23 control(s) outside · GSPC$7,709.96-0.18% [-265,8,-77,24] vw 788"
+      "detail": "23 control(s) outside · GSPC$7,709.96-0.18% [-246,8,-58,24] vw 788"
     },
     {
       "row": "R6",
       "cls": "LX",
       "status": "RED",
-      "detail": "24 control(s) outside · GSPC$7,709.96-0.18% [-275,8,-87,24] vw 740"
+      "detail": "24 control(s) outside · GSPC$7,709.96-0.18% [-265,8,-77,24] vw 740"
     },
     {
       "row": "R7",

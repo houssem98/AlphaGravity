@@ -179,7 +179,9 @@ are the acceptance tests.
       that at every offset in row 2 the rendered price is the whole number. Do not solve
       it by shrinking the font below the type scale. **Rows R2, R3.**
 
-- [ ] **MP-3 · F2 — no route scrolls the document horizontally.**
+- [x] **MP-3 · F2 — no route scrolls the document horizontally.**  *Closed as an honest
+      null: F2 does not reproduce at any class in §4 and the containment it asks for is
+      already in `src/index.css:127`. See §8.*
       Find the child that exceeds the root width on `/trading` and contain it. The table
       may scroll inside its own container; the document may not. **Rows R4.**
 
@@ -312,6 +314,42 @@ counts. **No adjectives.**
   Deploy note: the working tree carried another loop's `CompanyPage.tsx` + untracked
   `EdgarLink.tsx`; escalated before deploying and the user chose "deploy tree as-is", so those
   shipped in the same three prod deploys.
+
+- 2026-08-07 · MP-3 · **F2 does not reproduce, and R4 could not have failed.** 30 measurements
+  on the live alias — 5 routes × 6 classes — `documentElement.scrollWidth - clientWidth` =
+  **0px everywhere**, clients 320x568 / 360x780 / 390x844 / 430x932 / 788x360 / 740x360. The
+  reason is `body { overflow-x: hidden }` at **`src/index.css:127`**: `html` computes
+  `overflow-x: visible`, so the body rule propagates to the viewport and `scrollWidth` can
+  never exceed `clientWidth` on any route. That is the containment MP-3 was told to add, in
+  place since before this ledger opened — and by §3 rule 6 a row that cannot fail on the tree
+  is not a gate. Escalated per §10 as a fault that does not reproduce headlessly at any §4
+  class; closed as an honest null rather than kept alive.
+
+- 2026-08-07 · MP-3 · the probe grew instead. R4's second half now asks what F2 *means*:
+  an element with its own text, outside the viewport, that **no** ancestor with
+  `overflow-x: auto|scroll` owns — contained is not the same as hidden. Result:
+  **0 unreachable text elements at XS, N, S, M and LX** on all five routes; **20 at LS, all on
+  `/`** — two decorative landing-hero cards, the "New Order" ticket at x=-319..-44 and the
+  "Pattern Alert" card at x=894..1108 against a 788px viewport, both entirely off-canvas.
+  They exist only because 788 ≥ `md` renders the desktop hero, which is **F4's root cause and
+  MP-5's fix**, so they are recorded here and not touched. The count is logged beside R4's
+  verdict and deliberately **excluded from it**: choosing a new pass criterion after seeing
+  which way it fell is how a loop grades its own homework.
+
+- 2026-08-07 · MP-3 · finding for MP-5: R6's current probe counts 23–24 "controls outside the
+  viewport" at LS/LX, but its worst example — `GSPC$7,709.96-0.18%` at x=-265 — sits inside
+  the market ticker strip, an `overflow-x: auto` scroller that legitimately owns it. The same
+  scroller test this task added to R4 belongs in R6, or MP-5 will chase scrolled strip items
+  instead of clipped chrome.
+  No app code changed in MP-3, so no deploy. Full sweep after the probe grew:
+  **30 measurements, 4 RED, 6 UNMEASURED, 20 GREEN** — the 4 red are R5 x2 (MP-4) and R6 x2
+  (MP-5). `npx playwright test` **212 passed / 19 failed / 75 skipped (18.1m)**; the one
+  failure MP-2's run did not have is `floatingHeader.spec.ts:17 · column header follows you
+  down the list`, which **passes 3/3 in 25.4s when run alone**. It is a live-data flake under
+  twelve parallel workers — the clone only shows while `wrapRect.bottom > top + headRect.height`,
+  so a short crypto table (a cold CoinGecko 429 serves an honest empty list) never buries the
+  real header. The `chromium` project keeps `retries: 0` on purpose, so it reports rather than
+  hides it. Not touched: it is not MP-3's row and the spec is a gate.
 
 ## 9. Stop
 

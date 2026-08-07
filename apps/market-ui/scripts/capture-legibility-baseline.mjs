@@ -164,18 +164,57 @@ if (wanted('R4')) {
     for (const cls of ['XS', 'N', 'S', 'M', 'LS', 'LX']) {
         const [ctx, page] = await open(cls);
         const over = [];
+        const escaped = [];
         let client = '';
         for (const path of ['/', '/search', '/trading', '/companies', '/history']) {
             await settle(page, path);
             const m = await page.evaluate(() => {
                 const de = document.documentElement;
-                return { w: de.clientWidth, h: de.clientHeight, over: de.scrollWidth - de.clientWidth };
+                const vw = de.clientWidth;
+                // MP-3 · the second half of R4. `body { overflow-x: hidden }`
+                // (src/index.css:127) propagates to the viewport because html is
+                // `overflow-x: visible`, so scrollWidth can never exceed
+                // clientWidth and the first half cannot fail on this tree. What
+                // F2 actually means is content the user cannot reach: an element
+                // outside the viewport that no horizontal scroller owns is not
+                // contained, it is hidden. Text-bearing only — a decorative box
+                // bleeding off the canvas is a design, an unreachable string is
+                // a fault.
+                const esc = [];
+                for (const el of Array.from(document.querySelectorAll('*'))) {
+                    const r = el.getBoundingClientRect();
+                    if (r.width === 0 || r.height === 0) continue;
+                    if (r.right <= vw + 1 && r.left >= -1) continue;
+                    const own = Array.from(el.childNodes)
+                        .filter((n) => n.nodeType === 3).map((n) => n.textContent || '').join('').trim();
+                    if (!own) continue;
+                    let p = el.parentElement, owned = false;
+                    while (p) {
+                        const ox = getComputedStyle(p).overflowX;
+                        if (ox === 'auto' || ox === 'scroll') { owned = true; break; }
+                        if (p === document.body) break;
+                        p = p.parentElement;
+                    }
+                    if (owned) continue;
+                    esc.push(`<${el.tagName.toLowerCase()}> "${own.slice(0, 22)}" [${Math.round(r.left)}..${Math.round(r.right)}]`);
+                }
+                return { w: vw, h: de.clientHeight, over: de.scrollWidth - vw, esc };
             });
             client = `${m.w}x${m.h}`;
             if (m.over > 0) over.push(`${path} +${m.over}px`);
+            for (const e of m.esc) escaped.push(`${path}: ${e}`);
         }
+        // The verdict is R4 as the ledger writes it — document overflow. The
+        // escape count rides along as evidence and is deliberately NOT part of
+        // the pass mark: it fires on two decorative landing-page cards that sit
+        // entirely off-canvas at LS, which is a consequence of 788 >= md
+        // rendering the desktop hero (MP-5's root cause), not of F2. Promoting
+        // it to a verdict here would mean choosing a pass criterion after
+        // seeing which way it fell.
         log('R4', cls, over.length ? 'RED' : 'GREEN',
-            `client ${client} · ` + (over.length ? over.join(', ') : '5 routes, 0px overflow'), { client });
+            `client ${client} · ` + (over.length ? over.join(', ') : '5 routes, 0px document overflow') +
+            ` · ${escaped.length} unreachable text element(s)` + (escaped[0] ? ` · ${escaped[0]}` : ''),
+            { client, escaped });
         await ctx.close();
     }
 }
