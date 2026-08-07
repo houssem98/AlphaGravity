@@ -1,0 +1,648 @@
+{
+  "base": "https://market-ui-self.vercel.app",
+  "at": "2026-08-07T06:10:51.217Z",
+  "rows": [
+    {
+      "row": "R2",
+      "cls": "XS",
+      "status": "RED",
+      "detail": "9 clipped numeric element(s) · overpaintPairs 32 · worst 49px on <button> \"24h %\" (ancestor, scrollLeft 150)",
+      "clipped": 9,
+      "overpaint": 32,
+      "worst": {
+        "offset": 150,
+        "tag": "button",
+        "cls": "inline-flex items-center gap-1 hover:text-[color:var(--text)] transition-colors ml-auto",
+        "text": "24h %",
+        "clippedPx": 49,
+        "reason": "ancestor",
+        "numeral": true,
+        "x": 194.25,
+        "y": 190.359375,
+        "w": 44.140625,
+        "h": 14
+      }
+    },
+    {
+      "row": "R3",
+      "cls": "XS",
+      "status": "GREEN",
+      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
+      "faults": [],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$64,360.98",
+          "clip": 0
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,902.05",
+          "clip": 0
+        },
+        {
+          "sym": "BNB",
+          "text": "$587.72",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.00074",
+          "clip": 0
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0228",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$72.92",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3269",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$55.43",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        64265,
+        1898.76,
+        587.04,
+        0.999577,
+        1.02,
+        72.77,
+        0.326545,
+        55.31
+      ]
+    },
+    {
+      "row": "R2",
+      "cls": "N",
+      "status": "RED",
+      "detail": "15 clipped numeric element(s) · overpaintPairs 25 · worst 78px on <td> \"$64,360.98\" (ancestor, scrollLeft 0)",
+      "clipped": 15,
+      "overpaint": 25,
+      "worst": {
+        "offset": 0,
+        "tag": "td",
+        "cls": "py-2.5 px-4 text-right font-mono text-data text-[color:var(--text)]",
+        "text": "$64,360.98",
+        "clippedPx": 78,
+        "reason": "ancestor",
+        "numeral": true,
+        "x": 337.890625,
+        "y": 335.765625,
+        "w": 82.8125,
+        "h": 14
+      }
+    },
+    {
+      "row": "R3",
+      "cls": "N",
+      "status": "RED",
+      "detail": "8 rows · payload symbols 200 · 3 fault(s) · 0 unpaired · BTC: price cell clips 78px",
+      "faults": [
+        "BTC: price cell clips 78px",
+        "ETH: price cell clips 78px",
+        "USDC: price cell clips 78px"
+      ],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$64,360.99",
+          "clip": 78
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,902.04",
+          "clip": 78
+        },
+        {
+          "sym": "BNB",
+          "text": "$587.73",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.00074",
+          "clip": 78
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0227",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$72.91",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3269",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$55.432",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        64357.27,
+        1901.9,
+        587.73,
+        1.00075,
+        1.0224,
+        72.89,
+        0.3269,
+        55.43
+      ]
+    },
+    {
+      "row": "R2",
+      "cls": "S",
+      "status": "RED",
+      "detail": "11 clipped numeric element(s) · overpaintPairs 22 · worst 48px on <td> \"$64,360.99\" (ancestor, scrollLeft 0)",
+      "clipped": 11,
+      "overpaint": 22,
+      "worst": {
+        "offset": 0,
+        "tag": "td",
+        "cls": "py-2.5 px-4 text-right font-mono text-data text-[color:var(--text)]",
+        "text": "$64,360.99",
+        "clippedPx": 48,
+        "reason": "ancestor",
+        "numeral": true,
+        "x": 337.890625,
+        "y": 367.765625,
+        "w": 82.8125,
+        "h": 14
+      }
+    },
+    {
+      "row": "R3",
+      "cls": "S",
+      "status": "RED",
+      "detail": "8 rows · payload symbols 200 · 8 fault(s) · 0 unpaired · BTC: price cell clips 48px",
+      "faults": [
+        "BTC: price cell clips 48px",
+        "ETH: price cell clips 48px",
+        "BNB: price cell clips 48px",
+        "USDC: price cell clips 48px",
+        "XRP: price cell clips 48px",
+        "SOL: price cell clips 48px",
+        "TRX: price cell clips 48px",
+        "HYPE: price cell clips 48px"
+      ],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$64,360.99",
+          "clip": 48
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,902.04",
+          "clip": 48
+        },
+        {
+          "sym": "BNB",
+          "text": "$587.72",
+          "clip": 48
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.00074",
+          "clip": 48
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0226",
+          "clip": 48
+        },
+        {
+          "sym": "SOL",
+          "text": "$72.92",
+          "clip": 48
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3268",
+          "clip": 48
+        },
+        {
+          "sym": "HYPE",
+          "text": "$55.453",
+          "clip": 48
+        }
+      ],
+      "payload": [
+        64265,
+        1898.76,
+        587.04,
+        0.999577,
+        1.02,
+        72.77,
+        0.326545,
+        55.31
+      ]
+    },
+    {
+      "row": "R2",
+      "cls": "M",
+      "status": "RED",
+      "detail": "12 clipped numeric element(s) · overpaintPairs 6 · worst 8px on <td> \"$64,360.98\" (ancestor, scrollLeft 0)",
+      "clipped": 12,
+      "overpaint": 6,
+      "worst": {
+        "offset": 0,
+        "tag": "td",
+        "cls": "py-2.5 px-4 text-right font-mono text-data text-[color:var(--text)]",
+        "text": "$64,360.98",
+        "clippedPx": 8,
+        "reason": "ancestor",
+        "numeral": true,
+        "x": 337.890625,
+        "y": 412.265625,
+        "w": 82.8125,
+        "h": 14
+      }
+    },
+    {
+      "row": "R3",
+      "cls": "M",
+      "status": "RED",
+      "detail": "8 rows · payload symbols 200 · 8 fault(s) · 0 unpaired · BTC: price cell clips 8px",
+      "faults": [
+        "BTC: price cell clips 8px",
+        "ETH: price cell clips 8px",
+        "BNB: price cell clips 8px",
+        "USDC: price cell clips 8px",
+        "XRP: price cell clips 8px",
+        "SOL: price cell clips 8px",
+        "TRX: price cell clips 8px",
+        "HYPE: price cell clips 8px"
+      ],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$64,360.98",
+          "clip": 8
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,902.05",
+          "clip": 8
+        },
+        {
+          "sym": "BNB",
+          "text": "$587.73",
+          "clip": 8
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.00074",
+          "clip": 8
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0228",
+          "clip": 8
+        },
+        {
+          "sym": "SOL",
+          "text": "$72.92",
+          "clip": 8
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3269",
+          "clip": 8
+        },
+        {
+          "sym": "HYPE",
+          "text": "$55.453",
+          "clip": 8
+        }
+      ],
+      "payload": [
+        64357.27,
+        1901.9,
+        587.73,
+        1.00075,
+        1.0224,
+        72.89,
+        0.3269,
+        55.43
+      ]
+    },
+    {
+      "row": "R2",
+      "cls": "LS",
+      "status": "GREEN",
+      "detail": "0 clipped numeric element(s) · overpaintPairs 0",
+      "clipped": 0,
+      "overpaint": 0,
+      "worst": null
+    },
+    {
+      "row": "R3",
+      "cls": "LS",
+      "status": "GREEN",
+      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
+      "faults": [],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$64,360.99",
+          "clip": 0
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,902.12",
+          "clip": 0
+        },
+        {
+          "sym": "BNB",
+          "text": "$587.75",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.00074",
+          "clip": 0
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0228",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$72.93",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3269",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$55.454",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        64265,
+        1898.76,
+        587.04,
+        0.999577,
+        1.02,
+        72.77,
+        0.326545,
+        55.31
+      ]
+    },
+    {
+      "row": "R3",
+      "cls": "LX",
+      "status": "GREEN",
+      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
+      "faults": [],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$64,360.01",
+          "clip": 0
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,902.05",
+          "clip": 0
+        },
+        {
+          "sym": "BNB",
+          "text": "$587.76",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.00074",
+          "clip": 0
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.023",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$72.92",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3269",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$55.454",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        64360.98,
+        1902.05,
+        587.73,
+        1.00075,
+        1.0226,
+        72.92,
+        0.3268,
+        55.453
+      ]
+    },
+    {
+      "row": "R3",
+      "cls": "T",
+      "status": "GREEN",
+      "detail": "8 rows · payload symbols 200 · 0 fault(s) · 0 unpaired",
+      "faults": [],
+      "shown": [
+        {
+          "sym": "BTC",
+          "text": "$64,350.06",
+          "clip": 0
+        },
+        {
+          "sym": "ETH",
+          "text": "$1,901.77",
+          "clip": 0
+        },
+        {
+          "sym": "BNB",
+          "text": "$587.61",
+          "clip": 0
+        },
+        {
+          "sym": "USDC",
+          "text": "$1.00074",
+          "clip": 0
+        },
+        {
+          "sym": "XRP",
+          "text": "$1.0227",
+          "clip": 0
+        },
+        {
+          "sym": "SOL",
+          "text": "$72.90",
+          "clip": 0
+        },
+        {
+          "sym": "TRX",
+          "text": "$0.3269",
+          "clip": 0
+        },
+        {
+          "sym": "HYPE",
+          "text": "$55.465",
+          "clip": 0
+        }
+      ],
+      "payload": [
+        64360.98,
+        1902.05,
+        587.73,
+        1.00075,
+        1.0226,
+        72.92,
+        0.3268,
+        55.453
+      ]
+    },
+    {
+      "row": "R4",
+      "cls": "XS",
+      "status": "GREEN",
+      "detail": "client 320x568 · 5 routes, 0px overflow",
+      "client": "320x568"
+    },
+    {
+      "row": "R4",
+      "cls": "N",
+      "status": "GREEN",
+      "detail": "client 360x780 · 5 routes, 0px overflow",
+      "client": "360x780"
+    },
+    {
+      "row": "R4",
+      "cls": "S",
+      "status": "GREEN",
+      "detail": "client 390x844 · 5 routes, 0px overflow",
+      "client": "390x844"
+    },
+    {
+      "row": "R4",
+      "cls": "M",
+      "status": "GREEN",
+      "detail": "client 430x932 · 5 routes, 0px overflow",
+      "client": "430x932"
+    },
+    {
+      "row": "R4",
+      "cls": "LS",
+      "status": "GREEN",
+      "detail": "client 788x360 · 5 routes, 0px overflow",
+      "client": "788x360"
+    },
+    {
+      "row": "R4",
+      "cls": "LX",
+      "status": "GREEN",
+      "detail": "client 740x360 · 5 routes, 0px overflow",
+      "client": "740x360"
+    },
+    {
+      "row": "R5",
+      "cls": "N",
+      "status": "RED",
+      "detail": "2 pair(s) · /search: \"header.h-12.bg-[color:var(--surface)].border-b.border-[color:var(--line)]@0,0 360x48\" over \"5 retrieval channels\" 112x12px"
+    },
+    {
+      "row": "R5",
+      "cls": "LS",
+      "status": "RED",
+      "detail": "7 pair(s) · /search: \"header.h-12.bg-[color:var(--surface)].border-b.border-[color:var(--line)]@56,0 732x48\" over \"What did TSMC say about CapEx guidance i\" 113x48px"
+    },
+    {
+      "row": "R6",
+      "cls": "LS",
+      "status": "RED",
+      "detail": "23 control(s) outside · GSPC$7,709.96-0.18% [-282,8,-94,24] vw 788"
+    },
+    {
+      "row": "R6",
+      "cls": "LX",
+      "status": "RED",
+      "detail": "23 control(s) outside · GSPC$7,709.96-0.18% [-318,8,-129,24] vw 740"
+    },
+    {
+      "row": "R7",
+      "cls": "XS",
+      "status": "UNMEASURED",
+      "detail": "0 dialog(s) mounted on /search without interaction. F5's PdfPreview mounts only from ResearchReport after a completed deep-research run, so it does not reproduce headlessly on a cold route — MP-6 owns opening it."
+    },
+    {
+      "row": "R7",
+      "cls": "N",
+      "status": "UNMEASURED",
+      "detail": "0 dialog(s) mounted on /search without interaction. F5's PdfPreview mounts only from ResearchReport after a completed deep-research run, so it does not reproduce headlessly on a cold route — MP-6 owns opening it."
+    },
+    {
+      "row": "R7",
+      "cls": "LS",
+      "status": "UNMEASURED",
+      "detail": "0 dialog(s) mounted on /search without interaction. F5's PdfPreview mounts only from ResearchReport after a completed deep-research run, so it does not reproduce headlessly on a cold route — MP-6 owns opening it."
+    },
+    {
+      "row": "R8",
+      "cls": "N /search",
+      "status": "UNMEASURED",
+      "detail": "no <th> on a cold /search — the Research Grid of frame 121203 renders only after a run, so MP-7 must open it first"
+    },
+    {
+      "row": "R9",
+      "cls": "N /search",
+      "status": "UNMEASURED",
+      "detail": "no grid cells on a cold /search — same gate as R8"
+    },
+    {
+      "row": "R10",
+      "cls": "LS",
+      "status": "GREEN",
+      "detail": "MobileNav present, desktop rail candidates 0"
+    },
+    {
+      "row": "R10",
+      "cls": "LX",
+      "status": "GREEN",
+      "detail": "MobileNav present, desktop rail candidates 0"
+    },
+    {
+      "row": "R11",
+      "cls": "N /search",
+      "status": "UNMEASURED",
+      "detail": "no prior-period/delta pair on a cold /search (0 money, 0 percent elements) — the Company tab of frame 121333 needs a company selected, MP-8 owns opening it"
+    }
+  ]
+}

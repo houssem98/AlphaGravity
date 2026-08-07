@@ -160,7 +160,7 @@ them.** `R1` is the instrument; the rest are assertions.
 Do the **first unchecked** task only. Its spec text is the requirement; the rows it names
 are the acceptance tests.
 
-- [ ] **MP-1 · Build the instrument that can see clipping.**
+- [x] **MP-1 · Build the instrument that can see clipping.**
       Nothing else may start. Write `src/lib/legibility.ts` exporting `clippedText`, and
       unit-test it against a fixture with a known-clipped and a known-clean element.
       Then run every §6 row against the **unmodified** tree and record, per fault F1–F5
@@ -212,6 +212,56 @@ counts. **No adjectives.**
 - 2026-08-06 · ledger opened · 5 F-faults and 4 U-faults catalogued from 8 of 16 frames
   · R1 not yet built, so every row below R1 is currently unmeasured, not green.
 
+- 2026-08-07 · MP-1 · `src/lib/legibility.ts` exports `clippedText`; 7 unit tests green in
+  `src/lib/legibility.test.ts` (no jsdom added — the evaluator runs in the page, so the test
+  stubs the 7 DOM members it calls); `npx tsc --noEmit -p tsconfig.app.json` clean; `npx vitest run`
+  1200/1210 pass, 7 skipped, 3 failing — all three are pre-existing F5 assertions in
+  `src/mobileField.test.ts` (`shrink-0`, `aria-label="Close"`) that MP-6 owns and this task did
+  not touch. §12's L2 node now names the file and the symbol; `node scripts/graph-lint.mjs
+  docs/MOBILE_PARITY_ROADMAP.md` → PASS 14 refs.
+
+- 2026-08-07 · MP-1 · every §6 row run against the **unmodified** tree.
+  `cd apps/market-ui && node scripts/capture-legibility-baseline.mjs`, live alias
+  `https://market-ui-self.vercel.app`, 30 measurements → `docs/mobile/parity/baseline.json`.
+  **11 RED · 13 GREEN · 6 UNMEASURED.** Measured client viewports: 320x568, 360x780, 390x844,
+  430x932, 788x360, 740x360; `documentElement.scrollWidth - clientWidth` = **0px** on all six
+  across `/`, `/search`, `/trading`, `/companies`, `/history`.
+
+| fault | rows | measured on the unmodified tree |
+|---|---|---|
+| F1 | R2, R3 | **RED.** N: 15 clipped numeric elements in `table` over offsets 0/150/400, worst **78px** on `<td> "$64,360.98"` (ancestor clip, scrollLeft 0). S 11 / 48px, M 12 / 8px, XS 9 / 49px on `<button> "24h %"`, LS 0. R3 at N: BTC, ETH and USDC price cells each clip **78px** while their rendered text matches the payload — BTC `$64,335.87` vs `64305` = 0.048%, inside R3's ±0.5%. True number, unreadable cell. |
+| F2 | R4 | **GREEN — does not reproduce headlessly.** 0px document overflow at all six classes on five routes. Frame `121925` shows the fault on the device. MP-3 must find the device-only condition or close R4 as an honest null. |
+| F3 | R5 | **RED, but not on F3's surface.** 2 pairs at N, 7 at LS, all on `/search` — `header.h-12` over "5 retrieval channels", 112x12px. The `+ Columns` chooser lives one tap in from `/trading` (MarketHub "See all Crypto"), and R5 as written visits only the two route roots. Ledger finding; MP-4 owns the chooser. |
+| F4 | R6, R10 | **Split.** R6 **RED**: 24 top-chrome controls at LS and 23 at LX have rects outside the viewport, worst `GSPC$7,709.96-0.18%` at x=-227 (vw 788) and x=-314 (vw 740) — the market ticker strip, not `LOG IN`/`SIGN UP`. R10 **GREEN**: MobileNav present and 0 desktop-rail candidates at both LS and LX, so the desktop-shell half of frames `121426`/`121607` does not reproduce on today's prod. |
+| F5 | R7 | **UNMEASURED headlessly.** 0 `[role="dialog"]` on a cold `/search`; PdfPreview mounts only from ResearchReport after a completed deep-research run. Its mechanism gate is red: 3 failing assertions in `src/mobileField.test.ts`. |
+| U1 | R8 | **UNMEASURED.** No `<th>` on a cold `/search` — the Research Grid of frame `121203` renders only after a run, so MP-7 must open it before R8 can fail. |
+| U2 | R5, R9 | **UNMEASURED.** No grid cells exist to overlap on a cold `/search`; same precondition as U1. |
+| U3 | R11 | **UNMEASURED.** 0 money and 0 percent elements on a cold `/search`; the Company tab of frame `121333` needs a company selected. |
+| U4 | — | **No row owns it.** §6 has no landscape-keyboard row, and §7 crosses the labels: MP-5 calls its pair "F4 + U3" and MP-8 calls R11 "U4", while §5 has U3 = Company gap and U4 = keyboard. The rows themselves are unambiguous (R6/R10 = landscape shell, R11 = Company gap); the labels are wrong and U4 is ungated. |
+
+- 2026-08-07 · MP-1 · two findings about the instruments, not the layout.
+  (1) `e2e/mobileField.spec.ts` R7 reads `[data-testid="price"]` and `[data-testid="symbol"]`, and
+  **no file under `src/` emits either attribute** — the baseline reads the cells
+  `src/components/trading/MarketList.tsx` actually renders (the `font-mono` chip at :405, the first
+  visible `td.text-right.font-mono` at :407).
+  (2) `overpaintPairs` is **not** silent on that table: 25 numeric pairs at N, 32 at XS, 22 at S,
+  6 at M, 0 at LS across the three offsets. §1's blind spot is real but narrower than it reads —
+  the 78px price fault is an *ancestor clip*, which overpaint structurally cannot express, while
+  the table trips V2's instrument elsewhere. Nothing in this ledger may be called green on
+  overpaint alone, but "V2 green, phone wrong" is not the whole picture and is corrected here.
+
+- 2026-08-07 · MP-1 · `npx playwright test` against the live alias: **211 passed, 20 failed,
+  75 skipped, 18.3m** — not green, and not made green by this task. 19 of the 20 are V2 gates
+  in `e2e/mobileField.spec.ts` already owned by open MP tasks (G1 R7+R8 at N and LS, G2/G4 R11,
+  G5 chooser, G8–G11 ask-bar, G12–G16 landscape) plus one `desktopBaseline` landmark drift at
+  1440px — `trading-asset: 5 desktop landmark(s) moved`, outside this ledger's mobile scope and
+  escalated rather than touched. The first mobileField failure reads
+  `Error: no rendered price cell found`, which is finding (1) above, not F1. MP-1 adds no
+  Playwright spec, so the suite it inherited is the suite it leaves; §1's "V2's gates are still
+  green" is **false on today's prod** and the corrected statement is that V2's gates are red for
+  faults V3 has not yet fixed and, in one case, for a selector that no longer exists.
+  No deploy: this task changed no UI and no api function, so contract gate 6 does not apply.
+
 ## 9. Stop
 
 - **TARGET** — no `[ ]` remains in §7 **and** MP-9's sweep actually ran.
@@ -255,7 +305,7 @@ flowchart TD
 
     subgraph L2["L2 · LEGIBILITY LOOP"]
         direction TB
-        B1["run the MP-1 clipping evaluator over the route"] --> B2{"any element with a digit clipped?"}
+        B1["clippedText in src/lib/legibility.ts over the route"] --> B2{"any element with a digit clipped?"}
         B2 -- yes --> B3["widen or reflow, never shrink the type"] --> B1
         B2 -- no --> B4["overpaintPairs in src/lib/overpaint.ts"]
         B4 --> B5{"any covered text?"}
