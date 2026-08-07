@@ -200,10 +200,10 @@ are the acceptance tests.
       A nine-column matrix is not a phone screen. One ticker at a time, its cells as a
       list, the comparison behind a control. Badges may not overlap. **Rows R8, R9, R5.**
 
-- [ ] **MP-8 · U4 — the Company tab reads at 360px.**
+- [x] **MP-8 · U4 — the Company tab reads at 360px.**
       Gap and contrast for the prior-period column. **Rows R11.**
 
-- [ ] **MP-9 · Parity sweep.**
+- [x] **MP-9 · Parity sweep.**
       Record the tap path for each surface in row 12 and close the row with numbers, or
       log the honest gap and close it as a null. **Rows R12.**
 
@@ -525,6 +525,54 @@ counts. **No adjectives.**
   task (one of them the deliberate control). Whole-ledger sweep: **30 measurements, 0 RED,
   4 UNMEASURED, 26 GREEN** — R8 and R9 left the unmeasured set, leaving R7 x3 (no modal a
   headless run can open) and R11 (MP-8's, needs a company selected).
+
+- 2026-08-07 · MP-8 · U3, and the **fifth** wrong-surface finding: the Company tab is a mode of
+  `/search` and needs a ticker, so the cold-route probe read "0 money, 0 percent" and called
+  R11 unmeasured. The tab ships quick-pick buttons — `NVDA` is frame `121333`'s. Red measured
+  on prod at 360x780: **5/10 pairs**, `"$130.50B" → "+65.5%"` at **0px** and **2.55:1** against
+  the card (`#4A5568`), which is the frame exactly. Fix in `LatestQuarterCard.tsx`: `pl-3` on
+  the three numeric columns and their headers, and the prior column's hand-picked grey replaced
+  by the `--text-2` token. No type size changed. After: **0/10 pairs, worst 13px gap and
+  7.74:1 contrast**.
+
+- 2026-08-07 · MP-8 · **the probe was wrong twice, and both corrections are measurements, not
+  opinions.** (1) It compared BOX edges: under `text-right`, cell padding grows the box
+  leftward, so two right-aligned cells report a 0px gap however much air is between the
+  numbers — it now measures the **glyph** rects a Range reports, which is the gap an eye sees.
+  (2) It parsed the colour with a regex, and this task's own fix moved the token to
+  `oklch(0.72 0.008 65)`, which that regex read as 1.02:1 for text that is plainly legible.
+  Colours now resolve through a 1x1 canvas, so any CSS colour — `rgb`, `oklch`, `color-mix` —
+  reduces to sRGB before WCAG luminance. The pre-fix red stands on the `rgb()` path, where the
+  regex was correct, plus frame `121333` showing the two numbers touching.
+
+- 2026-08-07 · MP-9 · parity swept, **R12 green on all three surfaces**. Each path is scripted
+  in `scripts/capture-legibility-baseline.mjs` and run twice — once at N (360x780) and once at
+  the desktop baseline (1440x900) — ending only when the surface's primary answer is on screen:
+  | surface | N | D | budget D+1 |
+  |---|---|---|---|
+  | `/trading` → a live crypto price (`data-testid="price"` with a digit) | **1 tap** | 1 click | 2 |
+  | `/search` Company tab → NVDA's "Latest Reported Period" | **2 taps** | 2 clicks | 3 |
+  | `/companies` → a company financial figure | **1 tap** | 1 click | 2 |
+  The phone spends **exactly what the desktop spends**, not the budgeted extra tap, and every
+  path ends with the answer verified visible on both. §3 rule 3 asked for the desktop's answers
+  in the same number of decisions; that is now a number, not a claim.
+
+- 2026-08-07 · **ledger sweep, final: 33 measurements, 0 RED, 30 GREEN, 3 UNMEASURED.** From 11
+  RED at MP-1. The 3 unmeasured are R7 at XS, N and LS — the PDF preview mounts only after a
+  completed deep-research run, so no headless run can open it; its mechanism gate in
+  `src/mobileField.test.ts` is green and the shape-based modal detector stays in the script for
+  the first modal that becomes reachable.
+
+- 2026-08-07 · MP-8/9 gates: `tsc` clean; `npx playwright test` **214 passed / 16 failed / 1
+  flaky (16.4m)**. The one failure MP-7's run did not have is `G1 · R7 + R8` at
+  mobile-landscape, which **passes 2/2 in 17.2s alone** — the fourth live-data flake of this
+  ledger (floatingHeader x2, tnColumnAudit, now this), every one of them in a project running
+  against prod under twelve parallel workers. Deployed to prod once for MP-8; MP-9 changed no
+  UI. The 16 that remain are V2 gates this ledger never claimed: G2/G4's FAB overlapping
+  MobileNav, G8–G11's ask-bar over the chart, G15/G16's landscape header and safe-area paint,
+  G1's R8 numeral cover on `/search`, and the pre-existing `desktopBaseline` trading-asset
+  landmark drift at 1440px. **They are the honest remainder — V3's nine tasks were scoped to
+  the nine faults in §5, and none of these is one of them.**
 
 ## 9. Stop
 

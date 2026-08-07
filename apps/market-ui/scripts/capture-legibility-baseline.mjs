@@ -519,7 +519,22 @@ if (wanted('R10')) {
 // ─── R11 · Company tab prior-period gap and contrast ───
 if (wanted('R11')) {
     const [ctx, page] = await open('N');
+    // MP-8 · the Company tab is a mode of /search, and it needs a ticker.
+    // Frame 121333 is NVDA. Measuring the cold route read "0 money, 0 percent"
+    // and called R11 unmeasured — the same wrong-surface miss as R8/R9.
     await settle(page, '/search');
+    const tab = page.getByRole('button', { name: /^Company$/i });
+    if (await tab.count()) await tab.first().click().catch(() => {});
+    await page.waitForTimeout(1_500);
+    // "Enter a ticker to view filings, financials, and sentiment." — the tab
+    // ships quick-pick buttons for AAPL/NVDA/TSLA/MSFT/AMZN; NVDA is the frame.
+    const pick = page.getByRole('button', { name: /^NVDA$/ });
+    if (await pick.count()) await pick.first().click().catch(() => {});
+    else {
+        const box = page.getByPlaceholder(/AAPL/i).first();
+        if (await box.count()) { await box.fill('NVDA').catch(() => {}); await box.press('Enter').catch(() => {}); }
+    }
+    await page.waitForTimeout(14_000);
     const m = await page.evaluate(() => {
         const money = Array.from(document.querySelectorAll('*')).filter(
             (e) => Array.from(e.childNodes).some((n) => n.nodeType === 3) && /^\$[\d.,]+[BMK]?$/.test((e.textContent || '').trim()),
@@ -533,17 +548,126 @@ if (wanted('R11')) {
             for (const b of pct) {
                 const rb = b.getBoundingClientRect();
                 if (Math.abs(ra.top - rb.top) > 6 || rb.left < ra.right - 1) continue;
-                pairs.push({ prior: (a.textContent || '').trim(), delta: (b.textContent || '').trim(), gap: Math.round(rb.left - ra.right), color: getComputedStyle(a).color });
+                // MP-8 · the gap the eye sees is between GLYPHS, not boxes. Cell
+                // padding grows the box leftward under `text-right`, so two
+                // right-aligned cells always report a 0px box gap however much
+                // air is between the numbers. Measure the ink.
+                const rga = document.createRange(); rga.selectNodeContents(a);
+                const rgb2 = document.createRange(); rgb2.selectNodeContents(b);
+                const ga = rga.getBoundingClientRect();
+                const gb = rgb2.getBoundingClientRect();
+                // MP-8 · R11 asks for 4.5:1 as well as the gap, and only the gap
+                // was ever computed. Composite every translucent background up
+                // the ancestor chain, then WCAG 2.1 relative luminance.
+                // MP-8 · resolve through a canvas, not a regex: the token this
+                // task moved to is `oklch(0.72 0.008 65)`, and pulling three
+                // numbers out of that string reported 1.02:1 for text that is
+                // plainly readable. The canvas gives sRGB for any CSS colour.
+                const cv = document.createElement('canvas');
+                cv.width = cv.height = 1;
+                const cx = cv.getContext('2d', { willReadFrequently: true });
+                const rgb = (s) => {
+                    if (!s || s === 'transparent') return [0, 0, 0, 0];
+                    cx.clearRect(0, 0, 1, 1);
+                    cx.fillStyle = '#000';
+                    cx.fillStyle = s;
+                    cx.fillRect(0, 0, 1, 1);
+                    const d = cx.getImageData(0, 0, 1, 1).data;
+                    return [d[0], d[1], d[2], d[3] / 255];
+                };
+                const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+                const lum = ([r, g, bl]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+                let bg = [7, 10, 18];
+                const stack = [];
+                for (let e = a; e; e = e.parentElement) {
+                    const c = rgb(getComputedStyle(e).backgroundColor);
+                    if (c.length >= 3 && (c[3] === undefined || c[3] > 0)) stack.push(c);
+                }
+                for (const c of stack.reverse()) {
+                    const al = c[3] === undefined ? 1 : c[3];
+                    bg = [0, 1, 2].map((i) => c[i] * al + bg[i] * (1 - al));
+                }
+                const fgc = rgb(getComputedStyle(a).color);
+                const fa = fgc[3] === undefined ? 1 : fgc[3];
+                const fg = [0, 1, 2].map((i) => fgc[i] * fa + bg[i] * (1 - fa));
+                const L1 = Math.max(lum(fg), lum(bg)), L2 = Math.min(lum(fg), lum(bg));
+                pairs.push({
+                    prior: (a.textContent || '').trim(), delta: (b.textContent || '').trim(),
+                    gap: Math.round(gb.left - ga.right), color: getComputedStyle(a).color,
+                    contrast: Math.round(((L1 + 0.05) / (L2 + 0.05)) * 100) / 100,
+                });
             }
         }
         return { money: money.length, pct: pct.length, pairs };
     });
-    const tight = m.pairs.filter((p) => p.gap < 8);
+    const tight = m.pairs.filter((p) => p.gap < 8 || p.contrast < 4.5);
     log('R11', 'N /search', m.pairs.length === 0 ? 'UNMEASURED' : tight.length ? 'RED' : 'GREEN',
         m.pairs.length === 0
             ? `no prior-period/delta pair on a cold /search (${m.money} money, ${m.pct} percent elements) — the Company tab of frame 121333 needs a company selected, MP-8 owns opening it`
-            : `${tight.length}/${m.pairs.length} pair(s) under 8px` + (tight[0] ? ` · "${tight[0].prior}" → "${tight[0].delta}" ${tight[0].gap}px, color ${tight[0].color}` : ''));
+            : `${tight.length}/${m.pairs.length} pair(s) under 8px gap or 4.5:1` +
+              (tight[0]
+                  ? ` · "${tight[0].prior}" → "${tight[0].delta}" ${tight[0].gap}px, contrast ${tight[0].contrast}:1, color ${tight[0].color}`
+                  : ` · worst ${Math.min(...m.pairs.map((p) => p.gap))}px gap, ${Math.min(...m.pairs.map((p) => p.contrast))}:1 contrast`),
+        { pairs: m.pairs });
     await ctx.close();
+}
+
+// ─── R12 · parity — taps at N vs clicks at desktop, same primary answer ───
+if (wanted('R12')) {
+    // Three scripted paths. Each ends when the surface's primary answer is on
+    // screen; the count is the taps a user spends to get there. The same path
+    // runs at N (360x780) and at the desktop baseline (1440x900), so the
+    // comparison is like-for-like rather than two different journeys.
+    const PATHS = {
+        '/trading → a live crypto price': async (page) => {
+            await settle(page, '/trading');
+            let taps = 0;
+            await page.getByText(/See all Crypto/i).first().click({ timeout: 30_000 }); taps++;
+            await page.waitForTimeout(3_500);
+            const ok = await page.evaluate(() =>
+                Array.from(document.querySelectorAll('[data-testid="price"]'))
+                    .some((e) => e.getClientRects().length > 0 && /\d/.test(e.textContent || '')));
+            return { taps, ok };
+        },
+        '/search Company tab → NVDA reported period': async (page) => {
+            await settle(page, '/search');
+            let taps = 0;
+            const tab = page.getByRole('button', { name: /^Company$/i });
+            if (await tab.count()) { await tab.first().click(); taps++; }
+            await page.waitForTimeout(1_500);
+            const pick = page.getByRole('button', { name: /^NVDA$/ });
+            if (await pick.count()) { await pick.first().click(); taps++; }
+            await page.waitForTimeout(14_000);
+            const ok = await page.evaluate(() => /Latest Reported Period/i.test(document.body.innerText));
+            return { taps, ok };
+        },
+        '/companies → a company financial figure': async (page) => {
+            await settle(page, '/companies');
+            let taps = 0;
+            const pick = page.getByRole('button', { name: /^NVDA$/ });
+            if (await pick.count()) { await pick.first().click(); taps++; }
+            await page.waitForTimeout(14_000);
+            const ok = await page.evaluate(() => /\$[\d,]+\.\d\d/.test(document.body.innerText));
+            return { taps, ok };
+        },
+    };
+
+    for (const [goal, run] of Object.entries(PATHS)) {
+        const out = {};
+        for (const [label, viewport, state] of [['N', CLASSES.N, STATE], ['D', { width: 1440, height: 900 }, STATE]]) {
+            const ctx = await browser.newContext({
+                ...devices['Desktop Chrome'], viewport, storageState: state,
+                ...(label === 'N' ? { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : {}),
+            });
+            const page = await ctx.newPage();
+            out[label] = await run(page).catch((e) => ({ taps: -1, ok: false, err: String(e).slice(0, 60) }));
+            await ctx.close();
+        }
+        const within = out.N.taps >= 0 && out.D.taps >= 0 && out.N.taps <= out.D.taps + 1;
+        log('R12', goal.slice(0, 22), out.N.ok && out.D.ok && within ? 'GREEN' : 'RED',
+            `N ${out.N.taps} tap(s) ${out.N.ok ? 'answer shown' : 'NO ANSWER'} · D ${out.D.taps} click(s) ${out.D.ok ? 'answer shown' : 'NO ANSWER'} · budget D+1 = ${out.D.taps + 1}`,
+            { goal, n: out.N, d: out.D });
+    }
 }
 
 await browser.close();

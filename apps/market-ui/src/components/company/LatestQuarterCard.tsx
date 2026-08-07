@@ -74,18 +74,24 @@ export default function LatestQuarterCard({ metrics }: { metrics: Metric[] }) {
                     <thead>
                         <tr className="text-[10px] uppercase tracking-wider text-[#4A5568] border-b border-white/[0.06]">
                             <th className="text-left font-medium py-2">Metric</th>
-                            <th className="text-right font-medium py-2">{latest}</th>
-                            <th className="text-right font-medium py-2">{prior ?? 'Prior'}</th>
-                            <th className="text-right font-medium py-2">Δ</th>
+                            <th className="text-right font-medium py-2 pl-3">{latest}</th>
+                            <th className="text-right font-medium py-2 pl-3">{prior ?? 'Prior'}</th>
+                            <th className="text-right font-medium py-2 pl-3">Δ</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.04]">
                         {rows.map(r => (
                             <tr key={r.label}>
                                 <td className="py-2 text-[#A7B0C8]">{r.label}</td>
-                                <td className="py-2 text-right font-mono text-white">{r.cur}</td>
-                                <td className="py-2 text-right font-mono text-[#4A5568]">{r.prev}</td>
-                                <td className={`py-2 text-right font-mono ${r.delta === null ? 'text-[#4A5568]' : r.delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {/* MP-8 · U3. Measured on prod at 360x780: "$130.50B" ended
+                                    exactly where "+65.5%" began — a 0px gap — and the prior
+                                    column's #4A5568 came to 2.55:1 against this card, well
+                                    under the 4.5:1 R11 asks for. `pl-3` is the gutter; the
+                                    colour moves to the --text-2 token rather than another
+                                    hand-picked grey. Type size is unchanged. */}
+                                <td className="py-2 text-right font-mono text-white pl-3">{r.cur}</td>
+                                <td className="py-2 text-right font-mono text-[color:var(--text-2)] pl-3">{r.prev}</td>
+                                <td className={`py-2 text-right font-mono pl-3 ${r.delta === null ? 'text-[#4A5568]' : r.delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                     {r.delta === null ? '—' : `${r.delta >= 0 ? '+' : ''}${r.delta.toFixed(1)}%`}
                                 </td>
                             </tr>
