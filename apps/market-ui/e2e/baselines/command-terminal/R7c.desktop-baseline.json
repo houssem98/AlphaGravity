@@ -1,19 +1,19 @@
 {
   "row": "R7c",
   "project": "desktop-baseline",
-  "at": "2026-08-07T21:21:37.316Z",
+  "at": "2026-08-07T22:21:23.345Z",
   "ticker": "NVDA",
   "metricsTabClicked": true,
   "periods": 80,
-  "fiscalWithoutPeriodEnd": 80,
+  "fiscalWithoutPeriodEnd": 0,
   "sample": [
-    "FY2026",
-    "FY2026",
-    "FY2026",
-    "FY2026",
-    "FY2026",
-    "FY2026",
-    "FY2026",
-    "FY2026"
+    "FY2026 · FYE —",
+    "FY2026 · FYE —",
+    "FY2026 · FYE —",
+    "FY2026 · FYE —",
+    "FY2026 · FYE —",
+    "FY2026 · FYE —",
+    "FY2026 · FYE —",
+    "FY2026 · FYE —"
   ]
 }

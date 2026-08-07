@@ -23,6 +23,8 @@ import EdgarLink from '../components/EdgarLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+import { NULL_MARK, periodLabel, unitLabel } from '../lib/figures';
+
 interface MarketOverview {
     Symbol: string;
     Name: string;
@@ -43,6 +45,11 @@ interface MarketOverview {
     GrossProfitTTM: string;
     RevenueTTM: string;
     EBITDA: string;
+    // CT-5 · Alpha Vantage OVERVIEW carries these two. They are the only real
+    // source of a fiscal-year-end in this payload; absent them, a period-end is
+    // rendered as an honest unknown rather than guessed.
+    FiscalYearEnd?: string;   // e.g. "January"
+    LatestQuarter?: string;   // e.g. "2025-10-31"
 }
 
 interface Quote {
@@ -116,13 +123,19 @@ function fmt(n: string | number, style: 'currency' | 'percent' | 'number' = 'num
     return num.toLocaleString();
 }
 
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function StatCard({ label, value, period, unit, sub }: {
+    label: string; value: string; period?: string; unit?: string; sub?: string;
+}) {
+    const p = period && period.trim() ? period.trim() : NULL_MARK;
+    const u = unitLabel(unit);
     return (
         <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
             <p className="text-xs text-[#4A5568] uppercase tracking-wider mb-1">{label}</p>
-            <p className="text-xl font-semibold text-white">{value}</p>
+            <p className="text-xl font-semibold text-white" data-figure data-period={p} data-unit={u}>{value}</p>
+            <p className="text-xs text-[#A7B0C8] mt-0.5">{p} · {u}</p>
             {sub && <p className="text-xs text-[#A7B0C8] mt-0.5">{sub}</p>}
         </div>
     );
@@ -430,14 +443,22 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                     {/* Key stats grid */}
                     {overview && (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                            <StatCard label="Market Cap" value={fmt(overview.MarketCapitalization, 'currency')} />
-                            <StatCard label="P/E Ratio" value={fmt(overview.PERatio)} />
-                            <StatCard label="EPS (TTM)" value={isNaN(parseFloat(overview.EPS)) ? '—' : `$${overview.EPS}`} />
-                            <StatCard label="Analyst Target" value={isNaN(parseFloat(overview.AnalystTargetPrice)) ? '—' : `$${overview.AnalystTargetPrice}`} />
-                            <StatCard label="52W High" value={overview['52WeekHigh'] ? `$${overview['52WeekHigh']}` : '—'} />
-                            <StatCard label="52W Low" value={overview['52WeekLow'] ? `$${overview['52WeekLow']}` : '—'} />
-                            <StatCard label="Operating Margin" value={overview.OperatingMarginTTM ? `${(parseFloat(overview.OperatingMarginTTM) * 100).toFixed(1)}%` : '—'} />
-                            <StatCard label="Revenue (TTM)" value={fmt(overview.RevenueTTM, 'currency')} />
+                            <StatCard label="Market Cap" value={fmt(overview.MarketCapitalization, 'currency')}
+                                      period={overview.LatestQuarter} unit="USD" />
+                            <StatCard label="P/E Ratio" value={fmt(overview.PERatio)}
+                                      period="TTM" unit="ratio" />
+                            <StatCard label="EPS (TTM)" value={isNaN(parseFloat(overview.EPS)) ? '—' : `$${overview.EPS}`}
+                                      period="TTM" unit="USD/share" />
+                            <StatCard label="Analyst Target" value={isNaN(parseFloat(overview.AnalystTargetPrice)) ? '—' : `$${overview.AnalystTargetPrice}`}
+                                      unit="USD/share" />
+                            <StatCard label="52W High" value={overview['52WeekHigh'] ? `$${overview['52WeekHigh']}` : '—'}
+                                      period="52W" unit="USD/share" />
+                            <StatCard label="52W Low" value={overview['52WeekLow'] ? `$${overview['52WeekLow']}` : '—'}
+                                      period="52W" unit="USD/share" />
+                            <StatCard label="Operating Margin" value={overview.OperatingMarginTTM ? `${(parseFloat(overview.OperatingMarginTTM) * 100).toFixed(1)}%` : '—'}
+                                      period="TTM" unit="%" />
+                            <StatCard label="Revenue (TTM)" value={fmt(overview.RevenueTTM, 'currency')}
+                                      period="TTM" unit="USD" />
                         </div>
                     )}
 
@@ -469,7 +490,7 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                     {/* Overview tab */}
                     {activeTab === 'overview' && (
                         <div className="space-y-5">
-                            <LatestQuarterCard metrics={metrics} />
+                            <LatestQuarterCard metrics={metrics} fiscalYearEnd={overview?.FiscalYearEnd} />
                             {(() => {
                                 const t = documents.find(d => d.filing_type === 'earnings_transcript');
                                 return t ? <TranscriptSummary ticker={symbol} date={t.filing_date} /> : null;
@@ -632,13 +653,16 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                                             {metrics.map((m, i) => (
                                                 <tr key={i} className="hover:bg-white/[0.02] transition-colors">
                                                     <td className="px-4 py-2.5 text-[#A7B0C8]">{m.metric}</td>
-                                                    <td className="px-4 py-2.5 font-mono text-white">
+                                                    <td className="px-4 py-2.5 font-mono text-white"
+                                                        data-figure
+                                                        data-period={periodLabel(m.period, overview?.FiscalYearEnd)}
+                                                        data-unit={unitLabel(m.unit)}>
                                                         {typeof m.value === 'number' && m.unit === 'USD'
                                                             ? fmt(m.value, 'currency')
                                                             : typeof m.value === 'number' ? m.value.toLocaleString() : m.value}
-                                                        {m.unit && m.unit !== 'USD' && <span className="ml-1 text-xs text-[#4A5568]">{m.unit}</span>}
+                                                        <span className="ml-1 text-xs text-[#4A5568]">{unitLabel(m.unit)}</span>
                                                     </td>
-                                                    <td className="px-4 py-2.5 text-[#4A5568]">{m.period ?? '—'}</td>
+                                                    <td className="px-4 py-2.5 text-[#4A5568]">{periodLabel(m.period, overview?.FiscalYearEnd)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

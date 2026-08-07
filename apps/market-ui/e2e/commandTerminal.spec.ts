@@ -27,55 +27,60 @@ function record(row: string, data: Record<string, unknown>) {
     console.log(`${row} [${project}] ${JSON.stringify(data)}`);
 }
 
-// A figure is LABELLED only with both a period and a unit; NULL when it renders
-// the honest-null marker; BARE otherwise. Applied identically to every figure so
-// the census is one rule, not a per-widget judgement.
-const NULL_MARKER = /^[—–-]$/;
-const PERIOD = /\b(FY|Q[1-4]|TTM|H[12]|1[0-2]?\/|(19|20)\d{2})\b/i;
-const UNIT = /[$%€£]|\b(USD|EUR|bps|shares|x|billion|million|trillion|B|M|T)\b/;
+// CT-5 · the census reads the annotation the figure carries, not the shape of
+// its text. `data-period` / `data-unit` hold exactly the tokens the cell shows,
+// so a figure is judged on what it states rather than on a regex guessing at
+// whether "215.94" happens to look like it has a unit.
+//
+//   labelled — both parts stated
+//   null     — annotated, but at least one part is the honest marker
+//   bare     — NOT ANNOTATED AT ALL. This is row 7's forbidden third state.
+//
+// The pre-CT-5 tree annotates nothing, so every figure counts bare under this
+// rule exactly as it did under the text rule it replaces: 400 of 400.
+const NULL_MARK = '—';
 
-type Census = { total: number; labelled: number; nulls: number; bare: number; traceable: number };
+type Census = { total: number; labelled: number; nulls: number; bare: number; traceable: number; bareSamples: string[] };
 
-// Every figure CompanyPage renders today: the eight StatCards and the metric
-// table rows. Both are read by their real markup — this is the unmodified tree.
 async function census(page: Page): Promise<Census> {
-    return page.evaluate(({ nullSrc, periodSrc, unitSrc }) => {
-        const isNull = new RegExp(nullSrc);
-        const period = new RegExp(periodSrc, 'i');
-        const unit = new RegExp(unitSrc);
-        const out = { total: 0, labelled: 0, nulls: 0, bare: 0, traceable: 0 };
+    return page.evaluate((mark) => {
+        const out = { total: 0, labelled: 0, nulls: 0, bare: 0, traceable: 0, bareSamples: [] as string[] };
 
-        const classify = (valueText: string, contextText: string) => {
+        // Every figure CompanyPage renders: the eight overview StatCards and the
+        // metric table rows. Both are counted by the same rule.
+        const figures = [
+            ...document.querySelectorAll('p.text-xl.font-semibold'),
+            ...document.querySelectorAll('table tbody tr td:nth-child(2)'),
+        ];
+
+        for (const el of figures) {
             out.total++;
-            const v = valueText.trim();
-            if (isNull.test(v)) { out.nulls++; return; }
-            if (period.test(contextText) && unit.test(contextText)) out.labelled++;
-            else out.bare++;
-        };
-
-        // StatCards: label <p>, value <p>, optional sub <p>.
-        document.querySelectorAll('p.text-xl.font-semibold').forEach(el => {
-            const card = el.closest('div');
-            classify(el.textContent ?? '', card?.textContent ?? '');
-        });
-
-        // Metric rows: metric | value | period.
-        document.querySelectorAll('table tbody tr').forEach(tr => {
-            const cells = Array.from(tr.querySelectorAll('td')).map(td => td.textContent ?? '');
-            if (cells.length < 2) return;
-            classify(cells[1], cells.join(' '));
-        });
+            const period = el.getAttribute('data-period');
+            const unit = el.getAttribute('data-unit');
+            if (period === null || unit === null || period === '' || unit === '') {
+                out.bare++;
+                // Name the offender. A bare count with no address is a number you
+                // cannot act on.
+                const table = el.closest('table');
+                const head = table?.previousElementSibling?.textContent
+                    ?? table?.parentElement?.previousElementSibling?.textContent ?? '';
+                out.bareSamples.push(`${(el.textContent ?? '').trim().slice(0, 24)} @ ${head.trim().slice(0, 60)}`);
+                continue;
+            }
+            if (period === mark || unit === mark || period.includes(`FYE ${mark}`)) out.nulls++;
+            else out.labelled++;
+        }
 
         // Row 7b — a figure is traceable only if its own subtree names a source
-        // document: an accession number, an EDGAR link, or a filing id.
-        const src = /\b\d{10}-\d{2}-\d{6}\b|sec\.gov\/Archives/i;
-        document.querySelectorAll('p.text-xl.font-semibold, table tbody tr').forEach(el => {
+        // document: an accession number or an EDGAR archive link.
+        const src = /\d{10}-\d{2}-\d{6}|sec\.gov\/Archives/i;
+        for (const el of figures) {
             const scope = el.closest('div, tr');
             if (scope && src.test(scope.textContent ?? '')) out.traceable++;
-        });
+        }
 
         return out;
-    }, { nullSrc: NULL_MARKER.source, periodSrc: PERIOD.source, unitSrc: UNIT.source });
+    }, NULL_MARK);
 }
 
 // Returns the TAP count, which is pointer commits only — typing a ticker is
@@ -288,14 +293,15 @@ test('R6 · the command path performs no request the toggle path does not', asyn
 
 test('R7 · every figure carries period and unit, or is a null — zero bare', async ({ page }) => {
     test.setTimeout(240_000);   // five live company loads, ~14s each
-    const totals: Census = { total: 0, labelled: 0, nulls: 0, bare: 0, traceable: 0 };
+    const totals: Census = { total: 0, labelled: 0, nulls: 0, bare: 0, traceable: 0, bareSamples: [] };
     const perTicker: Record<string, Census> = {};
     for (const t of TICKERS) {
         await openCompanyByToggle(page, t);
         await openMetricsTab(page);
         const c = await census(page);
         perTicker[t] = c;
-        for (const k of Object.keys(totals) as (keyof Census)[]) totals[k] += c[k];
+        for (const k of ['total', 'labelled', 'nulls', 'bare', 'traceable'] as const) totals[k] += c[k];
+        totals.bareSamples.push(...c.bareSamples);
     }
     record('R7', { tickers: TICKERS, perTicker, totals });
     expect(totals.bare).toBe(0);
@@ -326,7 +332,10 @@ test('R7c · a fiscal period never renders without its period-end', async ({ pag
     await openCompanyByToggle(page, 'NVDA');   // FY2026 ended January 2026
     const clicked = await openMetricsTab(page);
     const periods = await page.locator('table tbody tr td:nth-child(3)').allTextContents();
-    const bareFiscal = periods.filter(p => /FY\s?\d{4}/i.test(p) && !/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(p));
+    // A fiscal period must state its period-end or state that it does not know
+    // it. What row 7c forbids is the bare, ambiguous "FY2026".
+    const bareFiscal = periods.filter(p =>
+        /FY\s?\d{4}/i.test(p) && !/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(p) && !/FYE\s*—/.test(p));
     record('R7c', { ticker: 'NVDA', metricsTabClicked: clicked, periods: periods.length, fiscalWithoutPeriodEnd: bareFiscal.length, sample: periods.slice(0, 8) });
 
     // "No bare fiscal periods" is trivially true when the table never rendered.

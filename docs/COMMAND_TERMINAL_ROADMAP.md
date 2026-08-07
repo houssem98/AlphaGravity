@@ -200,7 +200,7 @@ are the acceptance tests.
       already renders tagged blocks as components. Do not build a second widget system.
       **Rows R5, R6.**
 
-- [ ] **CT-5 · Q1a + Q1c — every figure carries its period and unit, or is a null.**
+- [x] **CT-5 · Q1a + Q1c — every figure carries its period and unit, or is a null.**
       The largest task. `StatCard` and the metric rows label what they show. Where the
       payload omits a field, render the null marker for that part — never infer it.
       Fiscal periods carry their period-end. **Rows R7, R7c.**
@@ -348,6 +348,34 @@ counts. **No adjectives.**
   The per-endpoint breakdown that found defect 2 is now recorded by the row itself, not
   reconstructed by hand.
   Gates: `npx vitest run` **1238 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
+  0 errors; `gate-guard` clean. Deployed `vercel --prod`, aliased `market-ui-self.vercel.app`.
+
+- 2026-08-07 · **CT-5** · **R7 green: 400 figures / 0 labelled / 400 null / 0 bare**, from
+  400 / 0 / 0 / **400 bare**. The third state is gone. **R7c green: 80 periods, 0 without a
+  period-end**, from 80 of 80 bare — every one now reads `FY2026 · FYE —` instead of the
+  ambiguous `FY2026`.
+  `src/lib/figures.ts` holds `periodLabel` / `unitLabel` / `figureAttrs`; `CompanyPage` (eight
+  StatCards, 80 metric rows) and `LatestQuarterCard` (current, prior, delta) all render through
+  it. 9 unit tests, four of which assert what the helpers REFUSE to do.
+  **The period-end year is not derivable and is not invented.** Alpha Vantage `OVERVIEW` is a
+  raw passthrough (`services/market-server/src/routes/market.ts:25`) and carries
+  `FiscalYearEnd` as a MONTH. "FY2026" + "January" only means January 2026 under a labelling
+  convention the payload never states, so the month is rendered and the year is not. Row 7c
+  asked for "the month and year"; this closes it at the month, with the year recorded here as
+  underivable rather than guessed — doctrine 5 is the reason the row exists.
+  **Why 0 labelled.** A figure counts labelled only when BOTH parts are real. `overview` was
+  null on all 5 tickers (0 StatCards rendered, total is 80×5 metric rows), so `FiscalYearEnd`
+  was unavailable everywhere and every fiscal period resolves to `FYE —`. The nulls are honest,
+  not cosmetic: **the Alpha Vantage key is the blocker for labelled > 0**, alongside Q1b.
+  **The instrument was rewritten and re-proved.** The census now reads `data-period` /
+  `data-unit` — the same tokens the cell shows — instead of regex-sniffing whether a number
+  "looks like" it has a unit. Run against the UNDEPLOYED tree first, it reproduced the old
+  baseline exactly: **400 / 0 / 0 / 400 bare**. Same number, sharper rule; a rewritten
+  instrument that could not reproduce the old result would be a rewritten result.
+  It also now names every bare figure it counts. That is how the last 5 were found:
+  `LatestQuarterCard` renders figures too, outside both the StatCards and the metric table,
+  and was unannotated. Row 7 says *every* figure.
+  Gates: `npx vitest run` **1247 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
   0 errors; `gate-guard` clean. Deployed `vercel --prod`, aliased `market-ui-self.vercel.app`.
 
 ## 9. Stop

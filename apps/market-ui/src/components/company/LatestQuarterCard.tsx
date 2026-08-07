@@ -1,3 +1,4 @@
+import { figureAttrs } from '../../lib/figures';
 // Latest-period card — headline P&L from exact XBRL rows, newest period vs
 // prior, with deltas. Pure: derives everything from the metrics array the
 // company page already fetches (/v1/company/{ticker}/financials).
@@ -26,7 +27,7 @@ function money(n: number): string {
     return `$${n.toLocaleString()}`;
 }
 
-export interface QuarterRow { label: string; cur: string; prev: string; delta: number | null; }
+export interface QuarterRow { label: string; cur: string; prev: string; delta: number | null; unit: string; }
 
 // Pure: pick the two most recent periods and build the headline rows with deltas.
 export function computeQuarterRows(metrics: Metric[]): { latest: string; prior?: string; rows: QuarterRow[] } | null {
@@ -52,13 +53,15 @@ export function computeQuarterRows(metrics: Metric[]): { latest: string; prior?:
             cur: isEps ? `$${cur.toFixed(2)}` : money(cur),
             prev: prev === null ? '—' : isEps ? `$${prev.toFixed(2)}` : money(prev),
             delta,
+            // CT-5 · both columns are money unless the row is per-share.
+            unit: isEps ? 'USD/share' : 'USD',
         };
     }).filter(Boolean) as QuarterRow[];
 
     return rows.length ? { latest, prior, rows } : null;
 }
 
-export default function LatestQuarterCard({ metrics }: { metrics: Metric[] }) {
+export default function LatestQuarterCard({ metrics, fiscalYearEnd }: { metrics: Metric[]; fiscalYearEnd?: string }) {
     const computed = computeQuarterRows(metrics);
     if (!computed) return null;
     const { latest, prior, rows } = computed;
@@ -89,9 +92,14 @@ export default function LatestQuarterCard({ metrics }: { metrics: Metric[] }) {
                                     under the 4.5:1 R11 asks for. `pl-3` is the gutter; the
                                     colour moves to the --text-2 token rather than another
                                     hand-picked grey. Type size is unchanged. */}
-                                <td className="py-2 text-right font-mono text-white pl-3">{r.cur}</td>
-                                <td className="py-2 text-right font-mono text-[color:var(--text-2)] pl-3">{r.prev}</td>
-                                <td className={`py-2 text-right font-mono pl-3 ${r.delta === null ? 'text-[#4A5568]' : r.delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {/* CT-5 · row 7. Every figure here states the period it
+                                    belongs to and the unit it is denominated in. */}
+                                <td className="py-2 text-right font-mono text-white pl-3"
+                                    {...figureAttrs(latest, r.unit, fiscalYearEnd)}>{r.cur}</td>
+                                <td className="py-2 text-right font-mono text-[color:var(--text-2)] pl-3"
+                                    {...figureAttrs(prior, r.unit, fiscalYearEnd)}>{r.prev}</td>
+                                <td className={`py-2 text-right font-mono pl-3 ${r.delta === null ? 'text-[#4A5568]' : r.delta >= 0 ? 'text-green-400' : 'text-red-400'}`}
+                                    {...figureAttrs(prior ? `${latest} vs ${prior}` : undefined, r.delta === null ? undefined : '%', fiscalYearEnd)}>
                                     {r.delta === null ? '—' : `${r.delta >= 0 ? '+' : ''}${r.delta.toFixed(1)}%`}
                                 </td>
                             </tr>

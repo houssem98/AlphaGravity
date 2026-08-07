@@ -1,7 +1,7 @@
 {
   "row": "R7",
   "project": "desktop-baseline",
-  "at": "2026-08-07T20:41:31.377Z",
+  "at": "2026-08-07T22:27:37.150Z",
   "tickers": [
     "NVDA",
     "AAPL",
@@ -13,44 +13,50 @@
     "NVDA": {
       "total": 80,
       "labelled": 0,
-      "nulls": 0,
-      "bare": 80,
-      "traceable": 0
+      "nulls": 80,
+      "bare": 0,
+      "traceable": 0,
+      "bareSamples": []
     },
     "AAPL": {
       "total": 80,
       "labelled": 0,
-      "nulls": 0,
-      "bare": 80,
-      "traceable": 0
+      "nulls": 80,
+      "bare": 0,
+      "traceable": 0,
+      "bareSamples": []
     },
     "MSFT": {
       "total": 80,
       "labelled": 0,
-      "nulls": 0,
-      "bare": 80,
-      "traceable": 0
+      "nulls": 80,
+      "bare": 0,
+      "traceable": 0,
+      "bareSamples": []
     },
     "JPM": {
       "total": 80,
       "labelled": 0,
-      "nulls": 0,
-      "bare": 80,
-      "traceable": 0
+      "nulls": 80,
+      "bare": 0,
+      "traceable": 0,
+      "bareSamples": []
     },
     "XOM": {
       "total": 80,
       "labelled": 0,
-      "nulls": 0,
-      "bare": 80,
-      "traceable": 0
+      "nulls": 80,
+      "bare": 0,
+      "traceable": 0,
+      "bareSamples": []
     }
   },
   "totals": {
     "total": 400,
     "labelled": 0,
-    "nulls": 0,
-    "bare": 400,
-    "traceable": 0
+    "nulls": 400,
+    "bare": 0,
+    "traceable": 0,
+    "bareSamples": []
   }
 }
