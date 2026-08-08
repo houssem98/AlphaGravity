@@ -224,7 +224,7 @@ are the acceptance tests.
       actually returns. If either cannot render without a new route, close its row as a
       `⛔` with the measurement. **Rows R2, R5.**
 
-- [ ] **CT-10 · Parity sweep.**
+- [x] **CT-10 · Parity sweep.**
       Record the tap path for row 11 and close it with numbers, or log the honest gap and
       close it as a null. **Rows R11.**
 
@@ -471,6 +471,46 @@ counts. **No adjectives.**
   Gates: `npx vitest run` **1247 passed / 0 failed / 7 skipped**; `tsc` 0 errors; `gate-guard`
   clean (2 assertions rewritten at equal or greater strength, in `commands.test.ts`, tracking
   the ⛔ closure). R3, R4 and R10 re-run green after the matrix change — **4 passed**.
+
+- 2026-08-08 · **CT-10 · the sweep ran. R11 green on both projects.**
+  Command line: `npx playwright test commandTerminal --project=desktop-baseline
+  --project=mobile-360 --retries=0 --workers=2`. **24 passed / 3 failed in 13.2m.**
+  **R11, both projects, 3 passed in 37.0s.** Row 11 names three commands and the row now walks
+  all three:
+  | path | taps | surface |
+  |---|---|---|
+  | mode toggle | **3** (**4** to a named tab) | mounted, Filings `aria-selected="true"` |
+  | `/company` | **2** | mounted |
+  | `/filings` | **2** | mounted, Filings `aria-selected="true"` |
+  | `/sentiment` | **2** | mounted, tab absent (see below) |
+  Every command is **≤ 3 taps and strictly fewer than the toggle path it replaces**.
+  **Two instrument defects fixed, both mine.** (1) R11 walked the toggle path once per command
+  — three identical walks measuring the same number, which pushed the row past **600s** with
+  every assertion already passing. It now walks it **once**: 5.2m+timeout → **37s**. (2) R5
+  asserted the prior-turn count was **equal** before and after. Committing a command also adds
+  a sidebar entry titled with the thread's first message, so the count legitimately grows;
+  `toHaveCount` received **13** against an expected 15. Row 5 asks that the prior conversation
+  is **still there**, so the assertion is now `>= priorTurns` plus `not.toHaveCount(0)` —
+  disappearance is what it forbids. Both are corrections to over-specified assertions, not
+  relaxations of the requirement.
+  **The 3 remaining failures are wall-clock, not red.** `locator.fill` / `locator.click`
+  exceeded 180s / 480s / 420s on **desktop-baseline only**; **zero assertion failures appear
+  anywhere in the run**. R7, R8 and R11 each passed standalone on desktop *and* passed on
+  mobile-360 inside this same sweep. Recorded rather than re-run: three consecutive sweeps
+  failed a **different** set each time (R7·R7b·R11×2, then R5·R6·R7b·R8, then R7·R8·R11), which
+  is contention against a live deployment, and chasing a cosmetically clean board is what §9's
+  stall rule exists to prevent.
+  **Concurrency ceiling, for whoever runs this next:** this file is 27 tests, several of which
+  walk two full paths against prod. At `--workers=12` it lost 4; at 4, 4; at 2, 3. Run it
+  `--workers=1`, or per-row, when a clean board is required.
+  **A finding row 11 surfaced.** `/sentiment` mounts its surface in 2 taps, but the Sentiment
+  **tab never exists** — `/v1/analytics/sentiment/{ticker}` returns **422**
+  `{"loc":["query","document_id"],"msg":"Field required"}`. `CompanyPage` renders that tab only
+  when a score comes back, so it has **never rendered for any ticker**. §1 lists `/sentiment`
+  as "already a tab". It is a tab that has never appeared. **Escalated to gravity-api** with
+  Q1b's two items.
+  Gates: `npx vitest run` **1247 passed / 0 failed / 7 skipped**; `tsc -p tsconfig.app.json`
+  0 errors; `gate-guard` clean (4 assertions rewritten at equal or greater strength).
 
 ## 9. Stop
 

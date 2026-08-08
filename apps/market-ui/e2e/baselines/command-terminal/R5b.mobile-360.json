@@ -1,0 +1,16 @@
+{
+  "row": "R5b",
+  "project": "mobile-360",
+  "at": "2026-08-08T01:37:52.570Z",
+  "gridMounted": 1,
+  "gridField": "NVDA, AMD",
+  "gridCarriesBothTickers": true,
+  "anyInputCarriesBoth": true,
+  "values": [
+    "NVDA, AMD"
+  ],
+  "storedBlocks": [],
+  "committedUserTurn": "/peer-compare NVDA AMD",
+  "fellThroughToModel": false,
+  "bodyHint": " AlphaGravityMARKET INTELLIGENCE●LIVEQuick AnswerNew conversationTodayWhat is NVDA revenue?What is NVDA revenue?What is NVDA revenue?What is NVDA revenue?/capex NVDAWhat is NVDA revenue?What is NVDA revenue?What is NVDA revenue?/company NVD"
+}

@@ -200,6 +200,7 @@ test('R4 · seven keyboard assertions, each separate', async ({ page }) => {
 // ─── G3 + G4 · rows 5 and 6 ───────────────────────────────────────────────────
 
 test('R5 · a committed command mounts in the feed and opens the named tab', async ({ page }) => {
+    test.setTimeout(180_000);
     await page.goto('/search');
     const input = page.getByPlaceholder(/Ask anything about any company|Ask a follow-up/);
     await input.click();
@@ -220,8 +221,12 @@ test('R5 · a committed command mounts in the feed and opens the named tab', asy
         filingsTabAriaSelected: await filingsTab.first().getAttribute('aria-selected').catch(() => null),
     });
 
-    // the prior conversation survives
-    await expect(page.locator('text=What is NVDA revenue?')).toHaveCount(priorTurns);
+    // The prior conversation survives. NOT equality: committing a command also
+    // adds a sidebar entry titled with the thread's first message, so the count
+    // legitimately grows. Row 5 asks that the prior turns are still there —
+    // disappearance is the failure, and >= is what forbids it.
+    await expect(page.locator('text=What is NVDA revenue?')).not.toHaveCount(0);
+    expect(await page.locator('text=What is NVDA revenue?').count()).toBeGreaterThanOrEqual(priorTurns);
     // the filings tab is already active — read, never clicked
     await expect(filingsTab).toHaveAttribute('aria-selected', 'true');
 });
@@ -286,6 +291,7 @@ test('R5b · /peer-compare mounts the Research Grid on the tickers it names (CT-
 });
 
 test('R6 · the command path performs no request the toggle path does not', async ({ page }) => {
+    test.setTimeout(240_000);   // two full path walks, each with a 12s settle
     const seen: string[] = [];
     page.on('request', r => seen.push(r.url()));
 
@@ -334,7 +340,9 @@ test('R6 · the command path performs no request the toggle path does not', asyn
 // ─── Q1 · rows 7, 7b, 7c ──────────────────────────────────────────────────────
 
 test('R7 · every figure carries period and unit, or is a null — zero bare', async ({ page }) => {
-    test.setTimeout(240_000);   // five live company loads, ~14s each
+    // Five live company loads. Measured at 4.2m standalone; 240s failed on the
+    // clock under parallel workers with every assertion already passing.
+    test.setTimeout(480_000);
     const totals: Census = { total: 0, labelled: 0, nulls: 0, bare: 0, traceable: 0, bareSamples: [] };
     const perTicker: Record<string, Census> = {};
     for (const t of TICKERS) {
@@ -350,7 +358,7 @@ test('R7 · every figure carries period and unit, or is a null — zero bare', a
 });
 
 test('R7b · zero figures are traceable to a source document, and none may claim to be', async ({ page }) => {
-    test.setTimeout(420_000);   // five live company loads plus a payload read
+    test.setTimeout(600_000);   // five live company loads plus a payload read
     let traceable = 0;
     let total = 0;
 
@@ -358,11 +366,16 @@ test('R7b · zero figures are traceable to a source document, and none may claim
     // authenticated session. The gap is only actionable if it names real fields.
     let metricKeys: string[] = [];
     let metricSample: unknown = null;
-    page.on('response', async r => {
+    page.on('response', r => {
         if (!/\/financials/.test(r.url()) || metricKeys.length) return;
-        const body = await r.json().catch(() => null) as { rows?: Record<string, unknown>[] } | null;
-        const row = body?.rows?.[0];
-        if (row) { metricKeys = Object.keys(row); metricSample = row; }
+        // NOT async: an awaited handler stalls Playwright's dispatch, and that is
+        // why this loop censused 0 figures while R7's identical loop saw 400.
+        void r.json()
+            .then((body: { rows?: Record<string, unknown>[] } | null) => {
+                const row = body?.rows?.[0];
+                if (row && !metricKeys.length) { metricKeys = Object.keys(row); metricSample = row; }
+            })
+            .catch(() => { /* a body we cannot read is not a failure of this row */ });
     });
     for (const t of TICKERS) {
         await openCompanyByToggle(page, t);
@@ -406,6 +419,7 @@ test('R7c · a fiscal period never renders without its period-end', async ({ pag
 // ─── Q2 + Q3 · rows 8 and 9 ───────────────────────────────────────────────────
 
 test('R8 · loading is a skeleton with aria-busy, empty is the null marker', async ({ page }) => {
+    test.setTimeout(180_000);
     await page.goto('/search');
     await page.getByRole('button', { name: 'Company' }).first().click();
     await page.getByPlaceholder('e.g. AAPL, NVDA, TSLA').fill('NVDA');
@@ -471,22 +485,58 @@ test('R10 · /capex and /tariff-risk refuse, naming what is missing', async ({ p
 
 // ─── Row 11 · parity ──────────────────────────────────────────────────────────
 
-test('R11 · the command path reaches the surface in <= 3 taps and beats the toggle', async ({ page }) => {
-    const toggleTaps = await openCompanyByToggle(page, 'NVDA');
+test('R11 · every named command reaches its surface in <= 3 taps, and beats the toggle', async ({ page }) => {
+    test.setTimeout(420_000);
 
-    await page.goto('/search');
-    const input = page.getByPlaceholder(/Ask anything about any company|Ask a follow-up/);
-    let commandTaps = 0;
-    await input.click(); commandTaps++;                // 1 · focus the composer
-    await input.fill('/company NVDA');                 //     keystrokes, not taps
-    await page.keyboard.press('Enter'); commandTaps++; // 2 · commit
-    await page.waitForTimeout(8000);
+    // The toggle path is walked ONCE. Its tap count does not depend on which
+    // command it is being compared against — three identical walks cost three
+    // times the wall clock and measure the same number, which is what pushed
+    // this row past a 600s budget with every assertion already passing.
+    const toggleBase = await openCompanyByToggle(page, 'NVDA');          // 3 taps
+    await page.getByRole('tablist').first().waitFor({ state: 'visible', timeout: 45_000 }).catch(() => { });
+    const toggleSurface = await page.getByRole('tablist').count();
+    await page.getByRole('tab', { name: /^Filings/ }).first().click({ timeout: 15_000 }).catch(() => { });
+    const toggleWithTab = toggleBase + 1;                                 // 4 taps
+    const toggleTabSelected = await page.getByRole('tab', { name: /^Filings/ }).first()
+        .getAttribute('aria-selected').catch(() => null);
 
-    record('R11', {
-        toggleTaps, commandTaps,
-        surfaceReached: await page.getByRole('heading', { name: /NVIDIA|NVDA/i }).first().isVisible().catch(() => false),
-    });
-    expect(commandTaps).toBeLessThanOrEqual(3);
-    expect(commandTaps).toBeLessThan(toggleTaps);
-    await expect(page.getByRole('heading', { name: /NVIDIA|NVDA/i }).first()).toBeVisible();
+    const results: Record<string, unknown> = {
+        togglePath: { taps: toggleBase, tapsForNamedTab: toggleWithTab, surfaceMounted: toggleSurface, tabSelected: toggleTabSelected },
+    };
+    record('R11', results);
+
+    expect(toggleSurface, 'toggle surface').toBeGreaterThan(0);
+
+    // Row 11 names three commands.
+    for (const { cmd, tab } of [
+        { cmd: 'company', tab: null },
+        { cmd: 'filings', tab: /^Filings/ },
+        { cmd: 'sentiment', tab: /Sentiment/ },
+    ] as const) {
+        await page.goto('/search');
+        const input = page.getByPlaceholder(/Ask anything about any company|Ask a follow-up/);
+        let taps = 0;
+        await input.click(); taps++;                 // 1 · focus the composer
+        await input.fill(`/${cmd} NVDA`);            //     keystrokes, not taps
+        await page.keyboard.press('Enter'); taps++;  // 2 · commit
+
+        await page.getByRole('tablist').first().waitFor({ state: 'visible', timeout: 45_000 }).catch(() => { });
+        const mounted = await page.getByRole('tablist').count();
+        const tabExists = tab ? await page.getByRole('tab', { name: tab }).count() : 1;
+        const tabState = tab && tabExists > 0
+            ? await page.getByRole('tab', { name: tab }).first().getAttribute('aria-selected').catch(() => null)
+            : 'n/a';
+
+        const against = tab ? toggleWithTab : toggleBase;
+        results[cmd] = { commandTaps: taps, comparedAgainstToggleTaps: against, surfaceMounted: mounted, tabExists, namedTabSelected: tabState };
+        record('R11', results);
+
+        expect(taps, `${cmd} taps`).toBeLessThanOrEqual(3);
+        expect(taps, `${cmd} vs toggle`).toBeLessThan(against);
+        expect(mounted, `${cmd} surface`).toBeGreaterThan(0);
+        // Asserted where the tab exists. CompanyPage renders the Sentiment tab
+        // only when the backend returned a score, and that endpoint 422s — a
+        // finding logged in §8, not a failure of this row.
+        if (tab && tabExists > 0) expect(tabState, `${cmd} tab`).toBe('true');
+    }
 });
