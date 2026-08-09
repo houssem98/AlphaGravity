@@ -464,6 +464,87 @@ test('CT2 R4 · every figure names its source or marks the absence — zero bare
     expect(c.affordances).toBeLessThanOrEqual(c.sourced);
 });
 
+// CT2-4 · row R5. Production renders 0 affordances (CT2-R4 above: 88 figures, 0
+// sourced), so the drawer cannot be reached with live data and a test that only
+// loaded the page would prove nothing either way. Both payloads are therefore
+// SERVED BY THE TEST, and the assertion is a lookup against the filings payload
+// the page actually received — never string similarity, never a period match.
+//
+// The negative case is the load-bearing one: the same figure carrying the real
+// production constant `xbrl:NVDA` must render NO affordance at all.
+
+const FIXTURE_FILING = {
+    id: 'ct2-fixture-0001-4000-8000-000000000001',
+    ticker: 'NVDA',
+    filing_type: '10-Q',
+    filing_date: '2025-11-19',
+    title: 'NVDA 10-Q 2025-11-19',
+    chunk_count: 7,
+    status: 'indexed',
+};
+
+async function stubCompanyPayloads(page: Page, documentId: string | null) {
+    await page.route('**/v1/company/*/filings**', route => route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ ticker: 'NVDA', documents: [FIXTURE_FILING], total: 1 }),
+    }));
+    await page.route('**/v1/company/*/financials**', route => route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+            ticker: 'NVDA', source: 'xbrl',
+            rows: [{
+                metric: 'Revenue (Total Revenue, Net Sales)', value: 57006000000, unit: 'USD',
+                period: 'FY2026', ticker: 'NVDA', filing_type: '10-Q', filing_date: '2025-11-19',
+                ...(documentId === null ? {} : { document_id: documentId }),
+            }],
+        }),
+    }));
+}
+
+test('CT2 R5 · the drawer names the filing the id resolved to, by lookup', async ({ page }) => {
+    test.setTimeout(240_000);
+    await stubCompanyPayloads(page, FIXTURE_FILING.id);
+    await openCompanyByToggle(page, 'NVDA');
+    await openMetricsTab(page);
+
+    const affordance = page.locator('[data-source-affordance]');
+    await expect(affordance).toHaveCount(1);
+    await affordance.first().click();
+
+    const drawer = page.locator('[data-source-drawer]');
+    await expect(drawer).toBeVisible();
+    const shown = {
+        type: (await drawer.locator('[data-drawer-filing-type]').textContent())?.trim(),
+        date: (await drawer.locator('[data-drawer-filing-date]').textContent())?.trim(),
+        id: (await drawer.locator('[data-drawer-document-id]').textContent())?.trim(),
+    };
+    record('CT2-R5', { shown, fixture: FIXTURE_FILING });
+
+    // Asserted by LOOKUP: the id the drawer shows must be a filing in the payload,
+    // and the type and date must be THAT filing's — not a filing that merely
+    // matches on date, and not text that happens to look similar.
+    const resolved = [FIXTURE_FILING].find(f => f.id === shown.id);
+    expect(resolved, 'the drawer names a filing present in the filings payload').toBeTruthy();
+    expect(shown.type).toBe(resolved!.filing_type);
+    expect(shown.date).toBe(resolved!.filing_date);
+});
+
+test('CT2 R5b · the production constant resolves to nothing and offers nothing', async ({ page }) => {
+    test.setTimeout(240_000);
+    // What CT2-2 measured on the wire: one distinct document_id per ticker.
+    await stubCompanyPayloads(page, 'xbrl:NVDA');
+    await openCompanyByToggle(page, 'NVDA');
+    await openMetricsTab(page);
+
+    const affordances = await page.locator('[data-source-affordance]').count();
+    const marked = await page.locator('[data-source-cell="—"]').count();
+    record('CT2-R5b', { documentIdServed: 'xbrl:NVDA', affordances, nullCells: marked });
+
+    expect(affordances).toBe(0);
+    expect(marked).toBeGreaterThan(0);
+    await expect(page.locator('[data-source-drawer]')).toHaveCount(0);
+});
+
 // ─── Q2 + Q3 · rows 8 and 9 ───────────────────────────────────────────────────
 
 test('R8 · loading is a skeleton with aria-busy, empty is the null marker', async ({ page }) => {

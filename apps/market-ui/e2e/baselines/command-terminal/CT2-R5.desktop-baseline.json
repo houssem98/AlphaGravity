@@ -1,0 +1,19 @@
+{
+  "row": "CT2-R5",
+  "project": "desktop-baseline",
+  "at": "2026-08-09T16:55:11.403Z",
+  "shown": {
+    "type": "10-Q",
+    "date": "2025-11-19",
+    "id": "ct2-fixture-0001-4000-8000-000000000001"
+  },
+  "fixture": {
+    "id": "ct2-fixture-0001-4000-8000-000000000001",
+    "ticker": "NVDA",
+    "filing_type": "10-Q",
+    "filing_date": "2025-11-19",
+    "title": "NVDA 10-Q 2025-11-19",
+    "chunk_count": 7,
+    "status": "indexed"
+  }
+}

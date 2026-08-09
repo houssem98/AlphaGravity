@@ -216,6 +216,10 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
     // the user's problem.
     const [failedSurfaces, setFailedSurfaces] = useState<string[]>([]);
     const [activeTab, setActiveTab] = useState<CompanyTab>(tab ?? 'overview');
+    // CT2-4 · row R5. The filing a figure's id RESOLVED to. It is set from the
+    // documents list by id and never constructed from the metric, so the drawer
+    // can only ever name a filing this page actually received.
+    const [sourceDoc, setSourceDoc] = useState<GravityDocument | null>(null);
     // Watermark captured at page open (newest filing_date the user saw last
     // time); filings newer than this get a NEW badge. Captured before markSeen.
     const [watermark, setWatermark] = useState<string | null>(null);
@@ -719,7 +723,7 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                                                             </span>
                                                             : <button type="button" data-source-affordance
                                                                 className="text-xs text-[#00F0FF] hover:underline"
-                                                                onClick={() => setActiveTab('filings')}>
+                                                                onClick={() => setSourceDoc(documents.find(d => d.id === m.document_id) ?? null)}>
                                                                 {src}
                                                             </button>}
                                                     </td>
@@ -732,6 +736,41 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                             }
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* CT2-4 · row R5. Every word here comes off the resolved
+                GravityDocument — the filing this page received and matched by id.
+                Nothing is derived from the metric's period (§3 rule 1), and
+                EdgarLink is given the filing's own date with allowLatest left
+                false, so an unresolvable date links to search rather than to the
+                wrong document. */}
+            {sourceDoc && (
+                <div className="fixed inset-0 z-50 flex justify-end bg-black/60"
+                    onClick={() => setSourceDoc(null)}>
+                    <aside role="dialog" aria-label="Source filing" data-source-drawer
+                        className="h-full w-full max-w-sm overflow-y-auto border-l border-white/[0.08] bg-[#0B0F1A] p-5"
+                        onClick={e => e.stopPropagation()}>
+                        <div className="flex items-start justify-between gap-3">
+                            <p className="text-xs uppercase tracking-wider text-[#4A5568]">Source filing</p>
+                            <button type="button" onClick={() => setSourceDoc(null)}
+                                className="text-xs text-[#A7B0C8] hover:text-white">Close</button>
+                        </div>
+                        <p className="mt-3 text-lg font-semibold text-white" data-drawer-filing-type>
+                            {sourceDoc.filing_type || NULL_MARK}
+                        </p>
+                        <p className="text-sm text-[#A7B0C8]" data-drawer-filing-date>
+                            {sourceDoc.filing_date || NULL_MARK}
+                        </p>
+                        <p className="mt-2 text-sm text-[#A7B0C8]">{sourceDoc.title || NULL_MARK}</p>
+                        <p className="mt-4 font-mono text-[10px] break-all text-[#4A5568]" data-drawer-document-id>
+                            {sourceDoc.id}
+                        </p>
+                        <div className="mt-4">
+                            <EdgarLink ticker={sourceDoc.ticker} filingType={sourceDoc.filing_type}
+                                filingDate={sourceDoc.filing_date ?? undefined} />
+                        </div>
+                    </aside>
                 </div>
             )}
         </div>
