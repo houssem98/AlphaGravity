@@ -643,6 +643,30 @@ test('CT2 R7 · a second command appends to the thread instead of replacing it',
     expect(firstStillThere).toBe(1);
 });
 
+// CT2-7 · row R8. A reload, in the same tab, and the committed command must
+// still be there. The trap is asserting only a non-zero turn count: a page that
+// restored SOMETHING would pass while having restored the wrong thread, so the
+// committed command's own text is what gets asserted.
+
+test('CT2 R8 · the last committed command survives a reload', async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.goto('/search');
+    await commitCommand(page, '/company NVDA');
+
+    const before = await page.locator('[data-turn]').count();
+    expect(before, 'nothing was committed, so the reload proves nothing').toBeGreaterThan(0);
+
+    await page.reload();
+    await page.waitForTimeout(3000);
+
+    const after = await page.locator('[data-turn]').count();
+    const survived = await page.locator('[data-turn="user"]', { hasText: '/company NVDA' }).count();
+    record('CT2-R8', { before, after, survived });
+
+    expect(after).toBeGreaterThan(0);
+    expect(survived).toBe(1);
+});
+
 // ─── Q2 + Q3 · rows 8 and 9 ───────────────────────────────────────────────────
 
 test('R8 · loading is a skeleton with aria-busy, empty is the null marker', async ({ page }) => {

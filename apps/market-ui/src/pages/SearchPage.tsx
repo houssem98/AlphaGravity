@@ -18,7 +18,7 @@ import {
 import GridView from '../components/grid/GridView';
 import CompanyPage from './CompanyPage';
 import { cleanAnswer, type GravityCitation, type GravitySource, type GravityMetric, type ChartSpec, type SearchFilters } from '../hooks/useGravitySearch';
-import { useQaStore, qaDefault, runQa, cancelQa } from '../stores/qaStore';
+import { useQaStore, qaDefault, runQa, cancelQa, type ChatTurn } from '../stores/qaStore';
 import {
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer, Legend,
@@ -900,6 +900,17 @@ export default function SearchPage() {
     const [qaSidebarSearch, setQaSidebarSearch] = useState('');
     const threadEndRef = useRef<HTMLDivElement>(null);
 
+    // CT2-7 · row R8. Two independent reasons a committed command did not survive
+    // a reload: `finalizeTurn` only persists a turn that carries a streamed
+    // `finalAnswer`, which a command never has, and `qaStore` seeds
+    // `activeConvId` with a fresh `crypto.randomUUID()` at module load, so a
+    // reload opened an empty conversation even for turns that HAD been saved.
+    //
+    // sessionStorage, deliberately, not localStorage: the row asks for a reload,
+    // and session scope keeps a fresh tab (and a fresh Playwright context) clean
+    // rather than resurrecting someone else's thread into it.
+    const QA_SESSION_KEY = 'qa:lastThread:v1';
+
     // ── Research state (global store — survives route changes) ────────────────
     const [researchInput, setResearchInput] = useState('');
     const [showModelPicker, setShowModelPicker] = useState(false);
@@ -1056,10 +1067,36 @@ export default function SearchPage() {
         requestAnimationFrame(() => threadEndRef.current?.scrollIntoView({ behavior: 'smooth' }));
     }, [qaState.status, chatHistory.length]);
 
+    // CT2-7 · restore first, on mount only. Runs before the snapshot effect can
+    // write, and the snapshot writes only a non-empty thread, so an empty mount
+    // cannot erase what a reload is about to restore.
+    useEffect(() => {
+        const raw = sessionStorage.getItem(QA_SESSION_KEY);
+        if (!raw) return;
+        try {
+            const { convId, thread } = JSON.parse(raw) as { convId: string; thread: ChatTurn[] };
+            if (!convId || !Array.isArray(thread) || thread.length === 0) return;
+            // patch, not loadThread: loadThread marks the entry persisted and
+            // adopts the id as a Supabase row id, and this id is a local one.
+            useQaStore.getState().patch(convId, { thread });
+            useQaStore.getState().setActiveConv(convId);
+        } catch {
+            sessionStorage.removeItem(QA_SESSION_KEY);
+        }
+    }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        if (chatHistory.length === 0) return;
+        sessionStorage.setItem(QA_SESSION_KEY, JSON.stringify({ convId: activeConvId, thread: chatHistory }));
+    }, [chatHistory, activeConvId]);   // eslint-disable-line react-hooks/exhaustive-deps
+
     // A fresh conversation id → an empty entry. Any in-flight run keeps going in
     // the background (still shown in the indicator); this just switches the view.
     const handleNewQa = () => {
         useQaStore.getState().setActiveConv(crypto.randomUUID());
+        // CT2-7 · asking for a new conversation is the one place the restore must
+        // not fire, or "New" would hand back the thread it was asked to leave.
+        sessionStorage.removeItem(QA_SESSION_KEY);
         setQaInput('');
         setOpenCitation(null);
         setTimeout(() => qaInputRef.current?.focus(), 50);
