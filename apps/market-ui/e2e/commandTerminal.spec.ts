@@ -545,6 +545,65 @@ test('CT2 R5b · the production constant resolves to nothing and offers nothing'
     await expect(page.locator('[data-source-drawer]')).toHaveCount(0);
 });
 
+// CT2-5 · row R6. Live, no stubbing — the whole point is what the real endpoint
+// says. Probed 2026-08-09: it requires document_id AND period (the ledger's P2
+// named only the first) and is a cache read, so a real filing id with both params
+// answers 404 "Sentiment not found ... POST to compute it". The tab must state
+// that, and must show no number.
+
+test('CT2 R6 · /sentiment renders a score or states the refusal, and never a number', async ({ page }) => {
+    test.setTimeout(240_000);
+    // The row names the COMMAND, so drive the command path, not the toggle.
+    await page.goto('/search');
+    const input = page.getByPlaceholder(/Ask anything about any company|Ask a follow-up/);
+    await input.click();
+    await input.fill('/sentiment NVDA');
+    await page.keyboard.press('Enter');
+
+    // Two waits, deliberately separate. The page is up once Filings mounts; the
+    // Sentiment tab needs a SECOND round trip after that, because the sentiment
+    // call cannot name a document_id until the filings payload has landed. A
+    // single fixed sleep conflates "still loading" with "tab never appears" —
+    // which is exactly how this row failed its first two runs.
+    const filingsTab = page.getByRole('tab', { name: /^Filings/ });
+    await expect(filingsTab, 'the command never mounted CompanyPage').toHaveCount(1, { timeout: 60_000 });
+    const filingsLabel = (await filingsTab.textContent())?.trim() ?? '';
+
+    const tab = page.getByRole('tab', { name: /^Sentiment/ });
+    await expect(tab, `no Sentiment tab; Filings tab read "${filingsLabel}"`).toHaveCount(1, { timeout: 60_000 });
+    const tabExists = await tab.count();
+    expect(tabExists).toBe(1);
+    await tab.click();
+    await page.waitForTimeout(1500);
+
+    const refusal = page.locator('[data-sentiment-refusal]');
+    const scored = await page.locator('[data-sentiment-refusal]').count() === 0;
+    const shown = {
+        status: (await page.locator('[data-sentiment-status]').textContent().catch(() => null))?.trim() ?? null,
+        detail: (await page.locator('[data-sentiment-detail]').textContent().catch(() => null))?.trim() ?? null,
+    };
+
+    // No fabricated figure: grep the rendered panel for a score-shaped token.
+    // A refusal that quotes an HTTP status is not a score, so the status node is
+    // removed from the text before the search — otherwise "404" reads as a number.
+    // Strip the things that are provably not scores before searching. An ISO
+    // date is the one that actually bit: the refusal names the filing it asked
+    // about, and "2026-07-02" contains "-07" and "-02", which the score pattern
+    // read as two signed numbers. A date, an HTTP status, a document id and an
+    // endpoint path are none of them sentiment figures.
+    const panelText = scored ? '' : (await refusal.innerText())
+        .replace(/\d{4}-\d{2}-\d{2}/g, ' ')
+        .replace(shown.status ?? ' ', ' ')
+        .replace(/document_id=\S+/g, ' ')
+        .replace(/\/v1\/\S+/g, ' ');
+    const scoreShaped = panelText.match(/[+-]?\d+(?:\.\d+)?\s*%|[+-]\d+(?:\.\d+)?\b/g) ?? [];
+
+    record('CT2-R6', { ticker: 'NVDA', tabExists, filingsLabel, scored, shown, scoreShaped, panelText: panelText.slice(0, 400) });
+
+    expect(scored || shown.status !== null, 'a refusal states the status the server returned').toBeTruthy();
+    expect(scoreShaped, 'no score-shaped token appears where no score was returned').toEqual([]);
+});
+
 // ─── Q2 + Q3 · rows 8 and 9 ───────────────────────────────────────────────────
 
 test('R8 · loading is a skeleton with aria-busy, empty is the null marker', async ({ page }) => {

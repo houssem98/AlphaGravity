@@ -1,0 +1,15 @@
+{
+  "row": "CT2-R6",
+  "project": "desktop-baseline",
+  "at": "2026-08-09T17:27:31.815Z",
+  "ticker": "NVDA",
+  "tabExists": 1,
+  "filingsLabel": "Filings (5)",
+  "scored": false,
+  "shown": {
+    "status": "404",
+    "detail": "Sentiment not found for document_id=abbc9d90-5bb1-487b-847b-f666bfe7c542. POST to /v1/analytics/sentiment/score to compute it."
+  },
+  "scoreShaped": [],
+  "panelText": "No sentiment score for NVDA.\n\nAsked GET   for the filing 8-K ·  .\n\nThe server answered  : Sentiment not found for   POST to   to compute it.\n\n "
+}

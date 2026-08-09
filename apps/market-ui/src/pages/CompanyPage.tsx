@@ -208,6 +208,10 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
     const [documents, setDocuments] = useState<GravityDocument[]>([]);
     const [metrics, setMetrics] = useState<GravityMetric[]>([]);
     const [sentiment, setSentiment] = useState<SentimentResult | null>(null);
+    // CT2-5 · why there is no score, in the server's own words. Present exactly
+    // when `sentiment` is null and the request actually ran.
+    const [sentimentRefusal, setSentimentRefusal] = useState<
+        { status: number; detail: string; documentId: string; filing: string } | null>(null);
     const [sentimentDelta, setSentimentDelta] = useState<SentimentDelta | null>(null);
     const [longitudinal, setLongitudinal] = useState<LongitudinalPoint[]>([]);
     const [loading, setLoading] = useState(true);
@@ -250,10 +254,9 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
             fetch(`${GRAVITY_BASE}/v1/company/${symbol}/financials?limit=80`, {
                 headers: authed(tok),
             }).then(r => r.ok ? r.json() : null),
-            // Gravity sentiment score
-            fetch(`${GRAVITY_BASE}/v1/analytics/sentiment/${symbol}`, {
-                headers: { 'X-API-Key': 'deep-research-internal' },
-            }).then(r => r.ok ? r.json() : null).catch(() => null),
+            // CT2-5 · the sentiment score is NOT fetched here. It needs a
+            // document_id, which only arrives with the filings payload in this
+            // same batch, so it runs in its own effect below.
             // Gravity sentiment delta (vs previous period)
             fetch(`${GRAVITY_BASE}/v1/analytics/sentiment/${symbol}/delta`, {
                 headers: { 'X-API-Key': 'deep-research-internal' },
@@ -262,7 +265,7 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
             fetch(`${GRAVITY_BASE}/v1/analytics/longitudinal/${symbol}`, {
                 headers: { 'X-API-Key': 'deep-research-internal' },
             }).then(r => r.ok ? r.json() : null).catch(() => null),
-        ]).then(([ov, qt, docs, met, sent, sentDelta, longit]) => {
+        ]).then(([ov, qt, docs, met, sentDelta, longit]) => {
             const arr = (v: unknown): any[] => Array.isArray(v) ? v : [];
 
             // A rejected fetch, or a body carrying an `error`, is a FAILURE and is
@@ -294,7 +297,6 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                 markSeen(symbol, newest);
             }
             if (met.status === 'fulfilled') setMetrics(arr(met.value?.rows ?? met.value?.structured_data));
-            if (sent.status === 'fulfilled' && sent.value?.overall_score !== undefined) setSentiment(sent.value);
             if (sentDelta.status === 'fulfilled' && sentDelta.value?.delta !== undefined) setSentimentDelta(sentDelta.value);
             if (longit.status === 'fulfilled' && longit.value) {
                 setLongitudinal(arr(longit.value?.data_points ?? longit.value?.periods));
@@ -302,6 +304,46 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
             setLoading(false);
         }));
     }, [symbol]);
+
+    // CT2-5 · row R6. Probed live 2026-08-09: the endpoint requires BOTH
+    // document_id AND period (the ledger's P2 named only the first), and it is a
+    // CACHE READ — `_load_cache(document_id)` — so with a real filing id and both
+    // params it answers 404 "Sentiment not found ... POST to compute it". Calling
+    // it with no params at all, as this page used to, produced a 422 that was our
+    // malformed request rather than the real gap.
+    //
+    // So: ask correctly, then state whatever comes back. Never synthesise a score.
+    useEffect(() => {
+        if (!symbol || !documents.length) return;
+        const doc = documents[0];   // filings arrive newest-first
+        let alive = true;
+        setSentimentRefusal(null);
+        (async () => {
+            const qs = new URLSearchParams({ document_id: doc.id, period: doc.filing_date ?? '' });
+            try {
+                const res = await fetch(`${GRAVITY_BASE}/v1/analytics/sentiment/${symbol}?${qs}`, {
+                    headers: { 'X-API-Key': 'deep-research-internal' },
+                });
+                const body = await res.json().catch(() => null);
+                if (!alive) return;
+                if (res.ok && body?.overall_score !== undefined) { setSentiment(body); return; }
+                setSentimentRefusal({
+                    status: res.status,
+                    // The server's own words. Paraphrasing an error is how a
+                    // credential fault starts looking like a data gap.
+                    detail: typeof body?.detail === 'string' ? body.detail : JSON.stringify(body?.detail ?? body),
+                    documentId: doc.id,
+                    filing: `${doc.filing_type || NULL_MARK} · ${doc.filing_date || NULL_MARK}`,
+                });
+            } catch (e) {
+                if (alive) setSentimentRefusal({
+                    status: 0, detail: String(e), documentId: doc.id,
+                    filing: `${doc.filing_type || NULL_MARK} · ${doc.filing_date || NULL_MARK}`,
+                });
+            }
+        })();
+        return () => { alive = false; };
+    }, [symbol, documents]);
 
     // No ticker in the URL (the "Companies" nav link points to bare /companies).
     // Render a ticker picker instead of a blank page (which looked like a freeze).
@@ -520,9 +562,14 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                             { key: 'overview', label: 'Overview', icon: BarChart3 },
                             { key: 'filings', label: `Filings (${documents.length})${newCount(documents.map(d => d.filing_date), watermark) > 0 ? ` · ${newCount(documents.map(d => d.filing_date), watermark)} new` : ''}`, icon: FileText },
                             { key: 'data', label: `Metrics (${metrics.length})`, icon: RefreshCw },
-                            // Sentiment only when the backend actually has a score
-                            // for this ticker — no empty-promise tab.
-                            ...(sentiment ? [{ key: 'sentiment', label: 'Sentiment', icon: Activity } as const] : []),
+                            // CT2-5 · row R6. The tab used to mount only on a
+                            // returned score, which meant `/sentiment <t>` routed
+                            // to a tab that had never existed for any ticker (§5
+                            // P2). It now mounts on a score OR on a stated
+                            // refusal — the one thing it must never do is mount
+                            // and show a number nothing returned.
+                            ...(sentiment || sentimentRefusal
+                                ? [{ key: 'sentiment', label: 'Sentiment', icon: Activity } as const] : []),
                         ] as const).map(({ key, label, icon: Icon }) => (
                             <button
                                 key={key}
@@ -592,9 +639,28 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                     {activeTab === 'sentiment' && (
                         <div className="space-y-5">
                             {!sentiment ? (
-                                <p className="text-sm text-[#4A5568] text-center py-8">
-                                    No sentiment data indexed yet. Ingest earnings transcripts or news first.
-                                </p>
+                                // CT2-5 · row R6. "No sentiment data indexed yet"
+                                // was a guess about WHY. State what was asked and
+                                // what the server said, verbatim — and show no
+                                // number, because none was returned.
+                                <div data-sentiment-refusal className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-2">
+                                    <p className="text-sm text-white">No sentiment score for {symbol}.</p>
+                                    {sentimentRefusal ? (
+                                        <>
+                                            <p className="text-xs text-[#A7B0C8]">
+                                                Asked <code className="text-[#4A5568]">GET /v1/analytics/sentiment/{symbol}</code>{' '}
+                                                for the filing <span className="text-white">{sentimentRefusal.filing}</span>.
+                                            </p>
+                                            <p className="text-xs text-[#A7B0C8]">
+                                                The server answered <span data-sentiment-status className="font-mono text-[#F59E0B]">{sentimentRefusal.status}</span>:{' '}
+                                                <span data-sentiment-detail className="text-[#A7B0C8]">{sentimentRefusal.detail}</span>
+                                            </p>
+                                            <p className="font-mono text-[10px] break-all text-[#4A5568]">document_id={sentimentRefusal.documentId}</p>
+                                        </>
+                                    ) : (
+                                        <p className="text-xs text-[#A7B0C8]">No filing to score against yet — the filings index returned nothing for {symbol}.</p>
+                                    )}
+                                </div>
                             ) : (
                                 <>
                                     {/* Score card */}
