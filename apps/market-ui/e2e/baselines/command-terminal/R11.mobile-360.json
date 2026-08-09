@@ -1,7 +1,7 @@
 {
   "row": "R11",
   "project": "mobile-360",
-  "at": "2026-08-08T01:41:16.644Z",
+  "at": "2026-08-09T18:59:42.702Z",
   "togglePath": {
     "taps": 3,
     "tapsForNamedTab": 4,
@@ -20,13 +20,6 @@
     "comparedAgainstToggleTaps": 4,
     "surfaceMounted": 1,
     "tabExists": 1,
-    "namedTabSelected": "true"
-  },
-  "sentiment": {
-    "commandTaps": 2,
-    "comparedAgainstToggleTaps": 4,
-    "surfaceMounted": 1,
-    "tabExists": 0,
-    "namedTabSelected": "n/a"
+    "namedTabSelected": "false"
   }
 }

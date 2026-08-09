@@ -1,7 +1,7 @@
 {
   "row": "R11",
   "project": "desktop-baseline",
-  "at": "2026-08-08T01:21:03.621Z",
+  "at": "2026-08-09T19:06:29.624Z",
   "togglePath": {
     "taps": 3,
     "tapsForNamedTab": 4,
@@ -26,7 +26,7 @@
     "commandTaps": 2,
     "comparedAgainstToggleTaps": 4,
     "surfaceMounted": 1,
-    "tabExists": 0,
-    "namedTabSelected": "n/a"
+    "tabExists": 1,
+    "namedTabSelected": "true"
   }
 }

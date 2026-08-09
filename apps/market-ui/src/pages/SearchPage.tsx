@@ -1071,6 +1071,19 @@ export default function SearchPage() {
     // write, and the snapshot writes only a non-empty thread, so an empty mount
     // cannot erase what a reload is about to restore.
     useEffect(() => {
+        // CT2-10 · restore on a RELOAD, not on every mount. Restoring on any
+        // mount cost two pre-existing rows in the sweep: R11 went red because a
+        // restored `/company` block mounts its own CompanyPage, so the first
+        // Filings tab on the page belonged to it and read aria-selected="false";
+        // and R6 went 15 requests against the toggle's 12, the whole delta being
+        // /v1/search 6 vs 3, because restored turns re-fetch on every load.
+        //
+        // Nothing is lost by narrowing it: the zustand store is module-level, so
+        // an in-session route change never dropped the thread in the first place.
+        // A real reload is the only case that did, and it is exactly what R8 asks.
+        const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+        if (nav?.type !== 'reload') return;
+
         const raw = sessionStorage.getItem(QA_SESSION_KEY);
         if (!raw) return;
         try {
