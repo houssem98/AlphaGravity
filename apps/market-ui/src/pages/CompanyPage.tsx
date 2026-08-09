@@ -23,7 +23,7 @@ import EdgarLink from '../components/EdgarLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-import { NULL_MARK, periodLabel, unitLabel } from '../lib/figures';
+import { NULL_MARK, periodLabel, unitLabel, figureAttrs, sourceLabel } from '../lib/figures';
 
 interface MarketOverview {
     Symbol: string;
@@ -75,6 +75,10 @@ interface GravityMetric {
     unit?: string;
     period?: string;
     ticker?: string;
+    // CT2-3 · optional on purpose. CT2-2 measured 0 of 60 rows carrying it, and
+    // the marker exists because the id can be missing — narrowing this to string
+    // would delete the state the page has to render honestly.
+    document_id?: string;
 }
 
 interface SentimentResult {
@@ -134,7 +138,11 @@ function StatCard({ label, value, period, unit, sub }: {
     return (
         <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
             <p className="text-xs text-[#4A5568] uppercase tracking-wider mb-1">{label}</p>
-            <p className="text-xl font-semibold text-white" data-figure data-period={p} data-unit={u}>{value}</p>
+            {/* CT2-3 · quote and overview figures come from market data, which
+                carries no filing id at all. The marker is the honest answer, not
+                a placeholder for one CT2-4 will fill in. */}
+            <p className="text-xl font-semibold text-white"
+                data-figure data-period={p} data-unit={u} data-source={NULL_MARK}>{value}</p>
             <p className="text-xs text-[#A7B0C8] mt-0.5">{p} · {u}</p>
             {sub && <p className="text-xs text-[#A7B0C8] mt-0.5">{sub}</p>}
         </div>
@@ -684,27 +692,40 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="border-b border-white/[0.06] bg-white/[0.02]">
-                                                {['Metric', 'Value', 'Period'].map(h => (
+                                                {['Metric', 'Value', 'Period', 'Source'].map(h => (
                                                     <th key={h} className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-[#4A5568]">{h}</th>
                                                 ))}
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/[0.04]">
-                                            {metrics.map((m, i) => (
+                                            {metrics.map((m, i) => {
+                                                const src = sourceLabel(m.document_id, documents);
+                                                return (
                                                 <tr key={i} className="hover:bg-white/[0.02] transition-colors">
                                                     <td className="px-4 py-2.5 text-[#A7B0C8]">{m.metric}</td>
                                                     <td className="px-4 py-2.5 font-mono text-white"
-                                                        data-figure
-                                                        data-period={periodLabel(m.period, overview?.FiscalYearEnd)}
-                                                        data-unit={unitLabel(m.unit)}>
+                                                        {...figureAttrs(m.period, m.unit, overview?.FiscalYearEnd, src)}>
                                                         {typeof m.value === 'number' && m.unit === 'USD'
                                                             ? fmt(m.value, 'currency')
                                                             : typeof m.value === 'number' ? m.value.toLocaleString() : m.value}
                                                         <span className="ml-1 text-xs text-[#4A5568]">{unitLabel(m.unit)}</span>
                                                     </td>
                                                     <td className="px-4 py-2.5 text-[#4A5568]">{periodLabel(m.period, overview?.FiscalYearEnd)}</td>
+                                                    <td className="px-4 py-2.5" data-source-cell={src}>
+                                                        {src === NULL_MARK
+                                                            ? <span className="text-[#4A5568]"
+                                                                title="No filing id on this row — the figure is XBRL companyfacts, which names no single filing. Nothing here is guessed from the period.">
+                                                                {NULL_MARK}
+                                                            </span>
+                                                            : <button type="button" data-source-affordance
+                                                                className="text-xs text-[#00F0FF] hover:underline"
+                                                                onClick={() => setActiveTab('filings')}>
+                                                                {src}
+                                                            </button>}
+                                                    </td>
                                                 </tr>
-                                            ))}
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 )

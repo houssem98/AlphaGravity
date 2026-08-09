@@ -32,3 +32,12 @@ node_modules
 !/apps/market-ui/public/**
 *.log
 /entities.json
+# CT2-3 · two GENERATED artifacts, each on its own past Vercel's 100 MB per-file
+# cap, measured 2026-08-09 when the deploy died at "File size limit exceeded
+# (100 MB)" after uploading 330.4 MB:
+#   .codegraph/codegraph.db                       103.9 MB
+#   apps/market-ui/test-results/commandTerminal-…  100.7 MB
+# The second is this loop's OWN Playwright output — running the e2e gate broke
+# the deploy gate. Neither is a build input.
+/.codegraph
+/apps/market-ui/test-results

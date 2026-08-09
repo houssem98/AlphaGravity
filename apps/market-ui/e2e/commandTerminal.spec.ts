@@ -416,6 +416,54 @@ test('R7c · a fiscal period never renders without its period-end', async ({ pag
     expect(bareFiscal).toHaveLength(0);
 });
 
+// ─── CT2 P1 · docs/COMMAND_TERMINAL_V2_ROADMAP.md row R4 ──────────────────────
+//
+// Same census rule as R7, applied to the third annotation. A figure is
+//   sourced — data-source names a filing its id RESOLVED to
+//   null    — data-source is the honest marker
+//   bare    — no data-source attribute at all, the forbidden third state
+//
+// CT2-2 measured the expected shape of this: the financials table holds one
+// distinct document_id per ticker (the constant "xbrl:NVDA" over 402 rows) and
+// /filings drops every id starting "xbrl:", so `sourced` is expected to be 0 and
+// `nulls` to equal `total`. This row does not assert that it is high. It asserts
+// that nothing renders bare and that nothing claims a source it cannot resolve.
+
+test('CT2 R4 · every figure names its source or marks the absence — zero bare', async ({ page }) => {
+    test.setTimeout(240_000);
+    await openCompanyByToggle(page, 'NVDA');
+    await openMetricsTab(page);
+
+    const c = await page.evaluate((mark) => {
+        const out = { total: 0, sourced: 0, nulls: 0, bare: 0, affordances: 0, bareSamples: [] as string[] };
+        const figures = [
+            ...document.querySelectorAll('p.text-xl.font-semibold'),
+            ...document.querySelectorAll('table tbody tr td:nth-child(2)'),
+        ];
+        for (const el of figures) {
+            out.total++;
+            const src = el.getAttribute('data-source');
+            if (src === null || src === '') {
+                out.bare++;
+                out.bareSamples.push((el.textContent ?? '').trim().slice(0, 32));
+            } else if (src === mark) out.nulls++;
+            else out.sourced++;
+        }
+        out.affordances = document.querySelectorAll('[data-source-affordance]').length;
+        return out;
+    }, NULL_MARK);
+
+    record('CT2-R4', { ticker: 'NVDA', ...c });
+
+    // A zero-bare count is trivially true of a page that rendered nothing.
+    expect(c.total).toBeGreaterThan(0);
+    expect(c.bare).toBe(0);
+    expect(c.sourced + c.nulls).toBe(c.total);
+    // §3 rule 1 — a clickable affordance exists only where an id RESOLVED. It may
+    // never outnumber the figures whose source actually resolved.
+    expect(c.affordances).toBeLessThanOrEqual(c.sourced);
+});
+
 // ─── Q2 + Q3 · rows 8 and 9 ───────────────────────────────────────────────────
 
 test('R8 · loading is a skeleton with aria-busy, empty is the null marker', async ({ page }) => {

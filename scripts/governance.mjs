@@ -25,8 +25,17 @@ import { readFileSync } from 'node:fs';
 const DEFAULT_CEILING = 4;
 const LEDGER = 'docs/COMMAND_TERMINAL_V2_ROADMAP.md';
 
-const section = (text, n) =>
-    (text.match(new RegExp(`^##\\s*${n}\\.[\\s\\S]*?(?=^##\\s*\\d+\\.|\\Z)`, 'm')) ?? [''])[0];
+// From "## n." to the next "## <digit>." heading, or to the end of the document.
+// NOT a lookahead with `\Z`: JS has no `\Z` anchor, so that escape matches a
+// literal "Z" and silently truncated §8 at the first ISO timestamp in it —
+// every entry logged after `…T16:06:56Z` was invisible to the checks below.
+const section = (text, n) => {
+    const start = new RegExp(`^##\\s*${n}\\.`, 'm').exec(text);
+    if (!start) return '';
+    const rest = text.slice(start.index);
+    const next = /\n##\s*\d+\./.exec(rest);
+    return next ? rest.slice(0, next.index) : rest;
+};
 
 /** Pure: ledger source text in, violations out. Exported for --self-check. */
 export function govern(text) {
@@ -89,7 +98,11 @@ const args = process.argv.slice(2);
 if (!import.meta.main) {
     // imported for govern() — do not judge the repo as a side effect
 } else if (args.includes('--self-check')) {
-    const assert = (await import('node:assert/strict')).default;
+    // Counted, not estimated: three of these run inside a loop over R9/R10/R11,
+    // so the number of assert CALLS in the file is not the number executed.
+    let checks = 0;
+    const strict = (await import('node:assert/strict')).default;
+    const assert = new Proxy(strict, { get: (t, k) => (...a) => { checks++; return Reflect.get(t, k)(...a); } });
     const { spawnSync } = await import('node:child_process');
     const { writeFileSync, mkdtempSync, mkdirSync, rmSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
@@ -105,6 +118,18 @@ if (!import.meta.main) {
     assert.equal(govern(CLEAN).tasks[1].review, 'human', 'review tier parsed');
     assert.equal(govern(CLEAN).tasks[0].ceiling, DEFAULT_CEILING, 'ceiling defaults');
     assert.equal(govern(CLEAN).iters.length, 1, 'the §8 iteration line parsed');
+
+    // A section ends at the next heading or at the end of the document — never at
+    // a capital letter. `\Z` is not a JS anchor, and the version that used it cut
+    // §8 at the first ISO timestamp, hiding every entry logged after it.
+    const withZ = led('- [ ] **XX-1 · H. `review: auto`.**',
+        '- XX-1 · iter 1 · R1 green · probed at 2026-08-09T16:06:56Z\n'
+        + '- ESCALATION · XX-1 · asked, answered\n- XX-1 · iter 2 · R1 green · SIZE IN MB');
+    assert.equal(govern(withZ).iters.length, 2, 'entries after a capital Z still parse');
+    assert.equal(govern(withZ).escalated.length, 1, 'an escalation after a capital Z still parses');
+    // And the section must still STOP at the next heading.
+    assert.equal(govern(led('- [ ] **XX-1 · H. `review: auto`.**', '- XX-1 · iter 1 · R1 green')
+        + '\n- XX-9 · iter 7 · R1 green\n').iters.length, 1, '§9 content is not read as §8');
 
     // R1-gate: a product task cannot close before the gate that would fail it.
     const gated = govern(led('- [ ] **XX-1 · Harness. `review: auto`.**\n- [x] **XX-2 · Probe. `review: auto`.**', '- none'));
@@ -159,7 +184,7 @@ if (!import.meta.main) {
     }
     rmSync(dir, { recursive: true, force: true });
 
-    console.log('governance self-check: 21 assertions passed');
+    console.log(`governance self-check: ${checks} assertions passed`);
 } else {
     run(args.find(a => !a.startsWith('--')) ?? LEDGER);
 }

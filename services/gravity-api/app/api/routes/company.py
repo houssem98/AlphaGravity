@@ -80,7 +80,12 @@ async def company_financials(
             "document_id": "like.xbrl:*",
             "order": "period.desc,filing_date.desc",
         },
-        select="metric_name,period,value_float,unit,filing_type,filing_date",
+        # CT2-3 · document_id is selected so the client can attempt an id lookup
+        # against /filings. CT2-2 measured what it currently holds — one distinct
+        # value per ticker, the literal "xbrl:NVDA" over 402 NVDA rows — so the
+        # lookup resolves nothing today and the client renders the honest null.
+        # Shipping it anyway is what makes that fact visible instead of assumed.
+        select="metric_name,period,value_float,unit,filing_type,filing_date,document_id",
         limit=max(limit * 3, 120),
     )
     # One row per metric+period; later filings restate — keep the newest.
@@ -96,5 +101,6 @@ async def company_financials(
                 "ticker": symbol,
                 "filing_type": r.get("filing_type") or "",
                 "filing_date": r.get("filing_date"),
+                "document_id": r.get("document_id"),
             }
     return {"ticker": symbol, "rows": list(best.values())[:limit], "source": "xbrl"}
