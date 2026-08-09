@@ -1558,13 +1558,17 @@ export default function SearchPage() {
                             {chatHistory.length > 0 && (
                                 <div className="space-y-7 mb-7">
                                     {chatHistory.map((turn, i) => turn.role === 'user' ? (
-                                        <div key={i} className="flex justify-end">
+                                        // CT2-6 · row R7 counts committed turns. The feed had no
+                                        // stable hook, so a chaining gate would have had to count
+                                        // styling classes — which pass whether or not the prior
+                                        // turn survived.
+                                        <div key={i} data-turn="user" className="flex justify-end">
                                             <div className="font-display text-[15px] text-[var(--text)] bg-white/[0.04] border border-[var(--line)] px-4 py-2 rounded-[var(--radius-lg)] max-w-[85%]">
                                                 {turn.content}
                                             </div>
                                         </div>
                                     ) : (
-                                        <div key={i} className="space-y-3">
+                                        <div key={i} data-turn="assistant" className="space-y-3">
                                             <AnswerText text={turn.content} citations={turn.citations || NO_CITATIONS} onCitationOpen={setOpenCitation} />
                                             {(turn.citations?.length ?? 0) > 0 && (
                                                 <SourcePills citations={turn.citations!} onOpen={setOpenCitation} />

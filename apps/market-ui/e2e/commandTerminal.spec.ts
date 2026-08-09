@@ -604,6 +604,45 @@ test('CT2 R6 · /sentiment renders a score or states the refusal, and never a nu
     expect(scoreShaped, 'no score-shaped token appears where no score was returned').toEqual([]);
 });
 
+// CT2-6 · row R7. Their pipeline is Interpret → Pull → Search → Run; ours is
+// whether a second command ADDS to the thread or replaces it. `commitTurn`
+// already spreads the prior thread, so this row may already be green — the point
+// of running it is that "already works" is a claim, not a measurement, and
+// nothing before this pinned it.
+
+async function commitCommand(page: Page, raw: string) {
+    const input = page.getByPlaceholder(/Ask anything about any company|Ask a follow-up/);
+    await input.click();
+    await input.fill(raw);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(2500);
+}
+
+test('CT2 R7 · a second command appends to the thread instead of replacing it', async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.goto('/search');
+
+    await commitCommand(page, '/company NVDA');
+    const priorTurns = await page.locator('[data-turn]').count();
+    const priorUser = await page.locator('[data-turn="user"]').count();
+
+    await commitCommand(page, '/filings NVDA');
+    const afterTurns = await page.locator('[data-turn]').count();
+    const afterUser = await page.locator('[data-turn="user"]').count();
+
+    // The first command's own text must still be on screen. A feed that kept its
+    // COUNT while swapping the content would satisfy a >= check and still have
+    // thrown the prior turn away.
+    const firstStillThere = await page.locator('[data-turn="user"]', { hasText: '/company NVDA' }).count();
+
+    record('CT2-R7', { priorTurns, priorUser, afterTurns, afterUser, firstStillThere });
+
+    expect(priorTurns).not.toBe(0);
+    expect(afterTurns).toBeGreaterThanOrEqual(priorTurns);
+    expect(afterUser).toBeGreaterThan(priorUser);
+    expect(firstStillThere).toBe(1);
+});
+
 // ─── Q2 + Q3 · rows 8 and 9 ───────────────────────────────────────────────────
 
 test('R8 · loading is a skeleton with aria-busy, empty is the null marker', async ({ page }) => {
