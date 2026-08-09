@@ -1,15 +1,17 @@
 {
   "row": "R5a",
   "project": "desktop-baseline",
-  "at": "2026-08-09T18:19:11.825Z",
-  "tabs": 3,
+  "at": "2026-08-09T19:07:59.648Z",
+  "tabs": 4,
   "names": [
     " Overview",
     " Filings (5)",
-    " Metrics (80)"
+    " Metrics (80)",
+    " Sentiment"
   ],
   "ariaSelected": [
     "true",
+    "false",
     "false",
     "false"
   ],
