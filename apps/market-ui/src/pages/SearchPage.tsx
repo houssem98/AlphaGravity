@@ -50,7 +50,7 @@ type SearchMode = 'grid' | 'company' | 'qa' | 'research';
 
 // HistoryItem is defined in researchStore.ts
 import type { HistoryItem } from '../stores/researchStore';
-import { parseCommand, matchCommands, findCommand, type CommandSpec } from '../lib/commands';
+import { parseCommand, matchCommands, findCommand, CATEGORY_ORDER, type CommandSpec } from '../lib/commands';
 import { COMMAND_LANG, dexterLang, isCommandBlock, parseBlock, renderCommandBlock } from '../services/dexterBlocks';
 import type { CompanyTab } from './CompanyPage';
 
@@ -1795,22 +1795,41 @@ export default function SearchPage() {
                                             aria-label="Commands"
                                             className="absolute bottom-full left-0 right-0 mb-2 z-30 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)] shadow-lg"
                                         >
-                                            {paletteOptions.map((opt, i) => (
-                                                <li
-                                                    key={opt.name}
-                                                    id={optionId(i)}
-                                                    role="option"
-                                                    aria-selected={opt === activeOption}
-                                                    onMouseDown={e => { e.preventDefault(); commitCommand(opt); }}
-                                                    className={`flex items-center gap-2 px-3 py-2 text-sm cursor-pointer ${opt === activeOption
-                                                        ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
-                                                        : 'text-[var(--text-2)]'
-                                                        }`}
-                                                >
-                                                    <span className="font-mono">/{opt.name}</span>
-                                                    <span className="text-[var(--text-4)]">{opt.usage}</span>
-                                                </li>
-                                            ))}
+                                            {/* CT2-9 · grouped by category, and the FLAT index is
+                                                preserved. `paletteIndex` and `aria-activedescendant`
+                                                both address options by position in `paletteOptions`,
+                                                so a heading that renumbered them would break arrow
+                                                keys while looking fine. Headings are
+                                                role="presentation" — they are not options and must
+                                                never be counted as one. */}
+                                            {CATEGORY_ORDER.flatMap(cat => {
+                                                const inCat = paletteOptions
+                                                    .map((opt, i) => ({ opt, i }))
+                                                    .filter(({ opt }) => opt.category === cat);
+                                                if (inCat.length === 0) return [];
+                                                return [
+                                                    <li key={`h-${cat}`} role="presentation"
+                                                        className="px-3 pt-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-[var(--text-4)]">
+                                                        {cat}
+                                                    </li>,
+                                                    ...inCat.map(({ opt, i }) => (
+                                                        <li
+                                                            key={opt.name}
+                                                            id={optionId(i)}
+                                                            role="option"
+                                                            aria-selected={opt === activeOption}
+                                                            onMouseDown={e => { e.preventDefault(); commitCommand(opt); }}
+                                                            className={`flex items-center gap-2 px-3 py-2 text-sm cursor-pointer ${opt === activeOption
+                                                                ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
+                                                                : 'text-[var(--text-2)]'
+                                                                }`}
+                                                        >
+                                                            <span className="font-mono">/{opt.name}</span>
+                                                            <span className="text-[var(--text-4)]">{opt.usage}</span>
+                                                        </li>
+                                                    )),
+                                                ];
+                                            })}
                                         </ul>
                                     )}
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseCommand, matchCommands, findCommand, COMMANDS } from './commands';
+import { parseCommand, matchCommands, findCommand, COMMANDS, CATEGORY_ORDER } from './commands';
 
 // docs/COMMAND_TERMINAL_ROADMAP.md §6 row 1 (the instrument) and row 2 (all
 // eight §4 commands named individually).
@@ -94,5 +94,38 @@ describe('parseCommand — row 2, each of the eight §4 commands', () => {
         expect(matchCommands('cap')).toEqual([]);
         expect(matchCommands('tariff')).toEqual([]);
         expect(matchCommands('scr')).toEqual([]);
+    });
+});
+
+// CT2-9 · §5 P6. The palette groups by WHERE A COMMAND ROUTES (§4), so the
+// grouping cannot drift from the routing without one of these failing.
+describe('command categories', () => {
+    it('every command declares a category, and it is one the palette renders', () => {
+        for (const c of COMMANDS) {
+            expect(CATEGORY_ORDER, `/${c.name} has an unrenderable category`).toContain(c.category);
+        }
+    });
+
+    it('groups the buildable commands the way they route', () => {
+        const byCat = (cat: string) => COMMANDS.filter(c => c.category === cat).map(c => c.name);
+        // company/filings/data/sentiment all mount a CompanyPage tab.
+        expect(byCat('Company')).toEqual(['company', 'filings', 'sentiment', 'data']);
+        // peer-compare mounts GridView, which is a different surface.
+        expect(byCat('Comparison')).toEqual(['peer-compare']);
+    });
+
+    it('every blocked command is Unavailable, and nothing else is', () => {
+        expect(COMMANDS.filter(c => c.category === 'Unavailable').map(c => c.name))
+            .toEqual(['screening', 'capex', 'tariff-risk']);
+        expect(COMMANDS.filter(c => c.category === 'Unavailable').every(c => c.status === 'blocked')).toBe(true);
+        expect(COMMANDS.filter(c => c.status === 'blocked').every(c => c.category === 'Unavailable')).toBe(true);
+    });
+
+    it('grouping preserves the flat order the keyboard nav indexes by', () => {
+        // paletteIndex addresses matchCommands() by position, so rendering the
+        // groups in CATEGORY_ORDER must not reorder the options themselves.
+        const flat = matchCommands('');
+        const grouped = CATEGORY_ORDER.flatMap(cat => flat.filter(c => c.category === cat));
+        expect(grouped.map(c => c.name)).toEqual(flat.map(c => c.name));
     });
 });

@@ -10,24 +10,38 @@
 
 export type CommandStatus = 'buildable' | 'blocked';
 
+/**
+ * CT2-9 · the group a command is listed under (§5 P6 — discoverability stopped
+ * at the name). The grouping is by WHERE THE COMMAND ROUTES, taken from the §4
+ * matrix, not by topic: `company` / `filings` / `data` / `sentiment` all mount a
+ * CompanyPage tab, `peer-compare` mounts GridView. A category invented from what
+ * a name sounds like would drift from the routing the moment either changed.
+ */
+export type CommandCategory = 'Company' | 'Comparison' | 'Unavailable';
+
 export interface CommandSpec {
     name: string;
     /** Usage hint shown in the palette, e.g. `<ticker>`. */
     usage: string;
     status: CommandStatus;
+    category: CommandCategory;
     /** What is missing. Set on `blocked` rows only — read by CT-8's refusal. */
     blocked?: string;
 }
 
+/** Render order for the palette's headings. Groups appear in this order. */
+export const CATEGORY_ORDER: CommandCategory[] = ['Company', 'Comparison', 'Unavailable'];
+
 // §4 command matrix. The two blocked rows are listed, not omitted: a name that
 // exists and cannot ship must be distinguishable from a typo (row 10).
 export const COMMANDS: CommandSpec[] = [
-    { name: 'company', usage: '<ticker>', status: 'buildable' },
-    { name: 'filings', usage: '<ticker>', status: 'buildable' },
-    { name: 'sentiment', usage: '<ticker>', status: 'buildable' },
-    { name: 'data', usage: '<ticker>', status: 'buildable' },
-    { name: 'peer-compare', usage: '<t1> <t2>', status: 'buildable' },
+    { name: 'company', usage: '<ticker>', status: 'buildable', category: 'Company' },
+    { name: 'filings', usage: '<ticker>', status: 'buildable', category: 'Company' },
+    { name: 'sentiment', usage: '<ticker>', status: 'buildable', category: 'Company' },
+    { name: 'data', usage: '<ticker>', status: 'buildable', category: 'Company' },
+    { name: 'peer-compare', usage: '<t1> <t2>', status: 'buildable', category: 'Comparison' },
     {
+        category: 'Unavailable',
         // CT-9 · probed, then closed. GridView runs authored prompts over a NAMED
         // ticker list; it takes no query, ranks nothing and filters no universe,
         // so a free-text screen has no target to reach. Wiring it would mean
@@ -37,11 +51,11 @@ export const COMMANDS: CommandSpec[] = [
         blocked: 'the Research Grid runs prompts over a named ticker list — it is not a screener, and no service ranks or filters a universe',
     },
     {
-        name: 'capex', usage: '<ticker>', status: 'blocked',
+        name: 'capex', usage: '<ticker>', status: 'blocked', category: 'Unavailable',
         blocked: 'no service supplies capex, and apps/market-ui/api holds 12 of 12 Vercel functions',
     },
     {
-        name: 'tariff-risk', usage: '<ticker>', status: 'blocked',
+        name: 'tariff-risk', usage: '<ticker>', status: 'blocked', category: 'Unavailable',
         blocked: 'no service supplies tariff risk, and apps/market-ui/api holds 12 of 12 Vercel functions',
     },
 ];
