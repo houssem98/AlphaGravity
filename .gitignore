@@ -1,6 +1,7 @@
 # ── Dependencies ─────────────────────
 node_modules/
 .venv/
+.venv-hr/
 __pycache__/
 *.pyc
 *.pyo
@@ -49,8 +50,12 @@ mempalace.yaml
 entities.json
 
 # ── External reference repos (not part of this codebase) ──
+# Clone separately if needed — see README.
 FinceptTerminal-main/
 TradingAgents-main/
+AionUi/
+caveman/
+ponytail/
 
 # ── Claude tool runtime ──
 .claude/scheduled_tasks.lock
@@ -61,3 +66,18 @@ TradingAgents-main/
 .claude/settings.json
 .claude/settings.local.json
 scripts/hermes.bat
+.hyperresearch/config.toml
+.hyperresearch/hyperresearch.db
+
+# ── Regenerable / local-only ─────────
+graphify-out/20*/
+graphify-out/cache/
+services/gravity-api/data/
+test-results/
+research/
+personal-website/
+gemini-code-*.md
+apps/market-ui/diag-tmp.mjs
+apps/market-ui/r17.txt
+*.exe
+attachments/

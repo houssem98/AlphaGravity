@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
     runRisk, parsePlan, renderPlan, riskPrompt, managerPrompt, clampRiskRounds,
-    RISK_ORDER, DISCLOSURE, DEFAULT_RISK_ROUNDS, MAX_RISK_ROUNDS,
+    minStopDistance, RISK_ORDER, DISCLOSURE, DEFAULT_RISK_ROUNDS, MAX_RISK_ROUNDS,
+    MIN_STOP_ATR,
     type RiskDeps,
 } from './dexterRisk';
 import type { AnalystReport } from './dexterGraph';
@@ -198,6 +199,75 @@ describe('row 15 — the manager is told the rule up front', () => {
             expect(system.content).toContain('percentage of the portfolio');
             expect(system.content).toContain('[N] marker');
         }
+    });
+});
+
+// ── DX-17: the stop floor ───────────────────────────────────────────────────
+// DX-15 replayed four trades and every one stopped out with its stop inside a
+// single ATR (0.48 / 0.67 / 0.25 / 0.93). The floor is stated on the definition
+// of ATR, not fitted to that sample.
+
+describe('DX-17 — a stop inside the noise is rejected', () => {
+    it('derives the floor from the ATR', () => {
+        expect(MIN_STOP_ATR).toBe(1.5);
+        expect(minStopDistance(2000)).toBe(3000);
+        expect(minStopDistance(null)).toBeNull();
+    });
+
+    it('rejects each of the four stops DX-15 actually placed', () => {
+        // date, entry, stop, ATR at that decision
+        const observed: Array<[string, number, number, number]> = [
+            ['2026-04-01', 68113.92, 69400, 2664.78],
+            ['2026-05-05', 80905.52, 79450, 2164.94],
+            ['2026-05-22', 75539.5, 76030, 2000.55],
+            ['2026-06-08', 63085.99, 65416.088, 2510.27],
+        ];
+        for (const [date, entry, stop, atr] of observed) {
+            const side = stop < entry ? 'BUY' : 'SELL';
+            const target = side === 'BUY' ? entry + atr * 3 : entry - atr * 3;
+            const text = `ACTION: ${side}\nENTRY: ${entry}\nSTOP: ${stop}\nTARGET: ${target}\nSIZE: 3`;
+            const { plan, problems } = parsePlan(text, minStopDistance(atr));
+            expect(plan, `${date} should have been rejected`).toBeNull();
+            expect(problems[0]).toContain('inside one day\'s ordinary range');
+        }
+    });
+
+    it('accepts a stop with room to breathe', () => {
+        const text = 'ACTION: BUY\nENTRY: 63000\nSTOP: 59000\nTARGET: 71000\nSIZE: 3';
+        expect(parsePlan(text, minStopDistance(2000)).plan).toMatchObject({ action: 'BUY', rr: 2 });
+    });
+
+    it('applies no floor when the history is too short for an ATR', () => {
+        const tight = 'ACTION: BUY\nENTRY: 100\nSTOP: 99.9\nTARGET: 120\nSIZE: 3';
+        expect(parsePlan(tight, null).plan).not.toBeNull();
+        expect(parsePlan(tight, minStopDistance(10)).plan).toBeNull();
+    });
+
+    it('still checks geometry before distance, so the message names the real fault', () => {
+        const upsideDown = 'ACTION: BUY\nENTRY: 100\nSTOP: 130\nTARGET: 90\nSIZE: 3';
+        expect(parsePlan(upsideDown, minStopDistance(1)).problems[0]).toContain('a BUY needs stop < entry < target');
+    });
+
+    it('tells the manager the number and what to do when the trade lacks room', () => {
+        const [system] = managerPrompt(CTX, REPORTS, DEBATE, [], 3000);
+        expect(system.content).toContain('at least 3000 away from your entry');
+        expect(system.content).toContain('1.5x the current ATR');
+        expect(system.content).toContain('the trade does not have room — answer HOLD');
+    });
+
+    it('falls back to plain guidance when there is no ATR to quote', () => {
+        const [system] = managerPrompt(CTX, REPORTS, DEBATE, [], null);
+        expect(system.content).toContain('where the idea is actually wrong');
+        expect(system.content).not.toContain('1.5x the current ATR');
+    });
+
+    it('threads the floor through the whole risk stage', async () => {
+        const tight = 'ACTION: BUY\nENTRY: 63000\nSTOP: 62900\nTARGET: 66000\nSIZE: 3';
+        const d = deps(tight);
+        const out = await runRisk(CTX, REPORTS, DEBATE, { ...d, minStop: 3000 }, 1);
+        expect(out.plan).toBeNull();
+        expect(out.commentary).toBe(true);
+        expect(out.rejectReason).toContain('must be at least 3000');
     });
 });
 

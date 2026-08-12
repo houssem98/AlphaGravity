@@ -1,16 +1,16 @@
-# Graph Report - antigravity  (2026-07-01)
+# Graph Report - antigravity  (2026-07-31)
 
 ## Corpus Check
-- 2473 files · ~19,916,109 words
+- 2827 files · ~24,399,805 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 34660 nodes · 44562 edges · 2065 communities (1958 shown, 107 thin omitted)
-- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 1403 edges (avg confidence: 0.61)
+- 39930 nodes · 50495 edges · 2535 communities (2370 shown, 165 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 1433 edges (avg confidence: 0.61)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f43446f9`
+- Built from commit: `0b7f99fa`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -587,6 +587,7 @@
 - [[_COMMUNITY_ACP Server Errors|ACP Server Errors]]
 - [[_COMMUNITY_Network Error Messages|Network Error Messages]]
 - [[_COMMUNITY_Team Management|Team Management]]
+- [[_COMMUNITY_Menubar Component|Menubar Component]]
 - [[_COMMUNITY_ACP Server Errors|ACP Server Errors]]
 - [[_COMMUNITY_Network Error Messages|Network Error Messages]]
 - [[_COMMUNITY_Speech Recording Errors|Speech Recording Errors]]
@@ -627,6 +628,8 @@
 - [[_COMMUNITY_SEC XBRL Extraction|SEC XBRL Extraction]]
 - [[_COMMUNITY_Desktop Pet Configuration|Desktop Pet Configuration]]
 - [[_COMMUNITY_Folder Selection Dialog|Folder Selection Dialog]]
+- [[_COMMUNITY_Context Menu UI|Context Menu UI]]
+- [[_COMMUNITY_Dropdown Menu UI|Dropdown Menu UI]]
 - [[_COMMUNITY_Desktop Pet Configuration|Desktop Pet Configuration]]
 - [[_COMMUNITY_Serve Handler Package|Serve Handler Package]]
 - [[_COMMUNITY_Desktop Pet Configuration|Desktop Pet Configuration]]
@@ -972,6 +975,8 @@
 - [[_COMMUNITY_MCP Shrink Tests|MCP Shrink Tests]]
 - [[_COMMUNITY_Watch Install Status|Watch Install Status]]
 - [[_COMMUNITY_Chart UI Components|Chart UI Components]]
+- [[_COMMUNITY_Drawer UI Components|Drawer UI Components]]
+- [[_COMMUNITY_Select UI Components|Select UI Components]]
 - [[_COMMUNITY_Sheet UI Components|Sheet UI Components]]
 - [[_COMMUNITY_Watch Install Status|Watch Install Status]]
 - [[_COMMUNITY_Watch Install Status|Watch Install Status]]
@@ -989,7 +994,6 @@
 - [[_COMMUNITY_Designer Revision P1-16|Designer Revision P1-16]]
 - [[_COMMUNITY_Bond Futures Analysis Skill|Bond Futures Analysis Skill]]
 - [[_COMMUNITY_M&A Buyer List Skill|M&A Buyer List Skill]]
-- [[_COMMUNITY_File Compression Utility|File Compression Utility]]
 - [[_COMMUNITY_File Compression Utility|File Compression Utility]]
 - [[_COMMUNITY_File Compression Utility|File Compression Utility]]
 - [[_COMMUNITY_Compression Safety Tests|Compression Safety Tests]]
@@ -1034,7 +1038,6 @@
 - [[_COMMUNITY_Contextual Retrieval|Contextual Retrieval]]
 - [[_COMMUNITY_Quartr Outreach Package|Quartr Outreach Package]]
 - [[_COMMUNITY_Chart Generation Workflow|Chart Generation Workflow]]
-- [[_COMMUNITY_Multi-Query Retrieval|Multi-Query Retrieval]]
 - [[_COMMUNITY_Search UI Labels|Search UI Labels]]
 - [[_COMMUNITY_Confirmation Dialog Options|Confirmation Dialog Options]]
 - [[_COMMUNITY_Excel Import Errors|Excel Import Errors]]
@@ -1049,7 +1052,6 @@
 - [[_COMMUNITY_Search UI Labels|Search UI Labels]]
 - [[_COMMUNITY_Confirmation Dialog Options|Confirmation Dialog Options]]
 - [[_COMMUNITY_Excel Import Errors|Excel Import Errors]]
-- [[_COMMUNITY_Navigation Menu Component|Navigation Menu Component]]
 - [[_COMMUNITY_Search UI Labels|Search UI Labels]]
 - [[_COMMUNITY_Confirmation Dialog Options|Confirmation Dialog Options]]
 - [[_COMMUNITY_Excel Import Errors|Excel Import Errors]]
@@ -1077,7 +1079,6 @@
 - [[_COMMUNITY_Earnings Analysis Workflow|Earnings Analysis Workflow]]
 - [[_COMMUNITY_Deal Sourcing Workflow|Deal Sourcing Workflow]]
 - [[_COMMUNITY_Deal Tracker Workflow|Deal Tracker Workflow]]
-- [[_COMMUNITY_Gemini Embedder|Gemini Embedder]]
 - [[_COMMUNITY_Community 1068|Community 1068]]
 - [[_COMMUNITY_Voyage Finance Embedder|Voyage Finance Embedder]]
 - [[_COMMUNITY_Status Labels|Status Labels]]
@@ -1107,7 +1108,6 @@
 - [[_COMMUNITY_Team Agent Configuration|Team Agent Configuration]]
 - [[_COMMUNITY_Community 1095|Community 1095]]
 - [[_COMMUNITY_SEC EDGAR Bulk Ingestion|SEC EDGAR Bulk Ingestion]]
-- [[_COMMUNITY_Financials UI Components|Financials UI Components]]
 - [[_COMMUNITY_ES to Qdrant Sync|ES to Qdrant Sync]]
 - [[_COMMUNITY_Auth Rate Limiter|Auth Rate Limiter]]
 - [[_COMMUNITY_Community 1100|Community 1100]]
@@ -1203,6 +1203,8 @@
 - [[_COMMUNITY_Weekday Names|Weekday Names]]
 - [[_COMMUNITY_Install Error Messages|Install Error Messages]]
 - [[_COMMUNITY_MCP Configuration|MCP Configuration]]
+- [[_COMMUNITY_Breadcrumb UI|Breadcrumb UI]]
+- [[_COMMUNITY_Card UI Components|Card UI Components]]
 - [[_COMMUNITY_Empty State UI|Empty State UI]]
 - [[_COMMUNITY_Config Import Export|Config Import Export]]
 - [[_COMMUNITY_Weekday Names|Weekday Names]]
@@ -1605,7 +1607,11 @@
 - [[_COMMUNITY_File Conversion Errors|File Conversion Errors]]
 - [[_COMMUNITY_PDF Load Errors|PDF Load Errors]]
 - [[_COMMUNITY_PowerPoint Install Flow|PowerPoint Install Flow]]
+- [[_COMMUNITY_Accordion Component|Accordion Component]]
 - [[_COMMUNITY_Alert Component|Alert Component]]
+- [[_COMMUNITY_Input OTP Component|Input OTP Component]]
+- [[_COMMUNITY_Popover Component|Popover Component]]
+- [[_COMMUNITY_Tabs Component|Tabs Component]]
 - [[_COMMUNITY_Command Permission Descriptions|Command Permission Descriptions]]
 - [[_COMMUNITY_File Read Permissions|File Read Permissions]]
 - [[_COMMUNITY_File Write Permissions|File Write Permissions]]
@@ -1723,6 +1729,10 @@
 - [[_COMMUNITY_Community 1721|Community 1721]]
 - [[_COMMUNITY_Community 1722|Community 1722]]
 - [[_COMMUNITY_Sentiment Panel Component|Sentiment Panel Component]]
+- [[_COMMUNITY_Avatar Component|Avatar Component]]
+- [[_COMMUNITY_Collapsible Component|Collapsible Component]]
+- [[_COMMUNITY_Hover Card Component|Hover Card Component]]
+- [[_COMMUNITY_Resizable Panel Component|Resizable Panel Component]]
 - [[_COMMUNITY_File & Command Operations|File & Command Operations]]
 - [[_COMMUNITY_GPU Recovery Test|GPU Recovery Test]]
 - [[_COMMUNITY_File & Command Operations|File & Command Operations]]
@@ -1782,6 +1792,9 @@
 - [[_COMMUNITY_Community 1786|Community 1786]]
 - [[_COMMUNITY_Community 1787|Community 1787]]
 - [[_COMMUNITY_Badge Component|Badge Component]]
+- [[_COMMUNITY_Kbd Component|Kbd Component]]
+- [[_COMMUNITY_Radio Group Component|Radio Group Component]]
+- [[_COMMUNITY_Scroll Area Component|Scroll Area Component]]
 - [[_COMMUNITY_Time Unit Shortcuts|Time Unit Shortcuts]]
 - [[_COMMUNITY_Capabilities Tab SkillsTools|Capabilities Tab: Skills/Tools]]
 - [[_COMMUNITY_Event Collector|Event Collector]]
@@ -1790,6 +1803,8 @@
 - [[_COMMUNITY_Capabilities & Tools|Capabilities & Tools]]
 - [[_COMMUNITY_Gravity Multi-Agent Framework|Gravity Multi-Agent Framework]]
 - [[_COMMUNITY_Vitest Config Aliases|Vitest Config Aliases]]
+- [[_COMMUNITY_History Handler|History Handler]]
+- [[_COMMUNITY_Quote Handler|Quote Handler]]
 - [[_COMMUNITY_Mock Release Artifacts Script|Mock Release Artifacts Script]]
 - [[_COMMUNITY_Prepare Release Assets Script|Prepare Release Assets Script]]
 - [[_COMMUNITY_Smoke Test Web CLI|Smoke Test Web CLI]]
@@ -1801,6 +1816,8 @@
 - [[_COMMUNITY_Caveman Compression Scripts|Caveman Compression Scripts]]
 - [[_COMMUNITY_Caveman Compression Scripts|Caveman Compression Scripts]]
 - [[_COMMUNITY_Caveman Compression Scripts|Caveman Compression Scripts]]
+- [[_COMMUNITY_Klines Handler|Klines Handler]]
+- [[_COMMUNITY_Markets Handler|Markets Handler]]
 - [[_COMMUNITY_Routing Feedback Loop|Routing Feedback Loop]]
 - [[_COMMUNITY_Financial Computation Utilities|Financial Computation Utilities]]
 - [[_COMMUNITY_Hooks Config|Hooks Config]]
@@ -1824,6 +1841,12 @@
 - [[_COMMUNITY_SPGlobal MCP Config|SPGlobal MCP Config]]
 - [[_COMMUNITY_Cookie Parse Types|Cookie Parse Types]]
 - [[_COMMUNITY_PPTX to JSON Types|PPTX to JSON Types]]
+- [[_COMMUNITY_AspectRatio Component|AspectRatio Component]]
+- [[_COMMUNITY_Checkbox Component|Checkbox Component]]
+- [[_COMMUNITY_Progress Component|Progress Component]]
+- [[_COMMUNITY_Slider Component|Slider Component]]
+- [[_COMMUNITY_Spinner Component|Spinner Component]]
+- [[_COMMUNITY_Switch Component|Switch Component]]
 - [[_COMMUNITY_Gemini Models|Gemini Models]]
 - [[_COMMUNITY_Copilot Instructions|Copilot Instructions]]
 - [[_COMMUNITY_Chat Processing|Chat Processing]]
@@ -1876,15 +1899,391 @@
 - [[_COMMUNITY_Community 2052|Community 2052]]
 - [[_COMMUNITY_Community 2053|Community 2053]]
 - [[_COMMUNITY_Community 2055|Community 2055]]
+- [[_COMMUNITY_Community 2065|Community 2065]]
+- [[_COMMUNITY_Community 2066|Community 2066]]
+- [[_COMMUNITY_Community 2067|Community 2067]]
+- [[_COMMUNITY_Community 2068|Community 2068]]
+- [[_COMMUNITY_Community 2069|Community 2069]]
+- [[_COMMUNITY_Community 2070|Community 2070]]
+- [[_COMMUNITY_Community 2071|Community 2071]]
+- [[_COMMUNITY_Community 2072|Community 2072]]
+- [[_COMMUNITY_Community 2073|Community 2073]]
+- [[_COMMUNITY_Community 2074|Community 2074]]
+- [[_COMMUNITY_Community 2075|Community 2075]]
+- [[_COMMUNITY_Community 2076|Community 2076]]
+- [[_COMMUNITY_Community 2077|Community 2077]]
+- [[_COMMUNITY_Community 2078|Community 2078]]
+- [[_COMMUNITY_Community 2079|Community 2079]]
+- [[_COMMUNITY_Community 2080|Community 2080]]
+- [[_COMMUNITY_Community 2081|Community 2081]]
+- [[_COMMUNITY_Community 2082|Community 2082]]
+- [[_COMMUNITY_Community 2083|Community 2083]]
+- [[_COMMUNITY_Community 2084|Community 2084]]
+- [[_COMMUNITY_Community 2085|Community 2085]]
+- [[_COMMUNITY_Community 2086|Community 2086]]
+- [[_COMMUNITY_Community 2087|Community 2087]]
+- [[_COMMUNITY_Community 2088|Community 2088]]
+- [[_COMMUNITY_Community 2089|Community 2089]]
+- [[_COMMUNITY_Community 2090|Community 2090]]
+- [[_COMMUNITY_Community 2091|Community 2091]]
+- [[_COMMUNITY_Community 2092|Community 2092]]
+- [[_COMMUNITY_Community 2093|Community 2093]]
+- [[_COMMUNITY_Community 2094|Community 2094]]
+- [[_COMMUNITY_Community 2095|Community 2095]]
+- [[_COMMUNITY_Community 2096|Community 2096]]
+- [[_COMMUNITY_Community 2097|Community 2097]]
+- [[_COMMUNITY_Community 2098|Community 2098]]
+- [[_COMMUNITY_Community 2099|Community 2099]]
+- [[_COMMUNITY_Community 2100|Community 2100]]
+- [[_COMMUNITY_Community 2101|Community 2101]]
+- [[_COMMUNITY_Community 2102|Community 2102]]
+- [[_COMMUNITY_Community 2103|Community 2103]]
+- [[_COMMUNITY_Community 2104|Community 2104]]
+- [[_COMMUNITY_Community 2105|Community 2105]]
+- [[_COMMUNITY_Community 2106|Community 2106]]
+- [[_COMMUNITY_Community 2107|Community 2107]]
+- [[_COMMUNITY_Community 2108|Community 2108]]
+- [[_COMMUNITY_Community 2109|Community 2109]]
+- [[_COMMUNITY_Community 2110|Community 2110]]
+- [[_COMMUNITY_Community 2111|Community 2111]]
+- [[_COMMUNITY_Community 2112|Community 2112]]
+- [[_COMMUNITY_Community 2113|Community 2113]]
+- [[_COMMUNITY_Community 2114|Community 2114]]
+- [[_COMMUNITY_Community 2115|Community 2115]]
+- [[_COMMUNITY_Community 2116|Community 2116]]
+- [[_COMMUNITY_Community 2117|Community 2117]]
+- [[_COMMUNITY_Community 2118|Community 2118]]
+- [[_COMMUNITY_Community 2119|Community 2119]]
+- [[_COMMUNITY_Community 2120|Community 2120]]
+- [[_COMMUNITY_Community 2121|Community 2121]]
+- [[_COMMUNITY_Community 2122|Community 2122]]
+- [[_COMMUNITY_Community 2123|Community 2123]]
+- [[_COMMUNITY_Community 2124|Community 2124]]
+- [[_COMMUNITY_Community 2125|Community 2125]]
+- [[_COMMUNITY_Community 2126|Community 2126]]
+- [[_COMMUNITY_Community 2127|Community 2127]]
+- [[_COMMUNITY_Community 2128|Community 2128]]
+- [[_COMMUNITY_Community 2129|Community 2129]]
+- [[_COMMUNITY_Community 2130|Community 2130]]
+- [[_COMMUNITY_Community 2131|Community 2131]]
+- [[_COMMUNITY_Community 2132|Community 2132]]
+- [[_COMMUNITY_Community 2133|Community 2133]]
+- [[_COMMUNITY_Community 2134|Community 2134]]
+- [[_COMMUNITY_Community 2135|Community 2135]]
+- [[_COMMUNITY_Community 2136|Community 2136]]
+- [[_COMMUNITY_Community 2137|Community 2137]]
+- [[_COMMUNITY_Community 2138|Community 2138]]
+- [[_COMMUNITY_Community 2139|Community 2139]]
+- [[_COMMUNITY_Community 2140|Community 2140]]
+- [[_COMMUNITY_Community 2141|Community 2141]]
+- [[_COMMUNITY_Community 2142|Community 2142]]
+- [[_COMMUNITY_Community 2143|Community 2143]]
+- [[_COMMUNITY_Community 2144|Community 2144]]
+- [[_COMMUNITY_Community 2145|Community 2145]]
+- [[_COMMUNITY_Community 2146|Community 2146]]
+- [[_COMMUNITY_Community 2147|Community 2147]]
+- [[_COMMUNITY_Community 2148|Community 2148]]
+- [[_COMMUNITY_Community 2149|Community 2149]]
+- [[_COMMUNITY_Community 2150|Community 2150]]
+- [[_COMMUNITY_Community 2151|Community 2151]]
+- [[_COMMUNITY_Community 2152|Community 2152]]
+- [[_COMMUNITY_Community 2153|Community 2153]]
+- [[_COMMUNITY_Community 2154|Community 2154]]
+- [[_COMMUNITY_Community 2155|Community 2155]]
+- [[_COMMUNITY_Community 2156|Community 2156]]
+- [[_COMMUNITY_Community 2157|Community 2157]]
+- [[_COMMUNITY_Community 2158|Community 2158]]
+- [[_COMMUNITY_Community 2159|Community 2159]]
+- [[_COMMUNITY_Community 2160|Community 2160]]
+- [[_COMMUNITY_Community 2161|Community 2161]]
+- [[_COMMUNITY_Community 2162|Community 2162]]
+- [[_COMMUNITY_Community 2163|Community 2163]]
+- [[_COMMUNITY_Community 2164|Community 2164]]
+- [[_COMMUNITY_Community 2165|Community 2165]]
+- [[_COMMUNITY_Community 2166|Community 2166]]
+- [[_COMMUNITY_Community 2167|Community 2167]]
+- [[_COMMUNITY_Community 2168|Community 2168]]
+- [[_COMMUNITY_Community 2169|Community 2169]]
+- [[_COMMUNITY_Community 2170|Community 2170]]
+- [[_COMMUNITY_Community 2171|Community 2171]]
+- [[_COMMUNITY_Community 2172|Community 2172]]
+- [[_COMMUNITY_Community 2173|Community 2173]]
+- [[_COMMUNITY_Community 2174|Community 2174]]
+- [[_COMMUNITY_Community 2175|Community 2175]]
+- [[_COMMUNITY_Community 2176|Community 2176]]
+- [[_COMMUNITY_Community 2177|Community 2177]]
+- [[_COMMUNITY_Community 2178|Community 2178]]
+- [[_COMMUNITY_Community 2179|Community 2179]]
+- [[_COMMUNITY_Community 2180|Community 2180]]
+- [[_COMMUNITY_Community 2181|Community 2181]]
+- [[_COMMUNITY_Community 2182|Community 2182]]
+- [[_COMMUNITY_Community 2183|Community 2183]]
+- [[_COMMUNITY_Community 2184|Community 2184]]
+- [[_COMMUNITY_Community 2185|Community 2185]]
+- [[_COMMUNITY_Community 2186|Community 2186]]
+- [[_COMMUNITY_Community 2187|Community 2187]]
+- [[_COMMUNITY_Community 2188|Community 2188]]
+- [[_COMMUNITY_Community 2189|Community 2189]]
+- [[_COMMUNITY_Community 2190|Community 2190]]
+- [[_COMMUNITY_Community 2191|Community 2191]]
+- [[_COMMUNITY_Community 2192|Community 2192]]
+- [[_COMMUNITY_Community 2193|Community 2193]]
+- [[_COMMUNITY_Community 2195|Community 2195]]
+- [[_COMMUNITY_Community 2196|Community 2196]]
+- [[_COMMUNITY_Community 2197|Community 2197]]
+- [[_COMMUNITY_Community 2198|Community 2198]]
+- [[_COMMUNITY_Community 2199|Community 2199]]
+- [[_COMMUNITY_Community 2200|Community 2200]]
+- [[_COMMUNITY_Community 2201|Community 2201]]
+- [[_COMMUNITY_Community 2202|Community 2202]]
+- [[_COMMUNITY_Community 2203|Community 2203]]
+- [[_COMMUNITY_Community 2204|Community 2204]]
+- [[_COMMUNITY_Community 2205|Community 2205]]
+- [[_COMMUNITY_Community 2206|Community 2206]]
+- [[_COMMUNITY_Community 2207|Community 2207]]
+- [[_COMMUNITY_Community 2208|Community 2208]]
+- [[_COMMUNITY_Community 2210|Community 2210]]
+- [[_COMMUNITY_Community 2211|Community 2211]]
+- [[_COMMUNITY_Community 2212|Community 2212]]
+- [[_COMMUNITY_Community 2213|Community 2213]]
+- [[_COMMUNITY_Community 2214|Community 2214]]
+- [[_COMMUNITY_Community 2215|Community 2215]]
+- [[_COMMUNITY_Community 2216|Community 2216]]
+- [[_COMMUNITY_Community 2217|Community 2217]]
+- [[_COMMUNITY_Community 2222|Community 2222]]
+- [[_COMMUNITY_Community 2223|Community 2223]]
+- [[_COMMUNITY_Community 2224|Community 2224]]
+- [[_COMMUNITY_Community 2229|Community 2229]]
+- [[_COMMUNITY_Community 2230|Community 2230]]
+- [[_COMMUNITY_Community 2232|Community 2232]]
+- [[_COMMUNITY_Community 2233|Community 2233]]
+- [[_COMMUNITY_Community 2234|Community 2234]]
+- [[_COMMUNITY_Community 2235|Community 2235]]
+- [[_COMMUNITY_Community 2236|Community 2236]]
+- [[_COMMUNITY_Community 2237|Community 2237]]
+- [[_COMMUNITY_Community 2238|Community 2238]]
+- [[_COMMUNITY_Community 2240|Community 2240]]
+- [[_COMMUNITY_Community 2241|Community 2241]]
+- [[_COMMUNITY_Community 2242|Community 2242]]
+- [[_COMMUNITY_Community 2243|Community 2243]]
+- [[_COMMUNITY_Community 2244|Community 2244]]
+- [[_COMMUNITY_Community 2245|Community 2245]]
+- [[_COMMUNITY_Community 2247|Community 2247]]
+- [[_COMMUNITY_Community 2248|Community 2248]]
+- [[_COMMUNITY_Community 2249|Community 2249]]
+- [[_COMMUNITY_Community 2250|Community 2250]]
+- [[_COMMUNITY_Community 2251|Community 2251]]
+- [[_COMMUNITY_Community 2253|Community 2253]]
+- [[_COMMUNITY_Community 2254|Community 2254]]
+- [[_COMMUNITY_Community 2255|Community 2255]]
+- [[_COMMUNITY_Community 2256|Community 2256]]
+- [[_COMMUNITY_Community 2259|Community 2259]]
+- [[_COMMUNITY_Community 2260|Community 2260]]
+- [[_COMMUNITY_Community 2261|Community 2261]]
+- [[_COMMUNITY_Community 2262|Community 2262]]
+- [[_COMMUNITY_Community 2263|Community 2263]]
+- [[_COMMUNITY_Community 2264|Community 2264]]
+- [[_COMMUNITY_Community 2265|Community 2265]]
+- [[_COMMUNITY_Community 2266|Community 2266]]
+- [[_COMMUNITY_Community 2267|Community 2267]]
+- [[_COMMUNITY_Community 2268|Community 2268]]
+- [[_COMMUNITY_Community 2269|Community 2269]]
+- [[_COMMUNITY_Community 2270|Community 2270]]
+- [[_COMMUNITY_Community 2271|Community 2271]]
+- [[_COMMUNITY_Community 2272|Community 2272]]
+- [[_COMMUNITY_Community 2273|Community 2273]]
+- [[_COMMUNITY_Community 2274|Community 2274]]
+- [[_COMMUNITY_Community 2275|Community 2275]]
+- [[_COMMUNITY_Community 2276|Community 2276]]
+- [[_COMMUNITY_Community 2277|Community 2277]]
+- [[_COMMUNITY_Community 2278|Community 2278]]
+- [[_COMMUNITY_Community 2279|Community 2279]]
+- [[_COMMUNITY_Community 2280|Community 2280]]
+- [[_COMMUNITY_Community 2281|Community 2281]]
+- [[_COMMUNITY_Community 2282|Community 2282]]
+- [[_COMMUNITY_Community 2283|Community 2283]]
+- [[_COMMUNITY_Community 2284|Community 2284]]
+- [[_COMMUNITY_Community 2287|Community 2287]]
+- [[_COMMUNITY_Community 2288|Community 2288]]
+- [[_COMMUNITY_Community 2289|Community 2289]]
+- [[_COMMUNITY_Community 2290|Community 2290]]
+- [[_COMMUNITY_Community 2291|Community 2291]]
+- [[_COMMUNITY_Community 2292|Community 2292]]
+- [[_COMMUNITY_Community 2293|Community 2293]]
+- [[_COMMUNITY_Community 2294|Community 2294]]
+- [[_COMMUNITY_Community 2295|Community 2295]]
+- [[_COMMUNITY_Community 2296|Community 2296]]
+- [[_COMMUNITY_Community 2297|Community 2297]]
+- [[_COMMUNITY_Community 2298|Community 2298]]
+- [[_COMMUNITY_Community 2300|Community 2300]]
+- [[_COMMUNITY_Community 2301|Community 2301]]
+- [[_COMMUNITY_Community 2302|Community 2302]]
+- [[_COMMUNITY_Community 2303|Community 2303]]
+- [[_COMMUNITY_Community 2304|Community 2304]]
+- [[_COMMUNITY_Community 2305|Community 2305]]
+- [[_COMMUNITY_Community 2306|Community 2306]]
+- [[_COMMUNITY_Community 2307|Community 2307]]
+- [[_COMMUNITY_Community 2308|Community 2308]]
+- [[_COMMUNITY_Community 2309|Community 2309]]
+- [[_COMMUNITY_Community 2310|Community 2310]]
+- [[_COMMUNITY_Community 2311|Community 2311]]
+- [[_COMMUNITY_Community 2312|Community 2312]]
+- [[_COMMUNITY_Community 2313|Community 2313]]
+- [[_COMMUNITY_Community 2314|Community 2314]]
+- [[_COMMUNITY_Community 2315|Community 2315]]
+- [[_COMMUNITY_Community 2316|Community 2316]]
+- [[_COMMUNITY_Community 2317|Community 2317]]
+- [[_COMMUNITY_Community 2318|Community 2318]]
+- [[_COMMUNITY_Community 2319|Community 2319]]
+- [[_COMMUNITY_Community 2320|Community 2320]]
+- [[_COMMUNITY_Community 2321|Community 2321]]
+- [[_COMMUNITY_Community 2322|Community 2322]]
+- [[_COMMUNITY_Community 2323|Community 2323]]
+- [[_COMMUNITY_Community 2324|Community 2324]]
+- [[_COMMUNITY_Community 2325|Community 2325]]
+- [[_COMMUNITY_Community 2326|Community 2326]]
+- [[_COMMUNITY_Community 2327|Community 2327]]
+- [[_COMMUNITY_Community 2329|Community 2329]]
+- [[_COMMUNITY_Community 2330|Community 2330]]
+- [[_COMMUNITY_Community 2335|Community 2335]]
+- [[_COMMUNITY_Community 2336|Community 2336]]
+- [[_COMMUNITY_Community 2337|Community 2337]]
+- [[_COMMUNITY_Community 2338|Community 2338]]
+- [[_COMMUNITY_Community 2339|Community 2339]]
+- [[_COMMUNITY_Community 2340|Community 2340]]
+- [[_COMMUNITY_Community 2342|Community 2342]]
+- [[_COMMUNITY_Community 2343|Community 2343]]
+- [[_COMMUNITY_Community 2348|Community 2348]]
+- [[_COMMUNITY_Community 2349|Community 2349]]
+- [[_COMMUNITY_Community 2350|Community 2350]]
+- [[_COMMUNITY_Community 2351|Community 2351]]
+- [[_COMMUNITY_Community 2352|Community 2352]]
+- [[_COMMUNITY_Community 2353|Community 2353]]
+- [[_COMMUNITY_Community 2354|Community 2354]]
+- [[_COMMUNITY_Community 2359|Community 2359]]
+- [[_COMMUNITY_Community 2360|Community 2360]]
+- [[_COMMUNITY_Community 2361|Community 2361]]
+- [[_COMMUNITY_Community 2362|Community 2362]]
+- [[_COMMUNITY_Community 2363|Community 2363]]
+- [[_COMMUNITY_Community 2364|Community 2364]]
+- [[_COMMUNITY_Community 2365|Community 2365]]
+- [[_COMMUNITY_Community 2366|Community 2366]]
+- [[_COMMUNITY_Community 2371|Community 2371]]
+- [[_COMMUNITY_Community 2372|Community 2372]]
+- [[_COMMUNITY_Community 2373|Community 2373]]
+- [[_COMMUNITY_Community 2374|Community 2374]]
+- [[_COMMUNITY_Community 2375|Community 2375]]
+- [[_COMMUNITY_Community 2376|Community 2376]]
+- [[_COMMUNITY_Community 2377|Community 2377]]
+- [[_COMMUNITY_Community 2378|Community 2378]]
+- [[_COMMUNITY_Community 2379|Community 2379]]
+- [[_COMMUNITY_Community 2384|Community 2384]]
+- [[_COMMUNITY_Community 2385|Community 2385]]
+- [[_COMMUNITY_Community 2386|Community 2386]]
+- [[_COMMUNITY_Community 2387|Community 2387]]
+- [[_COMMUNITY_Community 2388|Community 2388]]
+- [[_COMMUNITY_Community 2389|Community 2389]]
+- [[_COMMUNITY_Community 2390|Community 2390]]
+- [[_COMMUNITY_Community 2391|Community 2391]]
+- [[_COMMUNITY_Community 2392|Community 2392]]
+- [[_COMMUNITY_Community 2393|Community 2393]]
+- [[_COMMUNITY_Community 2394|Community 2394]]
+- [[_COMMUNITY_Community 2399|Community 2399]]
+- [[_COMMUNITY_Community 2400|Community 2400]]
+- [[_COMMUNITY_Community 2414|Community 2414]]
+- [[_COMMUNITY_Community 2415|Community 2415]]
+- [[_COMMUNITY_Community 2416|Community 2416]]
+- [[_COMMUNITY_Community 2417|Community 2417]]
+- [[_COMMUNITY_Community 2418|Community 2418]]
+- [[_COMMUNITY_Community 2419|Community 2419]]
+- [[_COMMUNITY_Community 2420|Community 2420]]
+- [[_COMMUNITY_Community 2421|Community 2421]]
+- [[_COMMUNITY_Community 2422|Community 2422]]
+- [[_COMMUNITY_Community 2423|Community 2423]]
+- [[_COMMUNITY_Community 2424|Community 2424]]
+- [[_COMMUNITY_Community 2425|Community 2425]]
+- [[_COMMUNITY_Community 2426|Community 2426]]
+- [[_COMMUNITY_Community 2427|Community 2427]]
+- [[_COMMUNITY_Community 2428|Community 2428]]
+- [[_COMMUNITY_Community 2429|Community 2429]]
+- [[_COMMUNITY_Community 2430|Community 2430]]
+- [[_COMMUNITY_Community 2431|Community 2431]]
+- [[_COMMUNITY_Community 2459|Community 2459]]
+- [[_COMMUNITY_Community 2460|Community 2460]]
+- [[_COMMUNITY_Community 2461|Community 2461]]
+- [[_COMMUNITY_Community 2462|Community 2462]]
+- [[_COMMUNITY_Community 2463|Community 2463]]
+- [[_COMMUNITY_Community 2464|Community 2464]]
+- [[_COMMUNITY_Community 2465|Community 2465]]
+- [[_COMMUNITY_Community 2466|Community 2466]]
+- [[_COMMUNITY_Community 2467|Community 2467]]
+- [[_COMMUNITY_Community 2469|Community 2469]]
+- [[_COMMUNITY_Community 2470|Community 2470]]
+- [[_COMMUNITY_Community 2471|Community 2471]]
+- [[_COMMUNITY_Community 2472|Community 2472]]
+- [[_COMMUNITY_Community 2473|Community 2473]]
+- [[_COMMUNITY_Community 2474|Community 2474]]
+- [[_COMMUNITY_Community 2475|Community 2475]]
+- [[_COMMUNITY_Community 2476|Community 2476]]
+- [[_COMMUNITY_Community 2477|Community 2477]]
+- [[_COMMUNITY_Community 2478|Community 2478]]
+- [[_COMMUNITY_Community 2479|Community 2479]]
+- [[_COMMUNITY_Community 2480|Community 2480]]
+- [[_COMMUNITY_Community 2481|Community 2481]]
+- [[_COMMUNITY_Community 2482|Community 2482]]
+- [[_COMMUNITY_Community 2483|Community 2483]]
+- [[_COMMUNITY_Community 2484|Community 2484]]
+- [[_COMMUNITY_Community 2485|Community 2485]]
+- [[_COMMUNITY_Community 2486|Community 2486]]
+- [[_COMMUNITY_Community 2487|Community 2487]]
+- [[_COMMUNITY_Community 2488|Community 2488]]
+- [[_COMMUNITY_Community 2489|Community 2489]]
+- [[_COMMUNITY_Community 2490|Community 2490]]
+- [[_COMMUNITY_Community 2491|Community 2491]]
+- [[_COMMUNITY_Community 2492|Community 2492]]
+- [[_COMMUNITY_Community 2493|Community 2493]]
+- [[_COMMUNITY_Community 2494|Community 2494]]
+- [[_COMMUNITY_Community 2495|Community 2495]]
+- [[_COMMUNITY_Community 2496|Community 2496]]
+- [[_COMMUNITY_Community 2497|Community 2497]]
+- [[_COMMUNITY_Community 2498|Community 2498]]
+- [[_COMMUNITY_Community 2499|Community 2499]]
+- [[_COMMUNITY_Community 2500|Community 2500]]
+- [[_COMMUNITY_Community 2501|Community 2501]]
+- [[_COMMUNITY_Community 2502|Community 2502]]
+- [[_COMMUNITY_Community 2503|Community 2503]]
+- [[_COMMUNITY_Community 2504|Community 2504]]
+- [[_COMMUNITY_Community 2505|Community 2505]]
+- [[_COMMUNITY_Community 2506|Community 2506]]
+- [[_COMMUNITY_Community 2507|Community 2507]]
+- [[_COMMUNITY_Community 2508|Community 2508]]
+- [[_COMMUNITY_Community 2509|Community 2509]]
+- [[_COMMUNITY_Community 2510|Community 2510]]
+- [[_COMMUNITY_Community 2511|Community 2511]]
+- [[_COMMUNITY_Community 2512|Community 2512]]
+- [[_COMMUNITY_Community 2513|Community 2513]]
+- [[_COMMUNITY_Community 2514|Community 2514]]
+- [[_COMMUNITY_Community 2515|Community 2515]]
+- [[_COMMUNITY_Community 2516|Community 2516]]
+- [[_COMMUNITY_Community 2517|Community 2517]]
+- [[_COMMUNITY_Community 2519|Community 2519]]
+- [[_COMMUNITY_Community 2520|Community 2520]]
+- [[_COMMUNITY_Community 2521|Community 2521]]
+- [[_COMMUNITY_Community 2522|Community 2522]]
+- [[_COMMUNITY_Community 2523|Community 2523]]
+- [[_COMMUNITY_Community 2527|Community 2527]]
+- [[_COMMUNITY_Community 2528|Community 2528]]
+- [[_COMMUNITY_Community 2529|Community 2529]]
+- [[_COMMUNITY_Community 2530|Community 2530]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `test` - 92 edges
 2. `BaseModel` - 83 edges
 3. `RetrievalResult` - 71 edges
 4. `useThemeColor()` - 66 edges
-5. `scripts` - 55 edges
-6. `useLayoutContext()` - 55 edges
-7. `history` - 53 edges
+5. `performDeepResearch()` - 61 edges
+6. `scripts` - 55 edges
+7. `useLayoutContext()` - 55 edges
 8. `history` - 53 edges
 9. `history` - 53 edges
 10. `history` - 53 edges
@@ -1898,8 +2297,8 @@
   caveman/tests/test_mcp_shrink.js → AionUi/packages/desktop/src/renderer/utils/ui/createContext.tsx
 - `test()` --calls--> `FN`  [INFERRED]
   caveman/tests/test_symlink_flag.js → AionUi/packages/desktop/src/renderer/utils/ui/createContext.tsx
-- `handleAppReady()` --calls--> `verifyCdpReady()`  [INFERRED]
-  AionUi/packages/desktop/src/index.ts → AionUi/packages/desktop/src/process/utils/configureChromium.ts
+- `FundamentalPanel()` --calls--> `formatNumber()`  [INFERRED]
+  apps/market-ui/src/components/trading/FundamentalPanel.tsx → AionUi/scripts/run-benchmarks.ts
 
 ## Import Cycles
 - 1-file cycle: `services/gravity-api/app/main.py -> services/gravity-api/app/main.py`
@@ -1912,7 +2311,7 @@
 - 5-file cycle: `AionUi/packages/desktop/src/renderer/components/Markdown/MermaidBlock.tsx -> AionUi/packages/desktop/src/renderer/pages/conversation/Preview/index.ts -> AionUi/packages/desktop/src/renderer/pages/conversation/Preview/components/index.ts -> AionUi/packages/desktop/src/renderer/pages/conversation/Preview/components/PreviewPanel/PreviewPanel.tsx -> AionUi/packages/desktop/src/renderer/pages/conversation/Preview/components/viewers/MarkdownViewer.tsx -> AionUi/packages/desktop/src/renderer/components/Markdown/MermaidBlock.tsx`
 - 5-file cycle: `AionUi/packages/desktop/src/renderer/components/Markdown/MermaidBlock.tsx -> AionUi/packages/desktop/src/renderer/pages/conversation/Preview/index.ts -> AionUi/packages/desktop/src/renderer/pages/conversation/Preview/components/index.ts -> AionUi/packages/desktop/src/renderer/pages/conversation/Preview/components/viewers/index.ts -> AionUi/packages/desktop/src/renderer/pages/conversation/Preview/components/viewers/MarkdownViewer.tsx -> AionUi/packages/desktop/src/renderer/components/Markdown/MermaidBlock.tsx`
 
-## Communities (2065 total, 107 thin omitted)
+## Communities (2535 total, 165 thin omitted)
 
 ### Community 0 - "Model Settings UI"
 Cohesion: 0.00
@@ -1948,7 +2347,7 @@ Nodes (428): about, addModel, addModelHint, addModelMoreCount, addModelNoExistin
 
 ### Community 8 - "ACP Send Box"
 Cohesion: 0.02
-Nodes (175): AcpChat(), AcpSendBox(), EMPTY_AT_PATH, EMPTY_UPLOAD_FILES, useAcpSendBoxDraft, useSendBoxDraft(), useAcpInitialMessage(), UseAcpInitialMessageParams (+167 more)
+Nodes (184): AcpSendBox(), EMPTY_AT_PATH, EMPTY_UPLOAD_FILES, useAcpSendBoxDraft, useSendBoxDraft(), useAcpInitialMessage(), UseAcpInitialMessageParams, AionrsSendBox() (+176 more)
 
 ### Community 9 - "API Model Mapping"
 Cohesion: 0.02
@@ -1956,67 +2355,67 @@ Nodes (143): ApiProviderWithModel, fromApiConversation(), fromApiModel(), fromAp
 
 ### Community 10 - "Cron Job Layout"
 Cohesion: 0.03
-Nodes (91): buildGroupedHistory(), buildAutoTitleFromContent(), deriveAutoTitleFromMessages(), TMessage, buildConversationExportText(), buildDefaultExportFileName(), ExportTranscriptLabels, formatDefaultExportFileDate() (+83 more)
+Nodes (79): MessageAcpPermission, MessageAcpPermissionProps, MessageAvailableCommandsProps, conversation, buildAutoTitleFromContent(), deriveAutoTitleFromMessages(), AvailableCommand, CronMessageMeta (+71 more)
 
 ### Community 11 - "ACP Message Permissions"
 Cohesion: 0.02
-Nodes (133): MessageAcpPermission, MessageAcpPermissionProps, DiffContentView(), MessageAvailableCommandsProps, isBackendHttpError(), conversation, IConversationArtifact, IConversationArtifactStatus (+125 more)
+Nodes (116): AcpChat(), DiffContentView(), useAcpMessage(), IConversationArtifact, IConversationArtifactStatus, AionrsChat(), AionrsModelSelection, useAionrsModelSelection() (+108 more)
 
 ### Community 12 - "MCP Model Service"
 Cohesion: 0.02
-Nodes (141): channel, IWebUIStatus, mcpService, getAgents(), UseAgentsResult, useConfigModelListWithImage(), GoogleAuthModelResult, useGoogleAuthModels() (+133 more)
+Nodes (129): channel, IWebUIStatus, mcpService, ContextUsageIndicatorProps, getAgents(), UseAgentsResult, useConfigModelListWithImage(), GoogleAuthModelResult (+121 more)
 
 ### Community 13 - "Message Commands"
-Cohesion: 0.02
-Nodes (127): AgentBadgeProps, AgentLogoIcon(), Assistant, AssistantSource, ImportError, HubContributes, HubExtensionStatus, IHubAgentItem (+119 more)
+Cohesion: 0.05
+Nodes (44): Assistant, AssistantSource, CreateAssistantRequest, ImportAssistantsRequest, ImportAssistantsResult, ImportError, SetAssistantStateRequest, UpdateAssistantRequest (+36 more)
 
 ### Community 14 - "Agent Mode Selector"
 Cohesion: 0.04
-Nodes (60): ICreateConversationParams, FULL_AUTO_MODE, getFullAutoMode(), AgentModeSelector(), AgentModeSelectorProps, AgentSetupCardProps, AGENT_NAMES, AgentCheckResult (+52 more)
+Nodes (67): ResearchModelId, formatRAGSourcesForPrompt(), GravityRAGResult, _applyHeaderStyle(), COLORS, exportGridToXLSX(), buildGridSheetData(), buildSourceRows() (+59 more)
 
 ### Community 15 - "Extension Settings"
 Cohesion: 0.03
-Nodes (62): extensions, IExtensionSettingsTab, IGpuStatus, shell, AionScrollAreaProps, ToolOption, ToolType, WorkspaceOpenButton() (+54 more)
+Nodes (60): extensions, IExtensionSettingsTab, shell, systemSettings, AionScrollAreaProps, ChannelHeader(), ChannelModalContent(), PresetAgentTag() (+52 more)
 
 ### Community 16 - "Agent Selection"
-Cohesion: 0.02
-Nodes (98): createTimelineGrouper(), diffDay(), getActivityTime(), getTimelineLabel(), Props, STATUS_CONFIG, ChatHistory(), useScrollIntoView() (+90 more)
+Cohesion: 0.03
+Nodes (76): BackendHttpError, EmitterLike, ensureWs(), getBackendPort(), getBaseUrl(), getWsUrl(), httpDelete(), httpGet() (+68 more)
 
 ### Community 17 - "Workspace UI Dialogs"
 Cohesion: 0.04
 Nodes (66): fromBackendCompareResult(), RawCompareResult, RawFileChange, IDirOrFile, DiffState, FileChangeListProps, STATUS_COLORS, STATUS_LABELS (+58 more)
 
 ### Community 18 - "Graph Indexer"
-Cohesion: 0.06
-Nodes (46): GraphIndexer, GraphIndexer, Gravity Search — Graph Indexer (Neo4j) Creates/updates Knowledge Graph nodes an, Creates/updates Neo4j Knowledge Graph nodes from processed documents.      Cal, Create/update graph nodes for a document.          Args:             document, KeywordIndexer, Bulk indexes chunks into Elasticsearch for BM25 keyword search.      Field nam, Gravity Search — Structured Indexer (PostgreSQL) Extracts financial metrics fro (+38 more)
+Cohesion: 0.05
+Nodes (58): GraphIndexer, GraphIndexer, Gravity Search — Graph Indexer (Neo4j) Creates/updates Knowledge Graph nodes an, Creates/updates Neo4j Knowledge Graph nodes from processed documents.      Cal, Create/update graph nodes for a document.          Args:             document, KeywordIndexer, Bulk indexes chunks into Elasticsearch for BM25 keyword search.      Field nam, Gravity Search — Structured Indexer (PostgreSQL) Extracts financial metrics fro (+50 more)
 
 ### Community 19 - "Inline Agent Editor"
-Cohesion: 0.02
-Nodes (100): useAutoScroll(), UseAutoScrollOptions, useTypingAnimation(), UseTypingAnimationOptions, DomSnippet, loadPersistedState(), parsePersistedTabs(), PERSISTABLE_CONTENT_TYPES (+92 more)
+Cohesion: 0.06
+Nodes (42): IResponseMessage, DomSnippet, loadPersistedState(), parsePersistedTabs(), PERSISTABLE_CONTENT_TYPES, PreviewContext, PreviewContextValue, PreviewProvider() (+34 more)
 
 ### Community 20 - "Assistant Types"
-Cohesion: 0.06
-Nodes (34): UpdateAssistantRequest, useAssistantEditor(), UseAssistantEditorParams, isExtensionAssistant(), useAssistantList(), useAssistantSkills(), UseAssistantSkillsParams, AvailableBackend (+26 more)
+Cohesion: 0.05
+Nodes (45): ICssTheme, LayoutContext, HistoryEntry, NavigationHistoryContext, NavigationHistoryContextValue, NavigationHistoryProvider(), BACKGROUND_BLOCK_PATTERN, buildBackgroundCss() (+37 more)
 
 ### Community 21 - "NPM Dependencies"
 Cohesion: 0.02
 Nodes (94): dependencies, @agentclientprotocol/sdk, @aionui/web-host, @anthropic-ai/sdk, @arco-design/web-react, @aws-sdk/client-bedrock, bcryptjs, better-sqlite3 (+86 more)
 
 ### Community 22 - "Report Assembly"
-Cohesion: 0.03
-Nodes (87): applyRevisionEdits(), applyWorkflowToBlueprint(), assembleSectionedReport(), auditClaimsWithLLM(), buildCitationIndex(), buildClaimJudgePrompt(), buildReaderPrompt(), buildReportTitle() (+79 more)
+Cohesion: 0.10
+Nodes (5): AutoUpdaterEvents, AutoUpdaterService, AutoUpdateStatus, getUpdateChannel(), StatusBroadcastCallback
 
 ### Community 23 - "Application Bridge"
-Cohesion: 0.08
-Nodes (46): application, BUILTIN_IMAGE_GEN_LEGACY_NAMES, getEnvAwareName(), IChatConversationRefer, IEnvStorageRefer, createSkillDir(), getPlatformServices(), ArchitectureType (+38 more)
+Cohesion: 0.07
+Nodes (48): application, BUILTIN_IMAGE_GEN_LEGACY_NAMES, getEnvAwareName(), ConfigStorage, EnvStorage, IChatConversationRefer, IEnvStorageRefer, createSkillDir() (+40 more)
 
 ### Community 24 - "App Layout & Auth"
-Cohesion: 0.05
-Nodes (72): OrgContext, OrgContextValue, MfaSetupPage(), Stage, State, promptChips, apiFetch(), AuditEntry (+64 more)
+Cohesion: 0.04
+Nodes (76): OrgContext, OrgContextValue, MfaSetupPage(), Stage, STRENGTH_COLORS, STRENGTH_LABELS, State, promptChips (+68 more)
 
 ### Community 25 - "Common UI Strings"
 Cohesion: 0.02
-Nodes (87): about, add, added, agentMode, attach, back, browse, cancel (+79 more)
+Nodes (90): about, add, added, agentMode, attach, back, browse, cancel (+82 more)
 
 ### Community 26 - "Common UI Strings"
 Cohesion: 0.02
@@ -2048,35 +2447,35 @@ Nodes (86): about, add, added, agentMode, attach, back, browse, cancel (+78 more
 
 ### Community 33 - "Audit Logging"
 Cohesion: 0.04
-Nodes (87): AuditEvent, AuditLogger, CitationRecord, compute_record_hash(), CostContext, _event_to_dict(), ExportEvent, _hmac_sign() (+79 more)
+Nodes (92): AuditEvent, AuditLogger, CitationRecord, compute_record_hash(), CostContext, _event_to_dict(), ExportEvent, _hmac_sign() (+84 more)
 
 ### Community 34 - "E2E Test Fixtures"
 Cohesion: 0.05
 Nodes (41): invokeBridge(), e2eStateFile, e2eStateSandboxDir, Fixtures, isDevToolsWindow(), launchApp(), resolveMainWindow(), resolvePackagedApp() (+33 more)
 
 ### Community 35 - "Deep Research Service"
-Cohesion: 0.04
-Nodes (78): buildResearchBlueprint(), Citation, GeminiModelId, ResearchBlueprint, ResearchPlan, ResearchProgress, ResearchReport, buildExtractorPrompt() (+70 more)
+Cohesion: 0.02
+Nodes (97): applyWorkflowToBlueprint(), assembleSectionedReport(), auditClaimsWithLLM(), BudgetTracker, buildClaimJudgePrompt(), buildContextEnrichmentPrompt(), buildExtractorPrompt(), buildKbDistillationPrompt() (+89 more)
 
 ### Community 36 - "Grid Engine"
-Cohesion: 0.17
-Nodes (36): AnswerType, GridDocument, GridQuestion, Parse LLM response into structured cell data., Grid engine variant that yields cell results as they complete.     Used by the, A column definition: one question to answer across all documents., A row definition: one document/company to query., StreamingGridEngine (+28 more)
+Cohesion: 0.05
+Nodes (38): auth, console_error, failed, failed_confirm, config, default, reasoning_effort, sendbox (+30 more)
 
 ### Community 37 - "Mode List UI"
-Cohesion: 0.05
-Nodes (29): formatTimeLeft(), openRemoteAgentGuide(), PairingState, RemoteAgentFormModal(), AionCollapseComponent(), AionCollapseItemProps, AionCollapseProps, normalizeKeys() (+21 more)
+Cohesion: 0.02
+Nodes (118): ICreateConversationParams, ICreateCronJobParams, ICronAgentConfig, FULL_AUTO_MODE, getFullAutoMode(), HubContributes, HubExtensionStatus, IHubAgentItem (+110 more)
 
 ### Community 38 - "Kafka Client"
-Cohesion: 0.06
-Nodes (35): DeadLetterMessage, IndexedDocumentMessage, ProcessedDocumentMessage, Gravity Search — Kafka Topic Definitions & Message Schemas Canonical source of, Published to gravity.processed-documents after Stage 1–4 (text + entities + sect, Published to gravity.indexed-documents after successful indexing.     Consumed, Wraps any failed message with error context for inspection and replay., Published to gravity.raw-documents by every data source.     Content bytes are (+27 more)
+Cohesion: 0.05
+Nodes (36): DeadLetterMessage, IndexedDocumentMessage, ProcessedDocumentMessage, Gravity Search — Kafka Topic Definitions & Message Schemas Canonical source of, Published to gravity.processed-documents after Stage 1–4 (text + entities + sect, Published to gravity.indexed-documents after successful indexing.     Consumed, Wraps any failed message with error context for inspection and replay., Published to gravity.raw-documents by every data source.     Content bytes are (+28 more)
 
 ### Community 39 - "LLM Clients"
-Cohesion: 0.04
-Nodes (38): BaseLLMClient, AnthropicClient, DeepSeekClient, GroqClient, OpenAIClient, LLMRouter, QueryComplexity, Gravity Search — LLM Router Routes each query to the optimal model based on com (+30 more)
+Cohesion: 0.03
+Nodes (52): BaseLLMClient, AnthropicClient, DeepSeekClient, GoogleClient, Gravity Search — Google Gemini Client Supports Gemini 2.5 Flash (fast/cheap), G, Retry on 429 (rate limit) with exponential backoff., _retry_with_backoff(), GroqClient (+44 more)
 
 ### Community 40 - "Base Agent"
 Cohesion: 0.03
-Nodes (76): ABC, AgentContext, BaseAgent, Gravity Search — Agent Base Classes Foundation for the Hebbia-style multi-agent, A decomposed sub-question from the Planner., Abstract base class for all pipeline agents., Run this agent's logic, mutating and returning the context.         Every agent, Helper: run an async operation and log its duration. (+68 more)
+Nodes (75): ABC, AgentContext, BaseAgent, Gravity Search — Agent Base Classes Foundation for the Hebbia-style multi-agent, A decomposed sub-question from the Planner., Abstract base class for all pipeline agents., Run this agent's logic, mutating and returning the context.         Every agent, Helper: run an async operation and log its duration. (+67 more)
 
 ### Community 41 - "CSS Theme Tests"
 Cohesion: 0.06
@@ -2084,11 +2483,11 @@ Nodes (34): deleteCustomThemeViaModal(), navigateToCssThemes(), themeCard(), rel
 
 ### Community 42 - "Gravity Search Hook"
 Cohesion: 0.05
-Nodes (49): AgentTraceStep, ChartSpec, cleanAnswer(), decodeEscapes(), GRAVITY_WS, GravityCitation, GravityMetric, GravitySearchState (+41 more)
+Nodes (57): AgentTraceStep, ChartSpec, cleanAnswer(), decodeEscapes(), GravityCitation, GravityMetric, GravitySearchState, GravitySource (+49 more)
 
 ### Community 43 - "Python DI Wiring"
 Cohesion: 0.05
-Nodes (44): get_embedder(), get_feedback_loop(), get_llm_router(), get_reranker(), get_search_pipeline(), get_splade_encoder(), Gravity Search — Dependency Injection Wires all components together. Called by, Get (or lazily create) the fully wired search pipeline. (+36 more)
+Nodes (49): get_embedder(), get_entity_resolver(), get_feedback_loop(), get_llm_router(), get_search_pipeline(), get_splade_encoder(), Gravity Search — Dependency Injection Wires all components together. Called by, Get (or lazily create) the fully wired search pipeline. (+41 more)
 
 ### Community 44 - "Config Migrations"
 Cohesion: 0.05
@@ -2100,23 +2499,23 @@ Nodes (59): change_password(), _client_ip(), _current_user(), get_auth_store(), 
 
 ### Community 46 - "Planner Agent"
 Cohesion: 0.04
-Nodes (37): Uppercased ticker watchlist; empty set = ingest every company., Settings, BaseSettings, classify_temporal_intent(), QueryUnderstanding, Gravity Search — Query Understanding Agent Uses Gemini 2.5 Flash to classify in, Full query analysis pipeline:           1. Intent classification           2., Returns {temporal_intent, needs_live_data}. Free, deterministic, <1ms.       la (+29 more)
+Nodes (38): Uppercased ticker watchlist; empty set = ingest every company., Settings, BaseSettings, classify_temporal_intent(), QueryUnderstanding, Gravity Search — Query Understanding Agent Uses Gemini 2.5 Flash to classify in, Full query analysis pipeline:           1. Intent classification           2., Returns {temporal_intent, needs_live_data}. Free, deterministic, <1ms.       la (+30 more)
 
 ### Community 47 - "Citation Validator"
-Cohesion: 0.04
-Nodes (57): ndarray, CitationValidator, Gravity Search — Citation Validation Agent Layer 2 of the 3-layer verification, Verify that every factual claim is grounded in cited sources., Verify citations in the generated answer.          Returns:           {, _cosine(), mmr_rerank(), Maximum Marginal Relevance (MMR) Diversity Reranking ========================== (+49 more)
+Cohesion: 0.03
+Nodes (74): get_reranker(), ndarray, CitationValidator, Gravity Search — Citation Validation Agent Layer 2 of the 3-layer verification, Verify that every factual claim is grounded in cited sources., Verify citations in the generated answer.          Returns:           {, CohereReranker, Gravity Search — Cohere Cross-Encoder Reranker Reranks RRF-fused results using (+66 more)
 
 ### Community 48 - "Conversation E2E Helpers"
 Cohesion: 0.06
 Nodes (42): deleteConversation(), goToNewChat(), runConversationCycle(), selectAgent(), selectModel(), sendMessageFromGuid(), waitForAiReply(), waitForSessionActive() (+34 more)
 
 ### Community 49 - "Document Producer"
-Cohesion: 0.06
-Nodes (27): _freshness_lag_seconds(), Gravity Search — SEC EDGAR Filing Source Polls EDGAR for new 10-K, 10-Q, 8-K fi, Return producer, constructing one with fallback pipeline if needed., Start the background polling task., Stop the background polling task., Main polling loop — runs forever until stopped., Poll EDGAR RSS feeds — serialize across filing types so we don't         fan ou, Poll EDGAR RSS feed for a specific filing type. (+19 more)
+Cohesion: 0.05
+Nodes (37): _dest(), download_ticker(), _key(), _load_manifest(), main(), Standalone SEC EDGAR downloader (corpus builder) ==============================, Stable dedup key: accession if present, else ticker|type|date., _save_manifest() (+29 more)
 
 ### Community 50 - "UI Dependencies"
 Cohesion: 0.03
-Nodes (61): dependencies, class-variance-authority, clsx, cmdk, date-fns, embla-carousel-react, exceljs, @google/genai (+53 more)
+Nodes (62): dependencies, class-variance-authority, clsx, cmdk, date-fns, embla-carousel-react, exceljs, @google/genai (+54 more)
 
 ### Community 51 - "SSO & SCIM"
 Cohesion: 0.06
@@ -2155,12 +2554,12 @@ Cohesion: 0.03
 Nodes (59): addToChat, closeAll, closeLeft, closeOthers, closePreview, closeRight, closeSplitScreen, closeTabMessage (+51 more)
 
 ### Community 60 - "ACP Chat"
-Cohesion: 0.07
-Nodes (36): ICreateCronJobParams, ICronAgentConfig, ICronJob, systemSettings, CronJobIndicatorProps, CronJobStatus, CronJobManager(), CronJobManagerProps (+28 more)
+Cohesion: 0.02
+Nodes (128): AcpModelSelector(), AgentBadgeProps, AgentLogoIcon(), AgentModeSelector(), AgentModeSelectorProps, MarqueePillLabel(), buildPresetInfoFromAssistant(), extractAssistantNameFromRules() (+120 more)
 
 ### Community 61 - "Backend Startup"
-Cohesion: 0.06
-Nodes (52): setApplicationMainWindow(), initializeProcess(), backendManager, createWindow(), deepLinkFromArgv, handleAppReady(), isRemoteMode, isResetPasswordMode (+44 more)
+Cohesion: 0.05
+Nodes (61): bundledPath(), devRepoPath(), getBinaryName(), resolveBinaryPath(), resolveFromSystemPATH(), setApplicationMainWindow(), _electron, ElectronModule (+53 more)
 
 ### Community 62 - "Message UI Strings"
 Cohesion: 0.03
@@ -2195,8 +2594,8 @@ Cohesion: 0.04
 Nodes (56): agentRequestingPermission, atFile.hint, atFile.loading, atFile.menuLabel, auto_handling_permissions, availableCommands, canceledExecution, chooseAction (+48 more)
 
 ### Community 70 - "PDF Document Rendering"
-Cohesion: 0.05
-Nodes (42): ACCENTS, C, ParsedBlock, parseMarkdown(), parseSections(), PdfDocument(), Props, s (+34 more)
+Cohesion: 0.13
+Nodes (18): detectSentiment(), Props, ResearchReport(), TEMPLATE_LABELS, buildCompsWorkbook(), buildDCFWorkbook(), buildLBOWorkbook(), CALC_FILL (+10 more)
 
 ### Community 71 - "Billing Admin"
 Cohesion: 0.09
@@ -2208,15 +2607,15 @@ Nodes (55): scripts, bench, bench:db, bench:full, bench:report, bench:startup, b
 
 ### Community 73 - "Chat Screen"
 Cohesion: 0.07
-Nodes (38): ChatScreen(), ChatScreenProps, styles, ConfirmationCard(), ConfirmationCardProps, styles, MessageBubble(), MessageBubbleProps (+30 more)
+Nodes (40): ChatScreen(), ChatScreenProps, styles, ConfirmationCard(), ConfirmationCardProps, styles, MessageBubble(), MessageBubbleProps (+32 more)
 
 ### Community 74 - "Entity Graph"
 Cohesion: 0.06
 Nodes (42): COMPANY_SUFFIXES, ensureRecord(), EntityIndex, EntityRecord, isSameEntity(), loadEntityIndex(), normalizeCompanyName(), normalizeTicker() (+34 more)
 
 ### Community 75 - "Conversation Layout"
-Cohesion: 0.06
-Nodes (38): ConversationContext, ConversationProvider(), ConnectScreen(), styles, IndexScreen(), ConnectionConfig, ConnectionContext, ConnectionContextType (+30 more)
+Cohesion: 0.08
+Nodes (29): ConversationContext, ConversationProvider(), ConnectScreen(), styles, IndexScreen(), ConnectionConfig, ConnectionContext, ConnectionContextType (+21 more)
 
 ### Community 76 - "Electron Dev Deps"
 Cohesion: 0.04
@@ -2264,7 +2663,7 @@ Nodes (46): BenchmarkType, BenchmarkExample, BenchmarkType, export_benchmarks(),
 
 ### Community 87 - "Grid View"
 Cohesion: 0.04
-Nodes (75): CellAnswer(), DEFAULT_TICKERS, MODEL_CONFIG, searchGravityCell(), SEED_PROMPT_IDS, SourceViewerData, ReportSummary, EMPTY_RESULT (+67 more)
+Nodes (84): CELL_TOOLS, CellAnswer(), CellContent(), CHIP_CLASSES, closestSymbol(), DEFAULT_TICKERS, editDistance(), fetchFundamentals() (+76 more)
 
 ### Community 88 - "ACP E2E Tests"
 Cohesion: 0.12
@@ -2276,7 +2675,7 @@ Nodes (26): FinancialTableParser, ParsedTable, Gravity Search — Financial Tabl
 
 ### Community 90 - "Parallel Ingestion"
 Cohesion: 0.06
-Nodes (41): FilingResult, FilingTask, IngestReport, ParallelIngestor, Gravity Search — Parallel Ingestion Orchestrator  Ingests S&P 500-scale SEC fili, Load previously completed accession numbers to skip on resume., Ingest all filings for a list of tickers in parallel.          workers=8 at ~60s, Fetch filing metadata for all tickers, bounded by EDGAR rate limit. (+33 more)
+Nodes (39): FilingType, normalize_filing_types(), Canonical registry of SEC filing types the ingestion pipeline supports.  Single, Split a requested list into (supported, unknown), preserving order and     de-du, Serializable list for the GET /v1/documents/filing-types endpoint., registry_payload(), FilingResult, FilingTask (+31 more)
 
 ### Community 91 - "Home Page"
 Cohesion: 0.08
@@ -2295,8 +2694,8 @@ Cohesion: 0.06
 Nodes (35): monitor, assistPromptInstalled, checking, connectedInline, detect, detected, detectFailed, detecting (+27 more)
 
 ### Community 95 - "Critic Agent"
-Cohesion: 0.08
-Nodes (27): CriticFeedback, Quality assessment from the Critic agent., CriticAgent, Gravity Search — Critic Agent Evaluates quality of extracted data and decides w, Build a concise summary of extracted facts for the LLM., Compact source summary for rubric evaluation prompt., Deterministic source diversity check — no LLM needed.         Research: "All fa, Dead-end detection: checks if the current iteration produced no new         uni (+19 more)
+Cohesion: 0.06
+Nodes (31): EdgarLink(), parseFilingTitle(), safeUrl(), CitationTag(), SourceCard(), CryptoState, ensureCryptoFeed(), livePrice() (+23 more)
 
 ### Community 96 - "Dashboard Page Components"
 Cohesion: 0.14
@@ -2313,8 +2712,8 @@ Nodes (26): crypto, decodePkcs7(), decryptPayload(), encodePkcs7(), encryptPaylo
 } (+18 more)
 
 ### Community 98 - "Document Processor"
-Cohesion: 0.05
-Nodes (44): Element, ProcessedDocument, Gravity Search — Document Processor Converts raw bytes (HTML, PDF, DOCX, plain, Extract text + structured tables from PDF., Count PDF pages without extracting text., Extract text from DOCX using python-docx., Decode plain text, normalize whitespace., Result of processing a raw document. (+36 more)
+Cohesion: 0.06
+Nodes (35): Element, canonicalize_concept(), DerivedMetricsCalculator, extract_facts_from_companyfacts(), extract_xbrl_facts_for_ticker(), fetch_company_facts(), _normalize_unit_str(), Gravity Search — XBRL / iXBRL Extractor Parses XBRL and inline XBRL (iXBRL) from (+27 more)
 
 ### Community 99 - "Admin Billing UI"
 Cohesion: 0.07
@@ -2325,8 +2724,8 @@ Cohesion: 0.08
 Nodes (37): ALCEExample, ALCEExampleResult, ALCEFinanceEvaluator, ALCEReport, _bootstrap_ci(), _char_overlap(), CitedPassage, GoldSpan (+29 more)
 
 ### Community 101 - "File Operation Tools"
-Cohesion: 0.05
-Nodes (38): actions, create, delete, modify, deletedFile, fileChanges, fileOps, description (+30 more)
+Cohesion: 0.06
+Nodes (31): actions, create, delete, modify, deletedFile, fileChanges, fileOps, description (+23 more)
 
 ### Community 102 - "Market Data Stocks"
 Cohesion: 0.05
@@ -2341,16 +2740,16 @@ Cohesion: 0.12
 Nodes (31): Assistant, AssistantSource, ImportResult, resolveBackendBinary(), startBackend(), waitForHealthy(), clearSearch(), clickCreateAssistant() (+23 more)
 
 ### Community 105 - "Redis Rate Limiter"
-Cohesion: 0.09
-Nodes (34): BackgroundTasks, _internal_keys(), Gravity Search — API Key + JWT Authentication FastAPI dependency (not HTTP midd, Fetch + cache Supabase JWKS (24h)., Validate JWT Bearer token. Tries three issuers in order:       1. Supabase ES25, FastAPI dependency for authentication.      Development: bypass auth, return d, Validate API key: static internal allowlist first (Redis-independent), then Redi, require_auth() (+26 more)
+Cohesion: 0.07
+Nodes (40): ICronJob, IMessageAgentStatus, agentFromKey(), agentKey(), AgentOptionLabel(), assistantToOption(), cliAgentToOption(), filterTeamSupportedAgents() (+32 more)
 
 ### Community 106 - "ACP Auth Config"
 Cohesion: 0.05
 Nodes (38): auth, console_error, failed, failed_confirm, config, default, reasoning_effort, sendbox (+30 more)
 
 ### Community 107 - "ACP Auth Config"
-Cohesion: 0.12
-Nodes (16): auth, console_error, failed, failed_confirm, config, default, reasoning_effort, sendbox (+8 more)
+Cohesion: 0.05
+Nodes (38): auth, console_error, failed, failed_confirm, config, default, reasoning_effort, sendbox (+30 more)
 
 ### Community 108 - "Research Platform Benchmark"
 Cohesion: 0.05
@@ -2361,16 +2760,16 @@ Cohesion: 0.06
 Nodes (31): MarketDataCache, Market data caching layer with Redis., Cache market data in Redis with TTL., Get cached market data., ExchangeDataService, Live exchange data service - CoinGecko + Binance API integration., Fetch real-time exchange market data from CoinGecko + Binance., Fetch market data for an asset.          Args:             asset: Asset ID (b (+23 more)
 
 ### Community 110 - "Auto Title & Export"
-Cohesion: 0.03
-Nodes (72): ICronTriggerArtifact, AcpModelSelector(), MarqueePillLabel(), AionrsModelSelector(), BtwOverlayProps, DISMISS_KEYS, CronMessageMeta, convertLatexDelimiters() (+64 more)
+Cohesion: 0.09
+Nodes (9): AuthStore, _jwt_secret(), Self-Hosted User Auth Store (Path A1).  Replaces Supabase. Postgres-backed use, Async user/password store backed by Postgres + in-memory fallback.      Usage:, import_from_supabase_if_exists(), On-the-fly migration of legacy Supabase users into Fly Postgres auth_users.  Bac, Look up `email` in Supabase auth. If found, insert a local user record     with, AuthStore (+1 more)
 
 ### Community 111 - "Reader Agent Config"
-Cohesion: 0.28
-Nodes (3): GeminiEmbedder, Gravity Search — Gemini Embedder (failover)  Uses Google's gemini-embedding-001, Google gemini-embedding-001 embeddings (1024-dim, normalized).
+Cohesion: 0.06
+Nodes (26): Gravity Search — Reader Agent Retrieves and reads sources for each sub-task in, Environment, Gravity Search — Application Configuration Reads from .env via pydantic-setting, CellStatus, Gravity Search — Redis Client (caching + semantic cache), RedisLazyClient, Enum, Gravity Search — Keyword Indexer (Elasticsearch BM25) Bulk indexes ChunkOutput (+18 more)
 
 ### Community 112 - "Landing Page Sections"
-Cohesion: 0.05
-Nodes (15): LOGOS, PLANS, HeroProps, STATS, SHOTS, POINTS, CARDS, CARDS (+7 more)
+Cohesion: 0.04
+Nodes (22): LOGOS, PLANS, HeroProps, STATS, SHOTS, POINTS, CARDS, CARDS (+14 more)
 
 ### Community 113 - "Gravity Search Models"
 Cohesion: 0.08
@@ -2381,8 +2780,8 @@ Cohesion: 0.11
 Nodes (14): RatioDef, RatioEngine, RatioEngineOutput, Financial Ratio Computation Engine ==================================== Never, Compute requested ratios for ticker/period.          Args:             ticker, Detect ratio/metric intent from a natural language query.         Returns list, Auto-detect ratio intent from query and compute matching ratios.         Used b, Compute Altman Z-Score for bankruptcy risk assessment.          Z = 1.2*X1 + 1 (+6 more)
 
 ### Community 115 - "Agent Setup States"
-Cohesion: 0.12
-Nodes (15): confirmBubble, confirmBubbleDescription, desktopOnly, desktopPet, dnd, dndDescription, enable, hide (+7 more)
+Cohesion: 0.16
+Nodes (8): Gravity Search — SPLADE Sparse Vector Encoder Generates learned sparse represen, SPLADE learned sparse vector encoder., Lazy-load the SPLADE model., Load model in a thread pool so the async event loop is not blocked., Encode a query into a sparse vector {indices: [...], values: [...]}., Encode a document chunk into a sparse vector., Simple term-frequency fallback when SPLADE model unavailable., SpladeEncoder
 
 ### Community 116 - "Valuation Methodologies"
 Cohesion: 0.05
@@ -2437,16 +2836,16 @@ Cohesion: 0.10
 Nodes (24): BackendDirConfig, BackendHandle, BackendLaunchOptions, BackendLifecycleManager, BackendStartupError, BackendStartupErrorDetails, BackendStartupStage, BackendStatus (+16 more)
 
 ### Community 129 - "Deep Research Engine"
-Cohesion: 0.08
-Nodes (27): analyzeSources(), generateAdversarialAnalysis(), performDeepResearch(), synthesizeInstitutionalReport(), BudgetTracker, buildContextEnrichmentPrompt(), buildMethodologySection(), buildVerifiedFactsBlock() (+19 more)
+Cohesion: 0.02
+Nodes (156): analyzeSources(), buildResearchBlueprint(), Citation, GeminiModelId, generateAdversarialAnalysis(), performDeepResearch(), ResearchBlueprint, ResearchPlan (+148 more)
 
 ### Community 130 - "Chat Sidebar"
-Cohesion: 0.11
-Nodes (18): ChatEmptyState(), styles, ChatSidebar(), styles, PendingChatScreen(), ChatProvider(), AgentInfo, useConversations() (+10 more)
+Cohesion: 0.06
+Nodes (44): BONDS, COMMODITIES, FOREX, MarketDef, MarketId, MARKETS, MarketSource, SymbolDef (+36 more)
 
 ### Community 131 - "Chat Input Components"
 Cohesion: 0.08
-Nodes (32): ChatInputBar(), ChatInputBarProps, styles, FilePickerSheet(), FilePickerSheetProps, FlatItem, IDirOrFile, styles (+24 more)
+Nodes (28): ChatInputBar(), ChatInputBarProps, styles, FilePickerSheet(), FilePickerSheetProps, FlatItem, IDirOrFile, styles (+20 more)
 
 ### Community 132 - "Next.js UI Dependencies"
 Cohesion: 0.05
@@ -2477,8 +2876,8 @@ Cohesion: 0.05
 Nodes (36): **AI Image Generation & Editing**, Any API Key, Full Cowork Agent Power, Built-in Agent — Install & Go, Zero Configuration, Community Articles, 💬 Community & Support, Contributing, Contributors, Cowork — AI Agents That Work Alongside You (+28 more)
 
 ### Community 139 - "Workspace Collapse"
-Cohesion: 0.09
-Nodes (24): PresetAssistantInfo, ChatLayout(), MobileWorkspaceOverlayProps, DesktopWorkspaceToggle(), WorkspaceHeaderProps, useContainerWidth(), UseContainerWidthReturn, useLayoutConstraints() (+16 more)
+Cohesion: 0.02
+Nodes (93): acpConversation, PresetManagement(), PresetManagementProps, Toaster(), CollapsibleContent(), CollapsibleContentProps, ThoughtDisplay(), useAutoScroll() (+85 more)
 
 ### Community 140 - "PowerPoint Slide Skill"
 Cohesion: 0.05
@@ -2493,12 +2892,12 @@ Cohesion: 0.05
 Nodes (36): Batch Mode (default), Classification Gate (MANDATORY), Configuration, Daemon Mode, Filtering Pipeline, Fix Issues Skill, Issue Comments, Mandatory Rules (+28 more)
 
 ### Community 143 - "Sidebar Components"
-Cohesion: 0.07
-Nodes (15): useIsMobile(), Sidebar(), SidebarContext, SidebarContextProps, SidebarMenuButton(), sidebarMenuButtonVariants, SidebarProvider(), SidebarRail() (+7 more)
+Cohesion: 0.09
+Nodes (26): ACCENTS, C, PdfDocument(), Props, renderInlineText(), s, TableTheme, findMarkdownLiterals() (+18 more)
 
 ### Community 144 - "Trading Asset Risk"
-Cohesion: 0.06
-Nodes (30): useAssetRiskCheck(), NAV_ITEMS, NavItem, TradingAssistantPage(), AboutTab(), AboutTabProps, ASSET_INFO, Holder (+22 more)
+Cohesion: 0.07
+Nodes (26): useAssetRiskCheck(), getMarket(), NAV_ITEMS, NavItem, LOADERS, preloadRoute(), preloadRouteWhenIdle(), started (+18 more)
 
 ### Community 145 - "Cowork Russian Readme"
 Cohesion: 0.05
@@ -2517,24 +2916,24 @@ Cohesion: 0.06
 Nodes (35): 10.1 Active Pill Buttons (LLM Model & Analyst Prompts), 10.2 Hover Glow Intensify on Content Cards, 10.3 Run Grid Button – Processing Pulse, 10.4 Title Subtle Glow / Shine (Optional Cinematic Touch), 10.5 Search Input Focus Glow, 10. Framer Motion Glow Animations (Recommended), 11.1 Material & Depth System, 11.2 Animation Orchestration (Framer Motion) (+27 more)
 
 ### Community 149 - "Trading Assets Panel"
-Cohesion: 0.07
-Nodes (25): ALL_ASSETS, CRYPTO_ASSETS, FOREX_ASSETS, isCryptoAsset(), STOCK_ASSETS, ASSET_META, AssetInfoPanel(), AssetInfoPanelProps (+17 more)
+Cohesion: 0.10
+Nodes (21): ALL_ASSETS, CRYPTO_ASSETS, FOREX_ASSETS, isCryptoAsset(), STOCK_ASSETS, Assistant(), AssistantProps, Message (+13 more)
 
 ### Community 150 - "Financial Table Indexer"
-Cohesion: 0.08
-Nodes (22): ChunkOutput, FinancialRow, Gravity Search -- Financial Table Indexer Converts ParsedTable objects into sear, Convert ParsedTable headers/rows into FinancialRow objects., Find which column indices contain period labels (FY2024, Q3 2023, etc.), Detect unit scaling from caption: millions, thousands, billions., Normalize metric name: strip parentheticals, normalize whitespace., Heuristic: if >50% of cells are non-numeric and no numbers at all, skip. (+14 more)
+Cohesion: 0.06
+Nodes (28): BtwOverlayProps, DISMISS_KEYS, convertLatexDelimiters(), replaceDelimiters(), hasSkillSuggest(), isValidSkillContent(), matchesAny(), parseSkillSuggest() (+20 more)
 
 ### Community 151 - "Chat Actions UI"
 Cohesion: 0.06
 Nodes (36): chat, approve, browseFiles, deletions, deny, done, fileChanges, filesSelected (+28 more)
 
 ### Community 152 - "FinBERT NLI Judge"
-Cohesion: 0.07
-Nodes (39): aggregate(), ALCEReport, ALCEResult, CitationEvalItem, collect_live(), extract_inline_citations(), main(), _nli_entails() (+31 more)
+Cohesion: 0.10
+Nodes (20): _finbert_score_sync(), FinBERTNLI, FinBERTResult, Gravity Search -- FinBERT NLI Judge Finance-specific Natural Language Inference, Drop-in upgrade for FinanceNLIJudge's T5 path.      Loads ProsusAI/finbert on fi, Run FinBERT classification on premise+hypothesis pair.      FinBERT labels: posi, _try_load_finbert(), _extract_all_numbers() (+12 more)
 
 ### Community 153 - "Guidance Longitudinal Tracker"
-Cohesion: 0.10
-Nodes (17): GuidanceActualsTracker, LongitudinalTracker, MetricSeries, PeriodDataPoint, Longitudinal Tracker ==================== Tracks financial metrics and sentime, Tracks financial metrics across time periods.     Integrates with RatioEngine f, Pull a metric across multiple periods.         Periods format: ["Q1 2023", "Q2, Compare management guidance to actual results. (+9 more)
+Cohesion: 0.08
+Nodes (22): GuidanceActualsTracker, LongitudinalProfile, LongitudinalTracker, MetricSeries, PeriodDataPoint, Longitudinal Tracker ==================== Tracks financial metrics and sentime, Tracks financial metrics across time periods.     Integrates with RatioEngine f, Pull a metric across multiple periods.         Periods format: ["Q1 2023", "Q2 (+14 more)
 
 ### Community 154 - "UI Requirements Doc"
 Cohesion: 0.06
@@ -2550,11 +2949,11 @@ Nodes (34): 1.1 用例编号规则, 1.2 全局前置条件, 1.3 维度说明, 1.
 
 ### Community 157 - "Speech Input Button"
 Cohesion: 0.08
-Nodes (23): formatSpeechDuration(), getAvailabilityMessageKey(), getTooltipKey(), SpeechInputButton(), SpeechInputButtonProps, createAudioFileName(), ensureAudioSize(), getAudioExtension() (+15 more)
+Nodes (24): formatSpeechDuration(), getAvailabilityMessageKey(), getTooltipKey(), SpeechInputButton(), SpeechInputButtonProps, SpeechToTextResult, createAudioFileName(), ensureAudioSize() (+16 more)
 
 ### Community 158 - "Claude Project Guide"
-Cohesion: 0.06
-Nodes (33): Analysis & Debug (70-90% savings), Architecture, Build & Compile (80-90% savings), Commands, Embeddings (`app/embeddings/`), Files & Search (60-75% savings), Git (59-80% savings), GitHub (26-87% savings) (+25 more)
+Cohesion: 0.04
+Nodes (46): Academic APIs before web search, Analysis & Debug (70-90% savings), Architecture, Authenticated crawling, Build & Compile (80-90% savings), Canonical research query, Commands, Curate after every session (+38 more)
 
 ### Community 159 - "Assistant Monitor States"
 Cohesion: 0.06
@@ -2661,8 +3060,8 @@ Cohesion: 0.06
 Nodes (34): advancedSettings, agent, agentPlaceholder, agentRequired, aionrsModelRequired, aionrsNoProvider, clearFolder, cronExpr (+26 more)
 
 ### Community 185 - "Start on Boot"
-Cohesion: 0.09
-Nodes (33): IStartOnBootStatus, getLoginItemSettings(), getStartOnBootStatus(), getStartOnBootWindowsArgs(), isStartOnBootSupported(), setStartOnBootEnabled(), wasLaunchedAtLogin(), { appHandlers, appQuit } (+25 more)
+Cohesion: 0.16
+Nodes (16): { appHandlers, appQuit }, fireAppEvent(), ensureHandlerInstalled(), pending, __resetPersistOnQuitForTests(), trackPersistedWrite(), adjustZoomFactor(), applyZoomToWindow() (+8 more)
 
 ### Community 186 - "Financial Data Pack Builder"
 Cohesion: 0.06
@@ -2733,12 +3132,12 @@ Cohesion: 0.06
 Nodes (31): 1.1 基本信息, 1.2 功能描述, 1.3 用户场景, 1.4 数据流, 1. 功能概述, 2.1 技术栈约束, 2.2 命名规范, 2.3 文件位置规范 (+23 more)
 
 ### Community 203 - "SEC Entity Resolver"
-Cohesion: 0.10
-Nodes (21): get_entity_resolver(), Get (or lazily build) the SEC entity resolver singleton., _content_tokens(), EntityResolver, get_resolver(), _normalize(), Gravity Search — Entity Resolver  Disambiguates company mentions to canonical (t, Tokens of a normalized name with corporate suffixes/filler AND single-char     t (+13 more)
+Cohesion: 0.11
+Nodes (19): _content_tokens(), EntityResolver, get_resolver(), _normalize(), Gravity Search — Entity Resolver  Disambiguates company mentions to canonical (t, Tokens of a normalized name with corporate suffixes/filler AND single-char     t, Content-token overlap similarity — fast, no dependencies., Resolves company mentions → (ticker, CIK, name).      Build via `await EntityRes (+11 more)
 
 ### Community 204 - "Feedback Components"
-Cohesion: 0.08
-Nodes (16): FeedbackButton(), FeedbackButtonProps, FEEDBACK_MODULES, FeedbackModule, FeedbackReportModalProps, PrefilledScreenshot, ScreenshotBuffer, FeedbackContext (+8 more)
+Cohesion: 0.02
+Nodes (97): UseAcpMessageReturn, AgentSetupCardProps, AGENT_NAMES, AgentCheckResult, AgentReadinessState, UseAgentReadinessCheckOptions, resolveAssistantConfigId(), buildGroupedHistory() (+89 more)
 
 ### Community 205 - "Anthropic Judge Model"
 Cohesion: 0.08
@@ -2762,7 +3161,7 @@ Nodes (32): dependencies, axios, expo, expo-camera, expo-clipboard, expo-constan
 
 ### Community 210 - "Social Sentiment"
 Cohesion: 0.08
-Nodes (30): aggregateSentiment(), BEAR_KW, buildPool(), BULL_KW, CACHE, CacheEntry, cacheSet(), CASHTAG_IGNORE (+22 more)
+Nodes (38): aggregateSentiment(), BEAR_KW, buildPool(), BULL_KW, CACHE, CacheEntry, cacheSet(), calcImpact() (+30 more)
 
 ### Community 211 - "Financial Safety Check"
 Cohesion: 0.10
@@ -2774,11 +3173,11 @@ Nodes (24): archArgs, archList, args, builderArgs, buildWithDmgRetry(), cleanupD
 
 ### Community 213 - "Benchmark Reporting"
 Cohesion: 0.10
-Nodes (31): adaptMemorySummary(), BenchReport, BenchResult, BundleSizeReport, bytesToMb(), checkBundleSize(), esc(), formatTime() (+23 more)
+Nodes (32): adaptMemorySummary(), BenchReport, BenchResult, BundleSizeReport, bytesToMb(), checkBundleSize(), esc(), formatNumber() (+24 more)
 
 ### Community 214 - "Research Graph Workflow"
-Cohesion: 0.10
-Nodes (24): BlueprintReviewCallback, ResearchCancelledError, ResearchModelId, WorkflowId, _clearGraphState(), FanoutResult, getNextNode(), _graphId() (+16 more)
+Cohesion: 0.11
+Nodes (22): BlueprintReviewCallback, WorkflowId, _clearGraphState(), FanoutResult, getNextNode(), _graphId(), GraphNodeName, GraphRunConfig (+14 more)
 
 ### Community 215 - "Skill Discussion Log"
 Cohesion: 0.06
@@ -2797,8 +3196,8 @@ Cohesion: 0.06
 Nodes (31): agentNotConfigured, emptyState, subtitle, suggestions, newAgent, noMessages, removeAgent, confirmContent (+23 more)
 
 ### Community 219 - "Tool File Operations"
-Cohesion: 0.05
-Nodes (38): actions, create, delete, modify, deletedFile, fileChanges, fileOps, description (+30 more)
+Cohesion: 0.06
+Nodes (31): actions, create, delete, modify, deletedFile, fileChanges, fileOps, description (+23 more)
 
 ### Community 220 - "Chat Minimap"
 Cohesion: 0.13
@@ -2833,8 +3232,8 @@ Cohesion: 0.06
 Nodes (30): allScheduledTasks, confirmDeleteWithConversations, deleteSuccess, drawer.command, drawer.commandPlaceholder, drawer.disabled, drawer.enabled, drawer.name (+22 more)
 
 ### Community 228 - "Agent Permissions"
-Cohesion: 0.11
-Nodes (17): acceptEdits, auto, auto_edit, autoEdit, build, bypass, bypassPermissions, default (+9 more)
+Cohesion: 0.03
+Nodes (58): IMAGE_EXTENSIONS, MIME_TO_EXT_MAP, MIME_TYPE_MAP, AuthContext, AuthContextValue, AuthProvider(), AuthStatus, AuthUser (+50 more)
 
 ### Community 229 - "Transformer Layers"
 Cohesion: 0.10
@@ -2889,16 +3288,16 @@ Cohesion: 0.07
 Nodes (29): Correct Usage Examples, ⚠️ CRITICAL: One Task at a Time, ⚠️ Deliverables Policy: NO SHORTCUTS, Example Verification Dialogue, File Organization, How to Use This Skill, If User Requests Full Pipeline, Important Notes (+21 more)
 
 ### Community 242 - "Auth Store"
-Cohesion: 0.11
-Nodes (21): _bootstrap_servers(), _common_kwargs(), consume_messages(), get_producer(), _is_enabled(), make_consumer(), publish(), Gravity Search — Kafka Client Factory Thin async wrappers around aiokafka for p (+13 more)
+Cohesion: 0.05
+Nodes (41): 10. Financial Accuracy System, 11. Citation System, 12. Auto Audit System, 13. Evaluation System, 14. Memory System, 15. Security, 16. Deployment, 17. Current Problems (+33 more)
 
 ### Community 243 - "Workspace Drag Drop"
 Cohesion: 0.07
 Nodes (30): explorer, terminal, vscode, workspace, addFile, collapse, createNewConversation, dragFailed (+22 more)
 
 ### Community 244 - "Files Tab Context"
-Cohesion: 0.09
-Nodes (31): ChatDrawerLayout(), DrawerMenuButton(), DiffBlock(), mapAcpStatus(), parseDiffStats(), styles, ToolCallBlock(), ToolCallBlockProps (+23 more)
+Cohesion: 0.08
+Nodes (26): RootLayout(), ChatDrawerLayout(), ConnectionProvider(), FilesTabContext, FilesTabContextType, FilesTabProvider(), FileTab, useFilesTab() (+18 more)
 
 ### Community 245 - "File Structure Conventions"
 Cohesion: 0.07
@@ -2985,8 +3384,8 @@ Cohesion: 0.07
 Nodes (27): 1. Build the App, 2. Ensure `aioncore` is on PATH, 3. Run Tests, 3. View Results, App launches but page is blank, App Lifecycle, Architecture, Basic Pattern (+19 more)
 
 ### Community 266 - "FinanceBench Evaluation"
-Cohesion: 0.11
-Nodes (31): citation_check(), _ensure_token(), evaluate_question(), evidence_recall(), exact_match(), _extract_numbers(), fuzzy_match(), hallucination_flag() (+23 more)
+Cohesion: 0.07
+Nodes (35): citation_check(), _ensure_token(), EvalReport, evaluate_question(), evidence_recall(), exact_match(), _extract_numbers(), fuzzy_match() (+27 more)
 
 ### Community 267 - "Slide Formatting Standards"
 Cohesion: 0.07
@@ -3017,8 +3416,8 @@ Cohesion: 0.07
 Nodes (27): P0 核心交互（8/8 实现）, P1 功能验证（15/15 实现）, P2 边界用例（5/5 实现）, P3 性能测试（1/1 实现）, Skills Hub E2E 实现映射, URL 高亮测试 (url-highlight.e2e.ts, 6 screenshots), 刷新与空态测试 (refresh-empty-tabs.e2e.ts, 11 screenshots), 实现分布均衡性 (+19 more)
 
 ### Community 274 - "Financial Verifier Agent"
-Cohesion: 0.05
-Nodes (45): acpConversation, CustomAgentDraft, EnvVar, InlineAgentEditor(), TestStatus, PresetManagement(), PresetManagementProps, RootLayout() (+37 more)
+Cohesion: 0.04
+Nodes (47): dependencies, class-variance-authority, clsx, cmdk, date-fns, embla-carousel-react, @hookform/resolvers, input-otp (+39 more)
 
 ### Community 275 - "Plugin Manifest"
 Cohesion: 0.07
@@ -3034,7 +3433,7 @@ Nodes (25): bootstrap_ci(), BootstrapCI, call_agentic(), call_closed_book(), cal
 
 ### Community 278 - "Financial Skills Loader"
 Cohesion: 0.11
-Nodes (15): FinancialSkill, FinancialSkillsLoader, Loads and indexes financial skills from the financial-services-main repository., Scan and load all skills and agent prompts., Load SKILL.md files from vertical-plugins/., Parse YAML frontmatter from a skill/agent markdown file.          Returns (name,, Find the most relevant financial skills for a query.          Uses keyword match, Get a specific skill by its exact name. (+7 more)
+Nodes (15): FinancialSkill, FinancialSkillsLoader, Loads and indexes financial skills from the financial-services-main repository., Scan and load all skills and agent prompts., Load SKILL.md files from vertical-plugins/., Load agent system prompts from agent-plugins/., Parse YAML frontmatter from a skill/agent markdown file.          Returns (name,, Find the most relevant financial skills for a query.          Uses keyword match (+7 more)
 
 ### Community 279 - "Agent Switcher UI"
 Cohesion: 0.07
@@ -3061,8 +3460,8 @@ Cohesion: 0.07
 Nodes (26): agentFallbackNotice, agentSwitcherLabel, agentTabAutoSwitch, autoSwitchedAgent, autoSwitchToAgent, noAgentAvailable, noAgentAvailableShort, promptExamplesHint (+18 more)
 
 ### Community 285 - "Alert Dialog UI"
-Cohesion: 0.10
-Nodes (7): AlertDialogAction(), AlertDialogCancel(), Button(), buttonVariants, Calendar(), PaginationLink(), PaginationLinkProps
+Cohesion: 0.13
+Nodes (23): Bar, board(), brief(), cached(), engine(), fundamentals(), groups(), highs() (+15 more)
 
 ### Community 286 - "Agent Switcher UI"
 Cohesion: 0.07
@@ -3110,19 +3509,19 @@ Nodes (24): aioncoreVersion, author, email, name, description, electronRebuild, 
 
 ### Community 297 - "Platform API Keys"
 Cohesion: 0.09
-Nodes (18): AddModelModal, AddPlatformModal, getSuggestionMessage(), PROTOCOL_ICONS, ProtocolDetectionStatus(), EditModeModal, buildLogoAssetUrl(), detectNewApiProtocol() (+10 more)
+Nodes (19): AddModelModal, AddPlatformModal, getSuggestionMessage(), PROTOCOL_ICONS, ProtocolDetectionStatus(), ApiKeyEditorModalProps, ApiKeyItem, KeyStatus (+11 more)
 
 ### Community 298 - "Qdrant Client"
-Cohesion: 0.06
-Nodes (17): ensure_collection(), _MockQdrantClient, _MockQdrantResult, QdrantLazyClient, Gravity Search — Qdrant Vector Database Client Real AsyncQdrantClient with grac, Create the Qdrant collection if it doesn't exist., Mock for search/upsert results. Mirrors QueryResponse shape (.points list)., Mimics AsyncQdrantClient when Qdrant is down. (+9 more)
+Cohesion: 0.07
+Nodes (29): CriticFeedback, Quality assessment from the Critic agent., CriticAgent, Gravity Search — Critic Agent Evaluates quality of extracted data and decides w, Build a concise summary of extracted facts for the LLM., Compact source summary for rubric evaluation prompt., Deterministic source diversity check — no LLM needed.         Research: "All fa, Dead-end detection: checks if the current iteration produced no new         uni (+21 more)
 
 ### Community 299 - "Agent Configuration Errors"
 Cohesion: 0.17
 Nodes (12): setup, alternativesFound, authRequired, autoSwitching, checkingAgent, configError, configureFirst, connectionError (+4 more)
 
 ### Community 300 - "Caveman Config Utilities"
-Cohesion: 0.06
-Nodes (51): flagPath, fs, { getDefaultMode, safeWriteFlag }, INDEPENDENT_MODES, mode, os, path, settingsPath (+43 more)
+Cohesion: 0.11
+Nodes (22): appendFlag(), fs, getConfigDir(), getConfigPath(), getDefaultMode(), os, path, readFlag() (+14 more)
 
 ### Community 301 - "i18n Translation Skill"
 Cohesion: 0.08
@@ -3130,7 +3529,7 @@ Nodes (24): Adding a New Module, Adding New Text — Workflow, Common Mistakes, 
 
 ### Community 302 - "TypeScript App Config"
 Cohesion: 0.08
-Nodes (24): compilerOptions, allowImportingTsExtensions, baseUrl, erasableSyntaxOnly, jsx, lib, module, moduleDetection (+16 more)
+Nodes (25): compilerOptions, allowImportingTsExtensions, baseUrl, erasableSyntaxOnly, jsx, lib, module, moduleDetection (+17 more)
 
 ### Community 303 - "Cowork AI Agents"
 Cohesion: 0.08
@@ -3145,24 +3544,24 @@ Cohesion: 0.17
 Nodes (12): setup, alternativesFound, authRequired, autoSwitching, checkingAgent, configError, configureFirst, connectionError (+4 more)
 
 ### Community 306 - "MNPIRegistry Module"
-Cohesion: 0.12
-Nodes (14): is_mnpi_key(), mnpi_key(), mnpi_keys_in(), MNPIRegistry, MNPI Wall-Crossing Workflow (plan §3.6)  Material Non-Public Information (MNPI), Source of truth for active wall-crossings., Grant MNPI access on a project to a user. Audit-logged.          Compliance offi, User clicked the wall-cross banner. Required for legal validity. (+6 more)
+Cohesion: 0.08
+Nodes (22): ChunkOutput, FinancialRow, Gravity Search -- Financial Table Indexer Converts ParsedTable objects into sea, Convert ParsedTable headers/rows into FinancialRow objects., Find which column indices contain period labels (FY2024, Q3 2023, etc.), Detect unit scaling from caption: millions, thousands, billions., Normalize metric name: strip parentheticals, normalize whitespace., Heuristic: if >50% of cells are non-numeric and no numbers at all, skip. (+14 more)
 
 ### Community 307 - "File Snapshot Mapping"
-Cohesion: 0.05
-Nodes (42): ICssTheme, LayoutContext, HistoryEntry, NavigationHistoryContext, NavigationHistoryContextValue, NavigationHistoryProvider(), BACKGROUND_BLOCK_PATTERN, buildBackgroundCss() (+34 more)
+Cohesion: 0.06
+Nodes (23): AionCollapseComponent(), AionCollapseItemProps, AionCollapseProps, normalizeKeys(), AionModalProps, DimensionKey, dimensionKeys, MODAL_SIZES (+15 more)
 
 ### Community 308 - "Conversation Grouping"
-Cohesion: 0.12
-Nodes (15): buildGroupedHistory(), styles, WorkspaceGroup(), WorkspaceGroupProps, Conversation, getConversationTimelineLabel(), groupConversationsByTimelineAndWorkspace(), GroupedHistoryResult (+7 more)
+Cohesion: 0.14
+Nodes (15): buildGroupedHistory(), Conversation, getConversationTimelineLabel(), groupConversationsByTimelineAndWorkspace(), GroupedHistoryResult, now, TimelineItem, TimelineSection (+7 more)
 
 ### Community 309 - "Bridge Initialization"
-Cohesion: 0.12
-Nodes (18): initApplicationBridge(), initApplicationBridgeCore(), initDialogBridge(), BridgeDependencies, initAllBridges(), getNotificationIcon(), initNotificationBridge(), showNotification() (+10 more)
+Cohesion: 0.13
+Nodes (16): initDialogBridge(), BridgeDependencies, initAllBridges(), getNotificationIcon(), initNotificationBridge(), showNotification(), initSystemSettingsBridge(), LanguageChangeListener (+8 more)
 
 ### Community 310 - "Assistant Migration"
-Cohesion: 0.13
-Nodes (20): CreateAssistantRequest, getAssistantsDir(), applyBuiltinOverrides(), applyBuiltinPresetAgentTypeOverrides(), asStringArray(), asStringArrayRecord(), asStringRecord(), BuiltinAgentTypeOverride (+12 more)
+Cohesion: 0.12
+Nodes (20): ProtocolDetectionStatusProps, UseProtocolDetectionOptions, UseProtocolDetectionResult, API_PATH_SUFFIXES, getProtocolDisplayName(), getRecommendedPlatform(), guessProtocolFromKey(), guessProtocolFromUrl() (+12 more)
 
 ### Community 311 - "Caveman Claude Project"
 Cohesion: 0.08
@@ -3170,11 +3569,11 @@ Nodes (23): Also by Julius Brussee, Before / After, Benchmarks, 🪨 Caveman Cla
 
 ### Community 312 - "Protocol Detection"
 Cohesion: 0.12
-Nodes (20): ProtocolDetectionStatusProps, UseProtocolDetectionOptions, UseProtocolDetectionResult, API_PATH_SUFFIXES, getProtocolDisplayName(), getRecommendedPlatform(), guessProtocolFromKey(), guessProtocolFromUrl() (+12 more)
+Nodes (14): is_mnpi_key(), mnpi_key(), mnpi_keys_in(), MNPIRegistry, MNPI Wall-Crossing Workflow (plan §3.6)  Material Non-Public Information (MNPI), Source of truth for active wall-crossings., Grant MNPI access on a project to a user. Audit-logged.          Compliance offi, User clicked the wall-cross banner. Required for legal validity. (+6 more)
 
 ### Community 313 - "HTML/Markdown Editors"
-Cohesion: 0.08
-Nodes (22): AcpDetectedAgent, AionrsDetectedAgent, DetectedAgent, DetectedAgentKind, KindFields, NanobotDetectedAgent, OpenClawDetectedAgent, RemoteAgentAuthType (+14 more)
+Cohesion: 0.17
+Nodes (12): setup, alternativesFound, authRequired, autoSwitching, checkingAgent, configError, configureFirst, connectionError (+4 more)
 
 ### Community 314 - "Custom Agent Docs"
 Cohesion: 0.08
@@ -3209,8 +3608,8 @@ Cohesion: 0.08
 Nodes (23): ⚠️⚠️⚠️ CRITICAL WARNING: ALWAYS USE THE LATEST EARNINGS DATA ⚠️⚠️⚠️, Detailed Workflow for Earnings Updates, Phase 1: Earnings Data Collection (30-60 minutes), Phase 2: Analysis (2-3 hours), Phase 3: Chart Generation (1-2 hours), Phase 4: Report Creation (2-3 hours), Phase 5: Quality Check & Delivery (30 minutes), Step 10: Update Valuation & Price Target (+15 more)
 
 ### Community 322 - "Waitlist Form Components"
-Cohesion: 0.10
-Nodes (13): AUM, FieldProps, FormState, INITIAL, INTEREST, ROLES, WaitlistForm, STRENGTH_COLORS (+5 more)
+Cohesion: 0.20
+Nodes (15): Verify all external services are reachable (concurrent, 3s hard timeout each)., _verify_connections(), _check_elasticsearch(), _check_neo4j(), _check_qdrant(), _check_redis(), health(), Gravity Search — Health & Readiness Routes Real dependency checks on all downst (+7 more)
 
 ### Community 323 - "Login Localization"
 Cohesion: 0.08
@@ -3237,16 +3636,16 @@ Cohesion: 0.08
 Nodes (23): CRITICAL issue constraints, Layer 1 — Is the issue real?, Layer 2 — Is the suggested fix reasonable?, Layer 3 — Is there a better fix?, Mandatory Rules, Mode Detection, Post-triage check, PR Review Fix Skill (+15 more)
 
 ### Community 329 - "Proposition Extractor"
-Cohesion: 0.09
-Nodes (23): GridCell, GridCitation, GridEngine, GridRequest, GridResult, Generative Grid Engine — AlphaSense Generative Grid competitor ================, Input to the grid engine., Full grid output: cells[document_id][question_id] = GridCell. (+15 more)
+Cohesion: 0.33
+Nodes (10): _build_engine(), _cell_to_schema(), execute_grid(), Grid Search API Routes ====================== POST /v1/grid             — Sync, Execute a Generative Grid: N questions × M documents → structured table., WebSocket endpoint for streaming grid execution.      Client sends GridRequest, Lazy-load the grid engine with the search pipeline., _schema_to_document() (+2 more)
 
 ### Community 330 - "Sector Seeds List"
 Cohesion: 0.08
 Nodes (23): AI / Machine Learning, Biotech / Pharma, Clean Energy, Climate Tech, Cloud Infrastructure / DevTools, Consumer, Consumer Social / Media, Cybersecurity (+15 more)
 
 ### Community 331 - "Analytics API"
-Cohesion: 0.12
-Nodes (24): get_db_pool(), compare_periods(), get_guidance_vs_actuals(), get_longitudinal_profile(), _get_longitudinal_tracker(), get_metric_series(), get_sentiment(), get_sentiment_delta() (+16 more)
+Cohesion: 0.13
+Nodes (23): compare_periods(), get_guidance_vs_actuals(), get_longitudinal_profile(), _get_longitudinal_tracker(), get_metric_series(), get_sentiment(), get_sentiment_delta(), _get_sentiment_engine() (+15 more)
 
 ### Community 332 - "Login Localization"
 Cohesion: 0.08
@@ -3258,7 +3657,7 @@ Nodes (23): 1. Clarify Requirements, 2. Research & Planning, 3. Slide-by-Slide C
 
 ### Community 334 - "Search Pipeline Tests"
 Cohesion: 0.08
-Nodes (13): Tests for the search pipeline — agentic routing and event streaming structure., Test the agentic routing decision logic., Create a SearchPipeline with all dependencies mocked., reasoning_depth='agentic' should always use agentic., reasoning_depth='fast' should never use agentic., Auto mode should route complex queries to agentic., Auto mode should keep simple queries on linear pipeline., Math queries should use agentic. (+5 more)
+Nodes (13): Tests for the search pipeline — agentic routing and event streaming structure., Test the agentic routing decision logic.      The orchestrator ships gated off, Create a SearchPipeline with all dependencies mocked., reasoning_depth='agentic' should always use agentic., reasoning_depth='fast' should never use agentic., Auto mode should route complex queries to agentic., Auto mode should keep simple queries on linear pipeline., Math queries should use agentic. (+5 more)
 
 ### Community 335 - "Login Localization"
 Cohesion: 0.08
@@ -3273,8 +3672,8 @@ Cohesion: 0.08
 Nodes (23): brand, errors, empty, invalidCredentials, networkError, serverError, tooManyAttempts, unknown (+15 more)
 
 ### Community 338 - "Update Localization"
-Cohesion: 0.08
-Nodes (23): autoUpdateMode, availableTitle, checkFailed, checking, currentVersion, downloadAndInstall, downloadButton, downloadCompleteTitle (+15 more)
+Cohesion: 0.05
+Nodes (31): pleaseSelectDirectory, pleaseSelectFile, selectDirectory, selectFile, mode, autoGemini25Desc, autoGemini3Desc, manualDesc (+23 more)
 
 ### Community 339 - "Login Localization"
 Cohesion: 0.08
@@ -3325,8 +3724,8 @@ Cohesion: 0.09
 Nodes (23): addedToChat, addToChat, deleteConfirm, deleteFailed, deleteSuccess, deleteTitle, download, downloadFailed (+15 more)
 
 ### Community 351 - "FinanceBench PageIndex"
-Cohesion: 0.12
-Nodes (16): load_dataset(), ask(), ensure_doc(), _h(), _load_cache(), main(), FinanceBench eval — closed-book over PageIndex (the Mafin 2.5 engine).  This is, Answer a question over a doc via PageIndex Chat API (retrieval + gen). (+8 more)
+Cohesion: 0.14
+Nodes (13): ask(), ensure_doc(), _h(), _load_cache(), FinanceBench eval — closed-book over PageIndex (the Mafin 2.5 engine).  This is, Answer a question over a doc via PageIndex Chat API (retrieval + gen)., Return a PageIndex doc_id for doc_name, indexing it if needed (cached)., Report (+5 more)
 
 ### Community 352 - "Golden Queries Set"
 Cohesion: 0.09
@@ -3345,12 +3744,12 @@ Cohesion: 0.09
 Nodes (22): Analysis workflow, Competitive Landscape Mapping, Data comparability, Design, Environment check, Phase 1 — Scope the analysis, Phase 2 — Outline, approve, then build, Prompt fidelity (+14 more)
 
 ### Community 356 - "Conversation List Sync"
-Cohesion: 0.12
-Nodes (16): clearCompletionUnreadState(), clearGenerating(), completionUnreadConversationIdsState, conversation_idsState, ConversationListSyncSnapshot, conversationsState, emitStoreChange(), generatingConversationIdsState (+8 more)
+Cohesion: 0.07
+Nodes (23): AcpDetectedAgent, AionrsDetectedAgent, DetectedAgent, DetectedAgentKind, KindFields, NanobotDetectedAgent, OpenClawDetectedAgent, RemoteAgentAuthType (+15 more)
 
 ### Community 357 - "Hermes Market Hooks"
-Cohesion: 0.09
-Nodes (23): useHermesPanel(), ExchangeMarket, useMarketsSearch(), ExchangeMarket, SortField, SortOrder, useMarketsSort(), ExchangeMarket (+15 more)
+Cohesion: 0.08
+Nodes (24): useHermesPanel(), ExchangeMarket, useMarketsSearch(), ExchangeMarket, SortField, SortOrder, useMarketsSort(), ExchangeMarket (+16 more)
 
 ### Community 358 - "Conversation Localization"
 Cohesion: 0.09
@@ -3369,12 +3768,12 @@ Cohesion: 0.09
 Nodes (23): addedToChat, addToChat, deleteConfirm, deleteFailed, deleteSuccess, deleteTitle, download, downloadFailed (+15 more)
 
 ### Community 362 - "Backend Package Config"
-Cohesion: 0.09
-Nodes (22): dependencies, cors, dotenv, express, @google/generative-ai, @supabase/supabase-js, ws, yahoo-finance2 (+14 more)
+Cohesion: 0.08
+Nodes (23): dependencies, cors, dotenv, express, @google/generative-ai, @supabase/supabase-js, undici, ws (+15 more)
 
 ### Community 363 - "MCP Client Registry"
-Cohesion: 0.10
-Nodes (12): MCPRegistry, get_mcp_registry(), MCPRegistry, Gravity Search — Model Context Protocol (MCP) Client  Generic client for Anthrop, Close the HTTP client., Registry of all configured MCP servers.     Loads configs from env vars and .mcp, Register an MCP server config. Only creates client if enabled., Initialize all registered MCP clients in parallel. (+4 more)
+Cohesion: 0.16
+Nodes (8): get_mcp_registry(), MCPRegistry, Gravity Search — Model Context Protocol (MCP) Client  Generic client for Anthrop, Registry of all configured MCP servers.     Loads configs from env vars and .mcp, Register an MCP server config. Only creates client if enabled., Initialize all registered MCP clients in parallel., Build a registry from environment variables and .mcp.json configs., Get the singleton MCP registry instance.
 
 ### Community 364 - "Frontend Package Config"
 Cohesion: 0.09
@@ -3393,8 +3792,8 @@ Cohesion: 0.09
 Nodes (23): addedToChat, addToChat, deleteConfirm, deleteFailed, deleteSuccess, deleteTitle, download, downloadFailed (+15 more)
 
 ### Community 368 - "Source Scoring Service"
-Cohesion: 0.13
-Nodes (22): scoreSource(), scoreSourceForSection(), summarizeRecency(), AGGREGATORS, AUTHORITY_WEIGHT, authorityWeight(), classifyAuthority(), classifyRecency() (+14 more)
+Cohesion: 0.09
+Nodes (31): searchWebCell(), scoreSource(), scoreSourceForSection(), SectionWriterContext, summarizeRecency(), VerificationInputs, CompanyOverview, SECFiling (+23 more)
 
 ### Community 369 - "Conversation Localization"
 Cohesion: 0.09
@@ -3413,8 +3812,8 @@ Cohesion: 0.09
 Nodes (23): addedToChat, addToChat, deleteConfirm, deleteFailed, deleteSuccess, deleteTitle, download, downloadFailed (+15 more)
 
 ### Community 373 - "Chromium Config"
-Cohesion: 0.13
-Nodes (21): getDevAppName(), CDP_REGISTRY_FILE, CdpConfig, CdpRegistryEntry, CdpStatus, findAvailablePort(), getActiveCdpInstances(), getCdpStatus() (+13 more)
+Cohesion: 0.08
+Nodes (40): IStartOnBootStatus, getLoginItemSettings(), getStartOnBootStatus(), getStartOnBootWindowsArgs(), initApplicationBridge(), isStartOnBootSupported(), setStartOnBootEnabled(), wasLaunchedAtLogin() (+32 more)
 
 ### Community 374 - "Conversation Localization"
 Cohesion: 0.09
@@ -3449,12 +3848,12 @@ Cohesion: 0.13
 Nodes (13): _canonical_hash(), _chain_hash(), 17a-4 Audit-Trail Alternative — Append-Only Archival (plan §3.6).  SEC Rule 17a-, SHA256 over canonical (sorted) JSON — order-independent., Append-only archive for sealed audit records.      Usage:         worm = WORMArc, Return the chain_hash of the most recent record, or genesis '0'*64., Append a record to the archive. Idempotent on event_id., Mirror a sealed record to S3 with Object Lock COMPLIANCE retention.         Cust (+5 more)
 
 ### Community 382 - "FinanceBench XBRL"
-Cohesion: 0.11
-Nodes (14): answer_with_facts(), _company_from_filing(), _extract_gold_number(), facts_cover_gold(), _fiscal_years(), main(), R, FinanceBench eval — deterministic numeric answering over SEC XBRL exact facts. (+6 more)
+Cohesion: 0.09
+Nodes (17): load_dataset(), main(), Load FinanceBench questions.     Tries HuggingFace datasets first, falls back t, answer_with_facts(), _company_from_filing(), _extract_gold_number(), facts_cover_gold(), _fiscal_years() (+9 more)
 
 ### Community 383 - "File Download Utilities"
 Cohesion: 0.08
-Nodes (26): CompanyPage(), fmt(), GravityDocument, GravityMetric, LongitudinalPoint, MarketOverview, Quote, SentimentDelta (+18 more)
+Nodes (16): FeedbackButton(), FeedbackButtonProps, FEEDBACK_MODULES, FeedbackModule, FeedbackReportModalProps, PrefilledScreenshot, ScreenshotBuffer, FeedbackContext (+8 more)
 
 ### Community 384 - "Earnings Update Skill"
 Cohesion: 0.09
@@ -3506,7 +3905,7 @@ Nodes (7): MCPServerConfig, Configuration for a single MCP server., Tests for th
 
 ### Community 396 - "TurboQuant Search"
 Cohesion: 0.12
-Nodes (11): build_turbo_quant_search(), TurboQuant Retrieval Channel — pyturboquant compressed ANN index Channel 7 in th, Seed the TurboQuant index from all vectors currently in Qdrant.         Returns, Incrementally add new vectors during ingestion (non-blocking)., Load compressed index from disk. Returns True on success., Persist index and payload store to disk., Build TurboQuantSearch if enabled in config; return None otherwise., Retrieval channel 7: compressed in-memory ANN search via TurboQuant.      Life-c (+3 more)
+Nodes (13): AttributedProposition, PropositionExtractor, Gravity Search -- Proposition Extractor (ALiiCE) Decomposes generated answers in, Split answer into atomic propositions using rule-based extraction         or LLM, Split on sentence boundaries, keeping only factual sentences.         Filters ou, Use LLM to decompose answer into atomic propositions., Split each passage into sentences for fine-grained attribution.          Returns, Find the best-matching sentence for a single claim via NLI. (+5 more)
 
 ### Community 397 - "BYOK Key Store"
 Cohesion: 0.12
@@ -3521,16 +3920,16 @@ Cohesion: 0.15
 Nodes (11): Any, AsyncClient, get_refinitiv_client(), Gravity Search — Refinitiv / LSEG Workspace Data Platform Client Fetches fundam, Fetch analyst consensus estimates for a given company / metric / period., Fetch key fundamental metrics: P/E, EV/EBITDA, market cap, sector.         Retu, Fetch recent Reuters / LSEG news articles for a ticker.         Returns list of, Fetch fundamentals for multiple tickers concurrently. (+3 more)
 
 ### Community 400 - "WebSocket Service"
-Cohesion: 0.14
-Nodes (3): emit(), WebSocketService, decodeJwtPayload()
+Cohesion: 0.10
+Nodes (5): emit(), MockWebSocket, MockWSInstance, mockWSInstances, WebSocketService
 
 ### Community 401 - "SEC Filing Types"
-Cohesion: 0.15
-Nodes (18): FilingType, normalize_filing_types(), Canonical registry of SEC filing types the ingestion pipeline supports.  Single, Split a requested list into (supported, unknown), preserving order and     de-du, Serializable list for the GET /v1/documents/filing-types endpoint., registry_payload(), list_filing_types(), Canonical list of SEC filing types the pipeline supports. The UI renders this (+10 more)
+Cohesion: 0.08
+Nodes (12): Home(), ITEMS, BLOCKS, STATS, Manifest, getRepos(), HIDE, OVERRIDES (+4 more)
 
 ### Community 402 - "Image Generation Server"
-Cohesion: 0.16
-Nodes (17): main(), executeImageGeneration(), fileToBase64(), getFileExtensionFromDataUrl(), getImageMimeType(), ImageContent, ImageExtension, ImageGenParams (+9 more)
+Cohesion: 0.20
+Nodes (14): main(), executeImageGeneration(), fileToBase64(), getFileExtensionFromDataUrl(), getImageMimeType(), ImageContent, ImageExtension, ImageGenParams (+6 more)
 
 ### Community 403 - "Code Block Validator"
 Cohesion: 0.20
@@ -3549,8 +3948,8 @@ Cohesion: 0.19
 Nodes (17): check(), _check_hash_chain(), _check_retention(), _check_schema(), _collect_records(), compute_record_hash(), ConformanceReport, HashChainViolation (+9 more)
 
 ### Community 407 - "Conversation Numeric State"
-Cohesion: 0.13
-Nodes (12): Load prior turns + numeric state from Redis for conversational context., extract_numeric_facts(), get_numeric_state_tracker(), NumericFact, NumericStateTracker, Gravity Search -- ConvFinQA Numeric State Tracker Implements multi-turn numeric, Maintains a key-value store of numeric facts across conversation turns.      Bac, Extract facts from an answer and store them keyed to conversation_id. (+4 more)
+Cohesion: 0.15
+Nodes (11): extract_numeric_facts(), get_numeric_state_tracker(), NumericFact, NumericStateTracker, Gravity Search -- ConvFinQA Numeric State Tracker Implements multi-turn numeric, Maintains a key-value store of numeric facts across conversation turns.      Bac, Extract facts from an answer and store them keyed to conversation_id., Build a KNOWN FACTS block to prepend to the LLM prompt.          Returns empty s (+3 more)
 
 ### Community 408 - "Polygon Data Client"
 Cohesion: 0.14
@@ -3589,8 +3988,8 @@ Cohesion: 0.10
 Nodes (21): skill_generator, description, failed, generate, load_error, load_title, menu_generate, menu_load (+13 more)
 
 ### Community 417 - "App Router & Settings"
-Cohesion: 0.15
-Nodes (16): _build_full_text(), EarningsTranscriptSource, _fetch_edgar_8k_transcript(), _fetch_quartr(), _parse_motley_fool_html(), Gravity Search — Earnings Call Transcript Source  Source priority:   1. EDGAR 8-, Fetch transcript from Quartr API (paid; QUARTR_API_KEY required).     Docs: http, Split press release into financial highlights, narrative, and tables. (+8 more)
+Cohesion: 0.10
+Nodes (20): ingest_ticker_news(), load_progress(), main(), News / Press-Release Backfill — S&P 500 recent articles =======================, Discover recent article URLs for a ticker, ingest each body as news., run(), save_progress(), ingest_ticker_transcripts() (+12 more)
 
 ### Community 418 - "Version Info Manager"
 Cohesion: 0.13
@@ -3609,8 +4008,8 @@ Cohesion: 0.16
 Nodes (20): _findtext(), Form13FFiling, Form4Filing, HoldingRow, InsiderTransaction, parse_13f_information_table(), _parse_float(), _parse_form4_tx() (+12 more)
 
 ### Community 422 - "Market Router"
-Cohesion: 0.11
-Nodes (13): llmRouter, marketRouter, BRACKETS, router, voterIds, votes, router, tavilyRouter (+5 more)
+Cohesion: 0.09
+Nodes (15): CacheEntry, router, scrapeCache, marketRouter, BRACKETS, router, voterIds, votes (+7 more)
 
 ### Community 423 - "Git Status UI"
 Cohesion: 0.10
@@ -3634,8 +4033,8 @@ Cohesion: 0.19
 Nodes (19): agentPillByBackend(), computeStats(), filterGroup(), generateHtmlReport(), getGroups(), getLogFilePath(), getLogFileSize(), goToGuid() (+11 more)
 
 ### Community 427 - "Auto-Updater Service"
-Cohesion: 0.10
-Nodes (5): AutoUpdaterEvents, AutoUpdaterService, AutoUpdateStatus, getUpdateChannel(), StatusBroadcastCallback
+Cohesion: 0.07
+Nodes (41): BackgroundTasks, check_rate_limit(), _mem_incr(), _month_ttl(), RateLimiter, Gravity Search — Rate Limiter (Section 7.4 of build guide) Two-layer enforcement, FastAPI Depends convenience wrapper., Increment in-memory counter; auto-expires after ttl_s. (+33 more)
 
 ### Community 428 - "Skills & Theme Docs"
 Cohesion: 0.10
@@ -3650,8 +4049,8 @@ Cohesion: 0.10
 Nodes (21): skill_generator, description, failed, generate, load_error, load_title, menu_generate, menu_load (+13 more)
 
 ### Community 431 - "Command Palette UI"
-Cohesion: 0.12
-Nodes (5): Dialog(), DialogContent(), DialogDescription(), DialogHeader(), DialogTitle()
+Cohesion: 0.06
+Nodes (30): 10. Financial Accuracy System, 11. Citation System, 12. Auto Audit System, 13. Evaluation System, 14. Memory System, 15. Security, 16. Deployment, 17. Current Problems (+22 more)
 
 ### Community 432 - "Git Status UI"
 Cohesion: 0.10
@@ -3690,8 +4089,8 @@ Cohesion: 0.18
 Nodes (16): check(), _citation_ids(), _citation_overlap(), _extract_nums(), _load_eligible_records(), main(), _nums_match(), _parse_num() (+8 more)
 
 ### Community 441 - "Financial Ratio Calculations"
-Cohesion: 0.11
-Nodes (12): cagr(), debt_to_equity(), eps_diluted(), ev_ebitda(), pe_ratio(), Compound Annual Growth Rate., Price-to-Earnings ratio = Price / EPS., EV/EBITDA = Enterprise Value / EBITDA. (+4 more)
+Cohesion: 0.09
+Nodes (19): current_ratio(), debt_to_equity(), ebitda_margin(), ev_ebitda(), free_cash_flow(), percentage_change(), qoq_growth(), Gravity Search — Financial Calculator Engine Programmatic financial calculation (+11 more)
 
 ### Community 442 - "Observability Tracing"
 Cohesion: 0.15
@@ -3754,8 +4153,8 @@ Cohesion: 0.10
 Nodes (20): welcome, clearWorkspace, currentWorkspace, linkFolder, modelSwitchNotSupported, newConversation, none, openFolder (+12 more)
 
 ### Community 457 - "Button Group UI"
-Cohesion: 0.13
-Nodes (7): ButtonGroup(), buttonGroupVariants, Item(), ItemMedia(), itemMediaVariants, itemVariants, Separator()
+Cohesion: 0.08
+Nodes (29): EVAL_ROOT, OUT_DIR, SRC_DIR, OUT_DIR, mockedECS, mockedPDR, REPORT, OUT_DIR (+21 more)
 
 ### Community 458 - "Workspace Welcome UI"
 Cohesion: 0.10
@@ -3798,8 +4197,8 @@ Cohesion: 0.11
 Nodes (12): aouColors, backgroundColors, borderColors, brandColors, componentColors, semanticColors, specialColors, textColors (+4 more)
 
 ### Community 468 - "LLM Client Interface"
-Cohesion: 0.06
-Nodes (26): Gravity Search — Reader Agent Retrieves and reads sources for each sub-task in, Environment, Gravity Search — Application Configuration Reads from .env via pydantic-setting, CellStatus, Gravity Search — Redis Client (caching + semantic cache), RedisLazyClient, Enum, Gravity Search — Keyword Indexer (Elasticsearch BM25) Bulk indexes ChunkOutput (+18 more)
+Cohesion: 0.08
+Nodes (25): Chart, ChartColors, ChartProps, ChartRef, STABLE_SYMS, Candle, INTERVALS, Intraday (+17 more)
 
 ### Community 469 - "File Preview Screen"
 Cohesion: 0.13
@@ -3822,16 +4221,16 @@ Cohesion: 0.27
 Nodes (17): Path, CompletedProcess, CheckFailure, ensure(), _frontmatter_description(), load_compress_modules(), read_json(), run() (+9 more)
 
 ### Community 474 - "Pet Confirm Manager"
-Cohesion: 0.16
-Nodes (18): IConfirmation, createConfirmWindow(), currentConfirmations, destroyConfirmWindow(), destroyPetConfirmManager(), initPetConfirmManager(), loadContent(), pendingConfirmations (+10 more)
+Cohesion: 0.12
+Nodes (11): build_turbo_quant_search(), TurboQuant Retrieval Channel — pyturboquant compressed ANN index Channel 7 in th, Seed the TurboQuant index from all vectors currently in Qdrant.         Returns, Incrementally add new vectors during ingestion (non-blocking)., Load compressed index from disk. Returns True on success., Persist index and payload store to disk., Build TurboQuantSearch if enabled in config; return None otherwise., Retrieval channel 7: compressed in-memory ANN search via TurboQuant.      Life-c (+3 more)
 
 ### Community 475 - "Tool Call Normalizer"
-Cohesion: 0.09
-Nodes (9): AuthStore, _jwt_secret(), Self-Hosted User Auth Store (Path A1).  Replaces Supabase. Postgres-backed users, Async user/password store backed by Postgres + in-memory fallback.      Usage:, import_from_supabase_if_exists(), On-the-fly migration of legacy Supabase users into Fly Postgres auth_users.  Bac, Look up `email` in Supabase auth. If found, insert a local user record     with, AuthStore (+1 more)
+Cohesion: 0.11
+Nodes (17): acceptEdits, auto, auto_edit, autoEdit, build, bypass, bypassPermissions, default (+9 more)
 
 ### Community 476 - "Financial Calculator"
-Cohesion: 0.12
-Nodes (15): current_ratio(), ebitda_margin(), percentage_change(), qoq_growth(), Gravity Search — Financial Calculator Engine Programmatic financial calculation, EBITDA margin = EBITDA / Revenue × 100., Current Ratio = Current Assets / Current Liabilities., ROE = Net Income / Average Equity × 100. (+7 more)
+Cohesion: 0.11
+Nodes (23): ExhibitChart(), ExhibitStrip(), Props, BarBox, barGeometry(), CELL_NUMBER, exhibitValueViolations(), extractExhibits() (+15 more)
 
 ### Community 477 - "Memory Search Context"
 Cohesion: 0.11
@@ -3855,7 +4254,7 @@ Nodes (18): CAGR Consensus (Central Cluster), CAGR Projection, Calculation Verif
 
 ### Community 482 - "Financial Skills Loader"
 Cohesion: 0.14
-Nodes (12): FinancialSkillsLoader, loader(), An earnings query should match earnings-analysis., A sector query should match sector-overview., An M&A query should match merger-model., Should respect max_skills parameter., A non-financial query should return no skills., Fresh loader instance for each test. (+4 more)
+Nodes (11): FinancialSkillsLoader, An earnings query should match earnings-analysis., A sector query should match sector-overview., An M&A query should match merger-model., Should respect max_skills parameter., A non-financial query should return no skills., Should load at least some agent prompts., Test the query → skill matching logic. (+3 more)
 
 ### Community 483 - "Cron Tasks UI"
 Cohesion: 0.11
@@ -3866,8 +4265,8 @@ Cohesion: 0.11
 Nodes (18): aliases, components, hooks, lib, ui, utils, iconLibrary, registries (+10 more)
 
 ### Community 485 - "Frontend Dev Dependencies"
-Cohesion: 0.11
-Nodes (19): devDependencies, autoprefixer, eslint, @eslint/js, eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, kimi-plugin-inspect-react (+11 more)
+Cohesion: 0.10
+Nodes (21): devDependencies, autoprefixer, eslint, @eslint/js, eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, kimi-plugin-inspect-react (+13 more)
 
 ### Community 486 - "AionUI Constitution"
 Cohesion: 0.11
@@ -3902,8 +4301,8 @@ Cohesion: 0.11
 Nodes (18): allScheduledTasks, confirmDeleteWithConversations, deleteSuccess, goToConversation, lastError, lastRun, message, message.badge (+10 more)
 
 ### Community 494 - "Persist Quit Tests"
-Cohesion: 0.10
-Nodes (23): abortUpload(), abortUploads(), AbortUploadsFilter, activeListBySource, activeListGlobal, ActiveUpload, buildList(), calcSnapshot() (+15 more)
+Cohesion: 0.08
+Nodes (8): Sidebar(), SidebarContext, SidebarContextProps, SidebarMenuButton(), sidebarMenuButtonVariants, SidebarRail(), SidebarTrigger(), useSidebar()
 
 ### Community 495 - "Cron Tasks UI"
 Cohesion: 0.11
@@ -3954,8 +4353,8 @@ Cohesion: 0.11
 Nodes (17): Exact Code Changes Required, Expected Output After Fixes, Fix 1A — Update `FINANCIAL_ANALYST_SYSTEM` in `app/core/reasoning/prompts.py`, Fix 1B — Update `WRITER_SYSTEM` in `app/core/agents/writer_agent.py`, Fix 2 — Add `chart_specs` to `AgentContext` in `app/core/agents/agent_base.py`, Fix 3 — Extract `chart_specs` in WriterAgent `execute()` in `app/core/agents/writer_agent.py`, Fix 4 — Emit `chart_specs` in `AgentOrchestrator` final answer event in `app/core/agents/orchestrator.py`, Fix 5 — Add `chart_specs` to fast-path answer event in `app/core/search_pipeline.py` (+9 more)
 
 ### Community 507 - "Agent Mode Config"
-Cohesion: 0.06
-Nodes (25): acceptEdits, auto, auto_edit, autoEdit, build, bypass, bypassPermissions, default (+17 more)
+Cohesion: 0.11
+Nodes (17): acceptEdits, auto, auto_edit, autoEdit, build, bypass, bypassPermissions, default (+9 more)
 
 ### Community 508 - "Speech Recording Errors"
 Cohesion: 0.11
@@ -4011,7 +4410,7 @@ Nodes (17): args, augmentPathWithNvm(), DEFAULT_PORT, fetchAdminUsername(), __fi
 
 ### Community 521 - "LLM Budget Tracker"
 Cohesion: 0.12
-Nodes (16): DEFAULT_BUDGET, extractClaims(), normalizeNumber(), claimsA, expectedKeys, failures, t, t2 (+8 more)
+Nodes (15): DEFAULT_BUDGET, extractClaims(), normalizeNumber(), claimsA, expectedKeys, failures, t, t2 (+7 more)
 
 ### Community 522 - "Skill Rendering Tests"
 Cohesion: 0.11
@@ -4030,12 +4429,12 @@ Cohesion: 0.11
 Nodes (18): commandQueue, cancelEdit, clear, edit, editing, editPlaceholder, emptyInput, files (+10 more)
 
 ### Community 526 - "Community Panel"
-Cohesion: 0.11
-Nodes (5): CommunityPanel(), CommunityPanelProps, FilterTab, Influencer, videoPositions
+Cohesion: 0.07
+Nodes (13): CommunityPanel(), CommunityPanelProps, FilterTab, Influencer, videoPositions, EngineData, FACTOR_LABELS, NEG (+5 more)
 
 ### Community 527 - "Agent Mode Config"
-Cohesion: 0.06
-Nodes (25): acceptEdits, auto, auto_edit, autoEdit, build, bypass, bypassPermissions, default (+17 more)
+Cohesion: 0.11
+Nodes (17): acceptEdits, auto, auto_edit, autoEdit, build, bypass, bypassPermissions, default (+9 more)
 
 ### Community 528 - "Command Queue"
 Cohesion: 0.11
@@ -4054,8 +4453,8 @@ Cohesion: 0.11
 Nodes (18): commandQueue, cancelEdit, clear, edit, editing, editPlaceholder, emptyInput, files (+10 more)
 
 ### Community 532 - "Agent Mode Config"
-Cohesion: 0.06
-Nodes (25): acceptEdits, auto, auto_edit, autoEdit, build, bypass, bypassPermissions, default (+17 more)
+Cohesion: 0.11
+Nodes (17): acceptEdits, auto, auto_edit, autoEdit, build, bypass, bypassPermissions, default (+9 more)
 
 ### Community 533 - "Speech Recording Errors"
 Cohesion: 0.11
@@ -4103,7 +4502,7 @@ Nodes (17): network, cloudflare_blocked, cloudflare_blocked_title, connection_re
 
 ### Community 544 - "Financial Metric Calculations"
 Cohesion: 0.12
-Nodes (17): growth_calculation, margin_calculation, per_share, return_metric, by_category, accuracy, correct, total (+9 more)
+Nodes (17): growth_calculation, margin_calculation, percentage_change, return_metric, by_category, accuracy, correct, total (+9 more)
 
 ### Community 545 - "Earnings Update Guidelines"
 Cohesion: 0.12
@@ -4113,9 +4512,13 @@ Nodes (16): 5-Minute Final Review:, Accuracy Checklist, Bad Headlines (Avoid):, 
 Cohesion: 0.12
 Nodes (16): 5-Minute Final Review:, Accuracy Checklist, Bad Headlines (Avoid):, Best Practices, Examples, and Quality Guidelines, Citations & Sources Checklist ⭐⭐⭐ MANDATORY, Common Mistakes to Avoid, Comprehensive Quality Control Checklist, Content & Analysis Checklist (+8 more)
 
+### Community 547 - "Preview History"
+Cohesion: 0.16
+Nodes (18): IConfirmation, createConfirmWindow(), currentConfirmations, destroyConfirmWindow(), destroyPetConfirmManager(), initPetConfirmManager(), loadContent(), pendingConfirmations (+10 more)
+
 ### Community 548 - "ACP Server Errors"
 Cohesion: 0.12
-Nodes (16): auth, console_error, failed, failed_confirm, config, default, reasoning_effort, sendbox (+8 more)
+Nodes (15): confirmBubble, confirmBubbleDescription, desktopOnly, desktopPet, dnd, dndDescription, enable, hide (+7 more)
 
 ### Community 549 - "Network Error Messages"
 Cohesion: 0.12
@@ -4198,8 +4601,8 @@ Cohesion: 0.12
 Nodes (16): Acceptance Scenarios, Content Quality, Edge Cases, Execution Flow (main), Execution Status, Feature Specification: [FEATURE NAME], For AI Generation, Functional Requirements (+8 more)
 
 ### Community 569 - "ACP Server Errors"
-Cohesion: 0.05
-Nodes (38): auth, console_error, failed, failed_confirm, config, default, reasoning_effort, sendbox (+30 more)
+Cohesion: 0.15
+Nodes (16): _build_full_text(), EarningsTranscriptSource, _fetch_edgar_8k_transcript(), _fetch_quartr(), _parse_motley_fool_html(), Gravity Search — Earnings Call Transcript Source  Source priority:   1. EDGAR 8-, Fetch transcript from Quartr API (paid; QUARTR_API_KEY required).     Docs: http, Split press release into financial highlights, narrative, and tables. (+8 more)
 
 ### Community 570 - "Network Error Messages"
 Cohesion: 0.12
@@ -4208,6 +4611,10 @@ Nodes (17): network, cloudflare_blocked, cloudflare_blocked_title, connection_re
 ### Community 571 - "Team Management"
 Cohesion: 0.06
 Nodes (32): agentNotConfigured, emptyState, subtitle, suggestions, newAgent, noMessages, removeAgent, confirmContent (+24 more)
+
+### Community 572 - "Menubar Component"
+Cohesion: 0.08
+Nodes (8): Sidebar(), SidebarContext, SidebarContextProps, SidebarMenuButton(), sidebarMenuButtonVariants, SidebarRail(), SidebarTrigger(), useSidebar()
 
 ### Community 573 - "ACP Server Errors"
 Cohesion: 0.12
@@ -4246,8 +4653,8 @@ Cohesion: 0.16
 Nodes (10): ApiError, createApiClient(), RequestOptions, ApiResponse, createWebSocketClient(), DEFAULT_OPTIONS, EventHandler, WebSocketClient (+2 more)
 
 ### Community 582 - "Health Check"
-Cohesion: 0.20
-Nodes (15): Verify all external services are reachable (concurrent, 3s hard timeout each)., _verify_connections(), _check_elasticsearch(), _check_neo4j(), _check_qdrant(), _check_redis(), health(), Gravity Search — Health & Readiness Routes Real dependency checks on all downst (+7 more)
+Cohesion: 0.12
+Nodes (27): shape(), cellsOf(), buildSectionViews(), classifyReport(), classifySection(), clauseWords(), computeSignals(), extractStats() (+19 more)
 
 ### Community 583 - "Taskflow Project Guide"
 Cohesion: 0.12
@@ -4262,8 +4669,8 @@ Cohesion: 0.12
 Nodes (15): author, bin, caveman-shrink, description, files, homepage, keywords, license (+7 more)
 
 ### Community 586 - "Mock Qdrant Client"
-Cohesion: 0.12
-Nodes (13): date, MetadataExtractor, Gravity Search — Document Metadata Extractor Extracts ticker, company name, fil, Best-effort filing date from document text.          Collects every date-like, Use Gemini Flash to extract ticker, company name, and filing type., Extracts structured metadata from document text.      Two-tier approach:, Extract metadata from document text.          Returns DocumentMetadata compati, DocumentMetadata (+5 more)
+Cohesion: 0.20
+Nodes (7): CustomWindow, QueuedMessage, win, WEBUI_DEFAULT_PORT, ElectronBridgeAPI, WebUIStatus, Window
 
 ### Community 587 - "Desktop Pet"
 Cohesion: 0.12
@@ -4330,16 +4737,16 @@ Cohesion: 0.16
 Nodes (6): STREAM_CHANNELS, StreamMessage, AI_DRIVEN_STATES, PetIdleTicker, SLEEP_STATES, EyeMoveData
 
 ### Community 603 - "Document Viewer Preview"
-Cohesion: 0.12
-Nodes (13): AttributedProposition, PropositionExtractor, Gravity Search -- Proposition Extractor (ALiiCE) Decomposes generated answers in, Split answer into atomic propositions using rule-based extraction         or LLM, Split on sentence boundaries, keeping only factual sentences.         Filters ou, Use LLM to decompose answer into atomic propositions., Split each passage into sentences for fine-grained attribution.          Returns, Find the best-matching sentence for a single claim via NLI. (+5 more)
+Cohesion: 0.08
+Nodes (25): accession_number, company_name, filing_date, filing_type, status, ticker, url, accession_number (+17 more)
 
 ### Community 604 - "Section Detection"
 Cohesion: 0.10
 Nodes (16): CHECKS, exec(), { execSync }, fs, os, path, python(), assert (+8 more)
 
 ### Community 605 - "Firecrawl Scraping"
-Cohesion: 0.16
-Nodes (15): Props, recordExport(), AnswerOptions, answerWithContext(), authHeaders(), FirecrawlCrawlJob, FirecrawlCrawlOptions, FirecrawlMetadata (+7 more)
+Cohesion: 0.19
+Nodes (14): FirecrawlScrapePanel(), Props, AnswerOptions, answerWithContext(), authHeaders(), FirecrawlCrawlJob, FirecrawlCrawlOptions, FirecrawlMetadata (+6 more)
 
 ### Community 606 - "Desktop Pet Configuration"
 Cohesion: 0.12
@@ -4362,12 +4769,20 @@ Cohesion: 0.13
 Nodes (14): backfill(), main(), Backfill the Supabase `financials` table with SEC XBRL exact facts.  Proven (Fin, _rows_for(), _sp500(), _date(), facts_to_block(), _humanize() (+6 more)
 
 ### Community 611 - "Desktop Pet Configuration"
-Cohesion: 0.12
-Nodes (15): confirmBubble, confirmBubbleDescription, desktopOnly, desktopPet, dnd, dndDescription, enable, hide (+7 more)
+Cohesion: 0.17
+Nodes (12): setup, alternativesFound, authRequired, autoSwitching, checkingAgent, configError, configureFirst, connectionError (+4 more)
 
 ### Community 612 - "Folder Selection Dialog"
 Cohesion: 0.10
 Nodes (20): create, chooseDifferentFolder, confirm, dispatchAgentPlaceholder, error, leaderDesc, leaderRequired, namePlaceholder (+12 more)
+
+### Community 613 - "Context Menu UI"
+Cohesion: 0.08
+Nodes (24): compilerOptions, allowImportingTsExtensions, baseUrl, erasableSyntaxOnly, jsx, lib, module, moduleDetection (+16 more)
+
+### Community 614 - "Dropdown Menu UI"
+Cohesion: 0.12
+Nodes (16): isNewFiling(), KEY(), lastSeen(), markSeen(), newCount(), PEER_GROUPS, peersFor(), CompanyPage() (+8 more)
 
 ### Community 615 - "Desktop Pet Configuration"
 Cohesion: 0.12
@@ -4422,8 +4837,8 @@ Cohesion: 0.13
 Nodes (14): Build & Distribution, Build System, Code Checks (prek), Code Quality, Debug, Development, Development Guide, Multi-Instance Development (+6 more)
 
 ### Community 629 - "SPLADE Encoder"
-Cohesion: 0.13
-Nodes (11): add_trace_id_and_timing(), Add trace ID and request timing to every request., Gravity Search — SPLADE Sparse Vector Encoder Generates learned sparse represen, SPLADE learned sparse vector encoder., Lazy-load the SPLADE model., Load model in a thread pool so the async event loop is not blocked., Encode a query into a sparse vector {indices: [...], values: [...]}., Encode a document chunk into a sparse vector. (+3 more)
+Cohesion: 0.17
+Nodes (12): setup, alternativesFound, authRequired, autoSwitching, checkingAgent, configError, configureFirst, connectionError (+4 more)
 
 ### Community 630 - "Chat Error Handling"
 Cohesion: 0.13
@@ -4451,7 +4866,7 @@ Nodes (12): BenchmarkKappaResult, _bootstrap_kappa_ci(), cohen_kappa(), _confusi
 
 ### Community 636 - "Latency & Cost Runner"
 Cohesion: 0.25
-Nodes (12): _aggregate(), estimate_cost(), LatencyCostReport, main(), _measure_sync(), _pct(), QueryMeasurement, Latency & Cost Runner — §Benchmark 2.5 Measures TTFT, E2E latency, and per-query (+4 more)
+Nodes (12): _aggregate(), estimate_cost(), LatencyCostReport, main(), _measure_sync(), _pct(), QueryMeasurement, Latency & Cost Runner — §Benchmark 2.5 Measures TTFT, E2E latency, and per-quer (+4 more)
 
 ### Community 637 - "Aggregate Metrics"
 Cohesion: 0.10
@@ -4522,8 +4937,8 @@ Cohesion: 0.13
 Nodes (14): Adding a New IPC Bridge, Adding a New Service, Agent (`packages/desktop/src/process/agent/`), Common (`packages/desktop/src/common/`), Dependency Injection, Main Process & Shared Layer, Naming Conventions, Other Modules (+6 more)
 
 ### Community 654 - "PDF Deep Fetch"
-Cohesion: 0.10
-Nodes (18): AgentSettings, AssistantSettings, CapabilitiesSettings, ComponentsShowcase, Conversation, DisplaySettings, ExtensionSettingsPage, Guid (+10 more)
+Cohesion: 0.08
+Nodes (24): 3. SELF-IMPROVEMENT HARNESS (Section 7: Loop → World-Class), 4. REGRESSION TEST SUITE (all derived from real failures in the shipped report), 5. RELEASE CHECKLIST (Definition of Done — gate the render job on this), 6. SUGGESTED ORDER, 7. TASK LEDGER (execution state — the QA_LOOP works through this top-to-bottom), 8. PROGRESS LOG, P0-1 — Query/title hygiene, P0-2 — Temporal sanity layer (+16 more)
 
 ### Community 655 - "Feature Checklist"
 Cohesion: 0.13
@@ -4590,8 +5005,8 @@ Cohesion: 0.13
 Nodes (15): html, copyElementHtml, copySuccess, downloadHtml, elementSelected, inspectElement, inspectElementDisable, inspectElementEnable (+7 more)
 
 ### Community 671 - "Chart Component"
-Cohesion: 0.20
-Nodes (12): Chart, ChartColors, ChartProps, ChartRef, COIN_TABS, TIMEFRAMES, Topbar(), TopbarProps (+4 more)
+Cohesion: 0.23
+Nodes (11): cleanLine(), COLOR, ExportOptions, exportReportToPptx(), extractBullets(), planDeckOutline(), Slide, SlideCitations (+3 more)
 
 ### Community 672 - "Chat Error Handling"
 Cohesion: 0.13
@@ -4634,8 +5049,8 @@ Cohesion: 0.13
 Nodes (15): html, copyElementHtml, copySuccess, downloadHtml, elementSelected, inspectElement, inspectElementDisable, inspectElementEnable (+7 more)
 
 ### Community 682 - "Workspace Selector"
-Cohesion: 0.13
-Nodes (14): GoogleClient, Gravity Search — Google Gemini Client Supports Gemini 2.5 Flash (fast/cheap), G, Retry on 429 (rate limit) with exponential backoff., _retry_with_backoff(), compress_messages(), _compress_sync(), _enabled(), Headroom compression — shrink verbose LLM contexts before generation.  Runs th (+6 more)
+Cohesion: 0.12
+Nodes (25): ALLOWED_ACCENTS, buildDesignerPrompt(), buildExemplarBlock(), computeColumnFlex(), Density, DesignCritique, DesignLoopResult, ExhibitStyle (+17 more)
 
 ### Community 683 - "Electron API Invoke"
 Cohesion: 0.19
@@ -4666,8 +5081,8 @@ Cohesion: 0.14
 Nodes (13): Honest effort, Mafin Campaign — the concrete plan from 30% → 98%, Phase A — Numeric coverage (30 → ~45%) · ~days · FREE, Phase B — Validator-enforced grounding (hallucination 16 → ~0) · ~days · FREE, Phase C — GravityIndex nav quality (narrative tail + closed-book) · ~1-2 wks, Phase D — Coverage + freshness · ~1 wk · compute, Phase E — Model + latency · ~days · $, Phase F — Close to Mafin · ongoing (+5 more)
 
 ### Community 690 - "Health Checker"
-Cohesion: 0.07
-Nodes (22): health, autoSwitching, available, bestMatch, checkConfig, checking, detectedError, evaluating (+14 more)
+Cohesion: 0.08
+Nodes (24): compilerOptions, allowImportingTsExtensions, allowJs, allowSyntheticDefaultImports, baseUrl, esModuleInterop, forceConsistentCasingInFileNames, incremental (+16 more)
 
 ### Community 691 - "Task Creation"
 Cohesion: 0.14
@@ -4682,8 +5097,8 @@ Cohesion: 0.14
 Nodes (14): cssTheme, addManually, addToPreset, applied, applyFailed, cleared, cssCode, default (+6 more)
 
 ### Community 694 - "Financial Skills Loader"
-Cohesion: 0.20
-Nodes (7): AgentPrompt, get_skills_loader(), Gravity Search — Financial Skills Loader  Loads institutional-grade financial an, Load agent system prompts from agent-plugins/., Get the singleton FinancialSkillsLoader instance., A loaded agent system prompt., Should always return the same instance.
+Cohesion: 0.33
+Nodes (4): AgentPrompt, Gravity Search — Financial Skills Loader  Loads institutional-grade financial an, Get a specific agent system prompt by name., A loaded agent system prompt.
 
 ### Community 695 - "Financial Planning Skill"
 Cohesion: 0.14
@@ -4771,7 +5186,7 @@ Nodes (13): 10. AI / ML Specifics, 11. Changes, 12. Contact, 1. Data We Collect,
 
 ### Community 716 - "Hermes Agent Adapter"
 Cohesion: 0.16
-Nodes (10): get_hermes_client(), HermesAgentClient, Hermes Agent Adapter for Antigravity  Integrates the NousResearch Hermes Agent f, Adapter for running Hermes-3 powered agentic workflows., Executes a research task using the Hermes Agent framework., HermesResearchRequest, Gravity Search — Hermes Agent Routes  Exposes API endpoints to execute the NousR, Run a research workflow using the Hermes-3 Agent framework.     Used by market-s (+2 more)
+Nodes (10): get_hermes_client(), HermesAgentClient, Hermes Agent Adapter for AlphaGravity  Integrates the NousResearch Hermes Agent, Adapter for running Hermes-3 powered agentic workflows., Executes a research task using the Hermes Agent framework., HermesResearchRequest, Gravity Search — Hermes Agent Routes  Exposes API endpoints to execute the NousR, Run a research workflow using the Hermes-3 Agent framework.     Used by market-s (+2 more)
 
 ### Community 717 - "Common UI Labels"
 Cohesion: 0.14
@@ -4798,8 +5213,8 @@ Cohesion: 0.14
 Nodes (13): 1. Palace Initialization (Done), 2. Mine Codebase (In Progress), 3. Wire Gravity API Integration (Done), 4. MCP Server (Done), Architecture, Codebase Context (Dev), Conversation Memory (Runtime), MemPalace Integration (+5 more)
 
 ### Community 723 - "Pet State Machine"
-Cohesion: 0.33
-Nodes (3): PetStateMachine, PetState, StateChangeCallback
+Cohesion: 0.05
+Nodes (38): auth, console_error, failed, failed_confirm, config, default, reasoning_effort, sendbox (+30 more)
 
 ### Community 724 - "Thought Buffer Retrieval"
 Cohesion: 0.15
@@ -4838,8 +5253,8 @@ Cohesion: 0.14
 Nodes (13): 10. 附录：源码文件清单, 1. 页面概述与目的, 7.1 已有 testid, 7.3.1 动态 testid 中的特殊字符问题, 7.3 data-testid 转义规则, 7. data-testid 可用性评估, 8.1 核心依赖, 8.2 IPC Bridge 调用清单 (+5 more)
 
 ### Community 733 - "Connection Health Monitoring"
-Cohesion: 0.18
-Nodes (14): buildParamSummary(), formatValue(), hasRunningToolMessages(), normalizeAcpStatus(), normalizeAcpToolCall(), NormalizedToolCall, NormalizedToolStatus, normalizeToolCall() (+6 more)
+Cohesion: 0.28
+Nodes (5): OpenAIEmbedder, Gravity Search — OpenAI Embedder (failover)  text-embedding-3-small with dimensi, Run an embedding call, retrying on 429 / transient errors with exponential     b, OpenAI text-embedding-3-large embeddings (1024-dim)., _with_backoff()
 
 ### Community 734 - "Task Creation UI"
 Cohesion: 0.14
@@ -4854,16 +5269,16 @@ Cohesion: 0.14
 Nodes (14): cssTheme, addManually, addToPreset, applied, applyFailed, cleared, cssCode, default (+6 more)
 
 ### Community 737 - "Markets UI Components"
-Cohesion: 0.20
-Nodes (8): MarketData, MarketsProps, CategoriesTab(), ConverterTab(), ExchangesTab(), NFTsTab(), Sparkline(), SparklineProps
+Cohesion: 0.07
+Nodes (27): useEdgeAutoScroll(), useFloatingTableHeader(), useScrollChrome(), MarketList(), ChangeTf, COL_GROUPS, ColKey, DEFAULT_COLS (+19 more)
 
 ### Community 738 - "Carousel Component"
-Cohesion: 0.19
-Nodes (12): CarouselApi, CarouselContent(), CarouselContext, CarouselContextProps, CarouselItem(), CarouselNext(), CarouselOptions, CarouselPlugin (+4 more)
+Cohesion: 0.28
+Nodes (13): aggregate(), ALCEReport, ALCEResult, CitationEvalItem, collect_live(), extract_inline_citations(), main(), _nli_entails() (+5 more)
 
 ### Community 739 - "Form Field Components"
-Cohesion: 0.16
-Nodes (3): Field(), fieldVariants, Label()
+Cohesion: 0.17
+Nodes (21): readHistory(), aggregateHistory(), COMPRESSION, deriveSavings(), findCompressedPairs(), findRecentSession(), formatHistory(), formatShare() (+13 more)
 
 ### Community 740 - "Connection Health Monitoring"
 Cohesion: 0.14
@@ -4910,8 +5325,8 @@ Cohesion: 0.14
 Nodes (14): cssTheme, addManually, addToPreset, applied, applyFailed, cleared, cssCode, default (+6 more)
 
 ### Community 751 - "Electron Bridge API"
-Cohesion: 0.20
-Nodes (7): CustomWindow, QueuedMessage, win, WEBUI_DEFAULT_PORT, ElectronBridgeAPI, WebUIStatus, Window
+Cohesion: 0.06
+Nodes (17): ensure_collection(), _MockQdrantClient, _MockQdrantResult, QdrantLazyClient, Gravity Search — Qdrant Vector Database Client Real AsyncQdrantClient with grac, Create the Qdrant collection if it doesn't exist., Mock for search/upsert results. Mirrors QueryResponse shape (.points list)., Mimics AsyncQdrantClient when Qdrant is down. (+9 more)
 
 ### Community 752 - "Personal Assistant Feature"
 Cohesion: 0.15
@@ -4950,8 +5365,8 @@ Cohesion: 0.15
 Nodes (12): Auto-connect, Bootstrap endpoint, Entra SSO, Generate add-in manifest, Inference headers, Keys by cloud, MCP servers, Outlook — Microsoft Graph (+4 more)
 
 ### Community 762 - "Fallback Embedder"
-Cohesion: 0.15
-Nodes (13): titles, applying_patch, command_completed, command_output, execute_command, file_patch, mcp_tool, mcp_tool_starting (+5 more)
+Cohesion: 0.22
+Nodes (9): CachedEmbedder, _dumps(), _loads(), optimize_for_embedding(), Gravity Search — Cached Embedder (token optimizer)  Wraps any embedder and cuts, Strip the whitespace bloat filings carry; cap pathological length. Keeps     all, Content-hash embedding cache around an inner embedder., _derive_metrics() (+1 more)
 
 ### Community 763 - "Error Types"
 Cohesion: 0.15
@@ -5035,7 +5450,7 @@ Nodes (12): Add slides from layouts, DELETE all existing slides first, Fill cont
 
 ### Community 783 - "Antigravity Quick Start"
 Cohesion: 0.15
-Nodes (12): 1. Clone & configure, 2. Install dependencies, 3. Start infrastructure, 4. Start all services, 5. Seed data, 6. Health check, Antigravity, Architecture (+4 more)
+Nodes (12): 1. Clone & configure, 2. Install dependencies, 3. Start infrastructure, 4. Start all services, 5. Seed data, 6. Health check, AlphaGravity, Architecture (+4 more)
 
 ### Community 784 - "Contradiction Detector"
 Cohesion: 0.24
@@ -5058,8 +5473,8 @@ Cohesion: 0.18
 Nodes (8): IterativeRAGResult, Gravity Search — CoRAG: Chain-of-Retrieval Augmented Generation Based on: "Chai, Run iterative retrieval until sufficient coverage or max_steps reached., Run retrieval + RRF fusion + reranking for a single query., Use fast LLM to identify what's still missing., Add passages not already seen, return list of actually-new passages., Aggregated output from iterative retrieval., RetrievalResult
 
 ### Community 789 - "Structured Data Search"
-Cohesion: 0.24
-Nodes (5): Gravity Search — Structured Data Search (Channel 5)  Exact financial facts from, Exact financial-fact lookup over the gravity_financials ES index., Human-readable value: 211915000000 USD -> '$211,915 million ($211.9B)'., StructuredSearch, RetrievalResult
+Cohesion: 0.32
+Nodes (3): CohereEmbedder, Gravity Search — Cohere Embedder (failover)  embed-english-v3.0 outputs 1024-dim, Cohere embed-english-v3.0 embeddings (1024-dim).
 
 ### Community 790 - "Error Types"
 Cohesion: 0.15
@@ -5079,7 +5494,7 @@ Nodes (12): args, autoSubmit, buildArgs, directSubmit, { execSync }, fs, isLocal
 
 ### Community 794 - "Database Seed Script"
 Cohesion: 0.18
-Nodes (11): _embed(), _get_embedder(), Gravity Search — Database Seed Script (Synchronous version) Populates Qdrant an, Return a real sentence-transformer embedder (384-dim MiniLM) if available, else, Generate embeddings — real if model available, random otherwise., Seed Qdrant with vector chunks (synchronous client)., Seed Elasticsearch with BM25-indexed chunks (synchronous client)., Seed PostgreSQL with document metadata (synchronous). (+3 more)
+Nodes (11): _embed(), _get_embedder(), Gravity Search — Database Seed Script (Synchronous version) Populates Qdrant and, Return a real sentence-transformer embedder (384-dim MiniLM) if available, else, Generate embeddings — real if model available, random otherwise., Seed Qdrant with vector chunks (synchronous client)., Seed Elasticsearch with BM25-indexed chunks (synchronous client)., Seed PostgreSQL with document metadata (synchronous). (+3 more)
 
 ### Community 795 - "Social Signals Fetching"
 Cohesion: 0.26
@@ -5118,16 +5533,16 @@ Cohesion: 0.15
 Nodes (13): titles, applying_patch, command_completed, command_output, execute_command, file_patch, mcp_tool, mcp_tool_starting (+5 more)
 
 ### Community 804 - "Input Component Library"
-Cohesion: 0.21
-Nodes (6): InputGroupAddon(), inputGroupAddonVariants, InputGroupButton(), inputGroupButtonVariants, Input(), Textarea()
+Cohesion: 0.10
+Nodes (19): compilerOptions, allowImportingTsExtensions, erasableSyntaxOnly, lib, module, moduleDetection, moduleResolution, noEmit (+11 more)
 
 ### Community 805 - "Runtime Patching Utilities"
 Cohesion: 0.21
 Nodes (10): applyRuntimePatches(), ARCO_MESSAGE_KEY_PATTERNS, Console, patchConsole(), patchGlobalErrorFilters(), patchGlobalErrorListeners(), patchResizeObserver(), REACT_19_REF_PATTERNS (+2 more)
 
 ### Community 806 - "File Selection & AI Config"
-Cohesion: 0.17
-Nodes (12): setup, alternativesFound, authRequired, autoSwitching, checkingAgent, configError, configureFirst, connectionError (+4 more)
+Cohesion: 0.33
+Nodes (9): Path, build_compress_prompt(), build_fix_prompt(), call_claude(), compress_file(), is_sensitive_path(), Heuristic denylist for files that must never be shipped to a third-party API., Strip outer ```markdown ... ``` fence when it wraps the entire output. (+1 more)
 
 ### Community 807 - "Error Handling & Suggestions"
 Cohesion: 0.15
@@ -5154,16 +5569,12 @@ Cohesion: 0.15
 Nodes (13): labels, arguments, auto_approved, command, duration, exit_code, file_changes, manual_approval (+5 more)
 
 ### Community 813 - "Command Execution & Patching"
-Cohesion: 0.15
-Nodes (13): titles, applying_patch, command_completed, command_output, execute_command, file_patch, mcp_tool, mcp_tool_starting (+5 more)
+Cohesion: 0.11
+Nodes (21): _bootstrap_servers(), _common_kwargs(), consume_messages(), get_producer(), _is_enabled(), make_consumer(), publish(), Gravity Search — Kafka Client Factory Thin async wrappers around aiokafka for p (+13 more)
 
 ### Community 814 - "Error Handling & Suggestions"
 Cohesion: 0.15
 Nodes (13): error, context_error, generic, invalid_input, invalid_message_format, permission_denied, session_timeout, suggestion_1 (+5 more)
-
-### Community 815 - "Tool Execution & Approval"
-Cohesion: 0.18
-Nodes (11): _gdelt_to_results(), Gravity Search — Retrieval Orchestrator Dispatches parallel search requests acr, Execute all retrieval channels in parallel.          For MEDIUM/COMPLEX querie, Run MultiQueryRetriever with timeout and graceful fallback to plain dense., Execute a single channel search with per-channel timeout and error handling., Parallel per-entity retrieval for comparison queries.          Runs the full c, Fetch GDELT articles and convert to RetrievalResult objects., Parallel dispatch to all search backends with graceful degradation. (+3 more)
 
 ### Community 816 - "Command Execution & Patching"
 Cohesion: 0.15
@@ -5222,8 +5633,8 @@ Cohesion: 0.17
 Nodes (11): page, endpoint, info, mode, mode-live, mode-mock, timeout, title (+3 more)
 
 ### Community 830 - "EDGAR Watchlist Settings"
-Cohesion: 0.31
-Nodes (4): Gravity Search — Sparse Keyword Search (Channel 2 of 5) Exact phrase / ticker /, Keyword search. Primary: Supabase Postgres FTS. Fallback: Elasticsearch BM25., SparseSearch, RetrievalResult
+Cohesion: 0.10
+Nodes (19): 1. Current state (audited 2026-07-07, prod probes), 2. What "world-class" means (benchmark, researched 2026-07-07), 3. The unfair advantage: compose what's already built, 4. Roadmap, 5. KPIs, 6. Progress ledger (loop-driven — one item per iteration, mark ✅ date + evidence, ⛔ reason if blocked), Company Intelligence — World-Class Roadmap, Phase 0 — plumbing fixes (SHIPPED with this commit) (+11 more)
 
 ### Community 831 - "Approval Store"
 Cohesion: 0.26
@@ -5286,8 +5697,8 @@ Cohesion: 0.17
 Nodes (12): fpb, sentiment, accuracy, benchmark, by_category, by_difficulty, correct, details (+4 more)
 
 ### Community 846 - "Evaluation Report"
-Cohesion: 0.29
-Nodes (3): ContextUsageIndicatorProps, TokenUsageData, MODEL_CONTEXT_LIMITS
+Cohesion: 0.10
+Nodes (9): bondData, chartData, cryptoPieData, goldSparkline, indices, oilSparkline, tickerItems, tunindexData (+1 more)
 
 ### Community 847 - "Extension Manifest"
 Cohesion: 0.17
@@ -5330,8 +5741,8 @@ Cohesion: 0.17
 Nodes (11): 1. Tag baseline + branch (DONE), 2. Feature flags (DONE), 3. Baseline diff script (DONE), 4. Capture baseline (TODO), 5. CI nightly drift check (TODO), Acceptance Criteria, Exit Criteria, Goal (+3 more)
 
 ### Community 857 - "On-Demand SEC Ingestion"
-Cohesion: 0.23
-Nodes (8): get_on_demand_ingestor(), OnDemandIngestor, _parse_date(), On-demand SEC filing ingestion.  When a customer asks about a company that isn't, Process-wide singleton (keeps the in-flight dedupe map shared)., Lazily ingests a single company's recent filings on a corpus miss., Ingest the company's recent filings if not already in flight. Idempotent, datetime
+Cohesion: 0.16
+Nodes (9): ProcessedDocument, Gravity Search — Document Processor Converts raw bytes (HTML, PDF, DOCX, plain, Extract text + structured tables from PDF., Count PDF pages without extracting text., Extract text from DOCX using python-docx., Decode plain text, normalize whitespace., Result of processing a raw document., Main entry point. Detects format and dispatches to the correct processor. (+1 more)
 
 ### Community 858 - "Performance & State Config"
 Cohesion: 0.17
@@ -5346,8 +5757,8 @@ Cohesion: 0.17
 Nodes (12): detail, agent, backToAll, description, executionModeDescriptionExisting, executionModeDescriptionNew, history, instructions (+4 more)
 
 ### Community 861 - "Agent Setup & Connection"
-Cohesion: 0.17
-Nodes (12): setup, alternativesFound, authRequired, autoSwitching, checkingAgent, configError, configureFirst, connectionError (+4 more)
+Cohesion: 0.12
+Nodes (15): confirmBubble, confirmBubbleDescription, desktopOnly, desktopPet, dnd, dndDescription, enable, hide (+7 more)
 
 ### Community 862 - "Performance & State Config"
 Cohesion: 0.17
@@ -5398,20 +5809,20 @@ Cohesion: 0.17
 Nodes (11): Available MCP Tools, Core Principles, Macro Search Patterns, Macro Summary, Macroeconomic and Rates Monitor, Output Format, Overall Assessment, Real Rate Decomposition (+3 more)
 
 ### Community 874 - "Company Page Components"
-Cohesion: 0.22
-Nodes (9): CachedEmbedder, _dumps(), _loads(), optimize_for_embedding(), Gravity Search — Cached Embedder (token optimizer)  Wraps any embedder and cuts, Strip the whitespace bloat filings carry; cap pathological length. Keeps     all, Content-hash embedding cache around an inner embedder., _derive_metrics() (+1 more)
+Cohesion: 0.53
+Nodes (3): MCPToolResult, Result from calling an MCP tool., TestMCPToolResult
 
 ### Community 875 - "MCP Retrieval Channel"
-Cohesion: 0.20
-Nodes (6): MCPRetrievalChannel, Retrieval channel that queries MCP financial data servers.      Implements the s, Query all enabled MCP servers and return results as RetrievalResult objects., Split a large MCP result into manageable chunks., RetrievalResult, TestMCPRetrievalChannel
+Cohesion: 0.16
+Nodes (8): MCPRegistry, MCPRetrievalChannel, Retrieval channel that queries MCP financial data servers.      Implements the s, Lazy-initialize the registry and discover tools., Query all enabled MCP servers and return results as RetrievalResult objects., Split a large MCP result into manageable chunks., RetrievalResult, TestMCPRetrievalChannel
 
 ### Community 876 - "Tree Navigation Search"
-Cohesion: 0.26
-Nodes (5): build_tree_nav_search(), GravityIndex tree-nav retrieval channel — vectorless, reasoning-based.  Instead, LLM navigation → list of node_ids. Falls back to keyword overlap., TreeNavSearch, RetrievalResult
+Cohesion: 0.07
+Nodes (22): health, autoSwitching, available, bestMatch, checkConfig, checking, detectedError, evaluating (+14 more)
 
 ### Community 877 - "LLM API Calls"
-Cohesion: 0.24
-Nodes (9): callAnthropic(), callGeminiAPI(), callOpenAICompatible(), ProviderInfo, RETRYABLE, retryableFetch(), sleep(), splitPromptForCache() (+1 more)
+Cohesion: 0.14
+Nodes (13): callAnthropic(), callGeminiAPI(), callOpenAICompatible(), llmDispatcher, llmRouter, PROVIDER_LIMITS, ProviderInfo, RETRYABLE (+5 more)
 
 ### Community 878 - "Performance & State Config"
 Cohesion: 0.17
@@ -5458,8 +5869,8 @@ Cohesion: 0.17
 Nodes (7): Test that skills are discovered and loaded from the filesystem., Should load a non-trivial number of skills., The comps-analysis skill should exist and have content., The dcf-model skill should exist., The earnings-analysis skill should exist under equity-research., Should cover all major verticals., TestSkillLoading
 
 ### Community 889 - "Agent Setup & Connection"
-Cohesion: 0.17
-Nodes (12): setup, alternativesFound, authRequired, autoSwitching, checkingAgent, configError, configureFirst, connectionError (+4 more)
+Cohesion: 0.33
+Nodes (3): PetStateMachine, PetState, StateChangeCallback
 
 ### Community 890 - "Performance & State Config"
 Cohesion: 0.17
@@ -5474,8 +5885,8 @@ Cohesion: 0.17
 Nodes (12): detail, agent, backToAll, description, executionModeDescriptionExisting, executionModeDescriptionNew, history, instructions (+4 more)
 
 ### Community 893 - "Form Component Library"
-Cohesion: 0.23
-Nodes (9): FormControl(), FormDescription(), FormFieldContext, FormFieldContextValue, FormItemContext, FormItemContextValue, FormLabel(), FormMessage() (+1 more)
+Cohesion: 0.11
+Nodes (18): aliases, components, hooks, lib, ui, utils, iconLibrary, registries (+10 more)
 
 ### Community 894 - "Agent Setup & Connection"
 Cohesion: 0.17
@@ -5514,8 +5925,8 @@ Cohesion: 0.17
 Nodes (12): detail, agent, backToAll, description, executionModeDescriptionExisting, executionModeDescriptionNew, history, instructions (+4 more)
 
 ### Community 903 - "Agent Setup Configuration"
-Cohesion: 0.17
-Nodes (12): setup, alternativesFound, authRequired, autoSwitching, checkingAgent, configError, configureFirst, connectionError (+4 more)
+Cohesion: 0.24
+Nodes (5): Gravity Search — Structured Data Search (Channel 5)  Exact financial facts fro, Exact financial-fact lookup over the gravity_financials ES index., Human-readable value: 211915000000 USD -> '$211,915 million ($211.9B)'., StructuredSearch, RetrievalResult
 
 ### Community 904 - "Codex Performance Settings"
 Cohesion: 0.17
@@ -5534,8 +5945,8 @@ Cohesion: 0.18
 Nodes (10): author, contributes, acpAdapters, description, displayName, i18n, defaultLocale, localesDir (+2 more)
 
 ### Community 908 - "Financial Calculation Tests"
-Cohesion: 0.18
-Nodes (7): Programmatically verify calculations using the financial calculator.         Th, gross_margin(), net_margin(), operating_margin(), Gross margin = (Revenue - COGS) / Revenue × 100., Operating margin = Operating Income / Revenue × 100., Net margin = Net Income / Revenue × 100.
+Cohesion: 0.12
+Nodes (13): date, MetadataExtractor, Gravity Search — Document Metadata Extractor Extracts ticker, company name, fil, Best-effort filing date from document text.          Collects every date-like, Use Gemini Flash to extract ticker, company name, and filing type., Extracts structured metadata from document text.      Two-tier approach:, Extract metadata from document text.          Returns DocumentMetadata compati, DocumentMetadata (+5 more)
 
 ### Community 909 - "Issue Triage Rules"
 Cohesion: 0.18
@@ -5586,8 +5997,8 @@ Cohesion: 0.29
 Nodes (9): _app_url(), _from_addr(), Transactional email sender.  Order of preference:   1. Resend HTTP API   (RESEND, Send transactional email. Returns True on success.      Tries Resend → SMTP → co, reset_link(), send_email(), _send_via_resend(), _send_via_smtp() (+1 more)
 
 ### Community 921 - "Financial Calculator Tests"
-Cohesion: 0.24
-Nodes (6): execute_calculation(), Execute a financial calculation by name.      Args:         calc_type: Name o, Any, Tests for the Financial Calculator Engine., Test the calculation registry dispatcher., TestExecuteCalculation
+Cohesion: 0.15
+Nodes (13): titles, applying_patch, command_completed, command_output, execute_command, file_patch, mcp_tool, mcp_tool_starting (+5 more)
 
 ### Community 922 - "Supabase REST Helper"
 Cohesion: 0.05
@@ -5595,7 +6006,7 @@ Nodes (58): aggregate(), chat_code_loc(), _claude_version(), code_stats(), _coun
 
 ### Community 923 - "Mafin Level RAG Roadmap"
 Cohesion: 0.18
-Nodes (10): Build vs Buy (the strategic fork), Phase 1 — Hallucination → ~0 (credibility floor) · FREE · ~days, Phase 2 — Retrieval quality (the 40→70 jump) · the big lever, Phase 3 — Exact-facts precision (numeric 30→80) · the numeric gap, Phase 4 — Coverage + freshness (match Mafin's data breadth), Phase 5 — Answer model + reasoning (70→90+), Phase 6 — Eval moat (prove it, keep it), Roadmap: antigravity → Mafin-level financial RAG (+2 more)
+Nodes (10): Build vs Buy (the strategic fork), Phase 1 — Hallucination → ~0 (credibility floor) · FREE · ~days, Phase 2 — Retrieval quality (the 40→70 jump) · the big lever, Phase 3 — Exact-facts precision (numeric 30→80) · the numeric gap, Phase 4 — Coverage + freshness (match Mafin's data breadth), Phase 5 — Answer model + reasoning (70→90+), Phase 6 — Eval moat (prove it, keep it), Roadmap: alphagravity → Mafin-level financial RAG (+2 more)
 
 ### Community 924 - "FinanceBench 98% Roadmap"
 Cohesion: 0.18
@@ -5658,8 +6069,8 @@ Cohesion: 0.20
 Nodes (7): KronosTokenizer, Converts indices to bit representations and scales them.          Args:, KronosTokenizer module for tokenizing input data using a hybrid quantization app, Encodes the input data into quantized indices.          Args:             x (, Decodes quantized indices back to the input data space.          Args:, Forward pass of the KronosTokenizer.          Args:             x (torch.Tens, PyTorchModelHubMixin
 
 ### Community 939 - "Russian Locale File"
-Cohesion: 0.18
-Nodes (10): filePreview, errorLoading, fileTooLarge, loading, retry, unsupportedType, tabs, chat (+2 more)
+Cohesion: 0.08
+Nodes (23): browserslist, dependencies, next, react, react-dom, devDependencies, autoprefixer, eslint (+15 more)
 
 ### Community 940 - "Ukrainian Locale File"
 Cohesion: 0.18
@@ -5722,28 +6133,36 @@ Cohesion: 0.18
 Nodes (11): 9.1.1 删除自定义外部路径, 9.1.2 Skills Market 集成, 9.1 UI 层未实现功能, 9.2.1 Symlink 指向查看, 9.2.2 批量操作进度反馈, 9.2.3 大规模技能性能, 9.2 功能限制, 9.3.1 特殊字符技能名称 (+3 more)
 
 ### Community 955 - "News Source Aggregator"
-Cohesion: 0.10
-Nodes (20): ingest_ticker_news(), load_progress(), main(), News / Press-Release Backfill — S&P 500 recent articles ========================, Discover recent article URLs for a ticker, ingest each body as news., run(), save_progress(), ingest_ticker_transcripts() (+12 more)
+Cohesion: 0.16
+Nodes (16): EVAL_ROOT, OUT_DIR, Row, SRC_DIR, addExemplar(), DesignExemplar, loadBank(), recordDesignOutcome() (+8 more)
 
 ### Community 956 - "Tax Loss Harvesting"
 Cohesion: 0.18
 Nodes (10): Important Notes, Step 1: Identify Candidates, Step 2: Gain/Loss Budget, Step 3: Replacement Securities, Step 4: Wash Sale Check, Step 5: Execution Plan, Step 6: Post-Harvest Tracking, Step 7: Output (+2 more)
 
 ### Community 957 - "MCP Shrink Tests"
-Cohesion: 0.06
-Nodes (25): MessageQueue, assert, { execFileSync }, fs, INIT, os, path, ROOT (+17 more)
+Cohesion: 0.20
+Nodes (8): assert, { execFileSync }, fs, os, path, ROOT, STATS, TRACKER
 
 ### Community 958 - "Watch Install Status"
 Cohesion: 0.24
 Nodes (11): watch, installHint, installing, loading, startFailed, word, invalid, loadFailed (+3 more)
 
 ### Community 959 - "Chart UI Components"
-Cohesion: 0.22
-Nodes (7): ChartConfig, ChartContext, ChartContextProps, ChartLegendContent(), ChartTooltipContent(), THEMES, useChart()
+Cohesion: 0.11
+Nodes (19): devDependencies, autoprefixer, eslint, @eslint/js, eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, kimi-plugin-inspect-react (+11 more)
+
+### Community 960 - "Drawer UI Components"
+Cohesion: 0.11
+Nodes (18): accession_number, company_name, filing_date, filing_type, status, ticker, url, accession_number (+10 more)
+
+### Community 961 - "Select UI Components"
+Cohesion: 0.11
+Nodes (18): accession_number, company_name, filing_date, filing_type, status, ticker, url, accession_number (+10 more)
 
 ### Community 962 - "Sheet UI Components"
-Cohesion: 0.18
-Nodes (5): Sheet(), SheetContent(), SheetDescription(), SheetHeader(), SheetTitle()
+Cohesion: 0.11
+Nodes (18): accession_number, company_name, filing_date, filing_type, status, ticker, url, accession_number (+10 more)
 
 ### Community 963 - "Watch Install Status"
 Cohesion: 0.24
@@ -5814,20 +6233,16 @@ Cohesion: 0.33
 Nodes (9): Path, build_compress_prompt(), build_fix_prompt(), call_claude(), compress_file(), is_sensitive_path(), Heuristic denylist for files that must never be shipped to a third-party API., Strip outer ```markdown ... ``` fence when it wraps the entire output. (+1 more)
 
 ### Community 980 - "File Compression Utility"
-Cohesion: 0.16
-Nodes (18): Path, build_compress_prompt(), build_fix_prompt(), call_claude(), compress_file(), is_sensitive_path(), Heuristic denylist for files that must never be shipped to a third-party API., Strip outer ```markdown ... ``` fence when it wraps the entire output. (+10 more)
-
-### Community 981 - "File Compression Utility"
-Cohesion: 0.14
-Nodes (14): health, autoSwitching, available, bestMatch, checkConfig, checking, detectedError, evaluating (+6 more)
+Cohesion: 0.24
+Nodes (7): GuidWorkspaceFootnote(), GuidWorkspaceFootnoteProps, addRecentWorkspace(), getRecentWorkspaces(), MenuPosition, WorkspaceFolderSelect(), WorkspaceFolderSelectProps
 
 ### Community 982 - "Compression Safety Tests"
 Cohesion: 0.42
 Nodes (3): Path, CompressSafetyTests, Tests for the data-loss guards in `compress_file` (issue #237).  The compress
 
 ### Community 983 - "Tool Call Block UI"
-Cohesion: 0.33
-Nodes (6): status, canceled, error, executing, pending, success
+Cohesion: 0.12
+Nodes (16): 1. What exists today (reuse, don't rebuild), 2. Target architecture (the lazy, correct one), 2a. Market registry — `lib/markets.ts`, 2b. Common row shape + adapter — `services/marketData.ts`, 2c. View state machine — `TradingAssistantPage`, 3. Phases, 4. Risks, 5. Effort (+8 more)
 
 ### Community 984 - "Bond Relative Value Analysis"
 Cohesion: 0.20
@@ -5978,8 +6393,8 @@ Cohesion: 0.20
 Nodes (9): Preview 模块文档, 分屏模式, 启用分屏, 常量配置, 架构设计, 概述, 相关链接, 调整分屏比例 (+1 more)
 
 ### Community 1021 - "Contextual Retrieval"
-Cohesion: 0.05
-Nodes (34): RaptorIndexer, Generate a summary for a group of paragraph chunks., Builds RAPTOR-style summary trees over ingested chunks.      Runs AFTER initia, Generate Level 0 summary chunks from Level 2 paragraph chunks.          Groups, Embed and upsert chunks to Qdrant.          org_id: routes to per-tenant colle, Factory: build a fully wired IngestionPipeline from app settings.         Grace, ChunkOutput, count_tokens() (+26 more)
+Cohesion: 0.12
+Nodes (13): RaptorIndexer, Generate a summary for a group of paragraph chunks., Builds RAPTOR-style summary trees over ingested chunks.      Runs AFTER initia, Generate Level 0 summary chunks from Level 2 paragraph chunks.          Groups, Factory: build a fully wired IngestionPipeline from app settings.         Gracef, ContextualRetrieval, Gravity Search -- Contextual Retrieval (Anthropic, Sept 2024)  Prepends a 75-tok, Generate context for a single chunk and return updated ChunkOutput. (+5 more)
 
 ### Community 1022 - "Quartr Outreach Package"
 Cohesion: 0.20
@@ -5988,10 +6403,6 @@ Nodes (9): 1 · Discovery (Week 0, before outreach), 2 · Cold email template, 3
 ### Community 1023 - "Chart Generation Workflow"
 Cohesion: 0.20
 Nodes (10): A. Extract Revenue Data, B. Extract Margin Data, C. Extract DCF Sensitivity Data, D. Extract Valuation Ranges, Step 1: Set Up Environment, Step 2: Extract Data from Model and Valuation, Step 4B: Create Optional Charts (For 26-35 Total), Step 5: Create Chart Index (+2 more)
-
-### Community 1024 - "Multi-Query Retrieval"
-Cohesion: 0.40
-Nodes (3): ApiKeyEditorModalProps, ApiKeyItem, KeyStatus
 
 ### Community 1025 - "Search UI Labels"
 Cohesion: 0.20
@@ -6157,10 +6568,6 @@ Nodes (8): Deal Sourcing, Email Draft Guidelines, Example Interaction, Important
 Cohesion: 0.22
 Nodes (8): Deal Tracker, Important Notes, Step 1: Deal Setup, Step 2: Milestone Tracking, Step 3: Action Items, Step 4: Weekly Deal Review, Step 5: Output, Workflow
 
-### Community 1067 - "Gemini Embedder"
-Cohesion: 0.14
-Nodes (14): health, autoSwitching, available, bestMatch, checkConfig, checking, detectedError, evaluating (+6 more)
-
 ### Community 1068 - "Community 1068"
 Cohesion: 0.15
 Nodes (13): labels, arguments, auto_approved, command, duration, exit_code, file_changes, manual_approval (+5 more)
@@ -6214,20 +6621,20 @@ Cohesion: 0.22
 Nodes (9): status, active, createNow, defaultPrompt, error, paused, unconfigured, unconfiguredHint (+1 more)
 
 ### Community 1081 - "Community 1081"
-Cohesion: 0.18
-Nodes (4): EvalReport, main(), print_report(), Type-aware correctness: numeric questions pass on numeric_match         (unit-n
+Cohesion: 0.14
+Nodes (17): DashboardPage(), DashboardStats, RecentReport, DashboardSection(), smartMonitor, apiGetOverview(), apiGetQuote(), formatMarketCap() (+9 more)
 
 ### Community 1082 - "Tool File Operations"
-Cohesion: 0.05
-Nodes (38): actions, create, delete, modify, deletedFile, fileChanges, fileOps, description (+30 more)
+Cohesion: 0.06
+Nodes (31): actions, create, delete, modify, deletedFile, fileChanges, fileOps, description (+23 more)
 
 ### Community 1083 - "Status Labels"
 Cohesion: 0.22
 Nodes (9): status, active, createNow, defaultPrompt, error, paused, unconfigured, unconfiguredHint (+1 more)
 
 ### Community 1084 - "Project Build Scripts"
-Cohesion: 0.20
-Nodes (10): scripts, build, dev, eval, eval:synthetic, lint, phase2, preview (+2 more)
+Cohesion: 0.15
+Nodes (13): scripts, build, check:tn, dev, e2e, eval, eval:loop, eval:synthetic (+5 more)
 
 ### Community 1085 - "TypeScript Config"
 Cohesion: 0.22
@@ -6235,7 +6642,7 @@ Nodes (8): compilerOptions, paths, skipLibCheck, strict, exclude, extends, inclu
 
 ### Community 1086 - "Model Strategy Document"
 Cohesion: 0.22
-Nodes (8): 1. Embeddings — why Gemini, 2. Per-feature model map, 3. LLM benchmark facts that drive the map (June 2026), 4. ⚠️ On DeepSeek (correcting "it's cheaper"), 5. LLM Council (Karpathy) — for the hardest ~8%, 6. Resilience summary (no single point of failure), Antigravity — Model Strategy (which model for which feature), Sources
+Nodes (8): 1. Embeddings — why Gemini, 2. Per-feature model map, 3. LLM benchmark facts that drive the map (June 2026), 4. ⚠️ On DeepSeek (correcting "it's cheaper"), 5. LLM Council (Karpathy) — for the hardest ~8%, 6. Resilience summary (no single point of failure), AlphaGravity — Model Strategy (which model for which feature), Sources
 
 ### Community 1087 - "Preview Panel E2E Tests"
 Cohesion: 0.22
@@ -6276,10 +6683,6 @@ Nodes (13): labels, arguments, auto_approved, command, duration, exit_code, file
 ### Community 1096 - "SEC EDGAR Bulk Ingestion"
 Cohesion: 0.31
 Nodes (7): ingest_ticker(), load_progress(), main(), _parse_date(), Bulk SEC EDGAR Ingestion — S&P 500 × 3 years ==================================, Fetch and ingest all filings for one ticker. Returns status dict., datetime
-
-### Community 1097 - "Financials UI Components"
-Cohesion: 0.25
-Nodes (7): formatNumber(), FinancialsModal(), FinancialsModalProps, FundamentalData, FundamentalPanel(), FundamentalPanelProps, Markets()
 
 ### Community 1098 - "ES to Qdrant Sync"
 Cohesion: 0.17
@@ -6326,8 +6729,8 @@ Cohesion: 0.22
 Nodes (9): status, active, createNow, defaultPrompt, error, paused, unconfigured, unconfiguredHint (+1 more)
 
 ### Community 1110 - "Vercel Configuration"
-Cohesion: 0.22
-Nodes (8): buildCommand, env, GRAVITY_API_URL, framework, headers, installCommand, outputDirectory, rewrites
+Cohesion: 0.18
+Nodes (9): HERMES_LOOP.sh script, buildCommand, env, GRAVITY_API_URL, framework, headers, installCommand, outputDirectory (+1 more)
 
 ### Community 1111 - "Manifest Metadata"
 Cohesion: 0.22
@@ -6578,8 +6981,8 @@ Cohesion: 0.25
 Nodes (8): devDependencies, jest, jest-expo, @testing-library/jest-native, @testing-library/react-native, @types/jest, @types/react, typescript
 
 ### Community 1174 - "Pet State Machine"
-Cohesion: 0.36
-Nodes (6): AUTO_RETURN, AutoReturnConfig, HitBounds, MIN_DISPLAY_MS, PET_STATES, STATE_PRIORITY
+Cohesion: 0.11
+Nodes (17): After pass 2, Citation discipline, Hygiene, Inputs (from the orchestrator), Length discipline, Output, Phase 1: Read everything, Phase 2: Write pass 1 — rough integrated draft (+9 more)
 
 ### Community 1175 - "Investment Report Sections"
 Cohesion: 0.25
@@ -6602,16 +7005,16 @@ Cohesion: 0.25
 Nodes (8): 4.1 The filing universe that makes you world-class, 4.2 Parallel ingestion pipeline ✅, 4.3 Earnings call transcripts ✅, 4.4 Real-time filing pipeline ✅, 4.5 GDELT news channel ✅, 4.6 Social signals — Reddit + StockTwits + SeekingAlpha ✅, 4.7 Crypto signals — DefiLlama + Coinpaprika + Messari + CoinGecko ✅, Phase 4 — Data Scale (Month 3–5)
 
 ### Community 1180 - "Coin Mention Detection"
-Cohesion: 0.50
-Nodes (8): calcImpact(), decodeHTML(), detectCoinMentions(), detectSentiment(), mapRedditPost(), parseNewsRSS(), parseNitterRSS(), parseYTRSS()
+Cohesion: 0.12
+Nodes (16): 1. merge-paragraphs (HIGHEST PRIORITY), 2. break-paragraph, 3. make-list, 4. make-table, 5. bold-keyterms, 6. split-sentence, 7. remove-hr, 8. add-whitespace (+8 more)
 
 ### Community 1181 - "Crypto Influencer Data"
 Cohesion: 0.25
 Nodes (6): COIN_NAMES, DEFAULT_INFLUENCERS, influencerTweetCache, router, sparklineCache, yahooFinance
 
 ### Community 1182 - "Config Import Export"
-Cohesion: 0.25
-Nodes (8): config, export_success, import_failed, import_success, loaded, reset, updated, validation_failed
+Cohesion: 0.23
+Nodes (8): get_on_demand_ingestor(), OnDemandIngestor, _parse_date(), On-demand SEC filing ingestion.  When a customer asks about a company that isn't, Process-wide singleton (keeps the in-flight dedupe map shared)., Lazily ingests a single company's recent filings on a corpus miss., Ingest the company's recent filings if not already in flight. Idempotent, datetime
 
 ### Community 1183 - "Weekday Names"
 Cohesion: 0.25
@@ -6656,6 +7059,18 @@ Nodes (8): installFailed, officecliNotFound, outsideSandbox, portTimeout, startF
 ### Community 1193 - "MCP Configuration"
 Cohesion: 0.25
 Nodes (8): cdp, copyMcpConfig, currentPort, enable, enableDesc, mcpConfig, openInBrowser, title
+
+### Community 1194 - "Breadcrumb UI"
+Cohesion: 0.24
+Nodes (15): embed_batch(), fetch_qdrant_ids(), fetch_supabase_chunks(), l2(), main(), prefix_text(), qd_post(), qd_put() (+7 more)
+
+### Community 1195 - "Card UI Components"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1196 - "Empty State UI"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 1197 - "Config Import Export"
 Cohesion: 0.25
@@ -6731,15 +7146,15 @@ Nodes (10): Agentic benchmark, Arms, Completeness judge (`complete.py`), Metrics
 
 ### Community 1215 - "Architecture Roadmap"
 Cohesion: 0.29
-Nodes (6): Phase 1: Unify the Brain (Backend Consolidation), Phase 2: The Infrastructure Diet (Database Consolidation), Phase 3: Bulletproof Resilience (Graceful Degradation), Phase 4: Perceived Performance (UX Polish), Summary, The Antigravity "Path to Perfection" Roadmap
+Nodes (6): Phase 1: Unify the Brain (Backend Consolidation), Phase 2: The Infrastructure Diet (Database Consolidation), Phase 3: Bulletproof Resilience (Graceful Degradation), Phase 4: Perceived Performance (UX Polish), Summary, The AlphaGravity "Path to Perfection" Roadmap
 
 ### Community 1216 - "UI Test Cases"
 Cohesion: 0.29
 Nodes (7): P0-1: 搜索栏展开/折叠按钮行为 + 图标切换, P0-2: 卡片点击区域隔离（主体 vs 右侧操作区）, P0-3: Delete 确认弹窗含助手预览卡片, P0-4: highlightId 滚动到卡片并高亮 2 秒，之后清 query, P0-5: AddSkillsModal 搜索框过滤 + 无结果文案 "No skills found", P0-6: Extension 助手 Skills 区渲染验证, P0 测试用例（核心交互，必测）
 
 ### Community 1217 - "Binary Path Resolution"
-Cohesion: 0.57
-Nodes (5): bundledPath(), devRepoPath(), getBinaryName(), resolveBinaryPath(), resolveFromSystemPATH()
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 1218 - "Baseline Metrics Capture"
 Cohesion: 0.29
@@ -6786,8 +7201,8 @@ Cohesion: 0.43
 Nodes (5): AtCommandPart, extractAtPaths(), hasAtReferences(), parseAllAtCommands(), unescapeAtPath()
 
 ### Community 1230 - "Platform Auth Types"
-Cohesion: 0.57
-Nodes (3): getAuthTypeFromPlatform(), getProviderAuthType(), isNewApiPlatform()
+Cohesion: 0.26
+Nodes (5): build_tree_nav_search(), GravityIndex tree-nav retrieval channel — vectorless, reasoning-based.  Instead, LLM navigation → list of node_ids. Falls back to keyword overlap., TreeNavSearch, RetrievalResult
 
 ### Community 1231 - "Zoom Scale Control"
 Cohesion: 0.52
@@ -6890,12 +7305,16 @@ Cohesion: 0.29
 Nodes (7): files, copyPath, empty, errorLoading, parentDirectory, title, viewInfo
 
 ### Community 1257 - "Connection States"
-Cohesion: 0.29
-Nodes (7): connection, connecting, connectionLost, reconnecting, sessionExpired, tapToReconnect, tapToRetry
+Cohesion: 0.08
+Nodes (38): ChatEmptyState(), styles, ChatSidebar(), styles, DrawerMenuButton(), DiffBlock(), mapAcpStatus(), parseDiffStats() (+30 more)
 
 ### Community 1258 - "TypeScript Config"
 Cohesion: 0.29
 Nodes (6): compilerOptions, baseUrl, paths, files, @/*, references
+
+### Community 1259 - "Event Bridge"
+Cohesion: 0.12
+Nodes (4): sans, serif, LINKS, metadata
 
 ### Community 1260 - "Project Documentation"
 Cohesion: 0.29
@@ -6971,6 +7390,10 @@ Nodes (6): __dirname, out, outDir, repoRoot, result, src
 Cohesion: 0.38
 Nodes (5): classify(), ClassifyRequest, lifespan(), CryptoBERT Sentiment API ======================== Minimal FastAPI wrapper arou, FastAPI
 
+### Community 1277 - "Bridge Service"
+Cohesion: 0.12
+Nodes (10): eps_diluted(), net_margin(), pe_ratio(), Net margin = Net Income / Revenue × 100., Price-to-Earnings ratio = Price / EPS., Weighted average of values., Diluted EPS = Net Income / Diluted Shares Outstanding., weighted_average() (+2 more)
+
 ### Community 1278 - "Design Review Items"
 Cohesion: 0.29
 Nodes (7): 10.7.3 特殊字符处理 (designer 9.2.1) ✅ 同意, 10.7.4 大规模列表性能 (designer 9.2.2) ✅ 同意, 10.7.5 并发批量导入 UI 状态 (designer 9.2.3) ✅ 同意, 10.7.6 testid 优先级与转义 (designer 9.4.1 & 9.4.2) ✅ 同意, 10.7.7 i18n key 遗漏 (designer 9.5.1) ✅ 同意, 10.7.8 已知限制章节 (designer 9.6) ✅ 同意, 11.9 总结
@@ -7016,8 +7439,8 @@ Cohesion: 0.31
 Nodes (8): modeArg, server, buildInstructions(), { getDefaultMode, normalizeMode }, { getPonytailInstructions }, MODES, require, resolveMode()
 
 ### Community 1290 - "Toggle Component"
-Cohesion: 0.43
-Nodes (4): ToggleGroupContext, ToggleGroupItem(), Toggle(), toggleVariants
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 1291 - "Error Types"
 Cohesion: 0.29
@@ -7196,16 +7619,16 @@ Cohesion: 0.33
 Nodes (6): 8. 待决策议题（team-lead 已决策）, 议题 0: E2E 环境 provider 配置前置条件（新增）, 议题 1: 模型切换是否需重启 binary？（P0，已决策）, 议题 2: 权限 "always allow" 是否需持久化？（P2，reviewer 已共识选 B）, 议题 3: 工具确认中途切换权限/模型的行为？（P1，待决策）, 议题 4: CI 环境 binary 来源？（P0，reviewer 已共识选 C）
 
 ### Community 1335 - "Plugin Permissions"
-Cohesion: 0.31
-Nodes (5): LongitudinalProfile, Build a full longitudinal profile for a ticker., Rule-based cross-metric correlation insights., Generate a nuanced narrative using the LLM., Full longitudinal analysis for a ticker across metrics and periods.
+Cohesion: 0.12
+Nodes (15): 1. Hygiene leaks (strip immediately), 1a. Frontmatter hygiene (YAML metadata block), 1b. Inline scaffold vocabulary strip (reader-facing prose), 1c. Pipeline reference cleanup, 2. Prompt adherence, 3. Filler and redundancy, 3a. Hedge language that softens committed claims, 4. Repetitive sections (+7 more)
 
 ### Community 1336 - "Skill Configuration"
 Cohesion: 0.33
 Nodes (5): Auto-Clarity, Boundaries, Intensity, Persistence, Rules
 
 ### Community 1337 - "Community 1337"
-Cohesion: 0.38
-Nodes (7): WorkspaceContext, WorkspaceContextType, WorkspaceProvider(), getLastDirectoryName(), getWorkspaceDisplayName(), isTemporaryWorkspace(), splitPathSegments()
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 1338 - "Display Persist E2E"
 Cohesion: 0.60
@@ -7464,8 +7887,8 @@ Cohesion: 0.20
 Nodes (9): Advanced: Debounce with Cancel & Immediate Options, Basic Debounce Function, Debounce, Debounce Search Input, Enhanced Version with Loading State, HTML Example, Key Benefits, With Ponytail, 10 lines of code (+1 more)
 
 ### Community 1402 - "Community 1402"
-Cohesion: 0.24
-Nodes (8): _mem_incr(), _month_ttl(), RateLimiter, Gravity Search — Rate Limiter (Section 7.4 of build guide) Two-layer enforcemen, Increment in-memory counter; auto-expires after ttl_s., Seconds until midnight UTC on the 1st of next month., Two-layer Redis rate limiter:       Layer 1 — per-minute sliding window (burst), Enforce both per-minute and monthly limits.         Returns response headers di
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 1403 - "File Modification Request"
 Cohesion: 0.33
@@ -7500,8 +7923,8 @@ Cohesion: 0.33
 Nodes (5): Deploy, Market Researcher — managed-agent template, Overview, Security & handoffs, Steering events
 
 ### Community 1411 - "Vercel Build Configuration"
-Cohesion: 0.33
-Nodes (5): buildCommand, framework, installCommand, outputDirectory, rewrites
+Cohesion: 0.25
+Nodes (7): buildCommand, crons, framework, installCommand, outputDirectory, regions, rewrites
 
 ### Community 1412 - "MCP Codegraph Config"
 Cohesion: 0.33
@@ -7576,16 +7999,16 @@ Cohesion: 0.33
 Nodes (6): 6.1 Proprietary financial embedding model ⬜, 6.2 Feedback-driven reranker fine-tuning ⬜, 6.3 Financial knowledge graph — populate it ⬜, 6.4 Quantitative model integration ⬜, 6.5 Agentic research reports ⬜, Phase 6 — Moat Building (Month 9–18)
 
 ### Community 1430 - "Firecrawl Cache"
-Cohesion: 0.33
-Nodes (3): CacheEntry, router, scrapeCache
+Cohesion: 0.23
+Nodes (11): _internal_keys(), Gravity Search — API Key + JWT Authentication FastAPI dependency (not HTTP midd, Fetch + cache Supabase JWKS (24h)., Validate JWT Bearer token. Tries three issuers in order:       1. Supabase ES25, FastAPI dependency for authentication.      Development: bypass auth, return d, Validate API key: static internal allowlist first (Redis-independent), then Redi, require_auth(), _supabase_jwks() (+3 more)
 
 ### Community 1431 - "File Modification Request"
-Cohesion: 0.33
-Nodes (6): command, directory, files_to_modify, reason, summary, labels
+Cohesion: 0.12
+Nodes (15): G0 — Design baseline (quota-immune: scores the 5 ARCHIVED v2 reports), G1 — Block library + per-section layout selection (THE Gamma core), G2.5 — Theme tokens (Gamma "themes"), G2 — Auto-exhibits (charts, both surfaces), G3 — Exemplar memory (the self-improvement flywheel), G4 — BLOCKED / for the human, Honesty rules (override everything), Loop-of-loops architecture (target) (+7 more)
 
 ### Community 1432 - "Patch Approval Requests"
-Cohesion: 0.33
-Nodes (6): titles, apply_patch_approval_request, command_execution, exec_approval_request, file_read, file_write
+Cohesion: 0.20
+Nodes (9): 0. Doctrine (hard rules — every task obeys these), 1. Codebase anchors (verified 2026-07-19), 2. Environment constraints (from repo memory, 2026-07-19), 3. Architecture (target), 4. Regression table (tests are derived from these numbered rows), 5. Trace doctrine (AC-1 implements; rows 1-3 enforce), 6. TASK LEDGER (execution state — loop works top-to-bottom), 7. PROGRESS LOG (one line per completed task — real numbers only) (+1 more)
 
 ### Community 1433 - "Recurring Schedule Options"
 Cohesion: 0.33
@@ -7636,8 +8059,8 @@ Cohesion: 0.33
 Nodes (5): Deploy, Overview, Security & handoffs, Statement Auditor — managed-agent template, Steering events
 
 ### Community 1445 - "Financial Skills Loader Tests"
-Cohesion: 0.20
-Nodes (7): Tests for the Financial Skills Loader  Verifies that SKILL.md files from financi, Test the singleton pattern., Test that named agent prompts are loaded., Should load at least some agent prompts., The market-researcher agent prompt should be loaded., TestAgentPrompts, TestSingleton
+Cohesion: 0.17
+Nodes (9): loader(), Tests for the Financial Skills Loader  Verifies that SKILL.md files from financi, Test the singleton pattern., Should always return the same instance., Fresh loader instance for each test., Test that named agent prompts are loaded., The market-researcher agent prompt should be loaded., TestAgentPrompts (+1 more)
 
 ### Community 1446 - "Knowledge Graph Tests"
 Cohesion: 0.33
@@ -7771,6 +8194,10 @@ Nodes (5): Competitive Landscape, Industry Definition & Market Size, Industry Dy
 Cohesion: 0.40
 Nodes (5): Financial Performance Analysis, Forward Projections (3-5 Years), Fundraising & Valuation [For Private Companies], Historical Financial Analysis, PAGES 21-24: FINANCIAL ANALYSIS & PERFORMANCE
 
+### Community 1480 - "StepsWrapper Component"
+Cohesion: 0.13
+Nodes (14): Exit criterion, Long-source delegation (any time during step 2), Next step, Recover state, Source count targets, Step 2.1 — Multi-perspective search planning, Step 2.2 — Execute searches and build URL queue, Step 2.3 — Utility scoring and selection (+6 more)
+
 ### Community 1481 - "Skill Definition"
 Cohesion: 0.40
 Nodes (4): Auto-Clarity, Boundaries, Examples, Rules
@@ -7812,8 +8239,8 @@ Cohesion: 0.20
 Nodes (4): _MockDriver, _MockSession, Mimics a Neo4j Session that returns empty results., Mimics a Neo4j Driver that always returns a mock session.
 
 ### Community 1491 - "Community 1491"
-Cohesion: 0.28
-Nodes (5): OpenAIEmbedder, Gravity Search — OpenAI Embedder (failover)  text-embedding-3-small with dimensi, Run an embedding call, retrying on 429 / transient errors with exponential     b, OpenAI text-embedding-3-large embeddings (1024-dim)., _with_backoff()
+Cohesion: 0.20
+Nodes (9): PropositionExtractor, Proposition Indexing — Extract Atomic Facts from Chunks =======================, Extract propositions from a single paragraph chunk., Parse LLM output into a list of proposition strings., Create a Level 5 proposition chunk with parent link., Extracts atomic factual propositions from Level 2 paragraph chunks.      Usage, Extract propositions from all Level 2 chunks in a document.          Args:, ChunkOutput (+1 more)
 
 ### Community 1492 - "Windows Install Guide"
 Cohesion: 0.40
@@ -8132,20 +8559,20 @@ Cohesion: 0.40
 Nodes (5): Lead with Numbers (CRITICAL), Number Formatting, Professional Writing Standards, Use "vs." not "versus", Writing Style Guidelines
 
 ### Community 1575 - "Command Execution Permissions"
-Cohesion: 0.40
-Nodes (5): allow_always_desc, allow_once_desc, reject_always_desc, reject_once_desc, command_execution
+Cohesion: 0.39
+Nodes (6): api, configureApi(), getAuthToken(), getBaseURL(), refreshToken(), resetApi()
 
 ### Community 1576 - "File Read Permissions"
-Cohesion: 0.40
-Nodes (5): allow_always_desc, allow_once_desc, reject_always_desc, reject_once_desc, file_read
+Cohesion: 0.15
+Nodes (12): Angle-specific requirements (YOUR DIFFERENTIATOR), Format adaptation, Inputs (from the main orchestrator), Phase 1.5: Read every note on `must_read_note_ids`, Phase 1: Read the artifacts, Phase 2: Write your draft, Pipeline position, Quality rules (+4 more)
 
 ### Community 1577 - "File Write Permissions"
-Cohesion: 0.40
-Nodes (5): allow_always_desc, allow_once_desc, reject_always_desc, reject_once_desc, file_write
+Cohesion: 0.36
+Nodes (6): AUTO_RETURN, AutoReturnConfig, HitBounds, MIN_DISPLAY_MS, PET_STATES, STATE_PRIORITY
 
 ### Community 1578 - "Network Error Recovery"
-Cohesion: 0.40
-Nodes (5): recovery_actions, cloudflare_blocked, connection_refused, network_timeout, unknown
+Cohesion: 0.15
+Nodes (12): Exit criterion, Next step, Recover state, Step 11.1 — Read all 3 drafts in full, Step 11.2 — Spot-check factual conflicts (orchestrator only), Step 11.3 — Write the synthesis plan, Step 11.4 — Write the synthesis outline, Step 11.5 — VERIFICATION GATE (+4 more)
 
 ### Community 1579 - "Action Controls"
 Cohesion: 0.40
@@ -8177,7 +8604,7 @@ Nodes (4): ALLOWED_FILES, fs, path, RENDERER_DIR
 
 ### Community 1586 - "SEC Filings Indexing"
 Cohesion: 0.60
-Nodes (4): main(), Index downloaded SEC filings from a manifest (resumable) =======================, _save(), Path
+Nodes (4): main(), Index downloaded SEC filings from a manifest (resumable) ======================, _save(), Path
 
 ### Community 1587 - "Install Script"
 Cohesion: 0.40
@@ -8192,8 +8619,8 @@ Cohesion: 0.40
 Nodes (5): 1.1 测试范围, 1.2 测试用例编号规则, 1.3 优先级定义, 1.4 断言类型, 1. 概述
 
 ### Community 1590 - "SEC Data Ingestion"
-Cohesion: 0.40
-Nodes (3): Process and index raw bytes (used by SEC EDGAR / programmatic ingestion)., Internal ingestion logic., Run all indexers in parallel using asyncio.gather().
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 1591 - "Command Execution Permissions"
 Cohesion: 0.40
@@ -8230,6 +8657,26 @@ Nodes (5): pdf, loadFailed, pathMissing, title, unableDisplay
 ### Community 1599 - "PowerPoint Install Flow"
 Cohesion: 0.40
 Nodes (5): ppt, installHint, installing, loading, startFailed
+
+### Community 1600 - "Accordion Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1601 - "Alert Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1602 - "Input OTP Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1603 - "Popover Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1604 - "Tabs Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 1605 - "Command Permission Descriptions"
 Cohesion: 0.40
@@ -8396,8 +8843,8 @@ Cohesion: 0.50
 Nodes (4): command_execution, file_read, file_write, descriptions
 
 ### Community 1652 - "Accuracy Metrics"
-Cohesion: 0.50
-Nodes (4): percentage_change, accuracy, correct, total
+Cohesion: 0.15
+Nodes (12): Bootstrap (run BEFORE invoking step 1), Browser-lane escalations (all tiers), Final integrity gate (after step 16), Four canonical rules (ALWAYS in force), How the chain works (READ THIS CAREFULLY), Hyperresearch V8 — multi-skill chain orchestrator, Invariants you cannot break, Now begin (+4 more)
 
 ### Community 1653 - "Community 1653"
 Cohesion: 0.22
@@ -8524,8 +8971,8 @@ Cohesion: 0.22
 Nodes (8): #217: rung shipped, failure did not reproduce, Comprehension & reuse: fixing #245 and #217, Haiku: a model ceiling, not a regression, Regression check: did the rule edits break anything?, Results — `trace-transfer`, n=6, root-cause-fix rate, The #245 reproducer, The fix, Verdict
 
 ### Community 1685 - "Community 1685"
-Cohesion: 0.22
-Nodes (3): MockWebSocket, MockWSInstance, mockWSInstances
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 1686 - "Permission Descriptions"
 Cohesion: 0.50
@@ -8588,12 +9035,12 @@ Cohesion: 0.50
 Nodes (3): Conditional Workflows, Sequential Workflows, Workflow Patterns
 
 ### Community 1705 - "File & Command Operations"
-Cohesion: 0.50
-Nodes (4): command_execution, file_read, file_write, descriptions
+Cohesion: 0.24
+Nodes (6): execute_calculation(), Execute a financial calculation by name.      Args:         calc_type: Name o, Any, Tests for the Financial Calculator Engine., Test the calculation registry dispatcher., TestExecuteCalculation
 
 ### Community 1706 - "Agent Step Dispatch"
-Cohesion: 0.32
-Nodes (3): CohereEmbedder, Gravity Search — Cohere Embedder (failover)  embed-english-v3.0 outputs 1024-dim, Cohere embed-english-v3.0 embeddings (1024-dim).
+Cohesion: 0.17
+Nodes (12): setup, alternativesFound, authRequired, autoSwitching, checkingAgent, configError, configureFirst, connectionError (+4 more)
 
 ### Community 1707 - "Community 1707"
 Cohesion: 0.25
@@ -8656,8 +9103,28 @@ Cohesion: 0.25
 Nodes (7): Configure Default Mode, Deactivate, Levels, More, Ponytail Help, Skills, Update
 
 ### Community 1722 - "Community 1722"
-Cohesion: 0.25
-Nodes (5): CohereReranker, Gravity Search — Cohere Cross-Encoder Reranker Reranks RRF-fused results using, Cross-encoder reranking via Cohere rerank-v3.5., Rerank passages using Cohere cross-encoder., RetrievalResult
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1723 - "Sentiment Panel Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1724 - "Avatar Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1725 - "Collapsible Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1726 - "Hover Card Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1727 - "Resizable Panel Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 1728 - "File & Command Operations"
 Cohesion: 0.50
@@ -8678,6 +9145,10 @@ Nodes (3): 3.1 Binary 路径解析（Q3 决策）, 3.2 Binary 启动与超时, 3
 ### Community 1744 - "CAGR Calculation"
 Cohesion: 0.25
 Nodes (6): distinct, fs, path, root, VERSION_FILES, versions
+
+### Community 1745 - "Free Cash Flow"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 1747 - "Time Unit Shortcuts"
 Cohesion: 0.25
@@ -8779,17 +9250,37 @@ Nodes (3): 2.1 基础配置, 2.2 Skills 模块特定配置, 2. E2E 测试环境�
 Cohesion: 0.67
 Nodes (3): capabilitiesTab, skills, tools
 
+### Community 1785 - "Community 1785"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
 ### Community 1786 - "Community 1786"
 Cohesion: 0.48
-Nodes (6): Entity-resolver tie-break: 'Block' must resolve to Block Inc, not H&R Block.  Fi, _resolver(), test_apple_alias_not_hospitality(), test_block_resolves_to_block_inc(), test_exact_ticker_wins(), test_hr_block_still_resolves_to_hrb()
+Nodes (6): Entity-resolver tie-break: 'Block' must resolve to Block Inc, not H&R Block., _resolver(), test_apple_alias_not_hospitality(), test_block_resolves_to_block_inc(), test_exact_ticker_wins(), test_hr_block_still_resolves_to_hrb()
 
 ### Community 1787 - "Community 1787"
 Cohesion: 0.33
 Nodes (5): Auto-Clarity, Boundaries, Intensity, Persistence, Rules
 
+### Community 1788 - "Badge Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1789 - "Kbd Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1790 - "Radio Group Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1791 - "Scroll Area Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
 ### Community 1792 - "Time Unit Shortcuts"
-Cohesion: 0.67
-Nodes (3): unit, minute_short, second_short
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 1793 - "Capabilities Tab: Skills/Tools"
 Cohesion: 0.67
@@ -8803,21 +9294,57 @@ Nodes (3): capabilitiesTab, skills, tools
 Cohesion: 0.67
 Nodes (3): capabilitiesTab, skills, tools
 
+### Community 1802 - "History Handler"
+Cohesion: 0.31
+Nodes (6): fallbackHistory(), handler(), RANGE_DAYS, SinaBar, sinaDailyBars(), sinaHistSymbol()
+
+### Community 1803 - "Quote Handler"
+Cohesion: 0.50
+Nodes (3): fetchSina(), SINA_INDEX_MAP, sinaSymbol()
+
+### Community 1818 - "Markets Handler"
+Cohesion: 0.06
+Nodes (49): adxCalc(), atrCalc(), baseRows(), blobStore(), buildMeta(), cachedBlob(), CG_CATS, computeTech() (+41 more)
+
+### Community 1850 - "AspectRatio Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1851 - "Checkbox Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1852 - "Progress Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1853 - "Slider Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1854 - "Spinner Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 1855 - "Switch Component"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
 ### Community 1936 - "Copilot Instructions"
-Cohesion: 0.33
-Nodes (4): _electron, ElectronModule, PowerSaveBlockerModule, UtilityProcessModule
+Cohesion: 0.18
+Nodes (10): Exit criterion, Light tier ONLY: single-draft path, Next step, Recover state, Step 10.0 — Read response_format and citation_style, Step 10.1 — Define 3 analytical angles (full tier), Step 10.2 — Curate per-angle source lists, Step 10.3 — Spawn 3 draft sub-orchestrators in parallel (+2 more)
 
 ### Community 2007 - "Per Share Accuracy"
 Cohesion: 0.33
 Nodes (5): Alternative methods:, CSV Sum, Python code to read sales.csv and sum the 'amount' column, With Ponytail, 3 lines of code, Without Ponytail, 20 lines of code
 
 ### Community 2008 - "HTTP Client Close"
-Cohesion: 0.33
-Nodes (6): status, canceled, error, executing, pending, success
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 2009 - "Skill Import/Export Flow"
-Cohesion: 0.50
-Nodes (4): 3.1 完整导入流程（外部技能 → 我的技能）, 3.2 技能导出流程（我的技能 → 外部 CLI）, 3.3 添加自定义外部路径流程, 3. 交互流程
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 2011 - "Community 2011"
 Cohesion: 0.33
@@ -8832,20 +9359,20 @@ Cohesion: 0.33
 Nodes (5): Claude re-score of committed responses through the fixed gate, Correctness under Ponytail: gate fixes + GPT-mini reproduction (2026-06-16), GPT arms (needs OPENAI_API_KEY in ../.env), The gate bugs, TL;DR
 
 ### Community 2014 - "Community 2014"
-Cohesion: 0.53
-Nodes (3): MCPToolResult, Result from calling an MCP tool., TestMCPToolResult
+Cohesion: 0.33
+Nodes (9): Path, build_compress_prompt(), build_fix_prompt(), call_claude(), compress_file(), is_sensitive_path(), Heuristic denylist for files that must never be shipped to a third-party API., Strip outer ```markdown ... ``` fence when it wraps the entire output. (+1 more)
 
 ### Community 2015 - "Community 2015"
-Cohesion: 0.33
-Nodes (3): BROAD, failures, PROBES
+Cohesion: 0.18
+Nodes (10): Constraints, Exit criterion, Next step, Recover state, Step 14.0 — Skip gate (optional), Step 14.1 — Pre-create the patch log stub, Step 14.2 — Spawn the patcher, Step 14.3 — Read the patch log (+2 more)
 
 ### Community 2017 - "Community 2017"
-Cohesion: 0.33
-Nodes (6): status, canceled, error, executing, pending, success
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
 
 ### Community 2018 - "Community 2018"
-Cohesion: 0.60
-Nodes (4): LocalCronProcessingResult, processLocalCronResponse(), stripCronCommands(), stripThinkTags()
+Cohesion: 0.15
+Nodes (13): titles, applying_patch, command_completed, command_output, execute_command, file_patch, mcp_tool, mcp_tool_starting (+5 more)
 
 ### Community 2019 - "Community 2019"
 Cohesion: 0.40
@@ -8912,8 +9439,8 @@ Cohesion: 0.50
 Nodes (3): configs, method, tasks
 
 ### Community 2035 - "Community 2035"
-Cohesion: 0.50
-Nodes (4): ratio_calculation, accuracy, correct, total
+Cohesion: 0.18
+Nodes (10): Exit criterion, Next step, Recover state, Step 15.1 — Pre-create the polish log stub, Step 15.2 — Spawn the polish auditor, Step 15.3 — Handle escalations, Step 15.4 — Final integrity gate, Step 15.5 — Record the run + lint gate (+2 more)
 
 ### Community 2036 - "Community 2036"
 Cohesion: 0.50
@@ -8947,24 +9474,1260 @@ Nodes (3): Boundaries, Output, Scan
 Cohesion: 0.50
 Nodes (3): Boundaries, Output, Scan
 
+### Community 2044 - "Community 2044"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2065 - "Community 2065"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2066 - "Community 2066"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2067 - "Community 2067"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2068 - "Community 2068"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2069 - "Community 2069"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2070 - "Community 2070"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2071 - "Community 2071"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2072 - "Community 2072"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2073 - "Community 2073"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2074 - "Community 2074"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2075 - "Community 2075"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2076 - "Community 2076"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2077 - "Community 2077"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2078 - "Community 2078"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2079 - "Community 2079"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2080 - "Community 2080"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2081 - "Community 2081"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2082 - "Community 2082"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2083 - "Community 2083"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2084 - "Community 2084"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2085 - "Community 2085"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2086 - "Community 2086"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2087 - "Community 2087"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2088 - "Community 2088"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2089 - "Community 2089"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2090 - "Community 2090"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2091 - "Community 2091"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2092 - "Community 2092"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2093 - "Community 2093"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2094 - "Community 2094"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2095 - "Community 2095"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2096 - "Community 2096"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2097 - "Community 2097"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2098 - "Community 2098"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2099 - "Community 2099"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2100 - "Community 2100"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2101 - "Community 2101"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2102 - "Community 2102"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2103 - "Community 2103"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2104 - "Community 2104"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2105 - "Community 2105"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2106 - "Community 2106"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2107 - "Community 2107"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2108 - "Community 2108"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2109 - "Community 2109"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2110 - "Community 2110"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2111 - "Community 2111"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2112 - "Community 2112"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2113 - "Community 2113"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2114 - "Community 2114"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2115 - "Community 2115"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2116 - "Community 2116"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2117 - "Community 2117"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2118 - "Community 2118"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2119 - "Community 2119"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2120 - "Community 2120"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2121 - "Community 2121"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2122 - "Community 2122"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2123 - "Community 2123"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2124 - "Community 2124"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2125 - "Community 2125"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2126 - "Community 2126"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2127 - "Community 2127"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2128 - "Community 2128"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2129 - "Community 2129"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2130 - "Community 2130"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2131 - "Community 2131"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2132 - "Community 2132"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2133 - "Community 2133"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2134 - "Community 2134"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2135 - "Community 2135"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2136 - "Community 2136"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2137 - "Community 2137"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2138 - "Community 2138"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2139 - "Community 2139"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2140 - "Community 2140"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2141 - "Community 2141"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2142 - "Community 2142"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2143 - "Community 2143"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2144 - "Community 2144"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2145 - "Community 2145"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2146 - "Community 2146"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2147 - "Community 2147"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2148 - "Community 2148"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2149 - "Community 2149"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2150 - "Community 2150"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2151 - "Community 2151"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2152 - "Community 2152"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2153 - "Community 2153"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2154 - "Community 2154"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2155 - "Community 2155"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2156 - "Community 2156"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2157 - "Community 2157"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2158 - "Community 2158"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2159 - "Community 2159"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2160 - "Community 2160"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2161 - "Community 2161"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2162 - "Community 2162"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2163 - "Community 2163"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2164 - "Community 2164"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2165 - "Community 2165"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2166 - "Community 2166"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2167 - "Community 2167"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2168 - "Community 2168"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2169 - "Community 2169"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2170 - "Community 2170"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2171 - "Community 2171"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2172 - "Community 2172"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2173 - "Community 2173"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2174 - "Community 2174"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2175 - "Community 2175"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2176 - "Community 2176"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2177 - "Community 2177"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2178 - "Community 2178"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2179 - "Community 2179"
+Cohesion: 0.13
+Nodes (15): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+7 more)
+
+### Community 2180 - "Community 2180"
+Cohesion: 0.18
+Nodes (10): filePreview, errorLoading, fileTooLarge, loading, retry, unsupportedType, tabs, chat (+2 more)
+
+### Community 2181 - "Community 2181"
+Cohesion: 0.40
+Nodes (3): LOG_LINES, Props, STAGES
+
+### Community 2182 - "Community 2182"
+Cohesion: 0.19
+Nodes (12): CarouselApi, CarouselContent(), CarouselContext, CarouselContextProps, CarouselItem(), CarouselNext(), CarouselOptions, CarouselPlugin (+4 more)
+
+### Community 2183 - "Community 2183"
+Cohesion: 0.14
+Nodes (13): 1. Where we are (grounded audit, 2026-07-02), 2. The bar — what finansya.tn ships (benchmark), 3. Data feasibility matrix (what powers each feature), 4. Roadmap (task ledger — continues T-numbering from T8), 5. Sequencing rationale, 6. Definition of done (world-class), 7. Progress log, Phase 10 — Fundamentals (the moat) (+5 more)
+
+### Community 2184 - "Community 2184"
+Cohesion: 0.14
+Nodes (14): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+6 more)
+
+### Community 2185 - "Community 2185"
+Cohesion: 0.14
+Nodes (14): accession_number, bytes, chunk_count, company_name, document_id, downloaded_at, filing_date, filing_type (+6 more)
+
+### Community 2186 - "Community 2186"
+Cohesion: 0.19
+Nodes (12): CarouselApi, CarouselContent(), CarouselContext, CarouselContextProps, CarouselItem(), CarouselNext(), CarouselOptions, CarouselPlugin (+4 more)
+
+### Community 2187 - "Community 2187"
+Cohesion: 0.22
+Nodes (11): auditStructure(), extractStructure(), HeadingSkip, isJavaAvailable(), OdlNode, pagesInSubtree(), resolveJava(), SplitRow (+3 more)
+
+### Community 2188 - "Community 2188"
+Cohesion: 0.18
+Nodes (4): Item(), ItemMedia(), itemMediaVariants, itemVariants
+
+### Community 2189 - "Community 2189"
+Cohesion: 0.15
+Nodes (13): accession_number, bytes, chunk_count, company_name, downloaded_at, filing_date, filing_type, path (+5 more)
+
+### Community 2190 - "Community 2190"
+Cohesion: 0.15
+Nodes (13): labels, arguments, auto_approved, command, duration, exit_code, file_changes, manual_approval (+5 more)
+
+### Community 2191 - "Community 2191"
+Cohesion: 0.18
+Nodes (4): Item(), ItemMedia(), itemMediaVariants, itemVariants
+
+### Community 2192 - "Community 2192"
+Cohesion: 0.15
+Nodes (13): labels, arguments, auto_approved, command, duration, exit_code, file_changes, manual_approval (+5 more)
+
+### Community 2193 - "Community 2193"
+Cohesion: 0.15
+Nodes (13): labels, arguments, auto_approved, command, duration, exit_code, file_changes, manual_approval (+5 more)
+
+### Community 2196 - "Community 2196"
+Cohesion: 0.23
+Nodes (9): FormControl(), FormDescription(), FormFieldContext, FormFieldContextValue, FormItemContext, FormItemContextValue, FormLabel(), FormMessage() (+1 more)
+
+### Community 2197 - "Community 2197"
+Cohesion: 0.40
+Nodes (3): Process and index raw bytes (used by SEC EDGAR / programmatic ingestion)., Internal ingestion logic., Run all indexers in parallel using asyncio.gather().
+
+### Community 2198 - "Community 2198"
+Cohesion: 0.17
+Nodes (11): Deployment, Firecrawl News Enrichment — Roadmap, Ledger, Phase 0 — Client + flag  ✅ SHIPPED, Phase 1 — Engine `news()` full-text  ✅ SHIPPED, Phase 2 — Hermes daily brief  ✅ SHIPPED (code; user deploys), Phase 3 — LLM sentiment over scraped text  ✅ SHIPPED, Phase 4 — Deep-research web sourcing  ✅ SHIPPED (+3 more)
+
+### Community 2199 - "Community 2199"
+Cohesion: 0.17
+Nodes (11): Definition of done, Hermes Agent × Trading — Accuracy & Premium Roadmap, Phase H0 — Foundation (daemon online), Phase H1 — Accuracy watchdog (every endpoint gets an invariant skill), Phase H2 — Close the C5 open question (live bid/ask semantics), Phase H3 — Fundamentals accuracy flywheel, Phase H4 — Premium content (agent writes, product serves), Phase H5 — Assistant quality loop (+3 more)
+
+### Community 2200 - "Community 2200"
+Cohesion: 0.17
+Nodes (11): Benchmark targets, Guardrails, Latency model (baseline, from code analysis 2026-07-09), LOOP TASK — Deep Research feature → world-class (fast + streaming + verified), P0 — Speed (~2× faster, no quality loss), P1 — Perceived speed, P2 — Quality ceiling, P3 — Optional polish (do only if told) (+3 more)
+
+### Community 2201 - "Community 2201"
+Cohesion: 0.17
+Nodes (12): accession_number, bytes, company_name, downloaded_at, filing_date, filing_type, path, sha256 (+4 more)
+
+### Community 2202 - "Community 2202"
+Cohesion: 0.17
+Nodes (12): accession_number, bytes, company_name, downloaded_at, filing_date, filing_type, path, sha256 (+4 more)
+
+### Community 2203 - "Community 2203"
+Cohesion: 0.17
+Nodes (12): accession_number, bytes, company_name, downloaded_at, filing_date, filing_type, path, sha256 (+4 more)
+
+### Community 2204 - "Community 2204"
+Cohesion: 0.17
+Nodes (12): accession_number, bytes, company_name, downloaded_at, filing_date, filing_type, path, sha256 (+4 more)
+
+### Community 2205 - "Community 2205"
+Cohesion: 0.17
+Nodes (12): accession_number, bytes, company_name, downloaded_at, filing_date, filing_type, path, sha256 (+4 more)
+
+### Community 2206 - "Community 2206"
+Cohesion: 0.17
+Nodes (12): accession_number, bytes, company_name, downloaded_at, filing_date, filing_type, path, sha256 (+4 more)
+
+### Community 2207 - "Community 2207"
+Cohesion: 0.17
+Nodes (12): accession_number, bytes, company_name, downloaded_at, filing_date, filing_type, path, sha256 (+4 more)
+
+### Community 2208 - "Community 2208"
+Cohesion: 0.17
+Nodes (12): accession_number, bytes, company_name, downloaded_at, filing_date, filing_type, path, sha256 (+4 more)
+
+### Community 2211 - "Community 2211"
+Cohesion: 0.23
+Nodes (9): FormControl(), FormDescription(), FormFieldContext, FormFieldContextValue, FormItemContext, FormItemContextValue, FormLabel(), FormMessage() (+1 more)
+
+### Community 2212 - "Community 2212"
+Cohesion: 0.20
+Nodes (11): amihud(), book(), clamp(), deepseekTone(), engineCompute(), firecrawlSearch(), highProximity(), momentum() (+3 more)
+
+### Community 2213 - "Community 2213"
+Cohesion: 0.09
+Nodes (49): AnswerType, GridCell, GridCitation, GridDocument, GridEngine, GridQuestion, GridRequest, GridResult (+41 more)
+
+### Community 2214 - "Community 2214"
+Cohesion: 0.17
+Nodes (8): byIsin, byIsinPubs, good, pubs, RES, results, tmp, UA
+
+### Community 2215 - "Community 2215"
+Cohesion: 0.23
+Nodes (10): Brief, fmtCap(), fmtLevel(), Idx, Mover, num(), pct(), pctColor() (+2 more)
+
+### Community 2216 - "Community 2216"
+Cohesion: 0.17
+Nodes (11): Benchmark targets (honest, contingent), GOAL (the only definition of done), Honesty rules (override everything), LOOP TASK — Deep Research → measured world-class (evidence, not vibes), Per-iteration cycle (one task, then end so the loop re-fires), Plan, Repo facts (verified 2026-07-10), W0 — Truth infrastructure FIRST (+3 more)
+
+### Community 2217 - "Community 2217"
+Cohesion: 0.22
+Nodes (7): ChartConfig, ChartContext, ChartContextProps, ChartLegendContent(), ChartTooltipContent(), THEMES, useChart()
+
+### Community 2222 - "Community 2222"
+Cohesion: 0.22
+Nodes (6): computeQuarterRows(), HEADLINE, LatestQuarterCard(), Metric, QuarterRow, metrics
+
+### Community 2223 - "Community 2223"
+Cohesion: 0.18
+Nodes (10): 1. The World-Class Charting Engine (TradingView/Binance Grade), 2. The "About" Tab (Dynamic Metadata & Tokenomics), 3. The "Markets" Tab (Live Order Books & Exchanges), 4. The "News" Tab (Whitelisted Outlets Only), 5. The "Yield" Tab (Verified Staking & Lending Pools), 6. The "Holders" Tab (Multi-Chain Distribution Indexer), Core Feature Roadmap, Output Requirements for Claude Code (+2 more)
+
+### Community 2224 - "Community 2224"
+Cohesion: 0.22
+Nodes (7): ChartConfig, ChartContext, ChartContextProps, ChartLegendContent(), ChartTooltipContent(), THEMES, useChart()
+
+### Community 2229 - "Community 2229"
+Cohesion: 0.31
+Nodes (4): Gravity Search — Sparse Keyword Search (Channel 2 of 5) Exact phrase / ticker /, Keyword search. Primary: Supabase Postgres FTS. Fallback: Elasticsearch BM25., SparseSearch, RetrievalResult
+
+### Community 2230 - "Community 2230"
+Cohesion: 0.20
+Nodes (9): name, private, scripts, build, dev, lint, preview, type (+1 more)
+
+### Community 2233 - "Community 2233"
+Cohesion: 0.20
+Nodes (9): Backlink flag — `--suggested-by`, Commands, Error handling, Period-pinned filings (READ FIRST), Phase 1: Fetch assigned URLs, Phase 2: Chase primary sources (MANDATORY — do NOT skip), Reporting back, Untrusted content policy — read before summarizing any fetched page (+1 more)
+
+### Community 2234 - "Community 2234"
+Cohesion: 0.20
+Nodes (9): 0. Doctrine (hard rules — every task obeys these), 1. Codebase anchors (verified 2026-07-19), 2. Environment constraints (from repo memory, 2026-07-19), 3. Architecture (target), 4. Regression table (tests are derived from these numbered rows), 5. Verification prompt doctrine (GT-3 implements; test 6 enforces), 6. TASK LEDGER (execution state — GRID_LOOP works top-to-bottom), 7. PROGRESS LOG (one line per completed task — real numbers only) (+1 more)
+
+### Community 2235 - "Community 2235"
+Cohesion: 0.20
+Nodes (9): A — Chart, B — Data correctness, C — Every company complete, Definition of done, Loop rules (follow exactly each iteration), Progress log, Tasks, TN Companies — World-Class Chart & Detail Loop (+1 more)
+
+### Community 2236 - "Community 2236"
+Cohesion: 0.20
+Nodes (9): Definition of done, Loop rules (follow exactly each iteration), Phase 2 — US market fullness, Phase 4 — Chart / detail per market, Phase 5 — Polish / sync, Phase 6 — Real data + more markets (decoupled; do last), Progress log, Tasks (+1 more)
+
+### Community 2237 - "Community 2237"
+Cohesion: 0.20
+Nodes (9): 1. Coin Info (7 Columns), 2. Market Data (13 Columns), 3. Technicals (35 Columns), 4. Valuation (7 Columns), 5. Derivatives (7 Columns), 6. Holders / Addresses (3 Columns), 7. Transactions (6 Columns), 8. Sentiment (12 Columns) (+1 more)
+
+### Community 2238 - "Community 2238"
+Cohesion: 0.20
+Nodes (9): 1. Coin Info (7 Columns), 2. Market Data (13 Columns), 3. Technicals (35 Columns), 4. Valuation (7 Columns), 5. Derivatives (7 Columns), 6. Holders (3 Columns), 7. Transactions (6 Columns), 8. Sentiment (12 Columns) (+1 more)
+
+### Community 2241 - "Community 2241"
+Cohesion: 0.20
+Nodes (9): Citation Spot-Check (Title-Level Plausibility), Iteration 1 (baseline), Iteration 2+ (with feedback), Judge Prompt (instruction to deepseek-chat), Output Files, Pass Condition, Self-Improvement Loop Prompt Structure, Telemetry Logged (+1 more)
+
+### Community 2242 - "Community 2242"
+Cohesion: 0.20
+Nodes (9): Inputs (from the parent agent), Pipeline position, Prescriptive-specificity check (failure_mode: `vague-recommendation`), Procedure, Readability structural checks (run AFTER per-item checks), Reporting back, Rules, Severity scale (+1 more)
+
+### Community 2243 - "Community 2243"
+Cohesion: 0.36
+Nodes (9): build_facts(), firecrawl_scrape(), get(), main(), news_source(), Article body → main-content markdown. None without a key or on any failure., Top recent press item for a stock: title + URL + tone (full-text when     Firec, tone_sign() (+1 more)
+
+### Community 2244 - "Community 2244"
+Cohesion: 0.28
+Nodes (4): InputGroupAddon(), inputGroupAddonVariants, InputGroupButton(), inputGroupButtonVariants
+
+### Community 2247 - "Community 2247"
+Cohesion: 0.22
+Nodes (8): P0 — Foundation repair (unblocks everything) · ~1 week, P1 — Retrieval quality: our answer to Hebbia ISD · ~2-3 weeks, P2 — Standing grids: AlphaSense's flagship, nearly free for us · ~2 weeks, P3 — Content breadth: close the "filings-only" gap · ~3 weeks, P4 — Agentic deliverables + model economics · ~4 weeks, Research Grid → World-Class Roadmap, Sequencing summary, What we explicitly do NOT chase
+
+### Community 2248 - "Community 2248"
+Cohesion: 0.22
+Nodes (8): Definition of done, Phase V1 — Data resilience (fallback chains, Vibe's IP-ban-risk pattern), Phase V2 — TN engine: real factors (from the zoo's academic set), Phase V3 — Deep-research committee composition (prompt port), Phase V4 — Sidecar evaluation (timeboxed, decision not adoption), Phase V5 — Shadow Account (parked until V1–V2 shipped), Progress log, Vibe-Trading Harvest — Resilience & Factor-Engine Roadmap
+
+### Community 2249 - "Community 2249"
+Cohesion: 0.22
+Nodes (8): flagPath, fs, { getDefaultMode, safeWriteFlag }, INDEPENDENT_MODES, mode, os, path, settingsPath
+
+### Community 2250 - "Community 2250"
+Cohesion: 0.28
+Nodes (4): InputGroupAddon(), inputGroupAddonVariants, InputGroupButton(), inputGroupButtonVariants
+
+### Community 2253 - "Community 2253"
+Cohesion: 0.31
+Nodes (8): classify(), getJson(), main(), OUT, ratioBad(), REPO_ROOT, SCALE_FIELDS, VIEWS
+
+### Community 2254 - "Community 2254"
+Cohesion: 0.22
+Nodes (5): cols, engines, intradays, rows, syms
+
+### Community 2255 - "Community 2255"
+Cohesion: 0.20
+Nodes (9): 0. Doctrine (hard rules — every task obeys these), 1. Codebase anchors (verified 2026-07-28), 2. Environment constraints (verified 2026-07-28), 3. Design system (the thing that makes it premium), 4. Approved claims (the ONLY numbers allowed on the site), 5. Section inventory (landing page, in scroll order), 6. TASK LEDGER (execution state — PERSONAL_WEBSITE_LOOP works top-to-bottom), 7. PROGRESS LOG (one line per completed task — real numbers only) (+1 more)
+
+### Community 2256 - "Community 2256"
+Cohesion: 0.29
+Nodes (5): CRYPTO_WL, fetchOutletItems(), handler(), IMG_FEEDS, UA
+
+### Community 2260 - "Community 2260"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000008670-24-000024
+
+### Community 2261 - "Community 2261"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000008670-25-000037
+
+### Community 2262 - "Community 2262"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000008670-26-000022
+
+### Community 2263 - "Community 2263"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0001097149-26-000040
+
+### Community 2264 - "Community 2264"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0001858681-26-000013
+
+### Community 2265 - "Community 2265"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000769397-22-000019
+
+### Community 2266 - "Community 2266"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000769397-23-000036
+
+### Community 2267 - "Community 2267"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000769397-24-000090
+
+### Community 2268 - "Community 2268"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000769397-26-000015
+
+### Community 2269 - "Community 2269"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0001579241-26-000015
+
+### Community 2270 - "Community 2270"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0001751008-26-000010
+
+### Community 2271 - "Community 2271"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0001002910-22-000038
+
+### Community 2272 - "Community 2272"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0001002910-23-000053
+
+### Community 2273 - "Community 2273"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0001002910-24-000056
+
+### Community 2274 - "Community 2274"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0001002910-26-000009
+
+### Community 2275 - "Community 2275"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0001002910-26-000015
+
+### Community 2276 - "Community 2276"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0001628280-25-006093
+
+### Community 2277 - "Community 2277"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000005272-24-000023
+
+### Community 2278 - "Community 2278"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000005272-24-000051
+
+### Community 2279 - "Community 2279"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000005272-24-000079
+
+### Community 2280 - "Community 2280"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000005272-24-000126
+
+### Community 2281 - "Community 2281"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000005272-25-000012
+
+### Community 2282 - "Community 2282"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000005272-25-000040
+
+### Community 2283 - "Community 2283"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0000005272-26-000023
+
+### Community 2284 - "Community 2284"
+Cohesion: 0.25
+Nodes (8): accession_number, company_name, filing_date, filing_type, status, ticker, url, 0001104659-22-024701
+
+### Community 2288 - "Community 2288"
+Cohesion: 0.36
+Nodes (6): getJson(), main(), OUT, REPO_ROOT, sleep(), STABLE_SYMS
+
+### Community 2289 - "Community 2289"
+Cohesion: 0.54
+Nodes (7): extract(), fetch(), gsql(), latest_statement_pdf(), main(), pdf_excerpt(), _post()
+
+### Community 2290 - "Community 2290"
+Cohesion: 0.25
+Nodes (7): assert, { execFileSync }, fs, INIT, os, path, ROOT
+
+### Community 2291 - "Community 2291"
+Cohesion: 0.20
+Nodes (9): Exit criterion, Pipeline complete, Recover state, Step 16.1 — Spawn the readability recommender, Step 16.2 — Read the recommendations, Step 16.3 — Decide which to apply, Step 16.4 — Apply chosen recommendations via Edit, Step 16.5 — Log decisions (+1 more)
+
+### Community 2292 - "Community 2292"
+Cohesion: 0.22
+Nodes (8): Effort discipline, Inputs (from the parent agent), Non-ASCII source text, Pipeline position, Procedure, Reporting back, Tool lock — why `[Bash, Read, Write]` and NOT `[Task]`, Untrusted content policy — read before acting on the source body
+
+### Community 2293 - "Community 2293"
+Cohesion: 0.29
+Nodes (6): compilerOptions, baseUrl, paths, files, @/*, references
+
+### Community 2294 - "Community 2294"
+Cohesion: 0.29
+Nodes (6): Crypto Universe — venue audit (curated 200), Curated CG ids (server CURATED_IDS copy-paste source), Curated top-200 (highest-mcap with gate-verified venue), Exclusions (gate != pass, CG top 500), Full ranked table (CG top 500), Summary
+
+### Community 2295 - "Community 2295"
+Cohesion: 0.29
+Nodes (6): Crypto V7 — COIN PAGE TRUTH (kill every fake tab, venue-true chart), Doctrine (hard rules), Ledger, Progress log, Rectified spec (what gemini asked vs what ships), Verified defects (recon 2026-07-14)
+
+### Community 2296 - "Community 2296"
+Cohesion: 0.29
+Nodes (6): Doctrine (hard rules), Known state (do not re-derive), Ledger, Progress log, TN Deep History — multi-year charts for TUNINDEX + every company page, TNH-1 SOURCES verdict (every row = real probe response, 2026-07-17)
+
+### Community 2297 - "Community 2297"
+Cohesion: 0.29
+Nodes (6): Doctrine (hard rules), Full parity matrix (every crypto roadmap → TN status), Ledger, Progress log, ✅ ROADMAP COMPLETE — 7/7 (2026-07-16), TN World-Class Parity — bring every crypto roadmap win to the Tunisian market
+
+### Community 2298 - "Community 2298"
+Cohesion: 0.29
+Nodes (6): 1. Data Sources & Anti-Hallucination Guardrails, 2. Tech Stack Optimization, 3. Execution Pipeline & Logic, Architectural Requirements, Deliverables, Role & Goal
+
+### Community 2300 - "Community 2300"
+Cohesion: 0.29
+Nodes (5): H, lines, out, rows, txt
+
+### Community 2301 - "Community 2301"
+Cohesion: 0.29
+Nodes (6): H, idx, lines, out, tunDates, txt
+
+### Community 2302 - "Community 2302"
+Cohesion: 0.33
+Nodes (5): agm-dividends: AGM dividend monitor, Hard Rules, How to Report, How to Run, When to Use This Skill
+
+### Community 2303 - "Community 2303"
+Cohesion: 0.33
+Nodes (5): bvmt-health: TN endpoint invariant watchdog, How to Report, How to Run, What Each Check Asserts, When to Use This Skill
+
+### Community 2304 - "Community 2304"
+Cohesion: 0.08
+Nodes (24): CompanyBrief(), MODEL_CONFIG, ModelKey, DevilsAdvocate(), isTranscriptDisclaimer(), TranscriptSummary(), BackgroundActivity(), searchGravityCell() (+16 more)
+
+### Community 2305 - "Community 2305"
+Cohesion: 0.33
+Nodes (5): Crypto Screener — Column Header Menu (per-column sort / move / hide), Doctrine (hard rules), Ledger, Progress log, Why this needs a registry first
+
+### Community 2306 - "Community 2306"
+Cohesion: 0.33
+Nodes (5): Crypto Screener Columns — Roadmap (rectified from gemini-code-1783869914211.md), Hard rules, Ledger, Progress log, Rectified schema (vs the gemini spec)
+
+### Community 2307 - "Community 2307"
+Cohesion: 0.33
+Nodes (5): Crypto Screener V2 — Roadmap (rectified from gemini-code-update.md), Delta triage (new doc vs shipped v1), Hard rules (v1 rules still apply + these), Ledger, Progress log
+
+### Community 2308 - "Community 2308"
+Cohesion: 0.33
+Nodes (5): Crypto V10 — NEWS VISUAL (CMC-style hero + headline list, our design, all 200 coins), Doctrine (hard rules — V8/V9 carry-over), Ledger, Progress log, Rectified spec (CMC vs what ships)
+
+### Community 2309 - "Community 2309"
+Cohesion: 0.33
+Nodes (5): Crypto Screener V5 — ONE TICK (list and coin panel identical at the same millisecond), Doctrine (hard rules — carried from V3/V4 + new), Ledger, Progress log, Root cause — measured, not guessed (AssetInfoPanel.tsx:632-651)
+
+### Community 2310 - "Community 2310"
+Cohesion: 0.33
+Nodes (5): Crypto Screener V6 — TOP 200 (double the universe, same truth, same live tick), Doctrine (hard rules — verbatim from V3/V4/V5), Ledger, Progress log, Reality checks baked into this roadmap
+
+### Community 2311 - "Community 2311"
+Cohesion: 0.33
+Nodes (5): Crypto V8 — NEWS TRUTH (7-day horizon, newest-first, per-coin strict match), Doctrine (hard rules — V7 carry-over), Ledger, Progress log, Rectified spec (what gemini asked vs what ships)
+
+### Community 2312 - "Community 2312"
+Cohesion: 0.33
+Nodes (5): Crypto V9 — NEWS TAB TERMINAL (rich sources + terminal report header, all 200 coins), Doctrine (hard rules — V7/V8 carry-over), Ledger, Problem (verified V8 state), Progress log
+
+### Community 2313 - "Community 2313"
+Cohesion: 0.33
+Nodes (5): Conditional GO — the workable path (if Shadow Account is ever prioritized), Survey evidence (public sources, 2026-07-06), TN Broker Export Formats — Shadow-Account Feasibility Memo (V5.1), Verdict: NO-GO on a "standard import" · conditional GO on PDF-statement parsing, Why NO-GO on a standard
+
+### Community 2314 - "Community 2314"
+Cohesion: 0.33
+Nodes (5): Doctrine (hard rules), Ledger, Progress log, ✅ ROADMAP COMPLETE — 4/4 (2026-07-16), TN Columns Truth — every list/chooser column shows real data or dies
+
+### Community 2315 - "Community 2315"
+Cohesion: 0.33
+Nodes (5): Doctrine (hard rules), Ledger, Progress log, ✅ ROADMAP COMPLETE — 4/4 (2026-07-17), TN Coverage Max — push every column to its honest ceiling
+
+### Community 2316 - "Community 2316"
+Cohesion: 0.33
+Nodes (5): Doctrine (hard rules), Ledger, Progress log, ✅ ROADMAP COMPLETE — 3/3 (2026-07-17), TN Dividends — restore divYield with a REAL source (post-AGO documents)
+
+### Community 2317 - "Community 2317"
+Cohesion: 0.33
+Nodes (5): accuracy, date, note, passed, total
+
+### Community 2318 - "Community 2318"
+Cohesion: 0.73
+Nodes (5): ask(), build_cases(), get(), main(), num_close()
+
+### Community 2319 - "Community 2319"
+Cohesion: 0.33
+Nodes (5): company_name, ticker, created, filings, 0000950170-25-019039
+
+### Community 2320 - "Community 2320"
+Cohesion: 0.33
+Nodes (5): company_filings(), company_financials(), Company intelligence API — thin Supabase-REST reads for the company page.  GET, Distinct filings for a ticker, newest first, deduped from chunk metadata., Exact reported figures for a ticker — XBRL-sourced rows only (the one     exact
+
+### Community 2321 - "Community 2321"
+Cohesion: 0.60
+Nodes (5): extract_dps(), fetch(), gsql(), main(), pdf_lines()
+
+### Community 2322 - "Community 2322"
+Cohesion: 0.60
+Nodes (5): get(), last_weekday_tunis(), main(), parse_seance(), report()
+
+### Community 2323 - "Community 2323"
+Cohesion: 0.60
+Nodes (5): brief_streak(), job_names(), main(), scan_runs(), skill_audit()
+
+### Community 2324 - "Community 2324"
+Cohesion: 0.14
+Nodes (10): MessageQueue, test(), test(), assert, { compress, compressDescriptionsInPlace }, path, ROOT, test() (+2 more)
+
+### Community 2325 - "Community 2325"
+Cohesion: 0.33
+Nodes (5): Add a rule (NL → structured), Evaluate (what the cron runs), How to Report, tn-alerts: owner watchlist + NL alert rules, When to Use This Skill
+
+### Community 2326 - "Community 2326"
+Cohesion: 0.33
+Nodes (5): How to Report, How to Run, Thresholds, tn-drift: cross-source drift check, When to Use This Skill
+
+### Community 2327 - "Community 2327"
+Cohesion: 0.33
+Nodes (5): Example, How to Fetch, The Policy (non-negotiable), TN Grounding Policy (mandatory), When to Use This Skill
+
+### Community 2335 - "Community 2335"
+Cohesion: 0.40
+Nodes (4): Company Intelligence Roadmap Loop, Guardrails, Iteration protocol, Pacing
+
+### Community 2337 - "Community 2337"
+Cohesion: 0.40
+Nodes (4): Crypto Screener V3 — TRUTH roadmap (no hallucination, ruthless coverage), Doctrine (hard rules — every task obeys these), Ledger, Progress log
+
+### Community 2338 - "Community 2338"
+Cohesion: 0.40
+Nodes (4): Crypto Screener V4 — WORLD CLASS (Binance-level coin universe, OUR design), Doctrine (hard rules — every task obeys these), Ledger, Progress log
+
+### Community 2339 - "Community 2339"
+Cohesion: 0.40
+Nodes (4): DR loop progress — deep research world-class run, Ledger, Summary — P0-P2 complete (10/10), Tasks
+
+### Community 2340 - "Community 2340"
+Cohesion: 0.40
+Nodes (4): hermes-monthly-report: flywheel metrics, How to Report, How to Run, When to Use This Skill
+
+### Community 2348 - "Community 2348"
+Cohesion: 0.22
+Nodes (8): §0 The pattern (already proven in this repo — copy it), §1 Anchors — read before changing anything, §2 Hard constraints, §3 Measured state — 2026-07-23, prod, §4 Ledger — one task per loop pass, in order, §5.1 FI-5 sweep — every component-local async hit, classified, §5 Progress log, Feature independence — every long-running feature survives navigation
+
+### Community 2349 - "Community 2349"
+Cohesion: 0.40
+Nodes (4): Hermes flywheel report — 2026-07-08, Mean-time-to-detect, Per-job, Skill dedupe audit
+
+### Community 2350 - "Community 2350"
+Cohesion: 0.22
+Nodes (8): §0 Doctrine, §1 Anchors — read before changing anything, §2 Hard constraints, §3 Measured state — 2026-07-22, prod, 77-row board, §4 Ledger — one task per loop pass, in order, §5 Progress log, Evidence, Tunisian market — column truth audit
+
+### Community 2351 - "Community 2351"
+Cohesion: 0.40
+Nodes (4): How to Report, How to Run, tn-brief: nightly TN Daily Brief, When to Use This Skill
+
+### Community 2352 - "Community 2352"
+Cohesion: 0.40
+Nodes (4): How to Report, How to Run, tn-sector-deepdive: weekly sector deep-dive, When to Use This Skill
+
+### Community 2353 - "Community 2353"
+Cohesion: 0.40
+Nodes (4): Ledger, Tasks, W0c findings (from judge rationales + spot-reads, baseline v2), WC loop progress — deep research measured-quality run
+
+### Community 2354 - "Community 2354"
+Cohesion: 0.50
+Nodes (3): Expanding the ESLint configuration, React Compiler, React + TypeScript + Vite
+
+### Community 2360 - "Community 2360"
+Cohesion: 0.50
+Nodes (3): markets, sequance, sequence
+
+### Community 2361 - "Community 2361"
+Cohesion: 0.50
+Nodes (3): markets, sequance, sequence
+
+### Community 2362 - "Community 2362"
+Cohesion: 0.50
+Nodes (3): Crypto Screener V3 Coverage Audit, Per coin, Totals
+
+### Community 2363 - "Community 2363"
+Cohesion: 0.67
+Nodes (3): main(), Re-run the extraction pipeline for one ticker. Returns dict verdict., replay()
+
+### Community 2364 - "Community 2364"
+Cohesion: 0.50
+Nodes (3): created, filings, updated
+
+### Community 2365 - "Community 2365"
+Cohesion: 0.50
+Nodes (3): created, filings, updated
+
+### Community 2366 - "Community 2366"
+Cohesion: 0.50
+Nodes (3): 1. Overview, 2. Component Structure, Component Specification: Reusable Table Column Header & Context Menu
+
+### Community 2374 - "Community 2374"
+Cohesion: 1.00
+Nodes (3): get(), main(), metric_value()
+
+### Community 2375 - "Community 2375"
+Cohesion: 0.83
+Nodes (3): get(), main(), three_month_change()
+
+### Community 2376 - "Community 2376"
+Cohesion: 0.28
+Nodes (3): GeminiEmbedder, Gravity Search — Gemini Embedder (failover)  Uses Google's gemini-embedding-001, Google gemini-embedding-001 embeddings (1024-dim, normalized).
+
+### Community 2377 - "Community 2377"
+Cohesion: 0.50
+Nodes (3): created, filings, updated
+
+### Community 2385 - "Community 2385"
+Cohesion: 0.22
+Nodes (8): 1. Lift Feature State & Execution Logic, 2. Tab & Route Unlinking, 3. Background Activity Indicators, Architectural / Technical Requirements, Deliverables Needed, Desired Behavior, Problem Statement, Refactoring Feature Execution to Support Concurrent Background Processing
+
+### Community 2386 - "Community 2386"
+Cohesion: 0.25
+Nodes (7): Flavor-specific posture, Inputs (from the parent agent), Pipeline position, Procedure, Reporting back, Rules, Untrusted content policy — read before acting on any source body
+
+### Community 2387 - "Community 2387"
+Cohesion: 0.25
+Nodes (7): Inputs (from the parent agent), Integrate, don't caveat, Pipeline position, Procedure, Reporting back, Rules, The invariant — REVISE SURGICALLY, NEVER REGENERATE
+
+### Community 2459 - "Community 2459"
+Cohesion: 0.25
+Nodes (7): Bloat detection (run AFTER coverage gap checks), Inputs (from the parent agent), Output schema, Pipeline position, Procedure, Reporting back, Rules
+
+### Community 2460 - "Community 2460"
+Cohesion: 0.25
+Nodes (7): 1. Overview & Goal, 2. Dynamic Scroll Behaviors, 3. Implementation Blueprint (React / CSS / Tailwind Example), A. Main Navigation Header (Authentication & Top Bar), B. Table Column Headers (`RANK`, `NAME`, `PRICE`, `24h %`, `MARKET CAP`, `LAST 7 DAYS`), Scroll Detection Logic (`useScrollDirection` / Idle Detection Hook), UI/UX Improvement Specification: Scroll Behavior & Clean Header
+
+### Community 2461 - "Community 2461"
+Cohesion: 0.25
+Nodes (7): 1. Identified Layout & UI Issues, 2. Required Technical Fixes, A. Table Component Refactoring, Issue A: Table Container Overflow & Scrollbar Clipping, Issue B: Summary Widget Cards (Trending / Gainers / Losers), Objective, UI Bug Fix & Refactoring Task: MarketIntelligence Dashboard (`/trading`)
+
+### Community 2462 - "Community 2462"
+Cohesion: 0.25
+Nodes (7): Exit criterion, Next step, Recover state, Step 14.5.1 — Extract + mechanical triage, Step 14.5.2 — Spawn the cite-checker, Step 14.5.3 — Second patcher pass, Step 14.5 — Cite-check (citation-sentence binding verification)
+
+### Community 2463 - "Community 2463"
+Cohesion: 0.25
+Nodes (8): config, export_success, import_failed, import_success, loaded, reset, updated, validation_failed
+
+### Community 2465 - "Community 2465"
+Cohesion: 0.29
+Nodes (4): engine(), MARKETS, mkRes(), RICH_BARS
+
+### Community 2469 - "Community 2469"
+Cohesion: 0.29
+Nodes (6): Inputs (from the parent agent), Output schema, Pipeline position, Procedure, Reporting back, Rules
+
+### Community 2470 - "Community 2470"
+Cohesion: 0.29
+Nodes (6): Inputs (from the parent agent), Output schema, Pipeline position, Procedure, Reporting back, Rules
+
+### Community 2471 - "Community 2471"
+Cohesion: 0.57
+Nodes (3): getAuthTypeFromPlatform(), getProviderAuthType(), isNewApiPlatform()
+
+### Community 2472 - "Community 2472"
+Cohesion: 0.57
+Nodes (6): _canon(), fetch(), get_token(), main(), verdict(), AsyncClient
+
+### Community 2473 - "Community 2473"
+Cohesion: 0.50
+Nodes (4): ratio_calculation, accuracy, correct, total
+
+### Community 2474 - "Community 2474"
+Cohesion: 0.29
+Nodes (6): Chapter execution loop (what the orchestrator does next), Exit criterion, Next step, Procedure, Recover state, Step 1.5 — Chapter partition (chaptered profiles only)
+
+### Community 2475 - "Community 2475"
+Cohesion: 0.29
+Nodes (6): Exit criterion, Next step, Pre-flight: period-pinned primary-source coverage check, Procedure, Recover state, Step 8 — Pre-draft corpus critic (targeted gap-fill)
+
+### Community 2476 - "Community 2476"
+Cohesion: 0.29
+Nodes (7): connection, connecting, connectionLost, reconnecting, sessionExpired, tapToReconnect, tapToRetry
+
+### Community 2478 - "Community 2478"
+Cohesion: 0.29
+Nodes (4): METRICS, Row, TnComparator(), TnComparatorProps
+
+### Community 2479 - "Community 2479"
+Cohesion: 0.33
+Nodes (5): Hard scope boundary (read first), Report back, Scholar items (`reason: scholar_search`), Setup (once per session), The drain loop
+
+### Community 2480 - "Community 2480"
+Cohesion: 0.33
+Nodes (5): Inputs (from the parent agent), Output rules, Pipeline position, Procedure, Reporting back
+
+### Community 2481 - "Community 2481"
+Cohesion: 0.40
+Nodes (4): Fig, Figure(), FIGURES, useCountUp()
+
+### Community 2482 - "Community 2482"
+Cohesion: 0.33
+Nodes (5): Exit criterion, Next step, Procedure, Recover state, Step 12 — Adversarial critique (parallel critics)
+
+### Community 2483 - "Community 2483"
+Cohesion: 0.33
+Nodes (5): Exit criterion, Next step, Procedure, Recover state, Step 13 — Post-critic gap fetch (conditional)
+
+### Community 2484 - "Community 2484"
+Cohesion: 0.33
+Nodes (5): Exit criterion, Next step, Procedure, Recover state, Step 1 — Prompt decomposition
+
+### Community 2485 - "Community 2485"
+Cohesion: 0.33
+Nodes (5): Exit criterion, Next step, Procedure, Recover state, Step 3 — Contradiction graph
+
+### Community 2486 - "Community 2486"
+Cohesion: 0.33
+Nodes (5): Exit criterion, Next step, Procedure, Recover state, Step 4 — Loci analysis (parallel, 2 analysts)
+
+### Community 2487 - "Community 2487"
+Cohesion: 0.33
+Nodes (5): Exit criterion, Next step, Procedure, Recover state, Step 5 — Depth investigation (parallel, K = len(loci))
+
+### Community 2488 - "Community 2488"
+Cohesion: 0.33
+Nodes (5): Exit criterion, Next step, Procedure, Recover state, Step 6 — Cross-locus reconciliation
+
+### Community 2489 - "Community 2489"
+Cohesion: 0.33
+Nodes (5): Exit criterion, Next step, Procedure, Recover state, Step 7 — Source tension extraction
+
+### Community 2490 - "Community 2490"
+Cohesion: 0.33
+Nodes (5): Exit criterion, Next step, Procedure, Recover state, Step 9 — Evidence digest
+
+### Community 2491 - "Community 2491"
+Cohesion: 0.33
+Nodes (6): command, directory, files_to_modify, reason, summary, labels
+
+### Community 2492 - "Community 2492"
+Cohesion: 0.33
+Nodes (6): titles, apply_patch_approval_request, command_execution, exec_approval_request, file_read, file_write
+
+### Community 2493 - "Community 2493"
+Cohesion: 0.40
+Nodes (3): board(), MARKETS, mkRes()
+
+### Community 2495 - "Community 2495"
+Cohesion: 0.40
+Nodes (4): Inputs (from your spawn prompt), Pipeline position, Procedure, Rules
+
+### Community 2496 - "Community 2496"
+Cohesion: 0.40
+Nodes (4): Inputs (from the parent agent), Pipeline position, Procedure, Rules
+
+### Community 2497 - "Community 2497"
+Cohesion: 0.40
+Nodes (4): Architecture Discovery Loop, Completeness Score, Loop, Purpose
+
+### Community 2498 - "Community 2498"
+Cohesion: 0.40
+Nodes (3): fs, path, vault
+
+### Community 2499 - "Community 2499"
+Cohesion: 0.40
+Nodes (5): allow_always_desc, allow_once_desc, reject_always_desc, reject_once_desc, command_execution
+
+### Community 2500 - "Community 2500"
+Cohesion: 0.40
+Nodes (5): allow_always_desc, allow_once_desc, reject_always_desc, reject_once_desc, file_read
+
+### Community 2501 - "Community 2501"
+Cohesion: 0.40
+Nodes (5): allow_always_desc, allow_once_desc, reject_always_desc, reject_once_desc, file_write
+
+### Community 2502 - "Community 2502"
+Cohesion: 0.40
+Nodes (5): recovery_actions, cloudflare_blocked, connection_refused, network_timeout, unknown
+
+### Community 2504 - "Community 2504"
+Cohesion: 0.50
+Nodes (4): per_share, accuracy, correct, total
+
+### Community 2505 - "Community 2505"
+Cohesion: 0.50
+Nodes (3): GAMMA loop progress — self-improving design + content, Ledger, Tasks
+
+### Community 2506 - "Community 2506"
+Cohesion: 0.50
+Nodes (3): count, height, width
+
+### Community 2507 - "Community 2507"
+Cohesion: 0.50
+Nodes (4): command_execution, file_read, file_write, descriptions
+
+### Community 2508 - "Community 2508"
+Cohesion: 0.50
+Nodes (3): Influencer, influencerService, Signal
+
+### Community 2509 - "Community 2509"
+Cohesion: 0.50
+Nodes (4): 3.1 完整导入流程（外部技能 → 我的技能）, 3.2 技能导出流程（我的技能 → 外部 CLI）, 3.3 添加自定义外部路径流程, 3. 交互流程
+
+### Community 2510 - "Community 2510"
+Cohesion: 0.50
+Nodes (4): fetchShares(), gquery(), grafanaGroups(), tnIndices()
+
+### Community 2520 - "Community 2520"
+Cohesion: 0.67
+Nodes (3): fetchDailyBars(), fetchRecentCloses(), gqueryTable()
+
 ## Knowledge Gaps
-- **21374 isolated node(s):** `$schema`, `enabled`, `autoReview`, `maxFilesToReview`, `excludePatterns` (+21369 more)
+- **25054 isolated node(s):** `fs`, `path`, `vault`, `$schema`, `enabled` (+25049 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **107 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **165 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `useColorScheme()` connect `Financial Verifier Agent` to `Files Tab Context`?**
-  _High betweenness centrality (0.009) - this node is a cross-community bridge._
-- **Why does `configService` connect `MCP Model Service` to `i18n Configuration`, `Message Commands`, `Agent Mode Selector`, `Extension Settings`, `Auto Title & Export`, `Workspace UI Dialogs`, `Agent Selection`, `File Snapshot Mapping`, `Financial Verifier Agent`, `ACP Chat`, `Speech Input Button`?**
-  _High betweenness centrality (0.008) - this node is a cross-community bridge._
-- **Why does `initI18n()` connect `i18n Language Setup` to `Conversation Layout`?**
-  _High betweenness centrality (0.006) - this node is a cross-community bridge._
+- **Why does `useColorScheme()` connect `Files Tab Context` to `Connection States`, `Workspace Collapse`?**
+  _High betweenness centrality (0.007) - this node is a cross-community bridge._
+- **Why does `configService` connect `MCP Model Service` to `i18n Configuration`, `Conversation List Sync`, `Mode List UI`, `Agent Permissions`, `Redis Rate Limiter`, `Workspace Collapse`, `Extension Settings`, `Workspace UI Dialogs`, `Assistant Types`, `ACP Chat`, `Speech Input Button`?**
+  _High betweenness centrality (0.007) - this node is a cross-community bridge._
+- **Why does `startWebHost()` connect `Static Web Host` to `Backend Launcher`, `WebUI Admin Setup`, `WebUI Bootstrap`, `CLI Root Setup`, `Backend Startup`?**
+  _High betweenness centrality (0.005) - this node is a cross-community bridge._
 - **Are the 65 inferred relationships involving `RetrievalResult` (e.g. with `ReaderAgent` and `SearchEvent`) actually correct?**
   _`RetrievalResult` has 65 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `$schema`, `enabled`, `autoReview` to the rest of the system?**
-  _22864 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **What connects `fs`, `path`, `vault` to the rest of the system?**
+  _26556 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Model Settings UI` be split into smaller, more focused modules?**
   _Cohesion score 0.004618937644341801 - nodes in this community are weakly interconnected._
 - **Should `Model Settings UI` be split into smaller, more focused modules?**
