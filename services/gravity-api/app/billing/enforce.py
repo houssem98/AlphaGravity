@@ -103,6 +103,62 @@ def _deny(key: str, tier_id: str, limit: int | None, used: int, period: str | No
     )
 
 
+def _counter_key(key: str, identity: str, period: str) -> tuple[str, int]:
+    stamp, ttl = _period_key(period)
+    return f"plan:{key}:{identity}:{stamp}", ttl
+
+
+async def peek(key: str, tier_id: str, identity: str) -> dict:
+    """
+    What a meter should display for one capability, **without consuming anything**.
+
+    This reads the exact key `enforce()` increments. A meter fed by a separate
+    count — a database tally, a client-side tick — drifts from the thing that
+    actually denies the request, and a meter that disagrees with the gate is worse
+    than no meter: the user sees "3 of 5 used" and is refused anyway.
+    """
+    tier = resolve(tier_id)
+    value = caps.value_for(key, tier.id)
+    cap = caps.capability(key)
+    base = {"capability": key, "label": cap.label, "group": cap.group,
+            "enforcement": cap.enforcement}
+
+    if isinstance(value, bool):
+        return {**base, "kind": "flag", "allowed": value}
+
+    # Rows that are neither a flag nor a count: "7 days", "headlines", "all 6".
+    # They have no counter to read, and asking `limit_for` for one raises — which is
+    # correct there and would be a 500 here. The meter shows the value as written.
+    if isinstance(value, str) and value != caps.UNLIMITED:
+        return {**base, "kind": "categorical", "value": value}
+
+    limit = caps.limit_for(key, tier.id)
+    if limit is None:
+        return {**base, "kind": "quota", "limit": None, "used": 0,
+                "remaining": None, "unlimited": True}
+
+    period = PERIODS.get(key, DAY)
+    redis_key, ttl = _counter_key(key, identity, period)
+    used = 0
+    try:
+        raw = await redis_client.get(redis_key)
+        used = int(raw) if raw is not None else 0
+    except Exception:
+        # Same per-process fallback the enforcer uses, read without incrementing.
+        from app.api.middleware.rate_limit import _MEM_COUNTERS
+        val, exp = _MEM_COUNTERS.get(redis_key, (0, 0.0))
+        used = val if exp > time.time() else 0
+
+    return {**base, "kind": "quota", "limit": limit, "used": used,
+            "remaining": max(0, limit - used), "unlimited": False,
+            "period": period, "reset_at": int(time.time()) + ttl}
+
+
+async def snapshot(tier_id: str, identity: str) -> list[dict]:
+    """Every capability for this tier, in §4 order, as a meter can render it."""
+    return [await peek(c.key, tier_id, identity) for c in caps.CAPABILITIES]
+
+
 async def caller_identity(request, authorization: str | None) -> tuple[str, str]:
     """
     `(identity, tier_id)` for a route that does not require a session.

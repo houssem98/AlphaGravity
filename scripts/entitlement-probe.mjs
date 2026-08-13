@@ -226,7 +226,12 @@ export const ROWS = [
     ['R11', 'PL-10', 'e2e', 'the pricing table renders all §4 rows in all 4 columns', () => e2eOwns('R11')],
     ['R12', 'PL-10', 'e2e', 'unavailable rows render struck-through, not omitted', () => e2eOwns('R12')],
     ['R13', 'PL-11', 'e2e', 'a denied action shows an upgrade CTA naming the tier', () => e2eOwns('R13')],
-    ['R14', 'PL-9', 'e2e', 'the quota meter equals the server counter', () => e2eOwns('R14')],
+    // Owner moved PL-9 -> PL-11. The claim is "the UI meter equals the server
+    // counter", which is a browser assertion; PL-9 builds the server half and is
+    // graded by R17. Leaving it on PL-9 armed a Playwright row the moment the
+    // server task was ticked, and the gate went red — correctly. Same misassignment
+    // as R5 and R8, logged in §8.
+    ['R14', 'PL-11', 'e2e', 'the quota meter equals the server counter', () => e2eOwns('R14')],
 
     // R5 grades a DEPLOYED api and needs a seeded account, so it can only ever go
     // green after a release this loop is not allowed to cut. PL-4 was therefore
@@ -243,6 +248,26 @@ export const ROWS = [
         if (literal) return fail('a hard-coded "tier": "free" literal is still there');
         if (!proves) return fail('no test reads the served limit off the header');
         return pass('wired, literal gone, header asserted at 120');
+    }],
+
+    // R14 claims "the UI meter equals the server counter" — a browser assertion
+    // assigned to a server task. Third instance of the pattern first recorded under
+    // PL-4 (see §8). R17 grades what PL-9 actually delivers: the endpoint exists and
+    // is proven to read the enforcer's own counter rather than a second tally.
+    ['R17', 'PL-9', 'static', 'the plan meter reads the counter the gate writes', () => {
+        const enforce = stripPy(read('services/gravity-api/app/billing/enforce.py'));
+        const route = stripPy(read('services/gravity-api/app/api/routes/usage.py'));
+        const spec = read('services/gravity-api/tests/test_plan_usage.py');
+        if (!/def peek\(/.test(enforce)) return fail('no peek() in enforce.py');
+        if (/incr/.test(enforce.split('async def peek(')[1]?.split('async def')[0] ?? ''))
+            return fail('peek() increments — a meter must not consume');
+        if (!/plan\/usage/.test(route)) return fail('no /plan/usage route');
+        if (!/snapshot/.test(route)) return fail('the route does not use snapshot()');
+        const proofs = ['test_peeking_does_not_consume',
+            'test_the_meter_and_the_gate_agree_at_the_boundary'];
+        const missing = proofs.filter((t) => !spec.includes(t));
+        if (missing.length) return fail(`unproven: ${missing.join(', ')}`);
+        return pass('peek() is read-only, route uses snapshot(), boundary agreement tested');
     }],
 
     ['R15', null, 'live', 'every tier the table sells has a reachable checkout', async () => {

@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Any
 
+from app.api.middleware.auth import require_auth
 from app.api.schemas.search import FeedbackRequest, FeedbackResponse
 
 logger = structlog.get_logger()
@@ -14,6 +15,27 @@ async def get_db():
     from app.db.postgres import async_session
     async with async_session() as session:
         yield session
+
+@router.get("/plan/usage")
+async def get_plan_usage(auth: dict = Depends(require_auth)):
+    """
+    This caller's consumption of every plan capability — what a quota meter renders.
+
+    Deliberately served from the same Redis keys `enforce()` increments rather than
+    from a separate tally. A meter fed by its own count drifts from the gate that
+    actually denies the request, and "3 of 5 used" next to a refusal is worse than
+    showing nothing. PL-9 / R17.
+    """
+    from app.billing.enforce import snapshot
+    from app.billing.tiers import resolve
+
+    tier = resolve(auth.get("tier", "free"))
+    return {
+        "tier": tier.id,
+        "tier_name": tier.name,
+        "capabilities": await snapshot(tier.id, auth["user_id"]),
+    }
+
 
 @router.get("/usage")
 async def get_usage_stats(
