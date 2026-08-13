@@ -198,7 +198,8 @@ export const ROWS = [
         const missing = keys.filter((k) => !spec.includes(k));
         // Wired at a real call site, not merely defined.
         const sites = ['services/gravity-api/app/api/routes/documents.py',
-            'services/gravity-api/app/api/routes/grid_schedule.py']
+            'services/gravity-api/app/api/routes/grid_schedule.py',
+            'services/gravity-api/app/api/routes/trading.py']
             .filter((f) => /enforce\(/.test(read(f)));
         if (!raises402) return fail('enforce.py never raises 402');
         if (missing.length) return fail(`denial body untested: ${missing.join(', ')}`);

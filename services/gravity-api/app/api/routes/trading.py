@@ -1,8 +1,10 @@
 """Trading Markets & Hermes Integration - Live market data + AI analysis."""
 
-from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import (APIRouter, Header, HTTPException, Query, Request,
+                     WebSocket, WebSocketDisconnect)
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from typing import Optional
 import json
 import asyncio
 
@@ -96,16 +98,30 @@ Ask a question to engage with market analysis once Hermes Phase 1 (LLM router) i
 
 
 @router.post("/ask")
-async def ask_about_market(request: AskRequest):
+async def ask_about_market(
+    request: AskRequest,
+    http_request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """
     Ask Hermes about market data.
 
     Phase 1T: Ask Hermes feature (sidepanel)
     Depends on: Core Hermes Phase 1 (LLM router integration)
+
+    **This route stays open on purpose** — it answers an anonymous POST with 200
+    today, and closing it is the owner's decision (PLANS §10 E-T), not this loop's.
+    Open is not the same as free, though: every call here runs an LLM, so it was an
+    open budget. It is now metered against `hermes_asks_per_day` — by user when a
+    token is present, by IP at the free tier when one is not. PL-7.
     """
 
     if not request.asset or not request.question:
         raise HTTPException(status_code=400, detail="asset and question required")
+
+    from app.billing.enforce import caller_identity, enforce
+    identity, tier_id = await caller_identity(http_request, authorization)
+    await enforce("hermes_asks_per_day", tier_id, identity)
 
     try:
         # Fetch live market context

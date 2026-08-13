@@ -103,6 +103,34 @@ def _deny(key: str, tier_id: str, limit: int | None, used: int, period: str | No
     )
 
 
+async def caller_identity(request, authorization: str | None) -> tuple[str, str]:
+    """
+    `(identity, tier_id)` for a route that does not require a session.
+
+    Some endpoints are deliberately open — `/api/trading/markets/ask` answers an
+    anonymous POST with 200 today, and closing it is the owner's call (§10 E-T), not
+    this loop's. Open is not the same as free, though: an unmetered LLM endpoint is
+    an open budget. An anonymous caller is identified by IP and metered at the free
+    tier, which leaves the endpoint reachable while giving the spend a ceiling.
+
+    IP is a weak identity — shared NATs undercount, a proxy pool defeats it. It is
+    the strongest identity available without a login, and a weak ceiling beats none.
+    """
+    if authorization and authorization.startswith("Bearer "):
+        from app.api.middleware.auth import _validate_jwt
+        from app.billing.entitlements import entitlements_for
+
+        user = await _validate_jwt(authorization.split(" ", 1)[1])
+        if user:
+            pool = getattr(request.app.state, "pg_pool", None)
+            tier = await entitlements_for(pool, user.get("user_id", ""))
+            return user.get("user_id", "unknown"), tier.id
+
+    client = getattr(request, "client", None)
+    ip = getattr(client, "host", None) or "unknown"
+    return f"ip:{ip}", "free"
+
+
 def require(key: str, tier_id: str) -> None:
     """
     Gate a boolean capability. Raises 402 when the tier does not have it at all.
