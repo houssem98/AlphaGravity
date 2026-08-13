@@ -80,12 +80,13 @@ CAPABILITIES: tuple[Capability, ...] = (
     _C("qa_searches_per_day", "QA searches / day", RESEARCH,
        "services/gravity-api/app/api/routes/search.py", SERVER,
        10, 500, 2_000, UNLIMITED),
+    # `company_profiles` was struck by PL-12's sweep. It read ✓ in all four columns,
+    # so it differentiated nothing, and no test referenced it — the only server row
+    # in that state. A row identical across every tier is marketing copy, not a
+    # pricing row, and §3 rule 6 says sell only what can be demonstrated.
     _C("requests_per_minute", "requests / minute", RESEARCH,
        "services/gravity-api/app/api/middleware/rate_limit.py", SERVER,
        10, 60, 120, 600),
-    _C("company_profiles", "Company profiles", RESEARCH,
-       "apps/market-ui/src/pages/CompanyPage.tsx", SERVER,
-       True, True, True, True),
     _C("grid_runs_per_day", "Research Grid runs / day", RESEARCH,
        "services/gravity-api/app/api/routes/grid_search.py", SERVER,
        2, 50, 250, UNLIMITED),

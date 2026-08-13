@@ -91,7 +91,7 @@ class TestEnforcementIsDeclaredHonestly:
         # It is asserted so that moving a row server-side is a deliberate, visible
         # change rather than something that quietly drifts.
         assert len(caps.client_enforced()) == 14
-        assert len(caps.CAPABILITIES) == 25
+        assert len(caps.CAPABILITIES) == 24
 
     def test_the_watchlist_ceiling_is_not_claimed_as_server_enforced(self):
         # It lives in localStorage under hub_watchlist_<market>.
