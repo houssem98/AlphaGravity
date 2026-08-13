@@ -132,3 +132,40 @@ class TestItRefusesNonsense:
     async def test_an_unknown_capability_raises(self):
         with pytest.raises(KeyError):
             await enf.enforce("teleportation", "free", "u9")
+
+
+class TestSizeCeilings:
+    """
+    `enforce_size` guards a per-request SIZE, which is a different question from a
+    quota. The grid endpoint is the case that forced it: one request is N questions
+    x M documents and every cell is an LLM call, so ten small grids and one large
+    grid are not the same spend and cannot share a counter.
+    """
+
+    def test_a_request_within_the_ceiling_passes(self):
+        enf.enforce_size("grid_columns_per_run", "free", 5)      # free ceiling is 5
+
+    def test_one_over_the_ceiling_is_refused(self):
+        with pytest.raises(HTTPException) as e:
+            enf.enforce_size("grid_columns_per_run", "free", 6)
+        assert e.value.status_code == 402
+        assert e.value.detail["capability"] == "grid_columns_per_run"
+        assert e.value.detail["limit"] == 5
+        assert e.value.detail["used"] == 6
+        assert e.value.detail["upgrade_to"] == "analyst"
+
+    def test_a_higher_tier_allows_a_bigger_request(self):
+        enf.enforce_size("grid_columns_per_run", "professional", 50)
+        with pytest.raises(HTTPException):
+            enf.enforce_size("grid_columns_per_run", "professional", 51)
+
+    def test_unlimited_accepts_any_size(self):
+        enf.enforce_size("grid_columns_per_run", "institutional", 10_000)
+
+    @pytest.mark.asyncio
+    async def test_size_checks_consume_no_quota(self):
+        # If enforce_size counted, five legal requests would exhaust a ceiling of 5
+        # and the sixth legal request would be refused for the wrong reason.
+        for _ in range(20):
+            enf.enforce_size("grid_columns_per_run", "free", 5)
+        assert (await enf.peek("grid_runs_per_day", "free", "u-size"))["used"] == 0

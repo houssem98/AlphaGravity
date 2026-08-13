@@ -90,8 +90,11 @@ CAPABILITIES: tuple[Capability, ...] = (
     _C("grid_runs_per_day", "Research Grid runs / day", RESEARCH,
        "services/gravity-api/app/api/routes/grid_search.py", SERVER,
        2, 50, 250, UNLIMITED),
+    # Moved CLIENT -> SERVER: the question list arrives in the request body, so the
+    # ceiling is checked where the work is paid for rather than trusted from the UI.
+    # A size ceiling, not a quota — see enforce_size().
     _C("grid_columns_per_run", "Grid columns per run", RESEARCH,
-       "apps/market-ui/src/pages/SearchPage.tsx", CLIENT,
+       "services/gravity-api/app/api/routes/grid_search.py", SERVER,
        5, 20, 50, UNLIMITED),
     _C("scheduled_grids", "Scheduled grids", RESEARCH,
        "services/gravity-api/app/api/routes/grid_schedule.py", SERVER,

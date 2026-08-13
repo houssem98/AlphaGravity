@@ -89,7 +89,7 @@ class TestSnapshot:
         # So the UI can mark which ceilings are real and which are advisory.
         snap = await enf.snapshot("free", "u-snap2")
         assert all(s["enforcement"] in ("server", "client") for s in snap)
-        assert sum(1 for s in snap if s["enforcement"] == "client") == 14
+        assert sum(1 for s in snap if s["enforcement"] == "client") == 13
 
     async def test_it_reflects_consumption_made_through_the_gate(self):
         await enf.enforce("grid_runs_per_day", "analyst", "u-snap3")

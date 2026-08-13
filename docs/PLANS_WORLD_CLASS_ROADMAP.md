@@ -429,11 +429,16 @@ No stop condition here is graded by a model score, so no holdout or judge is req
   product question — should the terminal require an account — and that is the
   owner's, not the loop's.
 
-- **E-G — `POST /v1/grid` is unauthenticated too.** `grid_search.py:98`
-  `execute_grid` takes no auth dependency, so Research Grid runs cannot be metered
-  per user. Same shape as E-T and the same decision: meter it by IP, require a
-  session, or accept it. `PL-6` left it alone rather than changing a public contract
-  on its own authority.
+- **E-G — RESOLVED 2026-08-13, no decision needed.** `POST /v1/grid` and the
+  `/v1/grid/stream` WebSocket were unauthenticated *and* unmetered. That was the
+  largest open budget in the tree: one grid request is N questions × M documents and
+  **every cell is an LLM call**, so a single call could be a hundred, and the
+  WebSocket ran the same workload with no ceiling at all. Fixed the way `PL-7` fixed
+  the Hermes endpoint — **metered, not closed**, which needs no owner decision: a
+  caller with a token is metered by user at their real tier, a caller without one by
+  IP at the free tier. Two ceilings now apply, `grid_runs_per_day` counting the
+  request and `grid_columns_per_run` bounding its size. Closing the route to
+  anonymous users remains available and remains the owner's call under `E-T`.
 - **E-L — the ladder.** §4 assumes trading unlocks *above* search on one ladder. The
   alternative — trading as a priced add-on to any tier — is a different matrix. Ask
   before building the second one.

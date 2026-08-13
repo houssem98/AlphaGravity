@@ -103,6 +103,24 @@ def _deny(key: str, tier_id: str, limit: int | None, used: int, period: str | No
     )
 
 
+def enforce_size(key: str, tier_id: str, actual: int) -> None:
+    """
+    Gate a per-request SIZE against the tier's ceiling. Nothing is counted.
+
+    Distinct from `enforce()` because the two ask different questions. A quota asks
+    "how many times this month"; a size asks "how big is this one request". Running
+    a size through the counter would let a user make ten small requests instead of
+    one large one and pay nothing for it — and would refuse a legitimate second
+    request of legal size.
+    """
+    tier = resolve(tier_id)
+    limit = caps.limit_for(key, tier.id)
+    if limit is not None and actual > limit:
+        logger.info("plan_size_exceeded", capability=key, tier=tier.id,
+                    actual=actual, limit=limit)
+        _deny(key, tier.id, limit=limit, used=actual, period=None)
+
+
 def _counter_key(key: str, identity: str, period: str) -> tuple[str, int]:
     stamp, ttl = _period_key(period)
     return f"plan:{key}:{identity}:{stamp}", ttl
@@ -178,7 +196,8 @@ async def caller_identity(request, authorization: str | None) -> tuple[str, str]
 
         user = await _validate_jwt(authorization.split(" ", 1)[1])
         if user:
-            pool = getattr(request.app.state, "pg_pool", None)
+            app = getattr(request, "app", None)
+            pool = getattr(getattr(app, "state", None), "pg_pool", None)
             tier = await entitlements_for(pool, user.get("user_id", ""))
             return user.get("user_id", "unknown"), tier.id
 

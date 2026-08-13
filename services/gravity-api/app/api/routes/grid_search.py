@@ -11,7 +11,9 @@ import json
 import uuid
 
 import structlog
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from typing import Optional
+
+from fastapi import APIRouter, Header, Request, WebSocket, WebSocketDisconnect
 
 from app.api.schemas.grid import (
     GridCellSchema,
@@ -96,13 +98,31 @@ def _cell_to_schema(cell) -> GridCellSchema:
 
 
 @router.post("", response_model=GridResponseSchema)
-async def execute_grid(request: GridRequestSchema):
+async def execute_grid(
+    request: GridRequestSchema,
+    http_request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """
     Execute a Generative Grid: N questions × M documents → structured table.
 
     All cells are resolved in parallel. Returns when complete.
     For progressive streaming, use the WebSocket endpoint instead.
+
+    **Metered.** One request here is N×M cells and every cell is an LLM call, so an
+    unmetered grid endpoint is a far larger open budget than a single-shot ask. This
+    route stays reachable without a session — closing it is the owner's call, the
+    same as §10 E-T — but a caller without a token is identified by IP and held to
+    the free tier. Two ceilings apply: `grid_runs_per_day` counts the request, and
+    `grid_columns_per_run` bounds its size, because ten small grids and one large
+    grid are not the same spend.
     """
+    from app.billing.enforce import caller_identity, enforce, enforce_size
+
+    identity, tier_id = await caller_identity(http_request, authorization)
+    enforce_size("grid_columns_per_run", tier_id, len(request.questions))
+    await enforce("grid_runs_per_day", tier_id, identity)
+
     grid_id = f"grid_{uuid.uuid4().hex[:12]}"
     engine = _build_engine()
 
@@ -171,6 +191,29 @@ async def stream_grid(websocket: WebSocket):
         request = GridRequestSchema(**data)
     except Exception as e:
         await websocket.send_json({"event_type": "error", "error": f"Invalid request: {e}"})
+        await websocket.close()
+        return
+
+    # Same two ceilings as the POST route. A WebSocket that skipped them would be
+    # the cheaper way to run the identical workload, which makes metering the POST
+    # route decorative. There is no Authorization header on a browser WebSocket, so
+    # the token arrives as a query parameter when the client has one; without it the
+    # caller is the IP, on the free tier.
+    from fastapi import HTTPException
+
+    from app.billing.enforce import caller_identity, enforce, enforce_size
+
+    token = websocket.query_params.get("token")
+    identity, tier_id = await caller_identity(
+        websocket, f"Bearer {token}" if token else None)
+    try:
+        enforce_size("grid_columns_per_run", tier_id, len(request.questions))
+        await enforce("grid_runs_per_day", tier_id, identity)
+    except HTTPException as e:
+        # The socket is already open, so the denial is delivered as an event with
+        # the same body the HTTP route returns — the client reads one shape.
+        await websocket.send_json({"event_type": "error", "error": "plan_limit_exceeded",
+                                   "detail": e.detail})
         await websocket.close()
         return
 
