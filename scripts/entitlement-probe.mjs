@@ -197,6 +197,23 @@ export const ROWS = [
     ['R13', 'PL-11', 'e2e', 'a denied action shows an upgrade CTA naming the tier', () => e2eOwns('R13')],
     ['R14', 'PL-9', 'e2e', 'the quota meter equals the server counter', () => e2eOwns('R14')],
 
+    // R5 grades a DEPLOYED api and needs a seeded account, so it can only ever go
+    // green after a release this loop is not allowed to cut. PL-4 was therefore
+    // written with an unreachable acceptance row — a ledger defect, recorded in §8.
+    // R16 grades the part that IS in the diff: the wiring, and a test that reads the
+    // served limit off the header. R5 keeps the deployment claim and keeps skipping.
+    ['R16', 'PL-4', 'static', 'the JWT path takes its tier from the subscription', () => {
+        const src = stripPy(read('services/gravity-api/app/api/middleware/auth.py'));
+        const wired = /_validate_jwt\([\s\S]{0,200}?_apply_entitlement\(/.test(src);
+        const literal = /"tier":\s*"free"/.test(src);
+        const spec = read('services/gravity-api/tests/test_auth_entitlement.py');
+        const proves = spec.includes('X-RateLimit-Limit') && spec.includes('"120"');
+        if (!wired) return fail('require_auth does not call _apply_entitlement');
+        if (literal) return fail('a hard-coded "tier": "free" literal is still there');
+        if (!proves) return fail('no test reads the served limit off the header');
+        return pass('wired, literal gone, header asserted at 120');
+    }],
+
     ['R15', null, 'live', 'every tier the table sells has a reachable checkout', async () => {
         const { status, body } = await fetchJson('/v1/billing/config');
         if (status !== 200) return fail(`config ${status}`);

@@ -10,6 +10,7 @@ import structlog
 from fastapi import Header, HTTPException, Request
 from typing import Optional
 
+from app.billing.tiers import DEFAULT_TIER
 from app.config import settings, Environment
 
 logger = structlog.get_logger()
@@ -53,7 +54,7 @@ async def require_auth(
         token = authorization.split(" ", 1)[1]
         user = await _validate_jwt(token)
         if user:
-            return user
+            return await _apply_entitlement(request, user)
         raise HTTPException(status_code=401, detail="Invalid token")
 
     raise HTTPException(
@@ -67,6 +68,32 @@ async def require_auth(
 # Redis lookup keeps the Research Grid / Deep Research working even when the Upstash
 # quota is exhausted (writes blocked, lookups unreliable). Extra keys via env
 # INTERNAL_API_KEYS (comma-separated).
+async def _apply_entitlement(request: Request, user: dict) -> dict:
+    """
+    Replace the tier a token *claims* with the tier the subscription actually grants.
+
+    A JWT is proof of identity, not of payment. The Supabase branch of `_to_auth_dict`
+    has no plan information to report — Supabase does not know what a user bought —
+    so it fills in the free tier as a placeholder, and before this function existed
+    that placeholder was the final answer for every production request
+    (docs/PLANS_WORLD_CLASS_ROADMAP.md §1c). The subscription table is the authority;
+    this is where it gets asked.
+
+    API keys deliberately do not come through here. Service keys and the dev bypass
+    carry `unlimited`, they are not subscribers, and there is no row to look up.
+    """
+    from app.billing.entitlements import entitlements_for
+
+    pool = getattr(request.app.state, "pg_pool", None)
+    tier = await entitlements_for(pool, user.get("user_id", ""))
+    claimed = user.get("tier")
+    user["tier"] = tier.id
+    if claimed != tier.id:
+        logger.debug("tier_resolved_from_subscription",
+                     user_id=user.get("user_id"), claimed=claimed, served=tier.id)
+    return user
+
+
 def _internal_keys() -> set[str]:
     import os
     base = {"deep-research-internal", "eval-unlimited-fb-2026"}
@@ -139,7 +166,12 @@ async def _validate_jwt(token: str) -> dict | None:
                 "org_id": "",
                 "role": payload.get("role", "authenticated"),
                 "entitlements": ["public"],
-                "tier": "free",
+                # Placeholder only. A Supabase token carries no plan information,
+                # so this is what the token CLAIMS; `_apply_entitlement` replaces it
+                # with what the subscription grants before the request is served.
+                # Until PL-4 that replacement did not happen and this literal was
+                # the final answer for every production request. §1c.
+                "tier": DEFAULT_TIER,
             }
         return {
             "user_id": payload.get("sub", "unknown"),
