@@ -341,7 +341,8 @@ exist, and no third one may be invented to grade this loop.
 
 - [x] **PL-7 — enforce: terminal.** Gate the §4 Terminal rows. `R8`.
 
-- [ ] **PL-8 — close the public surface.** Move `/trading` inside `ProtectedRoute`
+- [ ] ⛔ **PL-8 — close the public surface.** *(PARKED — escalated to the owner as §10 `E-T`; the loop moves to `PL-9`.)*
+      Original text: Move `/trading` inside `ProtectedRoute`
       and add auth to `trading.py:98`. `R9`, `R10`. **⚠ ESCALATION before merge —
       outward-facing, §10 E-T.**
 
@@ -371,6 +372,7 @@ Append one line per iteration: task, rows checked, **real numbers**, no adjectiv
 | date | task | result |
 |---|---|---|
 | 2026-08-13 | — | ledger opened. Measured: 3 tier vocabularies, 0 enforcement paths, 1 public paid surface, 0 upgrade CTAs. |
+| 2026-08-13 | PL-8 | **parked, not done — escalated.** This task changes a public surface, so it stops at the diff by design. The package is written into §10 `E-T` for review. Investigating it produced the finding that matters: it is **three changes, not two**. `HermesQueryPanel.tsx:50` sends **no `Authorization` header at all** — the `fetch` carries only `Content-Type` — so moving `/trading` behind `ProtectedRoute` and adding `Depends(require_auth)` to `ask_about_market` would return **401 to every user, signed in or not**, because the panel has never attached a token. The third change is `getAccessToken()` from `supabase.ts:515`. Discovering that after the merge is an outage; discovering it here is a bullet point. Also recorded as §10 `E-G`: `grid_search.py:98` `execute_grid` has the same shape — no auth dependency, so grid runs cannot be metered per user. **The urgency is gone either way**: `PL-7` already capped the endpoint at 5 asks/day per IP without closing it, so what remains is a product question, not a spend leak. `R9` reads **public — route at char 8466, guard opens at 9001**; `R10` reads **200, expected 401**. Both stay pending, honestly, until the owner decides. Loop proceeds to `PL-9` per `docs/LOOP_CONVENTIONS.md` §6. |
 | 2026-08-13 | PL-7 | **the honest half of the ledger.** Of the 12 §4 Terminal rows, exactly **1 is server-enforced** (`hermes_asks_per_day`); the other **11 are enforced in the browser** and are therefore not chargeable — `markets`, `watchlist_symbols`, `chart_indicators`, `screener_columns`, `order_book`, `news_terminal`, `portfolio`, `comparator`, `dexter_runs_per_day`, `dexter_debate`, `dexter_journal`. Both numbers are pinned by assertions, not prose, so moving a row server-side becomes a visible change rather than a drift. **8 new pytest, 73 across the PLANS suite, 66s.** What was enforceable, was: `/api/trading/markets/ask` is now metered. It stays **open** — closing it is §10 E-T and not this loop's call — but open is not the same as free, since every call runs an LLM and the endpoint answered anonymous POSTs with 200 and no ceiling. A caller with a valid token is metered by user at their real tier; a caller without one is identified by IP and metered at the free tier's **5 asks/day**. IP is a weak identity (shared NATs undercount, a proxy pool defeats it) and that is stated in the code rather than implied away; a weak ceiling beats none on an open LLM budget. Measured: free denies on ask 6 of 5 with `label='Ask Hermes / day'` and `upgrade_to='analyst'`; two anonymous IPs meter separately (2.2.2.2 still reads 4 remaining after 1.1.1.1 exhausts); professional reads a 500 ceiling; a garbage `Bearer` token grants nothing better than anonymous. `R8` now reads **402 wired at 3 call sites**. |
 | 2026-08-13 | PL-6 | the denial path exists. `app/billing/enforce.py` closes gap E6 — before it, nothing anywhere returned "you are over your plan limit", which is why §1e found zero upgrade prompts: there was no moment to show one at. **16 new pytest, 65 across the PLANS suite, passing in 66s.** Over-ceiling raises **402** (not 429, which means retry; not 500, which means we broke) with a body the UI can act on without parsing prose: `error`, `capability`, `label` matching the §4 row, `plan`, `plan_id`, `limit`, `used`, `period`, `upgrade_to`. Measured: free grid runs deny on call 3 of a ceiling of 2, `used=3 limit=2 upgrade_to='analyst'`; free uploads deny on call 6 of 5 with `Remaining` reaching 0 first; institutional returns `unlimited` and costs no counter; counters do not leak between users (u-b still reads 4 remaining after u-a exhausts). `upgrade_to` skips tiers that add nothing — `audit_log` on free offers **professional**, not analyst, because analyst does not have it either. Redis-down is tested by breaking Redis for the whole file: the in-memory fallback still counts, so the gate cannot fail open silently. Wired at 2 call sites that already had auth (`documents.py` ingest, metered before the file is parsed so an over-quota upload does not pay for the work; `grid_schedule.py` run-now). **Finding: `grid_search.py:98` `execute_grid` has no auth dependency at all** — like `/api/trading/markets/ask`, the Research Grid endpoint is unauthenticated, so it cannot be metered without changing a public contract. Not silently changed; recorded here and escalated alongside E-T. **Second instance of the unreachable-row defect first recorded under PL-4**: R8 was written as a live check needing a seeded account driven past its cap, which this loop cannot produce without a deploy. Its instrument is repointed to an executed test; the claim is unchanged and is now actually graded rather than skipped forever. Reads: **402 wired at 2 call sites, 7 body keys asserted**. |
 | 2026-08-13 | PL-5 | the matrix exists as data. `app/billing/capabilities.py` declares **25 capabilities x 4 tiers = 100 cells, 0 holes, 0 orphan source paths**, and `/v1/billing/config` now returns `capabilities`, `matrix` and `tier_order` alongside the legacy `features` bullet lists. **49 pytest passed in 66s** across the three PLANS test files. The headline number this task produced: **14 of 25 rows are client-enforced** — `grid_columns_per_run`, `deep_research_per_day`, `report_export`, `markets`, `watchlist_symbols`, `chart_indicators`, `screener_columns`, `order_book`, `news_terminal`, `portfolio`, `comparator`, `dexter_runs_per_day`, `dexter_debate`, `dexter_journal`. Only 11 rows are held by the server today. Watchlist size is the clearest case: it lives in `localStorage` under `hub_watchlist_<market>`, so the ceiling is advisory and devtools removes it without a round trip. Every capability therefore carries an `enforcement` field, exposed through the API, so the pricing table cannot imply a ceiling that does not exist — and PL-6/PL-7 inherit that list as their work. Admin PUT now rejects a capability override that invents a key or leaves a tier out (422 with the problem list). Two defects found and fixed: capability `source` paths were resolved against cwd, which passes under pytest and fails in the API because it runs from `services/gravity-api` — they now anchor to `REPO_ROOT` off `__file__`, with a test that chdirs before asserting; and **R6 was passing vacuously**, reading `0 keys, 0 orphan` as green because it grepped for `source=` keyword arguments that the positional declarations never produced. It now fails when it finds nothing to check and cross-checks the declaration count against §4's row count, so table and code cannot drift apart. Reads: **25 capabilities, 25 paths, 0 orphan, matches §4**. |
@@ -401,6 +403,32 @@ No stop condition here is graded by a model score, so no holdout or judge is req
   No price may render to a real user until confirmed. `PL-10` ships with placeholders.
 - **E-T — closing `/trading`.** It is public today; people may be using it. Closing it
   is outward-facing and irreversible for anonymous sessions.
+
+  **The package, prepared by `PL-8` and not merged.** Three changes, not two — the
+  third is the one that would have turned a routing decision into an outage:
+
+  1. `apps/market-ui/src/AppRouter.tsx:170` — move the `/trading` route from the
+     public block into the `ProtectedRoute` block (satisfies `R9`).
+  2. `services/gravity-api/app/api/routes/trading.py:98` — add
+     `auth: dict = Depends(require_auth)` to `ask_about_market` and drop the
+     anonymous branch of `caller_identity` (satisfies `R10`).
+  3. **`apps/market-ui/src/components/trading/HermesQueryPanel.tsx:50` — the client
+     sends no `Authorization` header at all.** Measured: the `fetch` carries only
+     `Content-Type`. Doing 1 and 2 without this one returns **401 to every user,
+     signed in or not**, because the panel has never attached a token. The fix is
+     `getAccessToken()` from `src/services/supabase.ts:515`, awaited into the header.
+
+  **What is already done, so this decision is not urgent.** `PL-7` metered the
+  endpoint without closing it: anonymous callers are keyed by IP at the free tier's
+  5 asks/day. The uncapped-spend reason for closing it is gone. What remains is a
+  product question — should the terminal require an account — and that is the
+  owner's, not the loop's.
+
+- **E-G — `POST /v1/grid` is unauthenticated too.** `grid_search.py:98`
+  `execute_grid` takes no auth dependency, so Research Grid runs cannot be metered
+  per user. Same shape as E-T and the same decision: meter it by IP, require a
+  session, or accept it. `PL-6` left it alone rather than changing a public contract
+  on its own authority.
 - **E-L — the ladder.** §4 assumes trading unlocks *above* search on one ladder. The
   alternative — trading as a priced add-on to any tier — is a different matrix. Ask
   before building the second one.
