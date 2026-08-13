@@ -135,10 +135,21 @@ export const ROWS = [
         return found.length === 4 ? pass('4/4 mapped') : fail(`${found.length}/4 mapped`);
     }],
 
+    // Scans every file that decides a tier, not just the one where the bug was
+    // found. Pinning this to rate_limit.py would let the next `.get(tier, ...)` land
+    // in entitlements.py unchallenged — the same defect, one file over.
     ['R4', 'PL-3', 'static', 'an unknown tier raises, never silently defaults', () => {
-        const rl = stripPy(read('services/gravity-api/app/api/middleware/rate_limit.py'));
-        const silent = [...rl.matchAll(/\.get\(\s*tier\s*,\s*[^)]+\)/g)].map((m) => m[0]);
-        return silent.length === 0 ? pass('no defaulting lookup') : fail(silent.join(' '));
+        const files = [
+            'services/gravity-api/app/api/middleware/rate_limit.py',
+            'services/gravity-api/app/billing/entitlements.py',
+            'services/gravity-api/app/billing/tiers.py',
+        ];
+        const silent = files.flatMap((f) =>
+            [...stripPy(read(f)).matchAll(/\.get\(\s*(?:tier|plan)\s*,\s*[^)]+\)/g)]
+                .map((m) => `${f.split('/').pop()}: ${m[0]}`));
+        return silent.length === 0
+            ? pass(`no defaulting lookup in ${files.length} files`)
+            : fail(silent.join(' · '));
     }],
 
     ['R5', 'PL-4', 'live', 'a professional JWT is served professional limits', async () =>
