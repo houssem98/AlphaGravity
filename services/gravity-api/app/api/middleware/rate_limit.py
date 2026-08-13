@@ -1,21 +1,19 @@
 """
-Gravity Search — Rate Limiter (Section 7.4 of build guide)
-Two-layer enforcement matching the official pricing tiers:
+Gravity Search — Rate Limiter.
 
-Per-minute sliding window (burst protection):
-  free        →    10 req/min
-  individual  →    60 req/min
-  team        →   120 req/min
-  enterprise  → 10000 req/min (effectively unlimited)
+Three-layer enforcement, all of it projected from `app.billing.tiers`:
 
-Monthly quota (billing enforcement):
-  free        →     100 queries/month
-  individual  →   5,000 queries/month
-  team        →  25,000 queries/month
-  enterprise  →   unlimited
+  Layer 1 — per-minute sliding window (burst protection)
+  Layer 2 — per-day quota      (the ceiling §4's matrix sells)
+  Layer 3 — per-month quota    (billing enforcement, predates the matrix)
 
-Both checks run on every request. Monthly counters are stored in Redis
-with a TTL that expires at the end of the calendar month.
+This file used to own two tier tables of its own. It owns none now: the numbers
+live in `tiers.py` and this module reads them, because two tables that must agree
+are two tables that will not. See docs/PLANS_WORLD_CLASS_ROADMAP.md §1b for what
+the disagreement cost.
+
+Every layer fails closed. Counters live in Redis with a TTL matched to the window,
+falling back to a per-process in-memory counter when Redis is unreachable.
 """
 
 import time
@@ -23,18 +21,10 @@ import structlog
 from datetime import datetime, timezone
 from fastapi import HTTPException
 
+from app.billing.tiers import DEFAULT_TIER, UnknownTier, resolve
 from app.db.redis import redis_client
 
 logger = structlog.get_logger()
-
-# Per-minute burst limits
-MINUTE_LIMITS: dict[str, int] = {
-    "free": 10,
-    "individual": 60,
-    "team": 120,
-    "enterprise": 10_000,
-    "unlimited": 100_000,
-}
 
 # In-memory counter fallback when Redis is unavailable.
 # Per-process only; with multiple machines limits will under-count, but
@@ -58,14 +48,11 @@ def _mem_incr(key: str, ttl_s: int) -> int:
     return val
 
 
-# Monthly quota limits (None = unlimited)
-MONTHLY_LIMITS: dict[str, int | None] = {
-    "free": 100,
-    "individual": 5_000,
-    "team": 25_000,
-    "enterprise": None,
-    "unlimited": None,
-}
+def _day_ttl() -> int:
+    """Seconds until the next UTC midnight."""
+    now = datetime.now(timezone.utc)
+    end = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return max(1, int((end.timestamp() + 86_400) - now.timestamp()))
 
 
 def _month_ttl() -> int:
@@ -82,20 +69,22 @@ def _month_ttl() -> int:
 
 class RateLimiter:
     """
-    Two-layer Redis rate limiter:
+    Three-layer Redis rate limiter, all limits read from `app.billing.tiers`:
       Layer 1 — per-minute sliding window (burst)
-      Layer 2 — per-month quota (billing)
+      Layer 2 — per-day quota (the matrix ceiling)
+      Layer 3 — per-month quota (billing)
     """
 
     async def check(self, user_id: str, tier: str = "free") -> dict:
         """
-        Enforce both per-minute and monthly limits.
-        Returns response headers dict. Raises HTTP 429 if either limit exceeded.
+        Enforce the minute, day and month limits for `tier`.
+        Returns response headers dict. Raises HTTP 429 if any limit is exceeded.
         """
         headers: dict[str, str] = {}
+        plan = resolve(tier)
 
         # ── Layer 1: Per-minute sliding window ──────────────────────────
-        minute_limit = MINUTE_LIMITS.get(tier, 10)
+        minute_limit = plan.per_minute
         window_epoch = int(time.time() // 60)
         minute_key = f"ratelimit:minute:{user_id}:{window_epoch}"
 
@@ -125,8 +114,38 @@ class RateLimiter:
                 headers={"Retry-After": str(reset_at - int(time.time())), **headers},
             )
 
-        # ── Layer 2: Monthly quota ───────────────────────────────────────
-        monthly_limit = MONTHLY_LIMITS.get(tier)
+        # ── Layer 2: Daily quota ─────────────────────────────────────────
+        daily_limit = plan.per_day
+        if daily_limit is not None:
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            day_key = f"ratelimit:daily:{user_id}:{today}"
+            try:
+                daily_count = await redis_client.incr(day_key)
+                if daily_count == 1:
+                    await redis_client.expire(day_key, _day_ttl())
+            except Exception as e:
+                logger.warning("daily_quota_redis_error", error=str(e))
+                daily_count = _mem_incr(day_key, ttl_s=_day_ttl())
+
+            headers.update({
+                "X-RateLimit-Daily-Limit": str(daily_limit),
+                "X-RateLimit-Daily-Remaining": str(max(0, daily_limit - daily_count)),
+            })
+
+            if daily_count > daily_limit:
+                logger.warning("daily_quota_exceeded",
+                               user_id=user_id, tier=plan.id, count=daily_count)
+                raise HTTPException(
+                    status_code=429,
+                    detail=(
+                        f"Daily quota exceeded: {daily_limit} searches/day on the "
+                        f"'{plan.name}' plan. Resets at 00:00 UTC."
+                    ),
+                    headers={"Retry-After": str(_day_ttl()), **headers},
+                )
+
+        # ── Layer 3: Monthly quota ───────────────────────────────────────
+        monthly_limit = plan.per_month
         if monthly_limit is not None:
             now = datetime.now(timezone.utc)
             month_key = f"ratelimit:monthly:{user_id}:{now.year}:{now.month:02d}"
@@ -164,5 +183,20 @@ rate_limiter = RateLimiter()
 
 
 async def check_rate_limit(user_id: str, tier: str = "free") -> dict:
-    """FastAPI Depends convenience wrapper."""
+    """
+    FastAPI Depends convenience wrapper.
+
+    This is the one place allowed to decide what an unrecognised tier means, and it
+    says so out loud. `resolve()` raises rather than defaulting (§3 rule 3) so the
+    fallback cannot be invisible the way `MINUTE_LIMITS.get(tier, 10)` was: a name
+    this service does not know is a bug upstream, it gets logged at error level with
+    the name attached, and the request is served at the most restrictive tier rather
+    than being failed outright — a mis-tagged token should not take the API down.
+    """
+    try:
+        resolve(tier)
+    except UnknownTier:
+        logger.error("unknown_tier_downgraded", user_id=user_id,
+                     requested=tier, served=DEFAULT_TIER)
+        tier = DEFAULT_TIER
     return await rate_limiter.check(user_id, tier)

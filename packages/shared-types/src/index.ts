@@ -95,3 +95,35 @@ export interface ApiError {
     message: string;
     details?: unknown;
 }
+
+// ── Billing tiers ───────────────────────────────
+// Mirror of services/gravity-api/app/billing/tiers.py — the server is the source
+// of truth and this exists so the UI cannot invent a fifth tier name. Three
+// vocabularies that had to agree did not (docs/PLANS_WORLD_CLASS_ROADMAP.md §1b);
+// two is the floor, and R2 is what keeps it from becoming three again.
+
+/** The tiers the pricing table may render, in ladder order. */
+export const SOLD_TIERS = ['free', 'analyst', 'professional', 'institutional'] as const;
+export type SoldTier = (typeof SOLD_TIERS)[number];
+
+/** `unlimited` is internal — dev bypass and service API keys. Never sold. */
+export type TierId = SoldTier | 'unlimited';
+
+/** Every id this service has issued, mapped forward. Keys are the legacy names. */
+export const LEGACY_TIER_ALIASES: Record<string, SoldTier> = {
+    pro: 'professional',
+    individual: 'analyst',
+    team: 'institutional',
+    enterprise: 'institutional',
+};
+
+export interface TierLimits {
+    id: TierId;
+    name: string;
+    sold: boolean;
+    perMinute: number;
+    /** null = unlimited */
+    perDay: number | null;
+    /** null = unlimited */
+    perMonth: number | null;
+}

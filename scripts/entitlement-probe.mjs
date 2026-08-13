@@ -33,6 +33,22 @@ const INSTANT_PROVIDERS = new Set(['paddle', 'paypal', 'crypto']);
 
 const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8').replace(/\r\n/g, '\n') : '');
 
+/**
+ * Python source with docstrings and `#` comments removed.
+ *
+ * The static rows grep for code patterns, and prose that *quotes* a banned pattern
+ * is not that pattern — R4 went red on a docstring explaining the very bug it
+ * grades. Left unfixed the workaround is to reword the comment, which teaches the
+ * loop to hide from its own gate. Stripping is also strictly safer than matching
+ * more loosely: nothing inside a string literal executes, so nothing enforced can
+ * be smuggled into one.
+ */
+export function stripPy(src) {
+    return src
+        .replace(/"""[\s\S]*?"""|'''[\s\S]*?'''/g, '')
+        .replace(/(^|\s)#[^\n]*/g, '$1');
+}
+
 /** Which §7 boxes are ticked. `{ 'PL-1': true, ... }` */
 export function parseTasks(ledger) {
     const out = {};
@@ -106,7 +122,7 @@ export const ROWS = [
     // is not a vocabulary — a gate that counts the wrong thing can never go green
     // honestly, so it is narrowed to literals containing a tier key.
     ['R2', 'PL-2', 'static', 'exactly one tier vocabulary in the service', () => {
-        const rl = read('services/gravity-api/app/api/middleware/rate_limit.py');
+        const rl = stripPy(read('services/gravity-api/app/api/middleware/rate_limit.py'));
         const dicts = [...rl.matchAll(/^([A-Z_]+):\s*dict\[str[^=]*=\s*\{([^}]*)\}/gm)]
             .filter((m) => /["']free["']\s*:/.test(m[2])).map((m) => m[1]);
         return dicts.length <= 1 ? pass(`${dicts.length} tier dict(s)`) : fail(`${dicts.length}: ${dicts.join(', ')}`);
@@ -114,13 +130,13 @@ export const ROWS = [
 
     ['R3', 'PL-2', 'static', 'every legacy plan id maps forward', () => {
         const legacy = ['pro', 'team', 'individual', 'enterprise'];
-        const src = read('services/gravity-api/app/billing/tiers.py');
+        const src = stripPy(read('services/gravity-api/app/billing/tiers.py'));
         const found = legacy.filter((l) => new RegExp(`["']${l}["']\\s*:`).test(src));
         return found.length === 4 ? pass('4/4 mapped') : fail(`${found.length}/4 mapped`);
     }],
 
     ['R4', 'PL-3', 'static', 'an unknown tier raises, never silently defaults', () => {
-        const rl = read('services/gravity-api/app/api/middleware/rate_limit.py');
+        const rl = stripPy(read('services/gravity-api/app/api/middleware/rate_limit.py'));
         const silent = [...rl.matchAll(/\.get\(\s*tier\s*,\s*[^)]+\)/g)].map((m) => m[0]);
         return silent.length === 0 ? pass('no defaulting lookup') : fail(silent.join(' '));
     }],
@@ -250,12 +266,27 @@ if (process.argv.includes('--self-check')) {
     assert.equal(e2eOwns('R11').ok, existsSync(E2E_SPEC) && read(E2E_SPEC).includes('R11'),
         'e2e ownership tracks the spec on disk, not a constant');
 
+    // The stripper must remove prose and keep code, in both directions. Getting this
+    // backwards would make R2/R4 unfailable, which is worse than the false positive
+    // it was written to fix.
+    const banned = /\.get\(\s*tier\s*,\s*[^)]+\)/;
+    assert.equal(banned.test(stripPy('x = LIMITS.get(tier, 10)')), true, 'real code still matches');
+    assert.equal(banned.test(stripPy('# never write LIMITS.get(tier, 10) again')), false, 'a # comment does not');
+    assert.equal(banned.test(stripPy('"""docstring naming LIMITS.get(tier, 10)"""')), false, 'a docstring does not');
+    assert.equal(banned.test(stripPy('"""prose"""\nx = LIMITS.get(tier, 10)')), true,
+        'stripping a docstring does not swallow the code after it');
+    assert.match(stripPy('URL = "http://x#y"\n# gone'), /http:\/\/x#y/, 'a # inside a string survives');
+
     // SKIP is not PASS — the shapes are distinguishable.
     assert.equal(skip('x').ok, undefined, 'skip has no ok field');
     assert.equal(pass('x').ok, true);
     assert.equal(fail('x').ok, false);
 
-    console.log('entitlement-probe --self-check: 10 assertions green');
+    // Counted from this file rather than hardcoded: the literal said 10 while the
+    // block ran more, and a self-check that misreports its own size is the first
+    // number in the log a reader stops trusting.
+    const n = (read('scripts/entitlement-probe.mjs').match(/^\s*assert\./gm) ?? []).length;
+    console.log(`entitlement-probe --self-check: ${n} assertions green`);
 } else {
     await run();
 }
