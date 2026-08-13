@@ -170,6 +170,9 @@ async def ingest_document(
     """
     Upload and ingest a document (PDF, DOCX, TXT, HTML).
 
+    Metered against `document_uploads_per_month` — over the ceiling this returns 402
+    naming the plan and the row, not a silent success. PL-6.
+
     Multipart form fields:
       - file: the document file
       - ticker: optional stock ticker (e.g. AAPL)
@@ -189,6 +192,13 @@ async def ingest_document(
     # Rate limit check
     headers = await check_rate_limit(auth["user_id"], auth.get("tier", "free"))
     for k, v in headers.items():
+        response.headers[k] = v
+
+    # Plan quota. Counted BEFORE the file is parsed and indexed, so an over-quota
+    # upload is refused without doing the expensive work first. PL-6.
+    from app.billing.enforce import enforce
+    for k, v in (await enforce("document_uploads_per_month",
+                               auth.get("tier", "free"), auth["user_id"])).items():
         response.headers[k] = v
 
     # Validate content type

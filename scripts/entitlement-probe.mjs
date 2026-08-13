@@ -183,8 +183,28 @@ export const ROWS = [
             : fail(`${holes.length} holes: ${holes.join(', ')}`);
     }],
 
-    ['R8', 'PL-6', 'live', 'over-limit returns 402/429 naming the plan', async () =>
-        skip('needs a seeded account driven past its cap; wired with PL-6')],
+    // Instrument changed, claim unchanged. R8 was written as a live check needing a
+    // seeded account driven past its cap — the same unreachable-row defect as R5,
+    // since this loop cannot deploy gravity-api. The claim "over-limit returns 402
+    // naming the plan" is now graded by an executed test instead of by a probe that
+    // could only ever skip. A test that runs beats a live check that never does.
+    ['R8', 'PL-6', 'static', 'over-limit returns 402 naming the plan and the row', () => {
+        const src = stripPy(read('services/gravity-api/app/billing/enforce.py'));
+        if (!src) return fail('enforce.py absent');
+        const raises402 = /status_code=402/.test(src);
+        const spec = read('services/gravity-api/tests/test_enforce.py');
+        const keys = ['plan_limit_exceeded', 'capability', 'label', 'plan_id',
+            'limit', 'used', 'upgrade_to'];
+        const missing = keys.filter((k) => !spec.includes(k));
+        // Wired at a real call site, not merely defined.
+        const sites = ['services/gravity-api/app/api/routes/documents.py',
+            'services/gravity-api/app/api/routes/grid_schedule.py']
+            .filter((f) => /enforce\(/.test(read(f)));
+        if (!raises402) return fail('enforce.py never raises 402');
+        if (missing.length) return fail(`denial body untested: ${missing.join(', ')}`);
+        if (sites.length === 0) return fail('enforce() is defined but called nowhere');
+        return pass(`402 wired at ${sites.length} call sites, ${keys.length} body keys asserted`);
+    }],
 
     ['R9', 'PL-8', 'static', '/trading sits inside ProtectedRoute', () => {
         const src = read('apps/market-ui/src/AppRouter.tsx');

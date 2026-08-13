@@ -28,6 +28,10 @@ class RunNowRequest(BaseModel):
 
 @router.post("/run-now")
 async def run_now(req: RunNowRequest, auth: dict = Depends(require_auth)):
+    # `scheduled_grids` is off entirely on the free tier, so this is the flag form
+    # of the gate: 402 naming the plan rather than running the grid. PL-6.
+    from app.billing.enforce import enforce
+    await enforce("scheduled_grids", auth.get("tier", "free"), auth["user_id"])
     return await run_grid_now(req.grid_run_id, req.email, req.always_email)
 
 
