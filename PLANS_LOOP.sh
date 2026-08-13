@@ -1,0 +1,33 @@
+# PLANS_LOOP — start it with three words, not a pasted wall of text:
+#
+#   /loop /plans
+#
+# That slash command is generated from the last line of this file. If it is
+# missing or the listing says STALE, regenerate:
+#   node ~/.claude/scripts/loop-prompt.mjs --install
+#
+# The raw form still works: /loop $(tail -1 PLANS_LOOP.sh)
+#
+# Ledger:   docs/PLANS_WORLD_CLASS_ROADMAP.md  (tasks PL-1..PL-12, gaps E1-E6/S1-S4,
+#           rows R1-R14, matrix §4, loop graph §12)
+# Contract: docs/LOOP_CONVENTIONS.md — done-criteria, truth rules, repo hard
+#           constraints, escalation, cadence, stop conditions, persistence.
+#           The prompt below carries only what is true of THIS loop.
+# Why:      the request was "a TradingView-style plan table with an upgrade button".
+#           The table is the LAST task. We already sell three plans through four
+#           payment providers and enforce none of them: auth.py:142 hard-codes
+#           tier="free" for every Supabase session, rate_limit.py:98 turns the
+#           unknown plan "pro" into the free limit via .get(tier, 10), and
+#           AppRouter.tsx:170 mounts the trading terminal outside ProtectedRoute
+#           while trading.py:98 takes unauthenticated LLM spend. §1 has the
+#           line numbers. Paint over that and the button sells a promise the
+#           server does not keep.
+# Live:     measured 2026-08-13 against gravity-api-prod.fly.dev, not from source —
+#           /health 200 in 0.57s, /v1/billing/config 200 with plans byte-identical
+#           to the billing.py defaults and only TWO providers enabled: paypal and
+#           payoneer. Card and crypto are off, and Payoneer is a manual transfer
+#           with 24h activation, so "Start now" has no instant destination. That is
+#           gap S5 / escalation E-C, and no task in §7 can fix it.
+# Check:    npm run loops   (graph-lint -> governance -> loop-lint)
+#           node scripts/entitlement-probe.mjs   (exists once PL-1 lands)
+Read docs/PLANS_WORLD_CLASS_ROADMAP.md IN FULL FIRST — §1 measured-truth, §2 capability anchors, §3 doctrine, §4 matrix, §6 rows, §9 stop, §10 escalation, §11 cadence are binding and are NOT repeated here. Then do the first unchecked [ ] task in §7 under the standard loop contract in docs/LOOP_CONVENTIONS.md. Commit scope plans, task IDs PL-n. ONLY WHAT NEITHER FILE STATES: (1) PL-1 IS THE GATE — scripts/entitlement-probe.mjs is this loop's kill authority; run it plus governance.mjs FIRST every wakeup and a non-zero exit halts the loop whatever §7 says. Until PL-1 exists, writing it IS the task. (2) SPINE BEFORE PAINT — no task that changes pricing UI may be checked [x] before PL-5 is green; an upgrade button over an unenforced tier is a lie rendered at 60fps, and §3 rule 1 is what catches it. (3) A MISSING KEY IS AN ERROR, NEVER A DEFAULT — the whole bug class in §1b is .get(tier, 10) turning an unknown plan into the free plan, so resolvers raise on an unknown tier and the caller logs its fallback explicitly. (4) ENFORCEMENT CODE IS GATE CODE — loosening a limit, deleting an assertion or adding an early-return bypass to make a check pass is exactly what gate-guard exists to catch; run node ~/.claude/scripts/gate-guard.mjs before every commit claiming green. (5) SELL ONLY §2 — if a §4 row does not resolve to a file in the §2 inventory, DELETE THE ROW; the corpus is S&P 500 filings, BVMT and ~200 crypto assets and no tier may imply coverage we lack. (6) TWO THINGS ARE NOT YOURS TO DECIDE — rendering a real price (§10 E-P) and closing the public /trading route (§10 E-T) are escalations; PL-10 ships placeholder prices and PL-8 stops at the diff. DONE ALSO REQUIRES, beyond the standard gates: the probe green, the row IDs from §6 that the task claims, and the measured numbers pasted into §8 — served limit vs plan limit, rows resolving to §2 files, matrix holes, anonymous-fetch status codes. BUDGET: 12 tasks or 30 iterations, whichever comes first.
