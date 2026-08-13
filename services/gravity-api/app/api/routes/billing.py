@@ -630,11 +630,30 @@ async def public_config(request: Request):
             pub["id"] = pid
             pub["configured"] = True
             active_providers.append(pub)
+    # The matrix a TradingView-shaped table needs: one row per capability, defined
+    # for every tier, so the client can render `✗` instead of omitting a row. The
+    # legacy `features` bullet lists stay on each plan for prose. §1a / PL-5.
+    from app.billing import capabilities as caps
+
     return {
         "plans": active_plans,
         "providers": active_providers,
         "app_name": cfg.get("app_name", "AlphaGravity"),
         "support_email": cfg.get("support_email", ""),
+        "capabilities": [
+            {
+                "key": c.key,
+                "label": c.label,
+                "group": c.group,
+                # Says which side actually holds the limit. A client-enforced row is
+                # a suggestion the browser owns, and the UI should not imply
+                # otherwise — see the module docstring.
+                "enforcement": c.enforcement,
+            }
+            for c in caps.CAPABILITIES
+        ],
+        "matrix": caps.matrix(),
+        "tier_order": list(caps.SOLD_TIER_IDS),
     }
 
 
@@ -774,7 +793,23 @@ async def admin_update_config(body: dict, request: Request, _user=Depends(_admin
 
 @router.put("/admin/plans")
 async def admin_update_plans(plans: dict, request: Request, _user=Depends(_admin_user)):
-    """Update plan definitions (prices, features, limits, active flag)."""
+    """
+    Update plan definitions (prices, features, limits, active flag).
+
+    A `capabilities` override is validated before it is stored: an admin may retune
+    a number, but may not invent a capability the code cannot enforce, and may not
+    leave a tier out. A column with a hole in it gets discovered by a customer, so
+    it is rejected here instead. PL-5 / R7.
+    """
+    from app.billing import capabilities as caps
+
+    override = plans.get("capabilities")
+    if override is not None:
+        problems = caps.validate_override(override)
+        if problems:
+            raise HTTPException(status_code=422,
+                                detail={"capability_errors": problems})
+
     pool = _pool(request)
     cfg = await _load_config(pool)
     merged = {**cfg["plans"], **plans}

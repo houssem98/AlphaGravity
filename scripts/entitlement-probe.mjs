@@ -157,12 +157,22 @@ export const ROWS = [
             ? skip('JWT supplied but PL-4 defines the assertion; wired with PL-4')
             : skip('no PLANS_PROBE_JWT — needs a seeded professional account (§10 E-D)')],
 
-    ['R6', 'PL-5', 'static', 'every capability key names a source file that exists', () => {
+    // The first cut looked for `source=` keyword arguments, found none because the
+    // declarations are positional, and reported "0 keys, 0 orphan" as a PASS. A gate
+    // that goes green on an empty set is not a gate — it now fails when it finds
+    // nothing to check, and cross-checks the count against §4 so the table and the
+    // code cannot drift apart silently.
+    ['R6', 'PL-5', 'static', 'every capability names a source file that exists', () => {
         const src = read('services/gravity-api/app/billing/capabilities.py');
         if (!src) return fail('capabilities.py absent');
-        const files = [...src.matchAll(/source\s*=\s*["']([^"']+)["']/g)].map((m) => m[1]);
+        const decls = (src.match(/^\s*_C\(/gm) ?? []).length;
+        const files = [...src.matchAll(/["']((?:apps|services|packages)\/[^"']+)["']/g)].map((m) => m[1]);
+        if (decls === 0 || files.length === 0) return fail(`nothing to check: ${decls} declarations, ${files.length} paths`);
         const missing = files.filter((f) => !existsSync(f));
-        return missing.length === 0 ? pass(`${files.length} keys, 0 orphan`) : fail(`orphans: ${missing.join(', ')}`);
+        if (missing.length) return fail(`orphans: ${missing.join(', ')}`);
+        const rows = parseMatrix(read(LEDGER)).filter((r) => !/^\*\*/.test(r[0]) && r[0] !== 'seats');
+        if (decls !== rows.length) return fail(`${decls} capabilities vs ${rows.length} §4 rows`);
+        return pass(`${decls} capabilities, ${files.length} paths, 0 orphan, matches §4`);
     }],
 
     ['R7', 'PL-5', 'static', 'every §4 row is defined for all 4 tiers', () => {
