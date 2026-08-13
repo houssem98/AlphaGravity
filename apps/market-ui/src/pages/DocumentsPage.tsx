@@ -6,6 +6,8 @@ import {
     Upload, Database, Search, CheckCircle,
     AlertCircle, Loader2, File, X,
 } from 'lucide-react';
+import { parsePlanLimit, type PlanLimit } from '../services/billing';
+import PlanLimitNotice from '../components/billing/PlanLimitNotice';
 
 interface IngestedDocument {
     id: string;
@@ -22,6 +24,7 @@ interface IngestedDocument {
 interface UploadState {
     file: File;
     progress: 'pending' | 'uploading' | 'done' | 'error';
+    planLimit?: PlanLimit;
     result?: any;
     error?: string;
 }
@@ -77,7 +80,19 @@ export default function DocumentsPage() {
 
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({}));
-                throw new Error(errorData.detail || `Upload failed (${res.status})`);
+                // A 402 detail is an object. `new Error(detail)` on it renders the
+                // literal "[object Object]" — which is what a plan denial looked
+                // like here before PL-11. Parse it and keep it structured.
+                const planLimit = parsePlanLimit(errorData);
+                if (planLimit) {
+                    setUploads(prev => prev.map((u, i) =>
+                        i === index ? { ...u, progress: 'error', planLimit } : u));
+                    return;
+                }
+                throw new Error(
+                    typeof errorData.detail === 'string'
+                        ? errorData.detail
+                        : `Upload failed (${res.status})`);
             }
 
             const result = await res.json();
@@ -177,7 +192,8 @@ export default function DocumentsPage() {
                 <div className="mb-8 space-y-2">
                     <h3 className="text-sm font-medium text-[#A7B0C8] mb-3">Uploads</h3>
                     {uploads.map((u, i) => (
-                        <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+                        <div key={i}>
+                        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
                             <File className="w-4 h-4 text-[#A7B0C8] flex-shrink-0" />
                             <span className="flex-1 text-sm text-white truncate">{u.file.name}</span>
                             <span className="text-xs text-[#4A5568]">{(u.file.size / 1024 / 1024).toFixed(1)} MB</span>
@@ -191,7 +207,7 @@ export default function DocumentsPage() {
                                     {u.result?.chunk_count} chunks
                                 </span>
                             )}
-                            {u.progress === 'error' && (
+                            {u.progress === 'error' && !u.planLimit && (
                                 <span className="flex items-center gap-1 text-xs text-red-400 max-w-[200px] truncate">
                                     <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                                     {u.error}
@@ -201,6 +217,10 @@ export default function DocumentsPage() {
                             <button onClick={() => removeUpload(i)} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
                                 <X className="w-3.5 h-3.5 text-[#4A5568]" />
                             </button>
+                        </div>
+                        {/* The upgrade moment: a plan denial gets a CTA naming the
+                            tier, not a red "[object Object]". PL-11 / R13. */}
+                        {u.planLimit && <PlanLimitNotice limit={u.planLimit} />}
                         </div>
                     ))}
                 </div>

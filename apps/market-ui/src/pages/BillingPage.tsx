@@ -5,11 +5,12 @@ import {
 } from 'lucide-react';
 import {
     getBillingConfig, getMySubscription, createCheckout, createPortalSession, confirmCryptoTx,
-    planForTier, PLAN_ID_FOR_TIER,
+    planForTier, PLAN_ID_FOR_TIER, getPlanUsage, type PlanUsage,
     type SubscriptionStatus, type BillingConfig, type ProviderConfig,
     type PlanConfig, type CheckoutResponse, type PayoneerInfo,
 } from '../services/billing';
 import PlanMatrix from '../components/billing/PlanMatrix';
+import QuotaMeter from '../components/billing/QuotaMeter';
 
 // ─── small helpers ────────────────────────────────────────────────────────────
 
@@ -260,6 +261,9 @@ export default function BillingPage() {
     const [checkingOut, setCheckingOut] = useState(false);
     const [openingPortal, setOpeningPortal] = useState(false);
     const [checkoutResult, setCheckoutResult] = useState<CheckoutResponse | null>(null);
+    // Server-counted usage. Failure is silent on purpose: an unreachable meter must
+    // not break the page a user came to in order to pay. PL-11.
+    const [usage, setUsage] = useState<PlanUsage | null>(null);
 
     useEffect(() => {
         Promise.all([
@@ -275,6 +279,7 @@ export default function BillingPage() {
             const firstProvider = cfg.providers.find(p => p.id !== 'free');
             if (firstProvider) setSelectedProvider(firstProvider.id);
         }).finally(() => setLoading(false));
+        getPlanUsage().then(setUsage).catch(() => setUsage(null));
     }, []);
 
     const currentPlan = sub?.plan ?? 'free';
@@ -387,6 +392,10 @@ export default function BillingPage() {
                             />
                         ))}
                     </div>
+                )}
+
+                {usage && (
+                    <QuotaMeter entries={usage.capabilities} tierName={usage.tier_name} />
                 )}
 
                 {/* The §4 capability matrix. Renders only when the server sends one —

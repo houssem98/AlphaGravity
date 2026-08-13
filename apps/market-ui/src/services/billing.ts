@@ -73,6 +73,74 @@ export interface ProviderConfig {
     currencies?: string[];
 }
 
+/**
+ * The body `enforce()` returns with a 402 (PL-6). Parsed rather than stringified,
+ * because `new Error(detail)` on this object renders the literal text
+ * "[object Object]" — which is what every plan denial looked like before PL-11.
+ */
+export interface PlanLimit {
+    capability: string;
+    label: string;
+    plan: string;
+    plan_id: string;
+    limit: number | null;
+    used: number;
+    period: string | null;
+    upgrade_to: string | null;
+}
+
+const TIER_NAME: Record<string, string> = {
+    free: 'Free',
+    analyst: 'Analyst',
+    professional: 'Professional',
+    institutional: 'Institutional',
+};
+
+export const tierDisplayName = (id: string | null): string =>
+    (id && TIER_NAME[id]) || id || '';
+
+/** A plan denial, or null when the body is any other kind of error. */
+export function parsePlanLimit(body: unknown): PlanLimit | null {
+    const d = (body as { detail?: unknown })?.detail ?? body;
+    if (!d || typeof d !== 'object') return null;
+    const o = d as Record<string, unknown>;
+    if (o.error !== 'plan_limit_exceeded') return null;
+    if (typeof o.capability !== 'string' || typeof o.label !== 'string') return null;
+    return {
+        capability: o.capability,
+        label: o.label,
+        plan: typeof o.plan === 'string' ? o.plan : '',
+        plan_id: typeof o.plan_id === 'string' ? o.plan_id : '',
+        limit: typeof o.limit === 'number' ? o.limit : null,
+        used: typeof o.used === 'number' ? o.used : 0,
+        period: typeof o.period === 'string' ? o.period : null,
+        upgrade_to: typeof o.upgrade_to === 'string' ? o.upgrade_to : null,
+    };
+}
+
+export interface PlanUsageEntry {
+    capability: string;
+    label: string;
+    group: string;
+    enforcement: 'server' | 'client';
+    kind: 'flag' | 'quota' | 'categorical';
+    allowed?: boolean;
+    value?: string;
+    limit?: number | null;
+    used?: number;
+    remaining?: number | null;
+    unlimited?: boolean;
+    period?: string;
+}
+
+export interface PlanUsage {
+    tier: string;
+    tier_name: string;
+    capabilities: PlanUsageEntry[];
+}
+
+export const getPlanUsage = () => billingFetch<PlanUsage>('/v1/plan/usage');
+
 export interface CapabilityMeta {
     key: string;
     label: string;

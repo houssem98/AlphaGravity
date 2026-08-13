@@ -59,13 +59,72 @@ test.describe('PLANS pricing matrix', () => {
         }
     });
 
-    test.skip('R13 a denied action shows an upgrade CTA naming the tier', async () => {
-        // Blocked on PL-11, which builds the in-context CTA. The server half is
-        // done: /v1/billing enforcement returns 402 with `upgrade_to` (PL-6).
+});
+
+// R13 and R14 stub the API rather than driving a live one. That is deliberate, not a
+// shortcut: both rows are claims about what the UI does WITH a server response — the
+// CTA names the tier the server named, and the meter prints the number the server
+// counted. Intercepting the response tests exactly that contract, and it keeps the
+// rows runnable while gravity-api is undeployed. What it does NOT prove is that prod
+// returns these shapes; PL-6 and PL-9's pytest cover that half.
+test.describe('PLANS upgrade moment', () => {
+    // R13 — a denied action shows an upgrade CTA naming the needed tier.
+    test('R13 a denied upload shows a CTA naming the tier that lifts the limit', async ({ page }) => {
+        await page.route('**/v1/documents/ingest', route => route.fulfill({
+            status: 402,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                detail: {
+                    error: 'plan_limit_exceeded',
+                    capability: 'document_uploads_per_month',
+                    label: 'Document uploads / mo',
+                    plan: 'Free', plan_id: 'free',
+                    limit: 5, used: 6, period: 'month',
+                    upgrade_to: 'analyst',
+                },
+            }),
+        }));
+
+        await page.goto('/documents');
+        await page.setInputFiles('input[type="file"]', {
+            name: 'probe.txt', mimeType: 'text/plain', buffer: Buffer.from('probe'),
+        });
+
+        const notice = page.locator('[data-testid="plan-limit-notice"]');
+        await expect(notice).toBeVisible({ timeout: 20_000 });
+        // The three things a CTA must carry, or the user has to guess.
+        await expect(notice).toContainText('Document uploads / mo'.toLowerCase());
+        await expect(notice).toContainText('6 of 5');
+        await expect(page.locator('[data-testid="plan-limit-cta"]'))
+            .toHaveAttribute('data-upgrade-to', 'analyst');
+        // The regression that made this task necessary.
+        await expect(notice).not.toContainText('[object Object]');
     });
 
-    test.skip('R14 the quota meter matches GET /v1/plan/usage', async () => {
-        // Blocked on PL-11. The endpoint exists and is proven to read the
-        // enforcer's own counter (PL-9 / R17); nothing renders it yet.
+    // R14 — the meter's number equals the server's counter, with no local arithmetic.
+    test('R14 the quota meter prints the server counter verbatim', async ({ page }) => {
+        // `remaining` deliberately disagrees with limit - used. A meter doing its own
+        // sums would print 38 and drift from the gate that actually refuses.
+        await page.route('**/v1/plan/usage', route => route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                tier: 'analyst', tier_name: 'Analyst',
+                capabilities: [{
+                    capability: 'grid_runs_per_day', label: 'Research Grid runs / day',
+                    group: 'research', enforcement: 'server', kind: 'quota',
+                    limit: 50, used: 12, remaining: 7, unlimited: false, period: 'day',
+                }],
+            }),
+        }));
+
+        await page.goto('/billing');
+        const meter = page.locator('[data-testid="meter-grid_runs_per_day"]');
+        await expect(meter).toBeVisible({ timeout: 20_000 });
+        await expect(meter).toHaveAttribute('data-used', '12');
+        await expect(meter).toHaveAttribute('data-limit', '50');
+        await expect(meter).toHaveAttribute('data-remaining', '7');
+        await expect(page.locator('[data-testid="meter-text-grid_runs_per_day"]'))
+            .toHaveText('12 / 50');
     });
 });
