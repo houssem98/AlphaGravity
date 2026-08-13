@@ -5,9 +5,11 @@ import {
 } from 'lucide-react';
 import {
     getBillingConfig, getMySubscription, createCheckout, createPortalSession, confirmCryptoTx,
+    planForTier, PLAN_ID_FOR_TIER,
     type SubscriptionStatus, type BillingConfig, type ProviderConfig,
     type PlanConfig, type CheckoutResponse, type PayoneerInfo,
 } from '../services/billing';
+import PlanMatrix from '../components/billing/PlanMatrix';
 
 // ─── small helpers ────────────────────────────────────────────────────────────
 
@@ -385,6 +387,31 @@ export default function BillingPage() {
                             />
                         ))}
                     </div>
+                )}
+
+                {/* The §4 capability matrix. Renders only when the server sends one —
+                    an older API build has no `matrix`, and an empty table would be a
+                    worse lie than no table. PL-10. */}
+                {!loading && config?.capabilities?.length && config.matrix && config.tier_order && (
+                    <PlanMatrix
+                        capabilities={config.capabilities}
+                        matrix={config.matrix}
+                        tierOrder={config.tier_order}
+                        currentTier={currentPlan}
+                        onSelect={(tierId) => {
+                            const plans = config.plans ?? {};
+                            const id = (PLAN_ID_FOR_TIER[tierId] ?? [tierId]).find(p => plans[p]);
+                            if (id) setSelectedPlan(id);
+                        }}
+                        priceFor={(tierId) => {
+                            const plan = planForTier(config.plans ?? {}, tierId);
+                            if (!plan) return { label: 'Not yet priced', priced: false };
+                            return {
+                                label: plan.price_usd === 0 ? 'Free' : `$${plan.price_usd}${plan.period}`,
+                                priced: true,
+                            };
+                        }}
+                    />
                 )}
 
                 {/* Payment method + checkout */}

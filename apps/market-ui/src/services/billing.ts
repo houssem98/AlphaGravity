@@ -73,11 +73,49 @@ export interface ProviderConfig {
     currencies?: string[];
 }
 
+export interface CapabilityMeta {
+    key: string;
+    label: string;
+    group: string;
+    enforcement: 'server' | 'client';
+}
+
 export interface BillingConfig {
     plans: Record<string, PlanConfig>;
     providers: ProviderConfig[];
     app_name: string;
     support_email: string;
+    // The §4 matrix, generated server-side from the same capabilities module the
+    // enforcer reads. Optional because an older API build will not send it — the
+    // table renders only when the server actually has one to give.
+    capabilities?: CapabilityMeta[];
+    matrix?: Record<string, Record<string, number | boolean | string>>;
+    tier_order?: string[];
+}
+
+/**
+ * Which configured plan id backs a tier.
+ *
+ * Production sells `free` / `pro` / `team`; the matrix has four tiers. The legacy
+ * map is the server's (`tiers.py` LEGACY_ALIASES) and is mirrored here so the table
+ * shows the real configured price for a tier or says it has none. §4's proposed
+ * numbers are NOT used — they are unconfirmed (§10 E-P) and a placeholder rendered
+ * as a price is a quote we have not agreed to honour.
+ */
+export const PLAN_ID_FOR_TIER: Record<string, string[]> = {
+    free: ['free'],
+    analyst: ['analyst', 'individual'],
+    professional: ['professional', 'pro'],
+    institutional: ['institutional', 'team', 'enterprise'],
+};
+
+export function planForTier(
+    plans: Record<string, PlanConfig>, tierId: string,
+): PlanConfig | null {
+    for (const id of PLAN_ID_FOR_TIER[tierId] ?? [tierId]) {
+        if (plans[id]) return plans[id];
+    }
+    return null;
 }
 
 // Fallback static data used if the API is unreachable

@@ -285,7 +285,15 @@ export const ROWS = [
 function e2eOwns(row) {
     const spec = read(E2E_SPEC);
     if (!spec) return fail(`${E2E_SPEC} absent — claimed with no test`);
-    return spec.includes(row) ? pass(`named in ${E2E_SPEC}`) : fail(`${E2E_SPEC} does not mention ${row}`);
+    // Find the test that names this row. Mentioning it in a comment, or parking it
+    // in a `test.skip`, is not the same as grading it — the first cut accepted both,
+    // which would have let PL-11 tick R13 and R14 with two skipped tests. A skipped
+    // test is an honest placeholder for an unbuilt UI and a dishonest pass mark.
+    const decl = [...spec.matchAll(/^\s*test(\.\w+)?\(\s*(['"`])(.*?)\2/gm)]
+        .find((m) => m[3].includes(row));
+    if (!decl) return fail(`${E2E_SPEC} has no test named for ${row}`);
+    if (decl[1] === '.skip') return fail(`${row} is declared but skipped — not graded`);
+    return pass(`graded by ${E2E_SPEC}`);
 }
 
 async function run() {
