@@ -113,6 +113,15 @@ class StructuredSearch:
             _comp = self._DERIVED_COMPONENTS.get(metric or "")
             if _comp:
                 flt["or"] = "(" + ",".join(f"metric_name.ilike.*{p}*" for p in _comp) + ")"
+                # Components only, and only the exactly-tagged rows. Measured
+                # 2026-08-17: NVDA_CostOfRevenue_FY2026_xbrl = 62,475,000,000 shares
+                # the label "Cost of Goods Sold (COGS, Cost of Revenue)" with
+                # NVDA_Cost_of_revenue_2026-05-20_backfill = 39.5 — a unitless
+                # scrape of the same line. A ratio built from the second number is
+                # wrong rather than missing, so the derived path takes `_xbrl` rows
+                # or nothing. 501 of 527 tickers have them; the other 26 now answer
+                # "not available" instead of confidently dividing by garbage.
+                flt["id"] = "like.*_xbrl"
             metric = None
         else:
             # Multi-metric queries ("did operating income grow faster than revenue?")
@@ -154,6 +163,13 @@ class StructuredSearch:
                 f"metric_name.ilike.{p}" for p in self._KEY_METRIC_PATTERNS
             ) + ")"
 
+        # Newest period first. Without an order the PostgREST call took whatever 24
+        # rows Postgres yielded from 460k, so "the latest reported fiscal year" was
+        # luck — and in a two-company comparison the budget was spent on whichever
+        # ticker happened to sort first. `period` is text, and "FY2026" > "FY2025"
+        # lexically, which is the ordering we want; the non-xbrl rows store dates
+        # like "2026-05-20" and sort below every FY row because "F" > "2".
+        flt["order"] = "period.desc"
         rows = await supabase_rest.sb_select("financials", flt, limit=max(top_k, 24))
         out: list[RetrievalResult] = []
         for r in rows:
@@ -185,6 +201,14 @@ class StructuredSearch:
     # Order matters: the first term found in the query wins, so put multi-word /
     # more-specific terms before their substrings ("net sales" before "sales").
     _METRIC_TERMS = [
+        # Ratio phrases FIRST, because the scan takes the first term found in the
+        # query and every one of these contains a shorter term further down the
+        # list: "inventory turnover" would otherwise match "inventory" and fetch
+        # only the denominator. No bare "roa"/"dso" — three-letter substrings match
+        # inside ordinary words ("broad") and would expand a query nobody asked to
+        # expand. "roe" is already here and stays.
+        "inventory turnover", "asset turnover", "receivables turnover",
+        "days sales outstanding", "return on assets",
         "net sales", "total revenue", "net income", "operating income", "gross profit",
         "cost of revenue", "cost of goods", "cogs", "revenue",
         "gross margin", "operating margin", "net margin", "profit margin",
@@ -207,6 +231,17 @@ class StructuredSearch:
         "gross margin",        # = gross profit / revenue
         "operating margin",    # = operating income / revenue
         "net margin", "profit margin",
+        # Efficiency and return ratios. "inventory turnover" used to match the bare
+        # term "inventory" first, so the fetch narrowed to inventory balances and
+        # COGS — the numerator — was never retrieved. Prod's answer was "cost of
+        # goods sold is missing from the sources" while both figures sat in the
+        # table. Only ratios whose component LABELS exist in `financials` are listed:
+        # there is no "Total Debt" label, so debt-to-equity is deliberately absent.
+        "inventory turnover",
+        "asset turnover",
+        "receivables turnover", "days sales outstanding",
+        "return on equity", "roe",
+        "return on assets",
     })
 
     # Derived metric → ilike patterns for the exact COMPONENT rows to fetch (matched
@@ -258,6 +293,24 @@ class StructuredSearch:
         "operating margin": ["operating*income", "total*revenue"],
         "net margin":      ["net*income", "total*revenue"],
         "profit margin":   ["net*income", "total*revenue"],
+        # Labels verified against the table before they were written here:
+        # "Cost of Goods Sold (COGS, Cost of Revenue)" 2,119 rows,
+        # "Inventory (Net Inventory)" 3,133, "Total Assets" 5,346,
+        # "Shareholders Equity (Stockholders Equity)" 5,084,
+        # "Accounts Receivable Net (Net AR)" 3,392.
+        # TWO labels for one concept, and which one a company uses changes over
+        # time: NVDA files `CostOfRevenue` → "Cost of Revenue (COGS)" for FY2016-
+        # FY2026, but `CostOfGoodsAndServicesSold` → "Cost of Goods Sold (COGS,
+        # Cost of Revenue)" only through FY2021, which is AMD's current label.
+        # Matching one pattern retrieved AMD's FY2025 numerator and NVDA's FY2021,
+        # so the comparison was still unanswerable — with rows on screen.
+        "inventory turnover":       ["cost*of*goods", "cost*of*revenue", "inventory"],
+        "asset turnover":           ["total*revenue", "total*assets"],
+        "receivables turnover":     ["total*revenue", "accounts*receivable"],
+        "days sales outstanding":   ["total*revenue", "accounts*receivable"],
+        "return on equity":         ["net*income", "holders*equity"],
+        "roe":                      ["net*income", "holders*equity"],
+        "return on assets":         ["net*income", "total*assets"],
     }
 
     async def search(
