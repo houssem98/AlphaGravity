@@ -115,8 +115,17 @@ class SearchMetadata(BaseModel):
     complexity: str
     estimated_cost_usd: float = 0.0
     retrieval_channels: list[str] = Field(default_factory=list)
+    # Channels that were dispatched and came back empty. retrieval_channels alone
+    # cannot distinguish "we asked and it had nothing" from "we never asked" —
+    # ten channels are registered and two answer, and the response used to look
+    # identical either way.
+    channels_dark: list[str] = Field(default_factory=list)
     passages_used: int = 0
     cache_hit: bool = False
+    # live = produced by this request. replay = served from cache, and the channel
+    # and model fields describe the ORIGINAL run. legacy = a cache entry written
+    # before provenance was stored, so those fields are genuinely unknown.
+    cache_provenance: str = "live"
     # Per-stage latency breakdown (P4.3 observability) — 0 when not measured.
     understanding_ms: float = 0.0
     retrieval_ms: float = 0.0

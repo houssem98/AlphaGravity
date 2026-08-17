@@ -57,6 +57,47 @@ _SELF_CONSISTENCY_RUNS = 3
 _pii_filter = PIIFilter()
 
 
+# ── Answer provenance ───────────────────────────────────────────────────
+# A cached reply used to report retrieval_channels [] and model_used "unknown",
+# so the cheapest answers in the system were the only ones nobody could audit —
+# and a channel that had gone dark was indistinguishable from one never asked.
+# Module-level and pure, so both paths can be tested without a Redis or a pipeline.
+
+def cache_provenance_of(retrieval_results, routing_decision, passages_used, trace_id) -> dict:
+    """What produced this answer, stored alongside it in the cache."""
+    results = retrieval_results or {}
+    return {
+        "retrieval_channels": [k for k, v in results.items() if v],
+        "channels_dark": [k for k, v in results.items() if not v],
+        "model_used": routing_decision.primary_model,
+        "complexity": routing_decision.complexity.value,
+        "estimated_cost_usd": round(routing_decision.estimated_cost, 4),
+        "passages_used": passages_used,
+        "trace_id": trace_id,
+    }
+
+
+def replay_metadata(prov: dict | None, latency_ms: float, trace_id: str) -> dict:
+    """Metadata for a cache hit.
+
+    `prov` is None for entries written before provenance was stored. Those report
+    `legacy` and keep the unknowns visible — an empty channel list presented as a
+    measurement is worse than one labelled as missing.
+    """
+    base = {"latency_ms": latency_ms, "cache_hit": True, "trace_id": trace_id,
+            "estimated_cost_usd": 0.0}
+    if not prov:
+        return {**base, "cache_provenance": "legacy", "model_used": "unknown",
+                "complexity": "unknown", "retrieval_channels": [],
+                "channels_dark": [], "passages_used": 0}
+    return {**base, "cache_provenance": "replay",
+            "model_used": prov.get("model_used", "unknown"),
+            "complexity": prov.get("complexity", "unknown"),
+            "retrieval_channels": prov.get("retrieval_channels", []),
+            "channels_dark": prov.get("channels_dark", []),
+            "passages_used": prov.get("passages_used", 0)}
+
+
 # ── Event Types for Progressive Streaming ───────────────────────────────
 @dataclass
 class SearchEvent:
@@ -471,12 +512,13 @@ class SearchPipeline:
                     logger.warning("cache_get_skip", trace_id=trace_id, error=str(e))
                     cached = None
                 if cached:
-                    logger.info("cache_hit", trace_id=trace_id)
+                    prov = cached.pop("_provenance", None) if isinstance(cached, dict) else None
+                    logger.info("cache_hit", trace_id=trace_id, provenance=bool(prov))
                     yield SearchEvent(type="answer", data=cached, trace_id=trace_id)
                     yield SearchEvent(
                         type="metadata",
-                        data={"latency_ms": round((time.perf_counter() - start) * 1000, 1),
-                              "cache_hit": True, "trace_id": trace_id},
+                        data=replay_metadata(
+                            prov, round((time.perf_counter() - start) * 1000, 1), trace_id),
                         trace_id=trace_id,
                     )
                     return
@@ -1578,6 +1620,11 @@ class SearchPipeline:
                         "structured_data": structured_data_out,
                         "confidence": confidence_out,
                         "sources": source_data,
+                        # Provenance travels with the answer. Without it a cache hit
+                        # reports channels [] and model "unknown", so the cheapest
+                        # replies are the ones nobody can audit.
+                        "_provenance": cache_provenance_of(
+                            retrieval_results, routing_decision, len(top_passages), trace_id),
                     }, tickers=_cache_tickers)
                 except Exception as e:
                     logger.warning("cache_set_skip", trace_id=trace_id, error=str(e))
@@ -1617,8 +1664,10 @@ class SearchPipeline:
                     # A dispatched-but-empty channel (ES down → [], structured gated
                     # → []) used to appear here and falsely imply 5 live channels.
                     "retrieval_channels": [k for k, v in (retrieval_results or {}).items() if v],
+                    "channels_dark": [k for k, v in (retrieval_results or {}).items() if not v],
                     "passages_used": len(top_passages),
                     "cache_hit": False,
+                    "cache_provenance": "live",
                     "self_consistency": use_self_consistency,
                     "numeric_mismatches": len(numeric_mismatches),
                     "temporal_mismatches": len(temporal_mismatches),
