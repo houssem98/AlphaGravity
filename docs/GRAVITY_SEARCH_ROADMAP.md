@@ -78,8 +78,12 @@ noise, so it cannot be this loop's acceptance gate until §7 GS-7 widens it.
 **0.8.0 is available and not installed** in Supabase. That pair is a dense channel for
 $0 — 18,445 chunks × 512 dims as `halfvec` ≈ 19 MB of the 206 MB headroom.
 
-**Not verified today, stated as unknown:** Fly billing standing (the CLI returned a
-metrics-token warning, which is not a payment signal); whether `voyage-finance-2` (1024-dim,
+**Fly billing — measured 2026-08-17, no longer unknown:** the account has **overdue
+invoices**. A deploy reaches the builder and dies with `403: Your account has overdue
+invoices`, so the running image cannot be replaced until it is paid. Every §6 row that
+measures prod is frozen at the 2026-07-07 build until then.
+
+**Not verified today, stated as unknown:** whether `voyage-finance-2` (1024-dim,
 the embedder the old vectors used) still has quota; PageIndex / TurboQuant / GDELT / MCP
 live behaviour, since neither test query routed to them.
 
@@ -177,6 +181,8 @@ Machine-checkable, all owned by `scripts/search-probe.mjs` (GS-1) unless noted.
 Grammar, one line per iteration: `- GS-n · iter k · R1 green, R4 green · <measured numbers>  [· fail: <mode>]`.
 Escalations: `- ESCALATION · GS-n · <what was asked, what came back>`.
 
+- **ESCALATION · GS-2 · the granted deploy is blocked by an unpaid invoice, not by policy.** `flyctl deploy -a gravity-api-prod` from `services/gravity-api` reached the builder and failed: `ensure depot builder failed (status 403): Your account has overdue invoices`. This also settles §1's "not verified today" line on Fly billing — it is past due, measured. Docker Desktop is not running either (`npipe:////./pipe/dockerDesktopLinuxEngine` refused), so the local-Redis fallback is unavailable too. Two unblocks, both user-only: pay the Fly invoice (E-S), or start Docker Desktop. Neither is the loop's to do
+- GS-2 · iter 2 · R2 red, R8 n/a · deploy attempted under the fresh §10 grant, failed on billing (above). GS-2 stays `[ ]`: the code and its 5 tests are committed at b59220d, and the row cannot go green without a running build of it
 - GS-2 · iter 1 · R2 red, R8 n/a · code landed, NOT closed. `cache_provenance_of()` + `replay_metadata()` in `search_pipeline.py` store the channel list, dark-channel list, model, complexity and passage count with the cached answer and restore them on a hit; entries written before today report `cache_provenance: legacy` with `model_used: unknown` rather than an empty channel list dressed as a measurement. `channels_dark` and `cache_provenance` added to `SearchMetadata` — the REST route drops unknown keys, so a field the schema does not declare never reaches the client. 5 new tests in `tests/test_cache_provenance.py`, **5 passed in 59.1s**, including the `json.dumps` round-trip because the cache stores its payload as a JSON string. R2 stays red on prod because prod still runs the 2026-07-07 image: this loop cannot deploy (§10 E-F). Probe gate before the work: 3 green, 0 fatal, 2 known-open, $0.0000 (fully cached run — see the finding below)
 - **ESCALATION · GS-2 · every remaining task has this shape.** §6 rows are measured against prod, §10 E-F forbids deploying, and prod's image predates all of this work — so GS-2 through GS-9 can land code and unit-test it but can never turn their rows green. Asked the user for one of: deploy authority for verified batches, a local verification target, or an explicit "land unverified" instruction. Second finding, same iteration: the probe's per-run `ref` marker does NOT reliably bust the semantic cache — run 5 returned $0.0000 with every query cached — so prod measurement drifts toward replay. Once GS-2 ships, `cache_provenance` makes that visible instead of silent
 - GS-1 · iter 1 · R1 green, R2 red, R3 red, R4 green, R10 green · `scripts/search-probe.mjs` + `supabase/migrations/0005_gravity_db_stats.sql`. Prod, 4 runs: R2 red both fresh and cached (channels [], model_used "unknown"); R3 single 1/1 facts cache=true, multi **0/2 facts cache=false 8 citations 12.3s** — the failure reproduces fresh, not from cache; R4 db 294.1MB/450, chunks 69.1MB/18,445 rows, financials 196.9MB/460,578 rows; R10 $0.0350 this run, $0.0730 cumulative of $15 over 4 runs. Three findings, all logged into §1/§5/§6: (a) the single-entity shape was ALREADY green, so R3 was strengthened to require the multi-entity comparison before GS-3 runs; (b) a red row whose owner task is still `[ ]` now reports KNOWN and exits 0 — a gate that halts on the bug it exists to catch can never let the fix land, and it turns fatal the moment its owner is `[x]`; (c) without a per-run `ref` marker the second probe run graded the first run's cache — $0.0000, channels [], 1.3s — so the probe cache-busts client-side, prod being read-only. Not verified: `--local` mode, no server was running. Schema added to prod: read-only `gravity_db_stats()`, service_role only, revoked from anon and authenticated
@@ -196,7 +202,7 @@ dev split, that is a finding worth more than a green checkbox.
 
 - **E-D · destructive DB writes.** GS-4's `DELETE`, any `VACUUM FULL`, any table drop.
 - **E-S · spend.** Any paid key, any Qdrant plan, any Supabase upgrade, crossing the §4 $15 LLM cap.
-- **E-F · deploy.** Pushing an image to Fly, restarting the prod machine, changing prod secrets. Prod is read-only to this loop.
+- **E-F · deploy.** ~~Prod is read-only to this loop.~~ **Granted 2026-08-17, scoped:** the loop may run `flyctl deploy` from `services/gravity-api` for a batch whose unit tests are green, then re-probe and close the row on the measured result. One machine, iad. Still escalations: scaling, a second region, changing prod secrets, and deploying anything whose tests are red.
 - **E-P · publishing.** `git push`, any PR, anything outward-facing.
 - **E-C · corpus.** Ingesting a source the loop did not write and has not read.
 
