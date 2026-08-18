@@ -205,6 +205,7 @@ DEFAULT_CHANNEL_WEIGHTS = {
     "structured": 1.2,   # exact XBRL facts
     "tree_nav": 1.1,     # navigated filing sections
     "mcp": 1.0,
+    "edgar": 1.2,        # live XBRL from the filer itself: exact, like structured
 }
 
 

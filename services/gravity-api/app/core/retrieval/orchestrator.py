@@ -74,6 +74,7 @@ class RetrievalOrchestrator:
         turbo_quant_search=None,  # Channel 7: TurboQuant compressed ANN (optional)
         gdelt_search=None,        # Channel 8: GDELT global news (free, no key)
         mcp_search=None,          # Channel 9: MCP financial data (FactSet, CapIQ, etc.)
+        edgar_search=None,        # Channel 10: live SEC EDGAR XBRL (free, no key)
         multi_query=None,         # MultiQueryRetriever — replaces dense for MEDIUM/COMPLEX
     ):
         self.channels = {}
@@ -99,6 +100,8 @@ class RetrievalOrchestrator:
             self.channels["gdelt"] = gdelt_search
         if mcp_search:
             self.channels["mcp"] = mcp_search
+        if edgar_search:
+            self.channels["edgar"] = edgar_search
 
         self._multi_query = multi_query
         logger.info("retrieval_orchestrator_init", channels=list(self.channels.keys()),
@@ -204,6 +207,7 @@ class RetrievalOrchestrator:
         "turbo_quant": 2.0,   # in-memory; fast
         "gdelt":       4.0,   # external HTTP; allow extra time
         "mcp":        15.0,   # MCP: external financial data APIs; variable latency
+        "edgar":       8.0,   # SEC EDGAR: 2-3 external HTTPS round trips per query
     }
 
     async def _safe_search(
@@ -248,6 +252,10 @@ class RetrievalOrchestrator:
                 coro = _gdelt_to_results(channel, query)
             elif name == "mcp":
                 # MCP channel accepts entities for ticker extraction
+                coro = channel.search(query=query, filters=filters, entities=entities)
+            elif name == "edgar":
+                # Live SEC XBRL. Needs filters too: the resolved ticker lives in
+                # filters["companies"] for the same reason the structured channel does.
                 coro = channel.search(query=query, filters=filters, entities=entities)
             else:
                 return []

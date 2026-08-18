@@ -5,7 +5,15 @@ Target: <50ms per query.
 """
 
 import json
+import re
+
 import structlog
+
+# Financial-metric words that make a company-scoped question worth asking the
+# filer directly. Deliberately narrow: EDGAR is an external round trip, so it
+# should not fire on every mention of a ticker.
+_EDGAR_METRIC_RE = re.compile(
+    r"\b(revenue|sales|net income|earnings|eps|profit|margin|assets|liabilities|equity|cash|inventory|cogs|ebitda|operating income|r&d|research and development)\b", re.I)
 
 from app.core.reasoning.prompts import QUERY_UNDERSTANDING_SYSTEM
 from app.llm.base import BaseLLMClient, LLMConfig, LLMMessage
@@ -133,6 +141,18 @@ class QueryUnderstanding:
             if plan["intent"] in ("calculation", "simple_lookup"):
                 if "structured" not in plan["retrieval_channels"]:
                     plan["retrieval_channels"].append("structured")
+
+            # Auto-add live EDGAR when a company is named and the ask is numeric.
+            # The structured channel answers from what ingestion happened to land;
+            # EDGAR answers from the filer, so a ticker outside the corpus still
+            # gets an exact figure instead of nothing.
+            _has_company = bool((plan.get("entities") or {}).get("companies"))
+            if _has_company and (
+                plan["intent"] in ("calculation", "simple_lookup")
+                or _EDGAR_METRIC_RE.search(query or "")
+            ):
+                if "edgar" not in plan["retrieval_channels"]:
+                    plan["retrieval_channels"].append("edgar")
 
             # Temporal/source intent (free heuristic) — drives recency routing + honesty
             plan.update(classify_temporal_intent(query))

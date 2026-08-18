@@ -138,6 +138,10 @@ class Settings(BaseSettings):
     edgar_polling_enabled: bool = False   # EDGAR_POLLING_ENABLED — auto-ingest new filings
     edgar_watchlist: str = ""             # EDGAR_WATCHLIST — comma-sep tickers; empty = all (firehose)
     edgar_filing_types: str = "10-K,10-Q,8-K"  # forms to poll
+    # SEC requires a descriptive User-Agent (app + contact) on every request;
+    # anonymous or generic agents get rate-limited or blocked outright.
+    sec_user_agent: str = "alphagravity-research houssemzitoub@gmail.com"
+
 
     @property
     def edgar_watchlist_set(self) -> set[str]:

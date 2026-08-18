@@ -722,7 +722,11 @@ class SearchPipeline:
                 #   3. reranked prose               (fills remaining budget)
                 # The budget GROWS to always hold every pin (small max_context_passages
                 # must never drop an exact fact); prose then fills to the cap.
-                _sf = retrieval_results.get("structured") or []
+                # EDGAR facts are the same kind of evidence as the structured
+                # XBRL rows — exact, period-matched, filer-sourced — so they
+                # share the top pin tier rather than competing with prose.
+                _sf = ((retrieval_results.get("structured") or [])
+                       + (retrieval_results.get("edgar") or []))
                 _tn = retrieval_results.get("tree_nav") or []
 
                 def _cid(p):

@@ -223,6 +223,16 @@ def get_search_pipeline():
     except Exception as e:
         logger.warning("dense_pg_unavailable", error=str(e))
 
+    # Channel 10: live SEC EDGAR XBRL. No key, no index — it calls the filer at
+    # query time, so tickers the corpus never ingested still return exact figures.
+    edgar = None
+    try:
+        from app.core.retrieval.edgar_search import EdgarSearch
+        edgar = EdgarSearch()
+        logger.info("edgar_ready")
+    except Exception as e:
+        logger.warning("edgar_unavailable", error=str(e))
+
     orchestrator = RetrievalOrchestrator(
         dense_search=dense,
         dense_pg_search=dense_pg,
@@ -234,6 +244,7 @@ def get_search_pipeline():
         page_index_search=page_index,
         turbo_quant_search=turbo_quant,
         gdelt_search=gdelt_search,
+        edgar_search=edgar,
         multi_query=multi_query,
     )
 
