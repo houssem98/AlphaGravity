@@ -12,6 +12,8 @@ exact tagged figures (e.g. "AAPL — Total Revenue (FY2022): $394,328M") so it
 stops guessing the wrong period/line-item from prose.
 """
 
+import re
+
 import structlog
 
 from app.core.retrieval.fusion import RetrievalResult
@@ -91,12 +93,26 @@ class StructuredSearch:
         # the measured "3 of 6 years" recall gap. This keeps facts on the right
         # periods without flooding (the metric filter below still narrows the rows).
         years = sorted({int(y) for y in re.findall(r"((?:19|20)\d{2})", query or "")})
+        # Quarterly rows are stored as FY2023Q1 alongside the annual FY2023. They
+        # are opt-in: `period` is text and "FY2025Q3" sorts ABOVE "FY2025", so
+        # without this gate the 24-row budget below would fill with quarters and
+        # push the annual figures — what almost every query actually wants — out
+        # of context entirely.
+        quarterly = bool(self._QUARTER_INTENT.search(query or ""))
         if years:
             if len(years) >= 2:
                 wanted: set[int] = set(range(years[0], years[-1] + 1))
             else:
                 wanted = {years[0], years[0] - 1}
-            flt["period"] = "in.(" + ",".join(f"FY{y}" for y in sorted(wanted)) + ")"
+            periods = [f"FY{y}" for y in sorted(wanted)]
+            if quarterly:
+                periods += [f"FY{y}Q{q}" for y in sorted(wanted) for q in (1, 2, 3, 4)]
+            flt["period"] = "in.(" + ",".join(periods) + ")"
+        elif not quarterly:
+            # No year named: exclude quarters by shape. Scoped to the FY prefix so
+            # the non-xbrl rows, whose periods are dates like "2026-05-20", are
+            # untouched.
+            flt["period"] = "not.like.FY*Q*"
 
         # When the query names a metric, narrow to it (precise lookup). Otherwise
         # (ratio queries — "quick ratio", "ROA") return the year's core items so the
@@ -226,6 +242,11 @@ class StructuredSearch:
     # Metrics with NO single XBRL row — they are computed from components. Matching
     # the literal name returns 0 rows; instead we fetch the period's core items so
     # the components are in context for the LLM/ratio engine to compute the result.
+    # "quarterly revenue", "revenue by quarter", "Q3 FY2024". Matched against the
+    # raw query so a quarter-shaped question opts into the FY####Q# rows.
+    _QUARTER_INTENT = re.compile(
+        r"\bquarter(?:ly|s)?\b|\bq[1-4]\b", re.I)
+
     _DERIVED_METRICS: frozenset[str] = frozenset({
         "free cash flow",      # = operating cash flow − capex
         "gross margin",        # = gross profit / revenue
