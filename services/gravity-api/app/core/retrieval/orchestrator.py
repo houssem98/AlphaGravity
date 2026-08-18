@@ -64,6 +64,7 @@ class RetrievalOrchestrator:
     def __init__(
         self,
         dense_search=None,
+        dense_pg_search=None,     # Channel 1b: pgvector halfvec(512), replaces Qdrant
         sparse_search=None,
         splade_search=None,
         graph_search=None,
@@ -78,6 +79,8 @@ class RetrievalOrchestrator:
         self.channels = {}
         if dense_search:
             self.channels["dense"] = dense_search
+        if dense_pg_search:
+            self.channels["dense_pg"] = dense_pg_search
         if sparse_search:
             self.channels["bm25"] = sparse_search
         if splade_search:

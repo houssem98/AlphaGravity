@@ -210,8 +210,22 @@ def get_search_pipeline():
     except Exception as e:
         logger.warning("gdelt_unavailable", error=str(e))
 
+    # Channel 1b: dense over pgvector. The Qdrant-backed `dense` channel above has
+    # been returning [] since its cluster was deleted; this one reads the halfvec
+    # column on `chunks`, which is where the corpus actually lives now. Registered
+    # only when the embeddings exist, so an empty column cannot masquerade as a
+    # working channel.
+    dense_pg = None
+    try:
+        from app.core.retrieval.dense_pg_search import DensePgSearch
+        dense_pg = DensePgSearch()
+        logger.info("dense_pg_ready")
+    except Exception as e:
+        logger.warning("dense_pg_unavailable", error=str(e))
+
     orchestrator = RetrievalOrchestrator(
         dense_search=dense,
+        dense_pg_search=dense_pg,
         sparse_search=sparse,
         splade_search=splade_search,
         graph_search=graph,
