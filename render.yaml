@@ -1,107 +1,133 @@
+# render.yaml — Render deploy for Gravity API + Market Server.
+#
+# This is an ALTERNATIVE to Fly, not a replacement. `services/gravity-api/fly.toml`
+# stays valid and untouched: when the Fly invoice is paid, going back is one
+# `fly deploy` with no code change and nothing here to undo. Both providers build
+# the SAME Dockerfile, so the running image is identical either way.
+#
+# Read docs/DEPLOY_PORTABILITY.md before deploying. Two env vars below MUST be
+# copied from Fly rather than generated, or existing data becomes unreadable.
 services:
   # ── Gravity API (FastAPI) ─────────────────────────────────────────────
   - type: web
     name: gravity-api
-    runtime: python
-    plan: starter         # bump to standard for prod
-    rootDir: services/gravity-api
-    region: oregon
-    buildCommand: pip install -r requirements.txt
-    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    runtime: docker
+    # Same Dockerfile Fly builds. A `runtime: python` + buildCommand setup would
+    # be a SECOND build definition that silently drifts from the container Fly
+    # ships; one Dockerfile means one artifact.
+    dockerfilePath: services/gravity-api/Dockerfile
+    dockerContext: services/gravity-api
+    # Fly runs primary_region = "iad" (us-east). `virginia` is the matching
+    # Render region — Supabase and the SEC endpoints are both east-coast, and
+    # `oregon` put every DB round trip across the country.
+    region: virginia
+    # Fly gives this 4096 MB with an explicit note that 2 GB OOMs on large
+    # 10-K/10-Q parsing. Render `starter` is 512 MB and will OOM on any ingest;
+    # `standard` (2 GB) is the floor for query serving, `pro` (4 GB) matches Fly.
+    plan: standard
     healthCheckPath: /health
-    autoDeploy: true
+    # Requires the repo connected to Render, which needs a git push (escalation).
+    autoDeploy: false
     envVars:
-      # Core
       - key: APP_ENV
         value: production
       - key: LOG_LEVEL
         value: INFO
-      - key: PORT
-        value: 10000        # Render injects but uvicorn needs $PORT explicit
-      # Self-hosted auth (A1)
-      - key: AUTH_JWT_SECRET
-        generateValue: true
-      # KEK for envelope-encrypted API key store (P0.4) — Render generates 32B
+
+      # ── Secrets that MUST be copied from Fly, never generated ──────────
+      # `generateValue: true` mints a NEW random value on first deploy. For
+      # these two that is data loss, not a fresh start:
+      #   KEY_ENCRYPTION_KEY_V1 decrypts the envelope-encrypted API key store —
+      #     a new KEK makes every stored key permanently undecryptable.
+      #   AUTH_JWT_SECRET signs issued tokens — a new secret logs out every
+      #     existing session and breaks tokens Fly already handed out.
+      # Copy both from `fly secrets list` / the Fly dashboard before deploying.
       - key: KEY_ENCRYPTION_KEY_V1
-        generateValue: true
-      # SAML state-signing secret (P0.6)
+        sync: false
+      - key: AUTH_JWT_SECRET
+        sync: false
       - key: SAML_STATE_SECRET
-        generateValue: true
-      # CORS — set after market-ui deployed
-      - key: CORS_ORIGINS
         sync: false
-      # LLM providers
+      - key: FILING_WEBHOOK_SECRET
+        sync: false
+
+      # ── Data plane ────────────────────────────────────────────────────
+      # The corpus lives in Supabase (chunks + financials + pgvector), NOT in a
+      # provider-managed Postgres. A Render-provisioned database would come up
+      # empty and the API would serve nothing while looking healthy — which is
+      # why no `databases:` block exists in this file.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      # Upstash (external, survives the provider switch).
+      - key: REDIS_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+
+      # ── LLM + retrieval providers ─────────────────────────────────────
       - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: ANTHROPIC_API_KEY_SECONDARY
         sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: GOOGLE_API_KEY
         sync: false
-      - key: COHERE_API_KEY
-        sync: false
-      - key: VOYAGE_API_KEY
-        sync: false
       - key: DEEPSEEK_API_KEY
         sync: false
       - key: GROQ_API_KEY
         sync: false
-      # Databases — wired via Render-managed PG + Render Redis below
-      - key: DATABASE_URL
-        fromDatabase:
-          name: gravity-pg
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          name: gravity-redis
-          type: redis
-          property: connectionString
-      # External vector + ES — provision separately (Qdrant Cloud + Elastic Cloud)
-      - key: QDRANT_URL
+      - key: VOYAGE_API_KEY
         sync: false
-      - key: ELASTICSEARCH_URL
+      - key: COHERE_API_KEY
         sync: false
-      - key: NEO4J_URI
-        sync: false
-      - key: NEO4J_PASSWORD
-        sync: false
-      # Optional integrations
+
+      # ── Integrations ──────────────────────────────────────────────────
       - key: TAVILY_API_KEY
+        sync: false
+      - key: FIRECRAWL_API_KEY
         sync: false
       - key: ALPHA_VANTAGE_API_KEY
         sync: false
       - key: FRED_API_KEY
         sync: false
-      - key: QUARTR_API_KEY
+      - key: PAGEINDEX_API_KEY
         sync: false
-      - key: HF_TOKEN
+      # SEC requires a descriptive User-Agent; the code defaults to one, this
+      # only overrides it.
+      - key: SEC_USER_AGENT
         sync: false
-      # Observability (N4)
+
+      # ── Feature gates ─────────────────────────────────────────────────
+      - key: TREE_NAV_ENABLED
+        value: "true"
+      - key: HEADROOM_ENABLED
+        value: "false"
+
+      # ── CORS — set to the deployed market-ui origin ───────────────────
+      - key: CORS_ORIGINS
+        sync: false
+
+      # ── Observability ─────────────────────────────────────────────────
       - key: SENTRY_DSN
-        sync: false
-      - key: OTEL_EXPORTER_OTLP_ENDPOINT
         sync: false
       - key: LANGFUSE_PUBLIC_KEY
         sync: false
       - key: LANGFUSE_SECRET_KEY
         sync: false
-      # Filing webhooks
-      - key: FILING_WEBHOOK_URLS
-        sync: false
-      - key: FILING_WEBHOOK_SECRET
-        generateValue: true
 
-  # ── Market Server (Express proxy / RBAC API) ──────────────────────────
+  # ── Market Server (Express proxy) ─────────────────────────────────────
   - type: web
     name: market-server
-    runtime: node
+    runtime: docker
+    dockerfilePath: services/market-server/Dockerfile
+    dockerContext: services/market-server
+    region: virginia
     plan: starter
-    rootDir: services/market-server
-    buildCommand: npm install && npm run build
-    startCommand: npm run start
     healthCheckPath: /api/health
-    autoDeploy: true
+    autoDeploy: false
     envVars:
       - key: NODE_ENV
         value: production
@@ -127,15 +153,7 @@ services:
       - key: GROQ_API_KEY
         sync: false
 
-  # ── Redis (managed) ───────────────────────────────────────────────────
-  - type: redis
-    name: gravity-redis
-    plan: starter
-    ipAllowList: []   # private — only accessible from Render services
-
-databases:
-  - name: gravity-pg
-    plan: starter         # 256MB / 1GB. Bump to standard for prod.
-    databaseName: gravity_search
-    user: antigravity
-    postgresMajorVersion: 16
+# No `databases:` and no managed Redis on purpose. Both would provision empty
+# stores next to the real ones (Supabase, Upstash), cost money, and give the API
+# a healthy-looking path to an empty corpus. Every data dependency here is
+# external and shared with Fly, which is what makes switching back free.
