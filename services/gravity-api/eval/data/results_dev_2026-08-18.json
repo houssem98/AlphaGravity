@@ -1,0 +1,554 @@
+{
+ "split": "dev",
+ "target": "https://gravity-api-prod.fly.dev",
+ "n": 60,
+ "gradable": 38,
+ "correct": 10,
+ "ci95": [
+  0.14971462389701296,
+  0.42009150206375323
+ ],
+ "spend_usd": 1.0470000000000004,
+ "results": [
+  {
+   "id": "financebench_id_03029",
+   "company": "3M",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "$1577.00",
+   "got": "No indexed documents found. To get answers, ingest the relevant SEC filings first: `POST /v1/documents/ingest` with the ticker symbol."
+  },
+  {
+   "id": "financebench_id_00941",
+   "company": "3M",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Following debt securities registered under 3M's name are lis",
+   "got": "No indexed documents found. To get answers, ingest the relevant SEC filings first: `POST /v1/documents/ingest` with the ticker symbol."
+  },
+  {
+   "id": "financebench_id_01858",
+   "company": "3M",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes, not only they distribute the dividends on a routine bas",
+   "got": "No indexed documents found. To get answers, ingest the relevant SEC filings first: `POST /v1/documents/ingest` with the ticker symbol."
+  },
+  {
+   "id": "financebench_id_02987",
+   "company": "Activision Blizzard",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "24.26",
+   "got": "No indexed documents found for Base. To get answers, ingest the relevant SEC filings first: `POST /v1/documents/ingest` with the ticker symbol."
+  },
+  {
+   "id": "financebench_id_04735",
+   "company": "Adobe",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "0.66",
+   "got": "No indexed documents found for Here's, Adobe. To get answers, ingest the relevant SEC filings first: `POST /v1/documents/ingest` with the ticker symbol."
+  },
+  {
+   "id": "financebench_id_07507",
+   "company": "Adobe",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "65.4%",
+   "got": "Adobe's unadjusted operating income declined from $1,494 million in FY2015 to $2,016 million in FY2016, a year-over-year change of -99.9% (rounded to one decimal place). This figure is derived from th"
+  },
+  {
+   "id": "financebench_id_03856",
+   "company": "Adobe",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "0.83",
+   "got": "The FY2017 operating cash flow ratio for Adobe cannot be computed from the provided sources. The operating cash flow ratio is defined as cash from operations divided by total current liabilities. Whil"
+  },
+  {
+   "id": "financebench_id_00540",
+   "company": "AES Corporation",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "AES has converted inventory 9.5 times in FY 2022.",
+   "got": "AES Corporation sold its inventory approximately **9.54x** in FY2022, based on the pre-computed ratio (cost of goods sold of $10,069,000,000 divided by inventory of $1,055,000,000).\n\nHowever, conventi"
+  },
+  {
+   "id": "financebench_id_10420",
+   "company": "AES Corporation",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "-0.02",
+   "got": "AES's FY2022 return on assets (ROA), defined as FY2022 net income divided by average total assets between FY2021 and FY2022, was **-1.42%**.\n\nCalculation: FY2022 net income was -$546 million[2]; FY202"
+  },
+  {
+   "id": "financebench_id_01079",
+   "company": "Amcor",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Amcor completed these acquisitions during FY2023:\n-100% equi",
+   "got": "The provided sources contain no information on Amcor's acquisitions for FY2021, FY2022, or FY2023. The passages only report financial statement line items — total current assets, revenue, gross profit"
+  },
+  {
+   "id": "financebench_id_00222",
+   "company": "AMD",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes. The quick ratio is 1.57, calculated as (cash and cash e",
+   "got": "The provided sources do not contain AMD's quick ratio for FY2022, nor the underlying balance-sheet components (quick assets and current liabilities) needed to compute it. The only quick-ratio figure a"
+  },
+  {
+   "id": "financebench_id_01279",
+   "company": "AMD",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "In 2022, AMD brought in the most cashflow from Operations",
+   "got": "The provided sources do not contain AMD's FY2022 cash flow data. The cash flow figures available cover FY2016–FY2020 (operating) and FY2016 (investing), with no FY2022 figures for any of the three act"
+  },
+  {
+   "id": "financebench_id_00563",
+   "company": "AMD",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Data Center",
+   "got": "The sources provided do not contain segment-level revenue data for AMD's FY2021 or FY2022 reporting periods. They only include total company revenue for those years ($16,434 million for FY2021[1] and "
+  },
+  {
+   "id": "financebench_id_00723",
+   "company": "American Express",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Performance is not measured through operating margin",
+   "got": "No indexed documents found. To get answers, ingest the relevant SEC filings first: `POST /v1/documents/ingest` with the ticker symbol."
+  },
+  {
+   "id": "financebench_id_00720",
+   "company": "American Express",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Performance is not measured through gross margin",
+   "got": "Gross margin is not a useful metric for American Express (AXP) as of FY2022, and the sources do not provide the data needed to compute it. AXP operates as a financial services company, where revenue i"
+  },
+  {
+   "id": "financebench_id_01351",
+   "company": "American Express",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "The effective tax rate for American Express has changed/drop",
+   "got": "The provided sources do not contain American Express's effective tax rate for FY2021 or FY2022. The passages cover revenue, net income, total assets, operating cash flow, and capital expenditures, but"
+  },
+  {
+   "id": "financebench_id_01964",
+   "company": "American Express",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Customer deposits",
+   "got": "The largest liability on American Express's balance sheet in FY2022 was **Total Liabilities of $203,643 million ($203.64B)**[7]. This figure represents the aggregate of all liability line items, and i"
+  },
+  {
+   "id": "financebench_id_01981",
+   "company": "American Express",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes",
+   "got": "The provided sources do not contain any data on American Express card member retention or card member counts for 2022. The sources only report financial statement figures — revenue, net income, total "
+  },
+  {
+   "id": "financebench_id_04254",
+   "company": "American Water Works",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "$1832.00",
+   "got": "American Water Works's FY2021 unadjusted operating income was $1,196 million ($1.20B)[2]. The requested metric — unadjusted EBITDA (operating income + depreciation and amortization from the cash flow "
+  },
+  {
+   "id": "financebench_id_01077",
+   "company": "Best Buy",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Best Buy closed two acquisitions, both these companies were ",
+   "got": "The provided sources contain no information on Best Buy's acquisitions for FY2021, FY2022, or FY2023. The passages only report gross profit, operating income, operating cash flow, and capital expendit"
+  },
+  {
+   "id": "financebench_id_00460",
+   "company": "Best Buy",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes, there is decline in number stores by 1.32% from 982 sto",
+   "got": "The provided sources do not contain any data on Best Buy store counts for Q2 FY2024 or FY2023. The sources cover only financial metrics (gross profit, operating income, net income, operating cash flow"
+  },
+  {
+   "id": "financebench_id_07661",
+   "company": "Block",
+   "kind": "numeric",
+   "correct": true,
+   "err": null,
+   "expected": "$382.00",
+   "got": "Block (formerly Square) generated **$382 million** in cash flow from operating activities in FY2020[2]. This figure is the SEC XBRL exact filing value for the period[2]. For context, FY2019 operating "
+  },
+  {
+   "id": "financebench_id_00517",
+   "company": "Boeing",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes. Boeing has product and service categories that represen",
+   "got": "The sources provided contain only Boeing's total revenue figures for FY2021 and FY2022 — $62,286 million and $66,608 million, respectively[1][2]. They do not include any product or service category re"
+  },
+  {
+   "id": "financebench_id_01091",
+   "company": "Boeing",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes. Multiple lawsuits have been filed against Boeing result",
+   "got": "The provided sources contain no information on Boeing's legal battles. They report only financial figures for FY2021 and FY2022: gross profit of $3,502 million in FY2022[2], operating income of -$3,54"
+  },
+  {
+   "id": "financebench_id_00678",
+   "company": "Boeing",
+   "kind": "boolean",
+   "correct": true,
+   "err": null,
+   "expected": "Yes. Boeing has an improving gross margin profile as of FY20",
+   "got": "Boeing's gross margin profile improved in FY2022. Gross margin expanded to 5.26% in FY2022, up from 4.84% in FY2021, a gain of 42 basis points. This reflects gross profit of $3,502 million on revenue "
+  },
+  {
+   "id": "financebench_id_00464",
+   "company": "Boeing",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes, Boeing's business is subject to cyclicality due to its ",
+   "got": "Boeing's business is subject to pronounced cyclicality, as evidenced by the volatility in its reported financials across FY2021–FY2025. Gross profit swung from $3,017M in FY2021[1] to $3,502M in FY202"
+  },
+  {
+   "id": "financebench_id_00585",
+   "company": "Boeing",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Effective tax rate in FY2022 was 0.62%, compared to  -14.76%",
+   "got": "The provided sources do not contain Boeing's effective tax rate for FY2021 or FY2022. The sources report gross profit, operating income, net income, operating cash flow, and capital expenditures for t"
+  },
+  {
+   "id": "financebench_id_06272",
+   "company": "Coca-Cola",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "0.8",
+   "got": "Coca-Cola's FY2022 dividend payout ratio was **79.82%**, computed as total cash dividends paid of $7,616,000,000 divided by net income attributable to shareholders of $9,542,000,000[1]. This ratio ref"
+  },
+  {
+   "id": "financebench_id_01346",
+   "company": "Corning",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "The effective tax rate of Corning has changed from 20% in FY",
+   "got": "No indexed documents found for Corning. To get answers, ingest the relevant SEC filings first: `POST /v1/documents/ingest` with the ticker symbol."
+  },
+  {
+   "id": "financebench_id_01244",
+   "company": "CVS Health",
+   "kind": "boolean",
+   "correct": true,
+   "err": null,
+   "expected": "Yes, CVS paid a $ 0.55 dividend per share every quarter in F",
+   "got": "Yes — CVS Health paid dividends to common shareholders in Q2 of FY2022. The company's FY2022 10-K reports total dividends paid of $2,907 million ($2.91B) for the full fiscal year[2], which includes th"
+  },
+  {
+   "id": "financebench_id_00839",
+   "company": "Foot Locker",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes. She was previous CEO of Ulta Beauty which means she had",
+   "got": "No indexed documents found. To get answers, ingest the relevant SEC filings first: `POST /v1/documents/ingest` with the ticker symbol."
+  },
+  {
+   "id": "financebench_id_04103",
+   "company": "General Mills",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "-3.7",
+   "got": "The FY2019 cash conversion cycle (CCC) for General Mills cannot be computed from the provided sources. The CCC formula requires DIO, DSO, and DPO, each of which depends on average inventory, average a"
+  },
+  {
+   "id": "financebench_id_03471",
+   "company": "General Mills",
+   "kind": "numeric",
+   "correct": true,
+   "err": null,
+   "expected": "0.68",
+   "got": "General Mills's FY2020 working capital ratio, defined as total current assets divided by total current liabilities, was **0.68** (rounded to two decimal places). This is computed from the FY2020 state"
+  },
+  {
+   "id": "financebench_id_04854",
+   "company": "General Mills",
+   "kind": "numeric",
+   "correct": true,
+   "err": null,
+   "expected": "$3215.00",
+   "got": "General Mills FY2020 free cash flow (FCF), defined as cash from operations minus capital expenditures, was **$3,215 million**.\n\nCalculation: $3,676M (FY2020 CFO)[2] − $461M (FY2020 CapEx)[4] = $3,215M"
+  },
+  {
+   "id": "financebench_id_00956",
+   "company": "Johnson & Johnson",
+   "kind": "boolean",
+   "correct": true,
+   "err": null,
+   "expected": "No, JnJ's FY2022 financials are not of a high growth company",
+   "got": "No indexed documents found. To get answers, ingest the relevant SEC filings first: `POST /v1/documents/ingest` with the ticker symbol."
+  },
+  {
+   "id": "financebench_id_01487",
+   "company": "Johnson & Johnson",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes, net earnings as a percent of sales increased from 20% i",
+   "got": "No indexed documents found. To get answers, ingest the relevant SEC filings first: `POST /v1/documents/ingest` with the ticker symbol."
+  },
+  {
+   "id": "financebench_id_00299",
+   "company": "JPMorgan",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Corporate. Its net revenue was -$473 million.",
+   "got": "The sources provided do not contain segment-level net revenue data for JPMorgan Chase's Q1 2021. They report only total annual revenue for FY2020 ($119,543 million) and FY2021 ($121,649 million)[1][2]"
+  },
+  {
+   "id": "financebench_id_00206",
+   "company": "JPMorgan",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Since JPM is a financial institution, gross margin is not a ",
+   "got": "Gross margin is not a meaningful profitability metric for JPMorgan Chase, and the sources provided do not contain the data needed to compute it. The passages report only total revenue for FY2016–FY202"
+  },
+  {
+   "id": "financebench_id_00394",
+   "company": "JPMorgan",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Corporate & Investment Bank. Its net income was $3725 millio",
+   "got": "The sources provided contain only JPMorgan Chase's firm-wide annual figures — FY2021 and FY2022 net income and net interest income — and do not include any segment-level net income data for Q2 2022. N"
+  },
+  {
+   "id": "financebench_id_02049",
+   "company": "JPMorgan",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes. It decreased.",
+   "got": "The sources provided contain no VaR (Value-at-Risk) figures for JPMorgan Chase, and no data for the second fiscal quarter of 2023 or the comparable prior-year period. The passages cover only FY2023 an"
+  },
+  {
+   "id": "financebench_id_04171",
+   "company": "MGM Resorts",
+   "kind": "numeric",
+   "correct": true,
+   "err": null,
+   "expected": "$303.00",
+   "got": "MGM Resorts reported year-end FY2018 accounts payable of **$303 million** ($0.30B) on its balance sheet[2]. This compares with $255 million ($0.26B) at FY2017 year-end[1], an increase of $48 million ("
+  },
+  {
+   "id": "financebench_id_01254",
+   "company": "MGM Resorts",
+   "kind": "boolean",
+   "correct": true,
+   "err": null,
+   "expected": "Yes. MGM maintained 0.01$ per share annual dividend through ",
+   "got": "Yes. MGM Resorts International paid $4 million in dividends to common shareholders in FY2022[2]. This compares to $5 million in FY2021[1], a decline of $1 million (-20.0% YoY).\n\n---\n**Sources**\n[1] MG"
+  },
+  {
+   "id": "financebench_id_00382",
+   "company": "MGM Resorts",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Las Vegas resorts contributed ~90% of company level EBITDAR ",
+   "got": "The sources provided do not contain any regional EBITDAR breakdown for MGM Resorts International for FY2022 (or any other period). The available figures are company-level totals only — FY2022 revenue "
+  },
+  {
+   "id": "financebench_id_04700",
+   "company": "Microsoft",
+   "kind": "numeric",
+   "correct": true,
+   "err": null,
+   "expected": "$32780.00",
+   "got": "Microsoft's FY2016 Cost of Revenue (COGS) was **$32,780 million** ($32.78B), as reported in the SEC XBRL data from the 10-K.[1][2] This figure is the authoritative filing value for the fiscal year end"
+  },
+  {
+   "id": "financebench_id_04080",
+   "company": "Nike",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "3.46",
+   "got": "The FY2021 inventory turnover ratio for Nike cannot be computed from the provided sources. The ratio requires FY2021 COGS ($24,576 million[2]) and average inventory between FY2020 and FY2021. While FY"
+  },
+  {
+   "id": "financebench_id_01163",
+   "company": "Nike",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Among the three, cash flow from operations was the highest f",
+   "got": "Operating activities brought in the most cash for Nike in FY2023, with operating cash flow of $5,841 million ($5.84B)[2]. Investing activities generated $564 million ($0.56B)[4], while financing activ"
+  },
+  {
+   "id": "financebench_id_00080",
+   "company": "Paypal",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes. Paypal has a positive working capital of $ 1.6Bn as of ",
+   "got": "Based on FY2022 data, PayPal's working capital position cannot be determined from the provided sources because the sources do not include total current liabilities for FY2022. Working capital is defin"
+  },
+  {
+   "id": "financebench_id_01009",
+   "company": "PepsiCo",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "As of FY2022, Pepsico primarily operates in the following ge",
+   "got": "The provided sources contain only EPS figures for PepsiCo (PEP) for FY2021 and FY2022 — they do not include any geographic segment information. As a result, the geographies PepsiCo primarily operates "
+  },
+  {
+   "id": "financebench_id_03620",
+   "company": "PepsiCo",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "$9068.00",
+   "got": "The requested metric — FY2022 unadjusted EBITDA less capex, defined as unadjusted operating income plus depreciation and amortization from the cash flow statement, minus capital expenditures — cannot "
+  },
+  {
+   "id": "financebench_id_01482",
+   "company": "PepsiCo",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "The shareholder proposal for a congruency report by Pepsico ",
+   "got": "The sources provided contain only PepsiCo EPS figures for FY2022 and FY2023[1][2][3][4]. None of the passages reference the May 3, 2023 AGM, the shareholder proposal on a net-zero congruency report, o"
+  },
+  {
+   "id": "financebench_id_00302",
+   "company": "Pfizer",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes, change in PPNE was positive year over year",
+   "got": "The sources provided do not contain any data on Pfizer's PPNE (Property, Plant, and Equipment) for FY2020 or FY2021. The available figures cover Revenue for FY2016–FY2020 and Net Income for FY2021–FY2"
+  },
+  {
+   "id": "financebench_id_00702",
+   "company": "Pfizer",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "Yes, the gain on completion of Consumer Healthcare JV Transa",
+   "got": "Pfizer's FY2019 net income rose to $16,273 million ($16.27B)[2], up from $11,153 million ($11.15B) in FY2018[1] — a $5,120 million increase (+45.9% YoY). The sources provide only the net income figure"
+  },
+  {
+   "id": "financebench_id_00283",
+   "company": "Pfizer",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "77.78",
+   "got": "The sources provided do not contain any figure for the cost Pfizer expects to pay to spin off Upjohn. The passages cover Pfizer's revenue for FY2016–FY2020 and total assets for FY2022, FY2023, and FY2"
+  },
+  {
+   "id": "financebench_id_00724",
+   "company": "Pfizer",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Developed Rest of the World",
+   "got": "The sources provided contain only annual total revenue figures for Pfizer (FY2022 and FY2023) and do not include any quarterly or geographic segment revenue data for Q2 2023. Therefore, the geographic"
+  },
+  {
+   "id": "financebench_id_00746",
+   "company": "Ulta Beauty",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "There are none",
+   "got": "The provided sources do not contain any information about debt securities registered to trade on a national securities exchange under Ulta Beauty's name as of FY2023. The sources cover revenue, curren"
+  },
+  {
+   "id": "financebench_id_00606",
+   "company": "Ulta Beauty",
+   "kind": "prose",
+   "correct": null,
+   "err": null,
+   "expected": "Wages expense as a percent of net sales increased in FY2023.",
+   "got": "The sources provided do not contain Ulta Beauty's wages expense figures for FY2022 or FY2023, so the change in wages expense as a percent of net sales cannot be determined from the available data. Net"
+  },
+  {
+   "id": "financebench_id_00216",
+   "company": "Verizon",
+   "kind": "boolean",
+   "correct": true,
+   "err": null,
+   "expected": "No. The quick ratio was approximately 0.54 for Verizon. It i",
+   "got": "Verizon's FY2022 quick ratio of 0.71x[1] indicates a liquidity profile that is below the conventional 1.0x threshold, suggesting the company may not cover all current liabilities with its most liquid "
+  },
+  {
+   "id": "financebench_id_00566",
+   "company": "Verizon",
+   "kind": "boolean",
+   "correct": false,
+   "err": null,
+   "expected": "No. Verizon's debt decreased by $229 million.",
+   "got": "The sources provided do not contain Verizon's total debt figures for FY2021 or FY2022, so the question of whether debt increased cannot be answered from the available data. The passages cover revenue,"
+  },
+  {
+   "id": "financebench_id_04784",
+   "company": "Walmart",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "0.2%",
+   "got": "The FY2018–FY2019 change in unadjusted operating income % margin for Walmart cannot be computed from the provided sources. The sources report only operating income in absolute dollar terms — $20,437 m"
+  },
+  {
+   "id": "financebench_id_06741",
+   "company": "Walmart",
+   "kind": "numeric",
+   "correct": false,
+   "err": null,
+   "expected": "6.2%",
+   "got": "The requested 3-year average unadjusted EBITDA % margin for FY2018–FY2020 cannot be calculated from the provided sources. The sources contain only operating income for each fiscal year: FY2018 $20,437"
+  }
+ ]
+}
