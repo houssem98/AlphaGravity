@@ -81,3 +81,10 @@ apps/market-ui/diag-tmp.mjs
 apps/market-ui/r17.txt
 *.exe
 attachments/
+
+# Generated run artifacts — audit/eval output, not source.
+services/gravity-api/results/
+
+# Personal ticket PDF that lives in this folder; carries a phone number and a
+# live check-in code, so it must never enter git history.
+Invitation.pdf
