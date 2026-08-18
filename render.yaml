@@ -5,8 +5,10 @@
 # `fly deploy` with no code change and nothing here to undo. Both providers build
 # the SAME Dockerfile, so the running image is identical either way.
 #
-# Read docs/DEPLOY_PORTABILITY.md before deploying. Two env vars below MUST be
-# copied from Fly rather than generated, or existing data becomes unreadable.
+# Read docs/DEPLOY_PORTABILITY.md before deploying. FOUR secrets below MUST be
+# copied from Fly rather than generated, or data becomes unreadable and live
+# credentials stop working. The env list is reconciled against the real
+# `fly secrets list` inventory, not inferred from the code.
 services:
   # ── Gravity API (FastAPI) ─────────────────────────────────────────────
   - type: web
@@ -46,9 +48,13 @@ services:
         sync: false
       - key: AUTH_JWT_SECRET
         sync: false
-      - key: SAML_STATE_SECRET
+      # AUTH_TOKEN_SECRET and SUPABASE_JWT_SECRET are the same hazard class:
+      # AUTH_TOKEN_SECRET signs the non-JWT auth tokens, and SUPABASE_JWT_SECRET
+      # validates the Supabase-issued JWTs the search WebSocket authenticates
+      # with. Regenerating either rejects credentials that are currently valid.
+      - key: AUTH_TOKEN_SECRET
         sync: false
-      - key: FILING_WEBHOOK_SECRET
+      - key: SUPABASE_JWT_SECRET
         sync: false
 
       # ── Data plane ────────────────────────────────────────────────────
@@ -62,7 +68,9 @@ services:
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
-      # Upstash (external, survives the provider switch).
+      # NOT set on Fly today — prod runs with no REDIS_URL, so anything that
+      # would use it is already running on whatever fallback the code chooses.
+      # Setting it on Render would make the two deploys behave differently.
       - key: REDIS_URL
         sync: false
       - key: DATABASE_URL
@@ -71,9 +79,12 @@ services:
       # ── LLM + retrieval providers ─────────────────────────────────────
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: OPENAI_API_KEY
+      - key: ANTHROPIC_API_KEY_SECONDARY
         sync: false
       - key: GOOGLE_API_KEY
+        sync: false
+      # Set on Fly as a separate name with an identical value to GOOGLE_API_KEY.
+      - key: GEMINI_API_KEY
         sync: false
       - key: DEEPSEEK_API_KEY
         sync: false
@@ -84,12 +95,34 @@ services:
       - key: COHERE_API_KEY
         sync: false
 
+      # ── Transactional email (password reset, verification) ────────────
+      # All five are set on Fly. Without them those flows fail at send time,
+      # after the user has already been told the mail is on its way.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      # Base URL used to build links in those emails — must be the RENDER
+      # hostname while Render is serving, or reset links point back at Fly.
+      - key: APP_URL
+        sync: false
+
       # ── Integrations ──────────────────────────────────────────────────
       - key: TAVILY_API_KEY
         sync: false
-      - key: FIRECRAWL_API_KEY
-        sync: false
       - key: ALPHA_VANTAGE_API_KEY
+        sync: false
+      # Not set on Fly today. Listed so enabling one is a dashboard edit rather
+      # than a config change; unset behaves exactly as it does on Fly.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: FIRECRAWL_API_KEY
         sync: false
       - key: FRED_API_KEY
         sync: false

@@ -23,9 +23,10 @@ Measured from `services/gravity-api/fly.toml`, not assumed:
 | HTTPS | `force_https = true` | |
 
 Everything stateful is **external to Fly** — Supabase (corpus, `chunks`,
-`financials`, pgvector), Upstash Redis, and the LLM/embedding vendor APIs. That
-is what makes this portable at all: no volumes, no provider-managed database, no
-data to migrate.
+`financials`, pgvector) and the LLM/embedding vendor APIs. That is what makes
+this portable at all: no volumes, no provider-managed database, no data to
+migrate. Note that `REDIS_URL` is not among Fly's secrets, so prod is running
+without an external Redis today.
 
 ## Fly → Render mapping
 
@@ -40,7 +41,7 @@ data to migrate.
 | `force_https` | Default on Render |
 | `fly secrets set` | `envVars` with `sync: false`, set in the dashboard |
 
-## The footgun: two secrets that must be COPIED, not generated
+## The footgun: four secrets that must be COPIED, not generated
 
 The previous `render.yaml` declared these with `generateValue: true`, which mints
 a **new random value on first deploy**. For two of them that is data loss:
@@ -51,11 +52,18 @@ a **new random value on first deploy**. For two of them that is data loss:
 - **`AUTH_JWT_SECRET`** — signs issued tokens. A new secret invalidates every
   session and every token Fly already handed out.
 
-Both are now `sync: false` in `render.yaml`. Copy the real values off Fly
-(`fly secrets list` shows names and digests; the values come from wherever they
-were originally stored) **before** the first Render deploy. Copying them is also
-what lets Fly and Render serve the same users interchangeably — and what makes
-switching back seamless instead of another forced logout.
+Two more in the same class, both confirmed set on Fly:
+
+- **`AUTH_TOKEN_SECRET`** — signs the non-JWT auth tokens.
+- **`SUPABASE_JWT_SECRET`** — validates the Supabase-issued JWTs the search
+  WebSocket authenticates with. Regenerating it rejects credentials that are
+  currently valid.
+
+All four are `sync: false` in `render.yaml`. Copy the real values off Fly
+**before** the first Render deploy. `fly secrets list` shows names and digests
+only — the values come from wherever they were originally stored. Copying them
+is also what lets Fly and Render serve the same users interchangeably, and what
+makes switching back seamless instead of another forced logout.
 
 ## What changed in `render.yaml` and why
 
@@ -64,7 +72,8 @@ The file was stale relative to the current architecture:
 - **Removed the `databases:` block (Render Postgres) and the managed Redis.**
   The corpus lives in Supabase. A Render-provisioned Postgres would come up empty
   and the API would pass its health check while answering nothing — the worst
-  possible failure shape. Redis is Upstash and is already external.
+  possible failure shape. A managed Redis would likewise be a store Fly does not
+  have, so the two deploys would stop matching.
 - **Removed `QDRANT_URL`, `ELASTICSEARCH_URL`, `NEO4J_URI`/`NEO4J_PASSWORD`.**
   The Qdrant cluster was deleted; ES and Neo4j were never provisioned on this
   deploy. Carrying dead config invites re-enabling dead channels.
@@ -77,6 +86,36 @@ The file was stale relative to the current architecture:
   drifts from the container Fly ships.
 - **`region: oregon` → `virginia`.** Oregon put every Supabase round trip across
   the continent from an `iad`-adjacent database.
+
+## Reconciled against the real Fly inventory
+
+`fly secrets list -a gravity-api-prod` returns 29 secrets. `render.yaml` now
+declares all of them except two, and the reconciliation surfaced things the
+code-derived list had missed:
+
+- **Transactional email was entirely absent.** `SMTP_HOST`, `SMTP_PORT`,
+  `SMTP_USER`, `SMTP_PASSWORD` and `EMAIL_FROM` are all set on Fly. Without them
+  password-reset and verification fail at send time — after the user has been
+  told the mail is on its way.
+- **`APP_URL`** builds the links inside those emails. If it still points at Fly
+  while Render is serving, every reset link goes to the wrong deploy.
+- **`GEMINI_API_KEY` and `GOOGLE_API_KEY` carry identical values** under two
+  names. Both are set; code reads one or the other depending on the path.
+- **`ANTHROPIC_API_KEY_SECONDARY`** exists — the fallback key in the router
+  chain.
+- **`REDIS_URL` is NOT set on Fly.** Production runs without it today, so
+  whatever uses Redis is already on its fallback. Setting it on Render would
+  make the two deploys behave *differently*, which is the opposite of the goal.
+
+**Deliberately excluded:** `QDRANT_URL` and `QDRANT_API_KEY` are still set on
+Fly, but the Qdrant cluster was deleted — they are dead secrets pointing at
+nothing. They are not carried over. Worth deleting from Fly too, so nothing
+tries to revive that channel on the strength of a live-looking credential.
+
+Not set on Fly and therefore not required on Render: `OPENAI_API_KEY`,
+`FIRECRAWL_API_KEY`, `FRED_API_KEY`, `PAGEINDEX_API_KEY`, `SENTRY_DSN`,
+`LANGFUSE_*`. They stay declared as `sync: false` so enabling one is a dashboard
+edit; unset behaves exactly as it does on Fly today.
 
 ## Free tier — the honest version
 
