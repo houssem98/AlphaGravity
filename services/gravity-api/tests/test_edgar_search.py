@@ -57,10 +57,13 @@ class _Resp:
 class _FakeHTTP:
     """Routes by URL shape. `concepts` maps us-gaap tag -> payload (or None for 404)."""
 
-    def __init__(self, concepts=None, ticker_map=TICKER_MAP, raises=None):
+    def __init__(self, concepts=None, ticker_map=TICKER_MAP, raises=None,
+                 companyfacts=None):
         self.concepts = concepts or {}
         self.ticker_map = ticker_map
         self.raises = raises
+        # cik -> full companyfacts payload, for the filer-profile fallback.
+        self.companyfacts = companyfacts or {}
         self.urls = []
 
     async def get(self, url):
@@ -69,6 +72,10 @@ class _FakeHTTP:
             raise self.raises
         if "company_tickers.json" in url:
             return _Resp(self.ticker_map)
+        if "/companyfacts/" in url:
+            cik = int(url.rsplit("/", 1)[-1].removesuffix(".json").removeprefix("CIK"))
+            payload = self.companyfacts.get(cik)
+            return _Resp(payload, 200) if payload else _Resp(None, 404)
         tag = url.rsplit("/", 1)[-1].removesuffix(".json")
         payload = self.concepts.get(tag)
         return _Resp(payload, 200) if payload else _Resp(None, 404)
@@ -298,6 +305,97 @@ class TestMultiYearQuarterlyBreadth:
         out = await _channel(concepts={REV: self.THREE_YEAR_QUARTERLY}).search(
             query, entities=self.ENTITIES)
         assert len(out) <= 60
+
+
+class TestAFilerThatReportsNoRevenueAtAll:
+    """
+    A pre-merger SPAC files no revenue tag — there is no operating business yet.
+    Returning nothing made the pipeline answer "No indexed documents found, ingest
+    the filings first", which is wrong twice: EDGAR was queried live and SEC did
+    answer, and ingestion cannot produce a figure the company never filed. Real
+    shape and figures from Yorkville International Capital Corp. (CIK 2130386),
+    10-Q for the quarter ended 2026-06-30.
+    """
+
+    SPAC_MAP = {
+        "0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."},
+        "1": {"cik_str": 2130386, "ticker": "YICC",
+              "title": "Yorkville International Capital Corp."},
+    }
+    ACCN = "0002130386-26-000010"
+    SPAC_FACTS = {
+        2130386: {
+            "entityName": "YORKVILLE INTERNATIONAL CAPITAL CORP.",
+            "facts": {"us-gaap": {
+                "AssetsHeldInTrustNoncurrent": {"units": {"USD": [
+                    {"end": "2026-06-30", "val": 230_300_725,
+                     "form": "10-Q", "accn": ACCN}]}},
+                "InvestmentIncomeInterest": {"units": {"USD": [
+                    {"start": "2026-04-01", "end": "2026-06-30", "val": 300_725,
+                     "form": "10-Q", "accn": ACCN}]}},
+                "GeneralAndAdministrativeExpense": {"units": {"USD": [
+                    {"start": "2026-04-01", "end": "2026-06-30", "val": 194_210,
+                     "form": "10-Q", "accn": ACCN}]}},
+                "Assets": {"units": {"USD": [
+                    {"end": "2026-06-30", "val": 231_410_098,
+                     "form": "10-Q", "accn": ACCN}]}},
+            }},
+        }
+    }
+    QUERY = "Yorkville International Capital Corp. Units revenue"
+    ENTITIES = {"companies": [{"ticker": "YICC"}]}
+
+    def _spac(self):
+        return _channel(concepts={}, ticker_map=self.SPAC_MAP,
+                        companyfacts=self.SPAC_FACTS)
+
+    @pytest.mark.asyncio
+    async def test_the_channel_answers_instead_of_going_silent(self):
+        out = await self._spac().search(self.QUERY, entities=self.ENTITIES)
+        assert out, "a filer with no revenue tag must still produce passages"
+
+    @pytest.mark.asyncio
+    async def test_it_says_the_metric_is_absent_not_unindexed(self):
+        out = await self._spac().search(self.QUERY, entities=self.ENTITIES)
+        lead = out[0].text.lower()
+        assert "no revenue" in lead
+        assert "not merely unindexed" in lead
+        assert out[0].metadata["metric_present"] is False
+
+    @pytest.mark.asyncio
+    async def test_the_trust_balance_comes_back_as_a_citable_exact_figure(self):
+        out = await self._spac().search(self.QUERY, entities=self.ENTITIES)
+        trust = [r for r in out if r.metadata.get("tag") == "AssetsHeldInTrustNoncurrent"]
+        assert len(trust) == 1
+        assert trust[0].metadata["value"] == 230_300_725
+        assert trust[0].text.startswith("[EXACT FILING FIGURE]")
+        assert self.ACCN in trust[0].metadata["filing_url"].replace("-", "")  \
+            or self.ACCN in trust[0].metadata["filing_url"]
+
+    @pytest.mark.asyncio
+    async def test_the_lead_passage_spells_out_the_position_inline(self):
+        # A terse model will not assemble the position from eight sibling
+        # passages; the headline number has to be in the passage that explains
+        # the absence, or the answer stops at "no revenue".
+        out = await self._spac().search(self.QUERY, entities=self.ENTITIES)
+        assert "230,300,725" in out[0].text
+        assert "300,725" in out[0].text
+
+    @pytest.mark.asyncio
+    async def test_an_operating_company_never_takes_this_path(self):
+        # AAPL reports revenue, so the profile fallback must not fire — and the
+        # companyfacts endpoint must not even be called.
+        http = _FakeHTTP(concepts={REV: ANNUAL}, companyfacts=self.SPAC_FACTS)
+        out = await EdgarSearch(http_client=http).search("What was AAPL revenue?")
+        assert out
+        assert all(r.metadata.get("metric_present") is not False for r in out)
+        assert not any("/companyfacts/" in u for u in http.urls)
+
+    @pytest.mark.asyncio
+    async def test_a_filer_with_nothing_at_all_still_returns_empty(self):
+        out = await _channel(concepts={}, ticker_map=self.SPAC_MAP,
+                             companyfacts={}).search(self.QUERY, entities=self.ENTITIES)
+        assert out == []
 
 
 class TestRequestHygiene:

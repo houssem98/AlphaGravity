@@ -903,6 +903,29 @@ class SearchPipeline:
                     for e in query_plan.get("entities", {}).get("companies", [])
                 ]
                 company_hint = f" for {', '.join(companies)}" if companies else ""
+                # "Ingest the filings" is only true advice when the corpus is the
+                # only place we looked. The EDGAR channel queries SEC live, so if
+                # it ran and still found nothing, the figure is absent from the
+                # filer's XBRL and no amount of ingestion will produce it —
+                # telling the user to ingest sends them to fix a non-problem.
+                _planned = query_plan.get("retrieval_channels")
+                _edgar_ran = isinstance(_planned, (list, tuple, set)) and "edgar" in _planned
+                _no_data_msg = (
+                    (
+                        f"No SEC filing data found{company_hint}. Live SEC EDGAR was "
+                        f"queried directly and returned no matching figures, so this is "
+                        f"not an indexing gap — either the company reports nothing under "
+                        f"the requested concept, or the company could not be resolved to "
+                        f"a filer. Try naming the exact ticker, or ask for a different "
+                        f"metric."
+                    )
+                    if _edgar_ran
+                    else (
+                        f"No indexed documents found{company_hint}. "
+                        f"To get answers, ingest the relevant SEC filings first: "
+                        f"`POST /v1/documents/ingest` with the ticker symbol."
+                    )
+                )
                 yield SearchEvent(
                     type="sources",
                     data={"sources": []},
@@ -911,11 +934,7 @@ class SearchPipeline:
                 yield SearchEvent(
                     type="answer",
                     data={
-                        "answer": (
-                            f"No indexed documents found{company_hint}. "
-                            f"To get answers, ingest the relevant SEC filings first: "
-                            f"`POST /v1/documents/ingest` with the ticker symbol."
-                        ),
+                        "answer": _no_data_msg,
                         "citations": [],
                         "confidence": "NONE",
                         "follow_up_queries": [],

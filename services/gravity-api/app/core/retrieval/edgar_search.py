@@ -36,6 +36,7 @@ TICKER_MAP_URL = "https://www.sec.gov/files/company_tickers.json"
 CONCEPT_URL = (
     "https://data.sec.gov/api/xbrl/companyconcept/CIK{cik:010d}/us-gaap/{tag}.json"
 )
+COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
 TICKER_MAP_TTL_S = 24 * 3600
 
 # SEC asks for <=10 requests/second. One semaphore for the process is enough:
@@ -95,6 +96,30 @@ _TAG_FALLBACKS: dict[str, list[str]] = {
 
 _QUARTER_INTENT = re.compile(r"\bquarter(?:ly|s)?\b|\bq[1-4]\b", re.I)
 
+# When the asked-for metric is absent from a filer's XBRL entirely, these are the
+# tags worth reporting instead, most explanatory first. A pre-merger SPAC is the
+# motivating case: it has no revenue because it has no operating business, and
+# what it does have — money in trust, interest earned on it, G&A burn — is the
+# actual answer to "what are this company's financials". Human labels, since the
+# tag names themselves are not what an answer should quote.
+_PROFILE_TAGS: list[tuple[str, str]] = [
+    ("AssetsHeldInTrustNoncurrent", "assets held in trust"),
+    ("AssetsHeldInTrust", "assets held in trust"),
+    ("AssetsHeldInTrustCurrent", "assets held in trust (current)"),
+    ("InvestmentIncomeInterest", "interest/investment income earned on the trust"),
+    ("InterestIncomeOther", "other interest income"),
+    ("GeneralAndAdministrativeExpense", "general and administrative expense"),
+    ("OperatingIncomeLoss", "operating income (loss)"),
+    ("NetIncomeLoss", "net income (loss)"),
+    ("Assets", "total assets"),
+    ("Liabilities", "total liabilities"),
+    ("StockholdersEquity", "shareholders equity"),
+    ("Cash", "cash"),
+    ("CashAndCashEquivalentsAtCarryingValue", "cash and cash equivalents"),
+    ("NetCashProvidedByUsedInOperatingActivities", "net cash used in operating activities"),
+]
+_MAX_PROFILE_FACTS = 8
+
 _COMMON_NON_TICKERS = {
     "I", "A", "AN", "THE", "AND", "OR", "FOR", "IN", "OF", "TO", "IS", "IT", "AT",
     "ON", "BY", "AS", "IF", "DO", "VS", "EPS", "LTM", "YOY", "DCF", "LBO", "MCP",
@@ -144,6 +169,15 @@ def extract_tickers(
 
 def _d(s: str) -> date:
     return date.fromisoformat(s[:10])
+
+
+def _edgar_filings_url(cik: int) -> str:
+    """Filer's filing index — the citable landing page when no single accession
+    owns the statement (the profile passage spans whatever the filer reports)."""
+    return (
+        "https://www.sec.gov/cgi-bin/browse-edgar"
+        f"?action=getcompany&CIK={cik:010d}&type=&dateb=&owner=include&count=40"
+    )
 
 
 class EdgarSearch:
@@ -277,7 +311,7 @@ class EdgarSearch:
             return []
         found = await self._fetch_concept(cik, tag)
         if not found:
-            return []
+            return await self._filer_profile(ticker, cik, label)
         used_tag, payload = found
         units = payload.get("units") or {}
 
@@ -286,7 +320,136 @@ class EdgarSearch:
             if quarterly
             else self._annual_rows(units, years)
         )
+        if not rows:
+            # The tag exists but nothing survived period selection — a filer
+            # younger than one fiscal year has no duration long enough to pass
+            # the annual window, for instance. Same reasoning as a missing tag:
+            # say what IS there rather than returning silence.
+            return await self._filer_profile(ticker, cik, label)
         return [self._to_result(ticker, cik, used_tag, label, r) for r in rows[:limit]]
+
+    @staticmethod
+    def _latest_fact(entry: dict) -> dict | None:
+        """Most recently ended fact for one companyfacts tag, across all units."""
+        best: dict | None = None
+        for unit, points in (entry.get("units") or {}).items():
+            for p in points:
+                if not p.get("end") or p.get("val") is None:
+                    continue
+                if best is None or p["end"] > best["end"]:
+                    best = {**p, "unit": unit}
+        return best
+
+    async def _filer_profile(
+        self, ticker: str, cik: int, label: str
+    ) -> list[RetrievalResult]:
+        """
+        The filer does not report the metric that was asked for. Returning []
+        here is what made the pipeline answer "No indexed documents found —
+        ingest the filings first", which is wrong twice over: EDGAR *was* queried,
+        SEC *did* answer, and no amount of ingestion will produce a figure the
+        company never filed. So state the absence and hand back what the filer
+        actually reports, which is what lets the answer explain *why* the metric
+        is missing (a pre-merger SPAC has no revenue because it has no business
+        yet — it has money in trust).
+
+        One extra request, and only on a miss: an operating company asked for a
+        normal metric never reaches this path.
+        """
+        facts = await self._get_json(COMPANYFACTS_URL.format(cik=cik))
+        if not facts:
+            return []
+        gaap = (facts.get("facts") or {}).get("us-gaap") or {}
+        if not gaap:
+            return []
+        name = facts.get("entityName") or ticker
+
+        picked: list[tuple[str, str, dict]] = []
+        seen_labels: set[str] = set()
+        for tag_name, human in _PROFILE_TAGS:
+            if tag_name not in gaap or human in seen_labels:
+                continue
+            fact = self._latest_fact(gaap[tag_name])
+            if fact:
+                picked.append((tag_name, human, fact))
+                seen_labels.add(human)
+            if len(picked) >= _MAX_PROFILE_FACTS:
+                break
+        if not picked:
+            return []
+
+        latest_end = max(f["end"] for _t, _h, f in picked)
+        # Inline the inventory rather than relying on the answer to assemble it
+        # from eight sibling passages. The headline number for a filer like this
+        # is the trust balance, and a terse model will skip it if it has to go
+        # find it — spelling the position out in one passage is what makes the
+        # answer say "no revenue, but $230.3M sits in trust" instead of only the
+        # first half.
+        inventory = "; ".join(
+            f"{human} {self._fmt(f.get('val'), f.get('unit', ''))}"
+            for _t, human, f in picked
+        )
+        out = [
+            RetrievalResult(
+                chunk_id=f"edgar:{ticker}:absent:{label.replace(' ', '')}",
+                document_id=f"edgar:{ticker}:profile",
+                text=(
+                    f"{ticker} ({name}, CIK {cik}) reports no {label} in its SEC XBRL "
+                    f"data — the tag is absent from its filings, not merely unindexed. "
+                    f"A filer with no {label} is typically pre-operating: a blank-check "
+                    f"/ SPAC company holding its IPO proceeds in trust while it searches "
+                    f"for a merger target, a newly registered filer, or a holding entity. "
+                    f"What this filer does report, as of {latest_end} (of "
+                    f"{len(gaap)} us-gaap concepts in total): {inventory}."
+                ),
+                score=1.0,
+                document_title=f"{ticker} — SEC XBRL filer profile",
+                section="XBRL companyfacts",
+                filing_date=latest_end,
+                ticker=ticker,
+                document_type="sec_edgar_xbrl",
+                source_quality=10,
+                metadata={
+                    "cik": cik,
+                    "entity_name": name,
+                    "requested_metric": label,
+                    "metric_present": False,
+                    "tags_reported": len(gaap),
+                    "channel": "edgar",
+                    "filing_url": _edgar_filings_url(cik),
+                    "source_url": _edgar_filings_url(cik),
+                },
+            )
+        ]
+        for tag_name, human, fact in picked:
+            out.append(
+                self._to_result(
+                    ticker,
+                    cik,
+                    tag_name,
+                    human,
+                    {
+                        "fy": _d(fact["end"]).year,
+                        "quarter": None,
+                        "value": fact.get("val"),
+                        "unit": fact.get("unit", ""),
+                        "form": fact.get("form", ""),
+                        "accn": fact.get("accn", ""),
+                        "end": fact["end"],
+                        "derived": False,
+                        "derivation": "",
+                    },
+                )
+            )
+        logger.info(
+            "edgar_filer_profile",
+            ticker=ticker,
+            cik=cik,
+            requested=label,
+            facts=len(picked),
+            tags_reported=len(gaap),
+        )
+        return out
 
     @staticmethod
     def _annual_rows(units: dict, years: list[int]) -> list[dict]:
