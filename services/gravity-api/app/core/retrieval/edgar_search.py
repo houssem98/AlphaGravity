@@ -215,7 +215,21 @@ class EdgarSearch:
             quarterly = bool(_QUARTER_INTENT.search(query or ""))
             years = sorted({int(y) for y in re.findall(r"(?:19|20)\d{2}", query or "")})
 
-            per_ticker = max(2, top_k // max(len(tickers), 1))
+            # A query naming multiple years plus quarterly intent needs room for
+            # every period it asked for (up to 4 quarters/year, incl. a derived
+            # Q4) — not just the generic `top_k` default. Below this fix, a
+            # 3-year quarterly ask (12 periods) silently lost its two oldest
+            # quarters to the sorted-descending `rows[:limit]` cut in
+            # `_for_ticker`, even though every quarter was correctly fetched
+            # and derived. Capped so a garbled query (e.g. a long paragraph
+            # whose incidental 4-digit tokens all parse as years) can't blow
+            # the fan-out open unbounded.
+            num_years = len(years) if years else 1
+            periods_wanted = num_years * 4 if quarterly else num_years
+            effective_top_k = max(top_k, periods_wanted) if years else top_k
+            effective_top_k = min(effective_top_k, 60)
+
+            per_ticker = max(2, effective_top_k // max(len(tickers), 1))
             batches = await asyncio.gather(
                 *[
                     self._for_ticker(t, tag, label, quarterly, years, per_ticker)
@@ -236,10 +250,16 @@ class EdgarSearch:
                 tag=tag,
                 tickers=tickers[:3],
                 quarterly=quarterly,
+                years=years,
+                effective_top_k=effective_top_k,
             )
-            return out[:top_k]
+            return out[:effective_top_k]
         except Exception as e:
-            logger.error("edgar_search_failed", error=str(e)[:200])
+            # exc_info so a real failure (bad JSON shape, unexpected SEC
+            # response, etc.) is distinguishable in logs from "SEC genuinely
+            # had nothing" — both currently look identical as `results=0` to
+            # anything outside this process.
+            logger.error("edgar_search_failed", error=str(e)[:200], exc_info=True)
             return []
 
     async def _for_ticker(

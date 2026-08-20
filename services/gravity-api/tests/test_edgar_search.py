@@ -201,6 +201,105 @@ class TestTagSelection:
         assert extract_tickers("What is the EPS for FY 2023?") == []
 
 
+class TestMultiYearQuarterlyBreadth:
+    """
+    A 3-fiscal-year quarterly ask names 12 periods (4 quarters x 3 years, one
+    derived Q4 per year). Before the effective_top_k fix, the channel's own
+    `top_k=10` default silently truncated this to the 10 most recent periods,
+    dropping FY2023 Q1/Q2 even though they were fetched and correctly derived
+    upstream. Real Apple FY2023-2025 figures, matching what SEC EDGAR actually
+    reports (cross-checked against the filed 9-month cumulative each year).
+    """
+
+    THREE_YEAR_QUARTERLY = {
+        "cik": 320193,
+        "tag": REV,
+        "units": {"USD": [
+            # FY2023
+            {"start": "2022-09-25", "end": "2022-12-31", "val": 117_154_000_000,
+             "form": "10-Q", "accn": "0000320193-23-000006"},
+            {"start": "2023-01-01", "end": "2023-04-01", "val": 94_836_000_000,
+             "form": "10-Q", "accn": "0000320193-23-000064"},
+            {"start": "2023-04-02", "end": "2023-07-01", "val": 81_797_000_000,
+             "form": "10-Q", "accn": "0000320193-23-000077"},
+            {"start": "2022-09-25", "end": "2023-09-30", "val": 383_285_000_000,
+             "form": "10-K", "accn": "0000320193-23-000106"},
+            # FY2024
+            {"start": "2023-10-01", "end": "2023-12-30", "val": 119_575_000_000,
+             "form": "10-Q", "accn": "0000320193-24-000006"},
+            {"start": "2023-12-31", "end": "2024-03-30", "val": 90_753_000_000,
+             "form": "10-Q", "accn": "0000320193-24-000069"},
+            {"start": "2024-03-31", "end": "2024-06-29", "val": 85_777_000_000,
+             "form": "10-Q", "accn": "0000320193-24-000081"},
+            {"start": "2023-10-01", "end": "2024-09-28", "val": 391_035_000_000,
+             "form": "10-K", "accn": "0000320193-24-000123"},
+            # FY2025
+            {"start": "2024-09-29", "end": "2024-12-28", "val": 124_300_000_000,
+             "form": "10-Q", "accn": "0000320193-25-000008"},
+            {"start": "2024-12-29", "end": "2025-03-29", "val": 95_359_000_000,
+             "form": "10-Q", "accn": "0000320193-25-000057"},
+            {"start": "2025-03-30", "end": "2025-06-28", "val": 94_036_000_000,
+             "form": "10-Q", "accn": "0000320193-25-000073"},
+            {"start": "2024-09-29", "end": "2025-09-27", "val": 416_161_000_000,
+             "form": "10-K", "accn": "0000320193-25-000079"},
+        ]},
+    }
+
+    # "Apple", not "AAPL" — deliberately not a bare uppercase ticker the regex
+    # fallback in extract_tickers would catch. In production the LLM query-
+    # understanding step resolves "Apple" -> AAPL into `entities` before the
+    # channel ever sees the query; these tests pass that resolved entity to
+    # match how the orchestrator actually calls this channel.
+    QUERY = "Apple quarterly revenue for FY2023, FY2024, and FY2025 including Q4 each year"
+    ENTITIES = {"companies": [{"ticker": "AAPL"}]}
+
+    @pytest.mark.asyncio
+    async def test_all_twelve_periods_come_back_not_just_the_ten_most_recent(self):
+        out = await _channel(concepts={REV: self.THREE_YEAR_QUARTERLY}).search(
+            self.QUERY, entities=self.ENTITIES)
+        assert len(out) == 12, (
+            f"expected all 3 filed quarters x 3 years + 3 derived Q4s = 12, got {len(out)}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_the_oldest_quarters_survive_the_cut(self):
+        # These are exactly what a top_k=10 default drops first under
+        # descending (fy, quarter) sort — the regression this test guards.
+        out = await _channel(concepts={REV: self.THREE_YEAR_QUARTERLY}).search(
+            self.QUERY, entities=self.ENTITIES)
+        periods = {(r.metadata["fiscal_year"], r.metadata["fiscal_quarter"]) for r in out}
+        assert (2023, 1) in periods
+        assert (2023, 2) in periods
+
+    @pytest.mark.asyncio
+    async def test_every_year_gets_its_derived_q4(self):
+        out = await _channel(concepts={REV: self.THREE_YEAR_QUARTERLY}).search(
+            self.QUERY, entities=self.ENTITIES)
+        derived_q4_years = {
+            r.metadata["fiscal_year"] for r in out
+            if r.metadata["fiscal_quarter"] == 4 and r.metadata["derived"]
+        }
+        assert derived_q4_years == {2023, 2024, 2025}
+
+    @pytest.mark.asyncio
+    async def test_derived_q4_values_match_fy_total_minus_filed_quarters(self):
+        out = await _channel(concepts={REV: self.THREE_YEAR_QUARTERLY}).search(
+            self.QUERY, entities=self.ENTITIES)
+        by_period = {(r.metadata["fiscal_year"], r.metadata["fiscal_quarter"]): r for r in out}
+        assert by_period[(2023, 4)].metadata["value"] == pytest.approx(89_498_000_000, abs=1_000_000)
+        assert by_period[(2024, 4)].metadata["value"] == pytest.approx(94_930_000_000, abs=1_000_000)
+        assert by_period[(2025, 4)].metadata["value"] == pytest.approx(102_466_000_000, abs=1_000_000)
+
+    @pytest.mark.asyncio
+    async def test_a_wide_year_range_is_still_bounded_not_unbounded(self):
+        # Sanity check on the min(..., 60) ceiling: a query naming a huge span
+        # doesn't turn into an unbounded fan-out.
+        query = "AAPL quarterly revenue every year from 1998 to 2025"
+        out = await _channel(concepts={REV: self.THREE_YEAR_QUARTERLY}).search(
+            query, entities=self.ENTITIES)
+        assert len(out) <= 60
+
+
 class TestRequestHygiene:
     @pytest.mark.asyncio
     async def test_the_ticker_map_is_fetched_once_and_reused(self):
