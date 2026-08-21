@@ -903,6 +903,29 @@ class SearchPipeline:
                     for e in query_plan.get("entities", {}).get("companies", [])
                 ]
                 company_hint = f" for {', '.join(companies)}" if companies else ""
+                # "Ingest the filings" is only true advice when the corpus is the
+                # only place we looked. The EDGAR channel queries SEC live, so if
+                # it ran and still found nothing, the figure is absent from the
+                # filer's XBRL and no amount of ingestion will produce it —
+                # telling the user to ingest sends them to fix a non-problem.
+                _planned = query_plan.get("retrieval_channels")
+                _edgar_ran = isinstance(_planned, (list, tuple, set)) and "edgar" in _planned
+                _no_data_msg = (
+                    (
+                        f"No SEC filing data found{company_hint}. Live SEC EDGAR was "
+                        f"queried directly and returned no matching figures, so this is "
+                        f"not an indexing gap — either the company reports nothing under "
+                        f"the requested concept, or the company could not be resolved to "
+                        f"a filer. Try naming the exact ticker, or ask for a different "
+                        f"metric."
+                    )
+                    if _edgar_ran
+                    else (
+                        f"No indexed documents found{company_hint}. "
+                        f"To get answers, ingest the relevant SEC filings first: "
+                        f"`POST /v1/documents/ingest` with the ticker symbol."
+                    )
+                )
                 yield SearchEvent(
                     type="sources",
                     data={"sources": []},
@@ -911,11 +934,7 @@ class SearchPipeline:
                 yield SearchEvent(
                     type="answer",
                     data={
-                        "answer": (
-                            f"No indexed documents found{company_hint}. "
-                            f"To get answers, ingest the relevant SEC filings first: "
-                            f"`POST /v1/documents/ingest` with the ticker symbol."
-                        ),
+                        "answer": _no_data_msg,
                         "citations": [],
                         "confidence": "NONE",
                         "follow_up_queries": [],
@@ -1071,6 +1090,42 @@ class SearchPipeline:
                     "as a current price or today's value. Offer the latest *reported* figure "
                     "only if relevant, clearly labeled with its filing date.\n\n"
                 ) + user_content
+            # METRIC ABSENT FROM THE FILER — the EDGAR channel could not find the
+            # asked-for concept in this filer's XBRL and returned its reported
+            # position instead. Left alone the model answers the literal question
+            # and stops ("no revenue"), discarding the balances the sources handed
+            # it: measured 0/6 on "YICC revenue" while every trial retrieved the
+            # $230,300,725 trust balance. A global system rule did not move that
+            # (also 0/6); this notice does, because rule 13 binds the model to obey
+            # a DATA-COVERAGE NOTICE verbatim and it is scoped to the one request
+            # that needs it rather than diluting the standing rules.
+            _absent = next(
+                (p for p in top_passages
+                 if (getattr(p, "metadata", None) or {}).get("metric_present") is False),
+                None,
+            )
+            if _absent is not None:
+                _md = getattr(_absent, "metadata", None) or {}
+                _metric = _md.get("requested_metric") or "the requested metric"
+                user_content = (
+                    "## DATA-COVERAGE NOTICE\n"
+                    f"This filer reports NO {_metric} in its own SEC XBRL. That is a "
+                    "filed fact, not a gap in our index, and not grounds to refuse: the "
+                    "sources DO contain this company's reported financial position.\n"
+                    "Structure the answer in this order:\n"
+                    f"1. State plainly that {_metric} is not reported, and give the reason "
+                    "the sources give (e.g. a pre-merger SPAC / blank-check company has no "
+                    "operating business yet, only IPO proceeds held in trust).\n"
+                    "2. Then REPORT THE POSITION THE FILER DOES FILE, largest balance "
+                    "FIRST (for a blank-check company that is the trust account — it is "
+                    "the number the question is actually reaching for), followed by total "
+                    "assets, total liabilities, and the income/expense lines. Cite each "
+                    "figure; they are all [EXACT FILING FIGURE] sources.\n"
+                    "Do NOT stop after step 1 — an answer that omits the balances leaves "
+                    "the question half-answered. Confidence HIGH: an absence stated by the "
+                    "filer's own XBRL is a filed fact.\n\n"
+                ) + user_content
+
             # Prepend deterministic data (ratios + calculator) before sources
             # so the LLM sees verified numbers first and never needs to recompute
             if ratio_context_block:

@@ -163,6 +163,18 @@ def format_sources(passages: list, max_passages: int = 15) -> str:
         if txt.startswith("[EXACT FILING FIGURE]") or txt.startswith("[Financial Fact]"):
             return True
         md = getattr(p, "metadata", None) or {}
+        # The EDGAR filer-profile passage states that the asked-for metric is absent
+        # from the filer's XBRL and carries the position the filer DOES report. It is
+        # the direct answer to the question, but it is prose rather than a single
+        # figure, so the prefix test above misses it and the interleave buried it at
+        # [Source 9] beneath unrelated prose while the answer cited it as the basis
+        # for "no revenue". Pinned for the same reason the facts are: it is filed
+        # ground truth, not one more retrieved opinion. This changes ORDER only —
+        # measured over 6 trials it did not change which figures the model chose to
+        # quote, which turned out to be governed by the question's scope, not by
+        # passage position.
+        if md.get("metric_present") is False:
+            return True
         return md.get("source_channel") == "tree_nav"
 
     pinned = [p for p in pool if _is_pinned(p)]
