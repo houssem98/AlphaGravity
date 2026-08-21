@@ -4,6 +4,7 @@ GET  /v1/documents/{id}    — fetch document metadata
 GET  /v1/documents         — list documents with pagination
 """
 
+import asyncio
 import structlog
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, Response
 from typing import Any
@@ -25,6 +26,13 @@ MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
 
 async def get_db():
     from app.db.postgres import async_session
+    # `async_session` is a stub (postgres.py) — asyncpg is the live path. Yield None
+    # so the route's own handler returns 503 instead of the dependency raising an
+    # uncaught TypeError, which strips the CORS headers off the error and reads in
+    # the browser as a CORS failure rather than "database unavailable".
+    if async_session is None:
+        yield None
+        return
     async with async_session() as session:
         yield session
 
@@ -663,38 +671,68 @@ async def list_documents(
         for k, v in headers.items():
             response.headers[k] = v
 
-        from app.db.models import Document
-        from sqlalchemy import and_, select
+        # `documents` as a table does not exist on this deploy — the SQLAlchemy
+        # session is a None stub (postgres.py), so the ORM path returned 503 for
+        # every caller. Chunk metadata over PostgREST is the productive path, the
+        # same one company.py:company_filings already uses.
+        from app.db import supabase_rest
 
-        filters = []
+        params: dict[str, str] = {"order": "filing_date.desc.nullslast"}
         if ticker:
-            filters.append(Document.ticker == ticker.upper())
+            params["ticker"] = f"eq.{ticker.upper()}"
         if filing_type:
-            filters.append(Document.filing_type == filing_type.upper())
+            params["filing_type"] = f"eq.{filing_type.upper()}"
+        # PostgREST caps every response at 1000 rows, and one 10-Q alone can be
+        # ~1000 chunks — a single page would list two filings for the whole
+        # corpus. Page in parallel; 20 x 1000 covers the corpus with headroom.
+        _PAGE, _PAGES = 1000, 20
+        pages = await asyncio.gather(*[
+            supabase_rest.sb_select(
+                "chunks",
+                params,
+                select="document_id,document_title,filing_type,filing_date,ticker",
+                limit=_PAGE,
+                offset=i * _PAGE,
+            )
+            for i in range(_PAGES)
+        ])
+        rows = [r for page in pages for r in page]
 
-        query = select(Document).order_by(Document.created_at.desc())
-        if filters:
-            query = query.where(and_(*filters))
-        query = query.limit(limit).offset(offset)
-
-        result = await db.execute(query)
-        docs = result.scalars().all()
-
-        return {
-            "documents": [
-                {
-                    "id": doc.id,
-                    "ticker": doc.ticker,
-                    "company_name": doc.company_name,
-                    "filing_type": doc.filing_type,
-                    "filing_date": str(doc.filing_date) if doc.filing_date else None,
-                    "title": doc.title,
-                    "chunk_count": doc.chunk_count,
-                    "status": doc.status,
-                    "created_at": doc.created_at.isoformat() if doc.created_at else None,
+        by_doc: dict[str, dict] = {}
+        for r in rows:
+            doc_id = r.get("document_id") or ""
+            if not doc_id or doc_id.startswith("xbrl:"):
+                continue
+            doc = by_doc.get(doc_id)
+            if doc is None:
+                by_doc[doc_id] = doc = {
+                    "id": doc_id,
+                    "ticker": r.get("ticker") or "",
+                    "company_name": None,
+                    "filing_type": r.get("filing_type") or "",
+                    "filing_date": r.get("filing_date"),
+                    "title": r.get("document_title") or "",
+                    "chunk_count": 0,
+                    "status": "indexed",
+                    "created_at": None,
                 }
-                for doc in docs
-            ],
+            doc["chunk_count"] += 1
+
+        # Collapse repeat ingests of one filing (same title), keeping the richest.
+        by_filing: dict[str, dict] = {}
+        for doc in by_doc.values():
+            key = doc["title"] or doc["id"]
+            best = by_filing.get(key)
+            if best is None or doc["chunk_count"] > best["chunk_count"]:
+                by_filing[key] = doc
+
+        docs = sorted(
+            by_filing.values(),
+            key=lambda d: (d["filing_date"] or ""),
+            reverse=True,
+        )
+        return {
+            "documents": docs[offset:offset + limit],
             "total": len(docs),
             "limit": limit,
             "offset": offset,

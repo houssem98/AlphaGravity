@@ -16,6 +16,13 @@ router = APIRouter()
 
 async def get_db():
     from app.db.postgres import async_session
+    # `async_session` is a stub (postgres.py) — asyncpg is the live path. Yield None
+    # so the route's own handler returns 503 instead of the dependency raising an
+    # uncaught TypeError, which strips the CORS headers off the error and reads in
+    # the browser as a CORS failure rather than "database unavailable".
+    if async_session is None:
+        yield None
+        return
     async with async_session() as session:
         yield session
 

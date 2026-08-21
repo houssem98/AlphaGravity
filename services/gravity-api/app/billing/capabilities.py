@@ -67,6 +67,10 @@ class Capability:
         return self.source_path().exists()
 
     def for_tier(self, tier_id: str) -> CapValue:
+        # `unlimited` (dev bypass + internal service keys, tiers.py) has no column
+        # of its own; it reads the top sold tier so it is never more restricted.
+        if tier_id == "unlimited":
+            tier_id = "institutional"
         try:
             return getattr(self, tier_id)
         except AttributeError as e:
