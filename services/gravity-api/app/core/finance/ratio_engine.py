@@ -46,6 +46,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import re
 
 import structlog
 from dataclasses import dataclass, field
@@ -913,6 +914,38 @@ RATIO_QUERY_PATTERNS: list[tuple[str, list[str]]] = [
 ]
 
 
+# A period naming a quarter, e.g. "Q1 2025" or the comma-joined list the query
+# planner emits for "the last 4 quarters".
+_QUARTERLY_PERIOD = re.compile(r"\bQ[1-4]\b", re.I)
+
+# Why a quarterly ask cannot be served. The `financials` table stores two row
+# families: FY-keyed rows sourced from xbrl_companyfacts (caption set, unit USD,
+# values in dollars) and date-keyed backfill rows (caption empty, unit empty,
+# values off by orders of magnitude — META "Cost of revenue" 2026-01-29 is 740
+# against 30,161,000,000 for FY2024). The engine reads the FY family on purpose;
+# the date-keyed rows are the known-bad backfill, so there is no quarterly source
+# to compute from and inventing one would produce margins from those numbers.
+QUARTERLY_UNSUPPORTED = (
+    "Annual figures only — the metrics store holds fiscal-year rows; "
+    "no quarterly ratio is computed"
+)
+
+
+def _period_year(period: str) -> int | None:
+    """
+    First 4-digit year in the period, whatever shape it arrives in.
+
+    Callers pass "FY2024", "2024", "Q1 2025", "FY 2024", and the planner's
+    comma-joined "Q1 2025, Q4 2024, Q3 2024, Q2 2024". The previous anchored
+    match — (?:FY|Q[1-4])?(\\d{4}) — required the year to sit immediately after
+    the prefix, so every space-separated form returned None and the engine
+    silently computed nothing, including the "Q4 2025" shape compute()'s own
+    docstring advertises.
+    """
+    m = re.search(r"(?:19|20)\d{2}", period or "")
+    return int(m.group(0)) if m else None
+
+
 @dataclass
 class RatioResult:
     ratio_key: str
@@ -1010,13 +1043,21 @@ class MultiRatioOutput:
         if blocks:
             parts.append("\n\n".join(blocks))
         if missing:
+            # Carry each company's actual reason. "no data for this company" and
+            # "this store holds no quarterly rows at all" call for different
+            # answers, and a single flat "no data" line collapses them.
+            reasons = {}
+            for o in self.outputs:
+                if o.computed_any:
+                    continue
+                why = next((r.error for r in o.ratios if r.error), "no data")
+                reasons[o.ticker] = why
             parts.append(
                 "## Companies With No Pre-Computed Ratios — "
                 f"{self.period}\n"
-                "No figures for these companies were available in the metrics store, "
-                "so no ratio was computed for them. Do NOT infer or estimate their "
-                "values, and do not present the comparison as complete:\n"
-                + "\n".join(f"- **{t}**: no data" for t in missing)
+                "No ratio was computed for these companies. Do NOT infer or estimate "
+                "their values, and do not present the comparison as complete:\n"
+                + "\n".join(f"- **{t}**: {reasons.get(t, 'no data')}" for t in missing)
             )
         return "\n\n".join(parts)
 
@@ -1049,9 +1090,7 @@ class RatioEngine:
             from app.db import supabase_rest
             if not supabase_rest.configured():
                 return {}
-            import re as _re
-            m = _re.match(r"(?:FY|Q[1-4])?(\d{4})", period.upper())
-            year = int(m.group(1)) if m else None
+            year = _period_year(period)
             if year is None:
                 return {}
 
@@ -1153,7 +1192,9 @@ class RatioEngine:
         Args:
             ticker:  Stock ticker, e.g. "AAPL"
             metrics: List of metric/ratio names (user-friendly or key form)
-            period:  "FY2025", "Q4 2025", "Q1 2026", etc.
+            period:  "FY2025" or "2025". A quarterly period is accepted and
+                     answered with QUARTERLY_UNSUPPORTED on every ratio — the
+                     metrics store has no quarterly rows worth computing from.
 
         Returns:
             RatioEngineOutput with .ratios list and .context_block string.
@@ -1161,6 +1202,22 @@ class RatioEngine:
         ratio_keys = self._resolve_metric_keys(metrics)
         if not ratio_keys:
             return RatioEngineOutput(ticker=ticker, period=period)
+
+        # Say why, rather than returning an empty output that reads as "we looked
+        # and found nothing" when the truth is "this store has no quarterly rows
+        # worth reading". Without this the answer cannot tell the two apart.
+        if _QUARTERLY_PERIOD.search(period or ""):
+            return RatioEngineOutput(ticker=ticker, period=period, ratios=[
+                RatioResult(
+                    ratio_key=key, label=RATIO_DEFINITIONS[key].label, value=None,
+                    unit=RATIO_DEFINITIONS[key].unit,
+                    numerator_value=None, denominator_value=None,
+                    numerator_metric=RATIO_DEFINITIONS[key].numerator[0],
+                    denominator_metric=RATIO_DEFINITIONS[key].denominator[0],
+                    ticker=ticker, period=period, error=QUARTERLY_UNSUPPORTED,
+                )
+                for key in ratio_keys
+            ])
 
         # Collect all raw metric names needed
         needed_metrics: set[str] = set()

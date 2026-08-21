@@ -15,7 +15,12 @@ No invented numbers.
 """
 import pytest
 
-from app.core.finance.ratio_engine import MultiRatioOutput, RatioEngine
+from app.core.finance.ratio_engine import (
+    QUARTERLY_UNSUPPORTED,
+    MultiRatioOutput,
+    RatioEngine,
+    _period_year,
+)
 
 # ticker -> (revenue, operating_income), FY2024 10-K, as filed.
 FAANG_FY2024: dict[str, tuple[float, float]] = {
@@ -97,9 +102,11 @@ class TestAMissingCompanyIsNamedNotDropped:
         out = await _engine(self.PARTIAL).compute_many(
             FAANG, ["operating_margin"], "FY2024")
         block = out.context_block
-        assert "no data" in block.lower()
         for ticker in ("AMZN", "NFLX"):
             assert ticker in block, f"{ticker} must be named as missing, not omitted"
+            # each gets its own stated reason, not a bare shrug
+            line = next(l for l in block.splitlines() if l.startswith(f"- **{ticker}**"))
+            assert "Missing data" in line, line
         # and the ones that DID compute are still there with their numbers
         assert "42.18" in block and "31.51" in block
 
@@ -159,3 +166,55 @@ class TestDegenerateInput:
         out = await _engine().compute_many_from_query(
             FAANG, "who is the CEO", "FY2024")
         assert out.outputs == []
+
+
+class TestPeriodParsing:
+    r"""
+    The period regex was anchored — `(?:FY|Q[1-4])?(\d{4})` — so it only matched
+    when the year sat immediately after the prefix. Every space-separated shape
+    returned None and the engine computed nothing at all, including "Q4 2025",
+    which compute()'s own docstring advertised as supported.
+    """
+
+    @pytest.mark.parametrize("period,year", [
+        ("FY2024", 2024),
+        ("2024", 2024),
+        ("FY 2024", 2024),          # was None
+        ("Q1 2025", 2025),          # was None
+        ("Q4 2025", 2025),          # was None — a documented input
+        ("Q12025", 2025),
+        ("Q1 2025, Q4 2024, Q3 2024, Q2 2024", 2025),   # planner's compound form
+        ("no year here", None),
+        ("", None),
+    ])
+    def test_year_is_extracted(self, period, year):
+        assert _period_year(period) == year
+
+
+class TestQuarterlyIsRefusedWithAReason:
+    """
+    The store holds FY rows from xbrl_companyfacts alongside date-keyed backfill
+    rows whose captions are empty and whose values are off by orders of magnitude
+    (META "Cost of revenue" 2026-01-29 is 740, against 30,161,000,000 for FY2024).
+    So a quarterly ask cannot be served, and must not be served from those rows.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_quarterly_period_reports_why_not_silence(self):
+        out = await _engine().compute("AAPL", ["operating_margin"], "Q1 2025")
+        assert out.ratios, "must not return an empty output"
+        assert out.ratios[0].value is None
+        assert out.ratios[0].error == QUARTERLY_UNSUPPORTED
+
+    @pytest.mark.asyncio
+    async def test_the_reason_reaches_the_injected_block(self):
+        out = await _engine().compute_many(FAANG, ["operating_margin"], "Q1 2025")
+        assert out.missing == FAANG
+        block = out.context_block
+        assert "Annual figures only" in block
+        assert "no quarterly ratio is computed" in block
+
+    @pytest.mark.asyncio
+    async def test_annual_periods_are_unaffected(self):
+        out = await _engine().compute("AAPL", ["operating_margin"], "FY2024")
+        assert out.ratios[0].value == pytest.approx(31.51, abs=0.01)
