@@ -34,19 +34,30 @@ class SemanticCache:
         self.threshold = threshold or settings.semantic_cache_threshold
 
     @staticmethod
-    def _ns(tickers: list[str] | None) -> str:
+    def _ns(tickers: list[str] | None, depth: str | None = None) -> str:
         """Namespace cache by the resolved company set so a query about one
         company can never semantically match a cached answer for another — the
         query *template* ("revenue growth for X in 2025") is >0.95 similar across
-        companies, so a global cache returns the wrong company's answer."""
-        if not tickers:
-            return "_"
-        return "|".join(sorted({t.upper() for t in tickers if t}))
+        companies, so a global cache returns the wrong company's answer.
 
-    async def get(self, query: str, tickers: list[str] | None = None) -> dict | None:
+        `depth` extends the same argument to reasoning depth. The identical query
+        asked at different depths runs a different pipeline — `reasoning_depth`
+        gates iterative retrieval and on-demand ingest, both of which change what
+        evidence reaches the answer — so a cached "fast" result must not satisfy a
+        request that asked for more work. Without this the deeper request returns
+        the shallower answer in milliseconds, at full confidence, with nothing to
+        signal that the depth it asked for was dropped."""
+        base = (
+            "|".join(sorted({t.upper() for t in tickers if t})) if tickers else "_"
+        )
+        return f"{base}#{(depth or 'auto').strip().lower()}"
+
+    async def get(
+        self, query: str, tickers: list[str] | None = None, depth: str | None = None
+    ) -> dict | None:
         """Check if a similar query exists in cache. Returns cached result or None."""
         try:
-            ns = self._ns(tickers)
+            ns = self._ns(tickers, depth)
             # Quick exact-match check first (cheap)
             query_hash = hashlib.md5(query.lower().strip().encode()).hexdigest()
             exact = await redis_client.get(f"{CACHE_PREFIX}exact:{ns}:{query_hash}")
@@ -93,11 +104,17 @@ class SemanticCache:
             logger.warning("cache_get_error", error=str(e))
             return None
 
-    async def set(self, query: str, result: dict, tickers: list[str] | None = None) -> None:
+    async def set(
+        self,
+        query: str,
+        result: dict,
+        tickers: list[str] | None = None,
+        depth: str | None = None,
+    ) -> None:
         """Cache a query result with both exact and semantic matching, scoped to
-        the resolved company namespace."""
+        the resolved company namespace and the reasoning depth that produced it."""
         try:
-            ns = self._ns(tickers)
+            ns = self._ns(tickers, depth)
             query_hash = hashlib.md5(query.lower().strip().encode()).hexdigest()
 
             # Store exact match (namespaced)

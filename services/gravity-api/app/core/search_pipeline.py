@@ -507,7 +507,9 @@ class SearchPipeline:
             # never break search — treat any error as a cache miss.
             if self.cache:
                 try:
-                    cached = await self.cache.get(query, tickers=_cache_tickers)
+                    cached = await self.cache.get(
+                        query, tickers=_cache_tickers, depth=reasoning_depth
+                    )
                 except Exception as e:
                     logger.warning("cache_get_skip", trace_id=trace_id, error=str(e))
                     cached = None
@@ -1629,7 +1631,7 @@ class SearchPipeline:
                         # replies are the ones nobody can audit.
                         "_provenance": cache_provenance_of(
                             retrieval_results, routing_decision, len(top_passages), trace_id),
-                    }, tickers=_cache_tickers)
+                    }, tickers=_cache_tickers, depth=reasoning_depth)
                 except Exception as e:
                     logger.warning("cache_set_skip", trace_id=trace_id, error=str(e))
             elif _is_refusal:
