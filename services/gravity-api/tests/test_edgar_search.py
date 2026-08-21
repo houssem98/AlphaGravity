@@ -58,12 +58,14 @@ class _FakeHTTP:
     """Routes by URL shape. `concepts` maps us-gaap tag -> payload (or None for 404)."""
 
     def __init__(self, concepts=None, ticker_map=TICKER_MAP, raises=None,
-                 companyfacts=None):
+                 companyfacts=None, submissions=None):
         self.concepts = concepts or {}
         self.ticker_map = ticker_map
         self.raises = raises
         # cik -> full companyfacts payload, for the filer-profile fallback.
         self.companyfacts = companyfacts or {}
+        # cik -> submissions payload (SEC classification + filing history).
+        self.submissions = submissions or {}
         self.urls = []
 
     async def get(self, url):
@@ -72,6 +74,10 @@ class _FakeHTTP:
             raise self.raises
         if "company_tickers.json" in url:
             return _Resp(self.ticker_map)
+        if "/submissions/" in url:
+            cik = int(url.rsplit("/", 1)[-1].removesuffix(".json").removeprefix("CIK"))
+            payload = self.submissions.get(cik)
+            return _Resp(payload, 200) if payload else _Resp(None, 404)
         if "/companyfacts/" in url:
             cik = int(url.rsplit("/", 1)[-1].removesuffix(".json").removeprefix("CIK"))
             payload = self.companyfacts.get(cik)
@@ -396,6 +402,100 @@ class TestAFilerThatReportsNoRevenueAtAll:
         out = await _channel(concepts={}, ticker_map=self.SPAC_MAP,
                              companyfacts={}).search(self.QUERY, entities=self.ENTITIES)
         assert out == []
+
+
+class TestSecsOwnClassificationAndFilingHistory:
+    """
+    companyfacts says what the filer reports; submissions says what KIND of filer
+    it is and what it has filed. That is the difference between "reports no
+    revenue" and "reports no revenue BECAUSE SEC classifies it Blank Checks and
+    it went effective two months ago" — sourced from SEC, not inferred from the
+    shape of the numbers. Real payload shape for Yorkville (CIK 2130386).
+    """
+
+    CIK = 2130386
+    SPAC_MAP = {
+        "0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."},
+        "1": {"cik_str": CIK, "ticker": "YICC",
+              "title": "Yorkville International Capital Corp."},
+    }
+    ACCN = "0002130386-26-000010"
+    FACTS = {
+        CIK: {
+            "entityName": "YORKVILLE INTERNATIONAL CAPITAL CORP.",
+            "facts": {"us-gaap": {
+                "AssetsHeldInTrustNoncurrent": {"units": {"USD": [
+                    {"end": "2026-06-30", "val": 230_300_725,
+                     "form": "10-Q", "accn": ACCN}]}},
+            }},
+        }
+    }
+    SUBS = {
+        CIK: {
+            "cik": "0002130386",
+            "name": "Yorkville International Capital Corp.",
+            "sicDescription": "Blank Checks",
+            "entityType": "operating",
+            "exchanges": ["Nasdaq", "Nasdaq", "Nasdaq"],
+            "tickers": ["YICC", "YICCU", "YICCW"],
+            "filings": {"recent": {
+                # SEC returns most-recent-first, and the front of a new filer's
+                # list is dominated by third-party ownership disclosures.
+                "form": ["SCHEDULE 13G", "10-Q", "SCHEDULE 13G", "4", "8-K",
+                         "3", "424B4", "EFFECT", "S-1/A", "S-1"],
+                "filingDate": ["2026-08-13", "2026-08-12", "2026-08-12",
+                               "2026-08-11", "2026-06-18", "2026-06-15",
+                               "2026-06-16", "2026-06-15", "2026-06-05",
+                               "2026-05-14"],
+            }},
+        }
+    }
+    QUERY = "Yorkville International Capital Corp. Units revenue"
+    ENTITIES = {"companies": [{"ticker": "YICC"}]}
+
+    def _ch(self, submissions=None):
+        return _channel(concepts={}, ticker_map=self.SPAC_MAP,
+                        companyfacts=self.FACTS,
+                        submissions=self.SUBS if submissions is None else submissions)
+
+    @pytest.mark.asyncio
+    async def test_secs_own_classification_reaches_the_passage(self):
+        out = await self._ch().search(self.QUERY, entities=self.ENTITIES)
+        assert "Blank Checks" in out[0].text
+        assert out[0].metadata["sic_description"] == "Blank Checks"
+
+    @pytest.mark.asyncio
+    async def test_the_sibling_tickers_explain_the_units_symbol(self):
+        # "... Units revenue" is answerable only if the answer can say the unit
+        # and the share are the same filer.
+        out = await self._ch().search(self.QUERY, entities=self.ENTITIES)
+        assert out[0].metadata["listed_tickers"] == ["YICC", "YICCU", "YICCW"]
+        assert "YICCU" in out[0].text
+
+    @pytest.mark.asyncio
+    async def test_ownership_filings_are_kept_out_of_the_timeline(self):
+        # Forms 3/4/5 and the 13D/13G family are filed BY OTHER PARTIES about the
+        # company; left in, they crowd out the filings that tell the story.
+        out = await self._ch().search(self.QUERY, entities=self.ENTITIES)
+        timeline = out[0].metadata["recent_filings"]
+        assert timeline, "expected a filing timeline"
+        assert not any(t.startswith(("SCHEDULE 13", "3 ", "4 ", "5 ")) for t in timeline)
+
+    @pytest.mark.asyncio
+    async def test_the_timeline_keeps_the_filings_that_tell_the_story(self):
+        out = await self._ch().search(self.QUERY, entities=self.ENTITIES)
+        timeline = " ".join(out[0].metadata["recent_filings"])
+        for form in ("10-Q", "8-K", "424B4", "EFFECT", "S-1"):
+            assert form in timeline, f"{form} missing from {timeline!r}"
+
+    @pytest.mark.asyncio
+    async def test_a_submissions_outage_does_not_cost_the_facts(self):
+        # Best-effort: the classification is a bonus, the figures are the answer.
+        out = await self._ch(submissions={}).search(self.QUERY, entities=self.ENTITIES)
+        assert out, "facts must survive a submissions failure"
+        assert "230,300,725" in out[0].text
+        assert out[0].metadata["sic_description"] == ""
+        assert "Blank Checks" not in out[0].text
 
 
 class TestRequestHygiene:

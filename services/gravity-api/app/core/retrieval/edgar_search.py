@@ -37,6 +37,7 @@ CONCEPT_URL = (
     "https://data.sec.gov/api/xbrl/companyconcept/CIK{cik:010d}/us-gaap/{tag}.json"
 )
 COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
+SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
 TICKER_MAP_TTL_S = 24 * 3600
 
 # SEC asks for <=10 requests/second. One semaphore for the process is enough:
@@ -119,6 +120,12 @@ _PROFILE_TAGS: list[tuple[str, str]] = [
     ("NetCashProvidedByUsedInOperatingActivities", "net cash used in operating activities"),
 ]
 _MAX_PROFILE_FACTS = 8
+# Enough filings to show how new the filer is and how it got public (S-1 → EFFECT
+# → 424B4 → 8-K → first 10-Q is the whole SPAC arc), without pasting a filing index.
+_MAX_TIMELINE_FILINGS = 8
+# Filed by shareholders/insiders ABOUT the company, not by the company. Forms 3/4/5
+# and the 13D/13G family say who owns it, never what it does.
+_OWNERSHIP_FORM = re.compile(r"^(SC\s|SCHEDULE\s?13|13[DGF]|[345](/A)?$)", re.I)
 
 _COMMON_NON_TICKERS = {
     "I", "A", "AN", "THE", "AND", "OR", "FOR", "IN", "OF", "TO", "IS", "IT", "AT",
@@ -328,6 +335,48 @@ class EdgarSearch:
             return await self._filer_profile(ticker, cik, label)
         return [self._to_result(ticker, cik, used_tag, label, r) for r in rows[:limit]]
 
+    async def _filer_context(self, cik: int) -> dict:
+        """
+        SEC's own classification and filing history for this filer.
+
+        companyfacts answers "what numbers does it report"; this answers "what
+        KIND of company is it, and what has it filed". For the absent-metric case
+        that is the difference between "reports no revenue" and "reports no
+        revenue BECAUSE SEC classifies it Blank Checks and it IPO'd two months
+        ago" — the classification is SEC's, not an inference we made.
+
+        Best-effort: a failure here must not cost the caller its facts, so
+        everything is wrapped and an empty dict is a valid answer.
+        """
+        try:
+            subs = await self._get_json(SUBMISSIONS_URL.format(cik=cik))
+        except Exception as e:
+            logger.warning("edgar_submissions_failed", cik=cik, error=str(e)[:120])
+            return {}
+        if not subs:
+            return {}
+        recent = (subs.get("filings") or {}).get("recent") or {}
+        forms = recent.get("form") or []
+        dates = recent.get("filingDate") or []
+        # SEC returns most-recent-first, and for a newly public company the front
+        # of that list is mostly SCHEDULE 13G / Forms 3-4-5 — ownership disclosures
+        # filed BY OTHER PARTIES about the company. They crowd out the filings that
+        # actually tell the story (S-1 -> EFFECT -> 424B4 -> 8-K -> first 10-Q), so
+        # keep only what the company itself filed.
+        timeline = [
+            f"{f} {d}"
+            for f, d in zip(forms, dates)
+            if not _OWNERSHIP_FORM.match(str(f or ""))
+        ][:_MAX_TIMELINE_FILINGS]
+        return {
+            "sic_description": subs.get("sicDescription") or "",
+            "entity_type": subs.get("entityType") or "",
+            "exchanges": sorted({x for x in (subs.get("exchanges") or []) if x}),
+            "tickers": subs.get("tickers") or [],
+            "fiscal_year_end": subs.get("fiscalYearEnd") or "",
+            "timeline": timeline,
+        }
+
     @staticmethod
     def _latest_fact(entry: dict) -> dict | None:
         """Most recently ended fact for one companyfacts tag, across all units."""
@@ -389,6 +438,31 @@ class EdgarSearch:
             f"{human} {self._fmt(f.get('val'), f.get('unit', ''))}"
             for _t, human, f in picked
         )
+
+        # SEC's own classification + filing history. This is what turns "reports
+        # no revenue" into "reports no revenue because SEC classifies it Blank
+        # Checks and it first filed an S-1 three months ago" — sourced, not
+        # inferred from the shape of the numbers.
+        ctx = await self._filer_context(cik)
+        ctx_sentence = ""
+        if ctx.get("sic_description"):
+            ctx_sentence += (
+                f" SEC classifies this filer under SIC \"{ctx['sic_description']}\"."
+            )
+        if ctx.get("tickers") and len(ctx["tickers"]) > 1:
+            ctx_sentence += (
+                f" It has {len(ctx['tickers'])} listed securities "
+                f"({', '.join(ctx['tickers'])})"
+                + (f" on {'/'.join(ctx['exchanges'])}" if ctx.get("exchanges") else "")
+                + " — for a blank-check company these are typically the share, the"
+                " unit, and the warrant, which is why a 'Units' ticker resolves to"
+                " the same filer."
+            )
+        if ctx.get("timeline"):
+            ctx_sentence += (
+                f" Its most recent SEC filings are: {', '.join(ctx['timeline'])}."
+            )
+
         out = [
             RetrievalResult(
                 chunk_id=f"edgar:{ticker}:absent:{label.replace(' ', '')}",
@@ -401,6 +475,7 @@ class EdgarSearch:
                     f"for a merger target, a newly registered filer, or a holding entity. "
                     f"What this filer does report, as of {latest_end} (of "
                     f"{len(gaap)} us-gaap concepts in total): {inventory}."
+                    + ctx_sentence
                 ),
                 score=1.0,
                 document_title=f"{ticker} — SEC XBRL filer profile",
@@ -412,6 +487,11 @@ class EdgarSearch:
                 metadata={
                     "cik": cik,
                     "entity_name": name,
+                    "sic_description": ctx.get("sic_description", ""),
+                    "entity_type": ctx.get("entity_type", ""),
+                    "exchanges": ctx.get("exchanges", []),
+                    "listed_tickers": ctx.get("tickers", []),
+                    "recent_filings": ctx.get("timeline", []),
                     "requested_metric": label,
                     "metric_present": False,
                     "tags_reported": len(gaap),
