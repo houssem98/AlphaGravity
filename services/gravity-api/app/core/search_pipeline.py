@@ -363,7 +363,20 @@ class SearchPipeline:
                 # fallback's in-place mutation leaked the first query's ticker into
                 # all subsequent ones (every query resolved to the first company).
                 query_plan = _copy.deepcopy(DEFAULT_QUERY_PLAN)
-                logger.warning("query_understanding_timeout", trace_id=trace_id, query=query[:60])
+                # A timeout skips analyze() entirely, so the group expansion inside
+                # it never runs. Re-apply it here: the table is a regex lookup with
+                # no network call, so "compare FAANG margins" still arrives at
+                # retrieval with five tickers instead of none on the one path where
+                # the classifier gave us nothing at all.
+                from app.core.entities.group_aliases import merge_group_companies
+                merge_group_companies(query_plan, query)
+                logger.warning(
+                    "query_understanding_timeout", trace_id=trace_id, query=query[:60],
+                    group_tickers=[
+                        c.get("ticker")
+                        for c in query_plan.get("entities", {}).get("companies", [])
+                    ],
+                )
             # Defensive: ensure entities is a per-request dict even on the success
             # path, so downstream in-place enrichment never mutates shared state.
             import copy as _copy2
@@ -967,8 +980,15 @@ class SearchPipeline:
                             resolved = date_entities[0].get("resolved", "")
                             if resolved:
                                 period = resolved
-                        ratio_output = await self.ratio_engine.compute_from_query(
-                            ticker=tickers[0],
+                        # EVERY resolved company, not tickers[0]. This stage used to
+                        # compute for the first entity only, so "compare X, Y and Z"
+                        # injected one company's ratios and nothing for the rest —
+                        # and because a company with no data contributed no text,
+                        # the prompt could not tell "no data for Y" apart from "Y was
+                        # never asked about". compute_many returns one output per
+                        # ticker and names the empty ones explicitly.
+                        ratio_output = await self.ratio_engine.compute_many_from_query(
+                            tickers=tickers,
                             query=query,
                             period=period,
                         )
@@ -977,9 +997,12 @@ class SearchPipeline:
                             logger.info(
                                 "ratio_engine_injected",
                                 trace_id=trace_id,
-                                ticker=tickers[0],
+                                tickers=ratio_output.tickers,
                                 period=period,
-                                ratios_computed=len(ratio_output.ratios),
+                                missing=ratio_output.missing,
+                                ratios_computed=sum(
+                                    len(o.ratios) for o in ratio_output.outputs
+                                ),
                             )
                 except Exception as _re:
                     logger.warning("ratio_engine_failed", trace_id=trace_id, error=str(_re))
