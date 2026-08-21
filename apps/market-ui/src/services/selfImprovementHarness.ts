@@ -5,7 +5,7 @@
 import { buildJudgePrompt, buildCitationSpotPrompt, parseJudgeJson, type JudgeScores } from './evalRubric';
 import type { ResearchModelId } from './deepResearchService';
 
-const API = process.env.VITE_API_URL || 'http://localhost:3002';
+const API = import.meta.env?.VITE_API_URL || 'http://localhost:3002';
 
 export interface IterationResult {
     iteration: number;

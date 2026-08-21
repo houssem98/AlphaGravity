@@ -15,13 +15,16 @@ from app.llm.base import BaseLLMClient, LLMConfig, LLMMessage, LLMResponse, Mode
 
 logger = structlog.get_logger()
 
-PRICING = {"deepseek-v4-flash": {"input": 0.28, "output": 0.42}}
+PRICING = {
+    "deepseek-chat": {"input": 0.28, "output": 0.42},
+    "deepseek-v4-flash": {"input": 0.28, "output": 0.42},
+}
 
 
 class DeepSeekClient(BaseLLMClient):
     provider = ModelProvider.DEEPSEEK
 
-    def __init__(self, model_id: str = "deepseek-v4-flash"):
+    def __init__(self, model_id: str = "deepseek-chat"):
         self.model_id = model_id
         self.client = openai.AsyncOpenAI(
             api_key=settings.deepseek_api_key,
@@ -39,7 +42,27 @@ class DeepSeekClient(BaseLLMClient):
             max_tokens=config.max_tokens, temperature=config.temperature,
         )
         latency_ms = (time.perf_counter() - start) * 1000
-        content = response.choices[0].message.content or ""
+        choice = response.choices[0]
+        content = choice.message.content or ""
+        # deepseek-v4-flash is a REASONING model: chain-of-thought goes to
+        # `reasoning_content` and the answer to `content`. When reasoning alone
+        # exhausts max_tokens the API returns finish_reason="length" with
+        # content=None -- measured 17,726 chars of reasoning and 0 of answer on a
+        # 4096-token budget. Returning that as a successful empty string makes the
+        # pipeline emit a blank answer instead of falling through to the next
+        # client, so the whole Company Brief renders "No data available".
+        if not content.strip():
+            reasoning = getattr(choice.message, "reasoning_content", None) or ""
+            logger.warning(
+                "deepseek_empty_content", model=self.model_id,
+                finish_reason=choice.finish_reason, reasoning_chars=len(reasoning),
+                max_tokens=config.max_tokens,
+            )
+            raise RuntimeError(
+                f"{self.model_id} returned no content "
+                f"(finish_reason={choice.finish_reason}, "
+                f"reasoning_chars={len(reasoning)}, max_tokens={config.max_tokens})"
+            )
         usage = response.usage
         inp, out = (usage.prompt_tokens if usage else 0), (usage.completion_tokens if usage else 0)
         return LLMResponse(content=content, model=self.model_id, input_tokens=inp,
