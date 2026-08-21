@@ -21,13 +21,24 @@ from app.llm.base import BaseLLMClient, LLMConfig, LLMMessage
 logger = structlog.get_logger()
 
 # Default plan when LLM classification fails
+#
+# `edgar` is in this list on purpose. The auto-add rules below live inside
+# analyze(), so a classification TIMEOUT skips them entirely and the pipeline
+# falls back to this dict verbatim — which meant the live-SEC channel went dark
+# on exactly the queries it exists for, silently, with the answer degrading to
+# whatever prose the corpus happened to hold. That fires on the first request
+# after every restart (the 5s budget is tight when the provider is cold) and
+# again under load. The company-recovery step still populates tickers on the
+# fallback path, so EDGAR has what it needs; and the channel self-guards,
+# returning [] before any HTTP when no ticker resolves, so listing it here costs
+# nothing on queries that name no company.
 DEFAULT_QUERY_PLAN = {
     "intent": "document_search",
     "complexity": "medium",
     "entities": {"companies": [], "people": [], "dates": [], "metrics": [], "themes": []},
     "expanded_terms": {"original": [], "synonyms": [], "concepts": []},
     "filters": {},
-    "retrieval_channels": ["dense", "bm25", "splade"],
+    "retrieval_channels": ["dense", "bm25", "splade", "edgar"],
     "temporal_intent": "historical",
     "needs_live_data": False,
 }
