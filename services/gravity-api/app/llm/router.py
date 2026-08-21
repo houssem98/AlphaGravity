@@ -115,7 +115,13 @@ class LLMRouter:
 
         if settings.deepseek_api_key:
             from app.llm.deepseek_client import DeepSeekClient
-            self._clients["deepseek"] = DeepSeekClient("deepseek-v4-flash")
+            # deepseek-chat, not deepseek-v4-flash. v4-flash is a reasoning model:
+            # it spends the whole output budget on `reasoning_content` and returns
+            # content=None with finish_reason="length" (measured: 17,726 chars of
+            # reasoning, 0 of answer, on max_tokens=4096), which the answer path
+            # needs for its JSON envelope. deepseek-chat answers the same prompt in
+            # 152 output tokens with finish_reason="stop". Prod already runs it.
+            self._clients["deepseek"] = DeepSeekClient("deepseek-chat")
 
         if settings.groq_api_key:
             from app.llm.groq_client import GroqClient

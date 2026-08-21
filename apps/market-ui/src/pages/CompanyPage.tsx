@@ -257,15 +257,20 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
             // CT2-5 · the sentiment score is NOT fetched here. It needs a
             // document_id, which only arrives with the filings payload in this
             // same batch, so it runs in its own effect below.
-            // Gravity sentiment delta (vs previous period)
-            fetch(`${GRAVITY_BASE}/v1/analytics/sentiment/${symbol}/delta`, {
-                headers: { 'X-API-Key': 'deep-research-internal' },
-            }).then(r => r.ok ? r.json() : null).catch(() => null),
-            // Gravity longitudinal trend
-            fetch(`${GRAVITY_BASE}/v1/analytics/longitudinal/${symbol}`, {
-                headers: { 'X-API-Key': 'deep-research-internal' },
-            }).then(r => r.ok ? r.json() : null).catch(() => null),
-        ]).then(([ov, qt, docs, met, sentDelta, longit]) => {
+            //
+            // Neither is the longitudinal series: it requires `metric` + `periods`,
+            // and the periods come from the financials payload in this same batch.
+            // Called bare, as this batch used to, it answered 422 on every page
+            // load -- our malformed request, not a data gap. It now runs in its
+            // own effect once `metrics` has arrived.
+            //
+            // /analytics/sentiment/{t}/delta is NOT called at all. Probed live
+            // 2026-08-20 with two real document ids: 200 with overall_delta 0.0,
+            // topic_deltas {} and an empty narrative, because the per-document
+            // sentiment it differences was never computed (GET /sentiment/{t}
+            // answers 404 "POST to compute it"). Rendering that reads as "no
+            // change since last quarter" -- a measurement we never made.
+        ]).then(([ov, qt, docs, met]) => {
             const arr = (v: unknown): any[] => Array.isArray(v) ? v : [];
 
             // A rejected fetch, or a body carrying an `error`, is a FAILURE and is
@@ -297,13 +302,51 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                 markSeen(symbol, newest);
             }
             if (met.status === 'fulfilled') setMetrics(arr(met.value?.rows ?? met.value?.structured_data));
-            if (sentDelta.status === 'fulfilled' && sentDelta.value?.delta !== undefined) setSentimentDelta(sentDelta.value);
-            if (longit.status === 'fulfilled' && longit.value) {
-                setLongitudinal(arr(longit.value?.data_points ?? longit.value?.periods));
-            }
             setLoading(false);
         }));
     }, [symbol]);
+
+    // Revenue trend. /analytics/longitudinal/{t} takes `metric` + `periods` and
+    // answers per-period values, so the periods have to come from somewhere real:
+    // `metrics` already holds the exact-XBRL rows, and its `period` column is the
+    // same "FY2025" vocabulary the endpoint matches on. Newest four fiscal years,
+    // oldest-first so the chart reads left to right.
+    //
+    // The response is one long series ({data_points: [{period, value}]}) while the
+    // chart wants a wide row per period ({period, revenue}), so it is reshaped here.
+    useEffect(() => {
+        if (!symbol || metrics.length === 0) return;
+        const years = metrics
+            .map(m => String((m as { period?: string }).period ?? ''))
+            .filter(p => /^FY\d{4}$/.test(p))
+            .map(p => Number(p.slice(2)));
+        if (years.length === 0) { setLongitudinal([]); return; }
+        // /financials returns only the newest ~80 rows -- for AAPL that is three
+        // fiscal years, which drew a two-point "trend". Span back from the newest
+        // year instead; periods the server has no fact for come back null and are
+        // filtered out below, so asking for more costs nothing.
+        const newest = Math.max(...years);
+        const periods = Array.from({ length: 6 }, (_, i) => `FY${newest - 5 + i}`);
+
+        let alive = true;
+        const qs = new URLSearchParams({ metric: 'revenue', periods: periods.join(',') });
+        fetch(`${GRAVITY_BASE}/v1/analytics/longitudinal/${symbol}?${qs}`, {
+            headers: { 'X-API-Key': 'deep-research-internal' },
+        })
+            .then(r => r.ok ? r.json() : null)
+            .then(body => {
+                if (!alive || !body) return;
+                const pts = (Array.isArray(body.data_points) ? body.data_points : [])
+                    .filter((d: { value?: number | null }) => typeof d.value === 'number')
+                    .map((d: { period: string; value: number }) => ({
+                        period: d.period,
+                        revenue: d.value,
+                    }));
+                setLongitudinal(pts);
+            })
+            .catch(() => { /* the card simply does not mount */ });
+        return () => { alive = false; };
+    }, [symbol, metrics]);
 
     // CT2-5 · row R6. Probed live 2026-08-09: the endpoint requires BOTH
     // document_id AND period (the ledger's P2 named only the first), and it is a
@@ -590,6 +633,30 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                     {activeTab === 'overview' && (
                         <div className="space-y-5">
                             <LatestQuarterCard metrics={metrics} fiscalYearEnd={overview?.FiscalYearEnd} />
+                            {/* Revenue trend. This lived inside the `sentiment` tab behind
+                                `!sentiment ?`, so it only rendered once a sentiment score
+                                existed -- and GET /v1/analytics/sentiment/{t} answers 404
+                                until one is computed, which nothing does. A revenue series
+                                does not depend on sentiment; it belongs beside the rest of
+                                the company's numbers. */}
+                                {longitudinal.length > 0 && (
+                                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
+                                        <p className="text-xs text-[#4A5568] uppercase tracking-wider mb-4">Revenue Trend</p>
+                                        <ResponsiveContainer width="100%" height={200}>
+                                            <LineChart data={longitudinal} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                                                <XAxis dataKey="period" tick={{ fill: '#4A5568', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                                <YAxis tick={{ fill: '#4A5568', fontSize: 10 }} axisLine={false} tickLine={false} width={60}
+                                                        tickFormatter={(v: number) => `$${(v / 1e9).toFixed(0)}B`} />
+                                                <Tooltip contentStyle={{ backgroundColor: '#0D1117', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '12px', color: '#E8EBF0' }}
+                                                        formatter={(v: number) => [`$${(v / 1e9).toFixed(2)}B`, 'revenue']} />
+                                                {['revenue', 'net_income', 'operating_income'].filter(k => longitudinal.some(p => p[k] !== undefined)).map((key, i) => (
+                                                    <Line key={key} type="monotone" dataKey={key} stroke={['#00F0FF', '#5B8DF6', '#10B981'][i]} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} name={key.replace(/_/g, ' ')} />
+                                                ))}
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                )}
                             {(() => {
                                 const t = documents.find(d => d.filing_type === 'earnings_transcript');
                                 return t ? <TranscriptSummary ticker={symbol} date={t.filing_date} /> : null;
@@ -731,23 +798,6 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                                         </div>
                                     )}
 
-                                    {/* Longitudinal chart */}
-                                    {longitudinal.length > 0 && (
-                                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
-                                            <p className="text-xs text-[#4A5568] uppercase tracking-wider mb-4">Revenue Trend</p>
-                                            <ResponsiveContainer width="100%" height={200}>
-                                                <LineChart data={longitudinal} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                                                    <XAxis dataKey="period" tick={{ fill: '#4A5568', fontSize: 10 }} axisLine={false} tickLine={false} />
-                                                    <YAxis tick={{ fill: '#4A5568', fontSize: 10 }} axisLine={false} tickLine={false} width={60} />
-                                                    <Tooltip contentStyle={{ backgroundColor: '#0D1117', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '12px', color: '#E8EBF0' }} />
-                                                    {['revenue', 'net_income', 'operating_income'].filter(k => longitudinal.some(p => p[k] !== undefined)).map((key, i) => (
-                                                        <Line key={key} type="monotone" dataKey={key} stroke={['#00F0FF', '#5B8DF6', '#10B981'][i]} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} name={key.replace(/_/g, ' ')} />
-                                                    ))}
-                                                </LineChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    )}
                                 </>
                             )}
                         </div>

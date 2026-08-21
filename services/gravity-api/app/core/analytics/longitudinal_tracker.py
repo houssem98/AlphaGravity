@@ -471,6 +471,38 @@ class LongitudinalTracker:
             except Exception as e:
                 logger.warning("metric_db_fetch_failed", error=str(e))
 
+        # Last resort: the `financials` table over PostgREST -- the same exact-XBRL
+        # population company.py serves. The asyncpg branch above reads
+        # `financial_statements`, which has never existed in this database
+        # (PostgREST answers "Perhaps you meant the table 'public.financials'"),
+        # so before this every series came back all-nulls -- in prod as well as
+        # locally, whatever periods or metric the caller passed.
+        try:
+            from app.db import supabase_rest
+
+            rows = await supabase_rest.sb_select(
+                "financials",
+                {
+                    "ticker": f"eq.{ticker.upper()}",
+                    "period": f"eq.{period}",
+                    # Anchored, NOT a contains-match: `*revenue*` also matches
+                    # "Cost of Goods Sold (COGS, Cost of Revenue)", and within one
+                    # period both rows share a filing_date, so the ordering that
+                    # decides which you get is arbitrary -- COGS would render as
+                    # Revenue. Metric names here read "Revenue (Total Revenue, Net
+                    # Sales)", "Total Assets", so the prefix is the identity.
+                    "metric_name": f"ilike.{metric_name.replace('_', ' ')}*",
+                    "document_id": "like.xbrl:*",
+                    "order": "filing_date.desc",
+                },
+                select="value_float",
+                limit=1,
+            )
+            if rows and rows[0].get("value_float") is not None:
+                return float(rows[0]["value_float"])
+        except Exception as e:
+            logger.warning("metric_rest_fetch_failed", error=str(e)[:120])
+
         return None
 
     async def _fetch_guidance(self, ticker: str, metric: str, period: str) -> dict | None:
