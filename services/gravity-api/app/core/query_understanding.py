@@ -15,6 +15,7 @@ import structlog
 _EDGAR_METRIC_RE = re.compile(
     r"\b(revenue|sales|net income|earnings|eps|profit|margin|assets|liabilities|equity|cash|inventory|cogs|ebitda|operating income|r&d|research and development)\b", re.I)
 
+from app.core.entities.group_aliases import merge_group_companies
 from app.core.reasoning.prompts import QUERY_UNDERSTANDING_SYSTEM
 from app.llm.base import BaseLLMClient, LLMConfig, LLMMessage
 
@@ -132,6 +133,15 @@ class QueryUnderstanding:
             plan.setdefault("filters", {})
             plan.setdefault("retrieval_channels", ["dense", "bm25", "splade"])
 
+            # Named company groups -> their constituent tickers, deterministically.
+            # Whether "FAANG" came back as five tickers, one, or none was previously
+            # up to whatever the classifier felt like doing that request — the
+            # extraction prompt's only worked example is a single company. This
+            # MERGES, so anything the classifier resolved (with its CIK) is kept and
+            # the group only adds members that are missing. Runs before the channel
+            # auto-adds below so a group query is seen as company-scoped by them.
+            merge_group_companies(plan, query)
+
             # Auto-add graph channel if entity-relationship query detected
             if plan["intent"] in ("entity_relationship", "supply_chain"):
                 if "graph" not in plan["retrieval_channels"]:
@@ -170,7 +180,7 @@ class QueryUnderstanding:
         except Exception as e:
             logger.warning("query_understanding_failed", error=str(e))
             import copy as _copy
-            return {
+            _fallback = {
                 # deepcopy: shallow spread shares DEFAULT_QUERY_PLAN's nested
                 # entities/filters/channels across every defaulted request →
                 # in-place enrichment leaks one query's entities into the next.
@@ -178,3 +188,9 @@ class QueryUnderstanding:
                 "expanded_terms": {"original": query.split()},
                 **classify_temporal_intent(query),
             }
+            # The group table needs no LLM, so a group query still resolves its
+            # tickers when classification fails — on this path the expansion is the
+            # ONLY entity information available, and without it "compare FAANG
+            # margins" degrades to a company-less query that no company-scoped
+            # channel can answer.
+            return merge_group_companies(_fallback, query)

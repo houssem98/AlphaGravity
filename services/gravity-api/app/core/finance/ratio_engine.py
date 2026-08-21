@@ -45,6 +45,8 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
+
 import structlog
 from dataclasses import dataclass, field
 from typing import Callable
@@ -959,6 +961,65 @@ class RatioEngineOutput:
                 lines.append(f"- **{r.label}**: N/A ({r.error})")
         return "\n".join(lines)
 
+    @property
+    def computed_any(self) -> bool:
+        """True when at least one ratio produced a number."""
+        return any(r.value is not None for r in self.ratios)
+
+
+@dataclass
+class MultiRatioOutput:
+    """
+    One RatioEngineOutput per requested ticker, in the order requested.
+
+    The point of this type is that a company cannot go missing. A comparison
+    across five companies where four had no data used to inject a block naming
+    only the one that worked, which reads as "we looked and this is the answer"
+    rather than "we looked and four came back empty".
+    """
+    period: str
+    outputs: list[RatioEngineOutput] = field(default_factory=list)
+
+    @property
+    def tickers(self) -> list[str]:
+        return [o.ticker for o in self.outputs]
+
+    def by_ticker(self) -> dict[str, RatioEngineOutput]:
+        return {o.ticker: o for o in self.outputs}
+
+    @property
+    def missing(self) -> list[str]:
+        """Requested tickers that produced no computed ratio."""
+        return [o.ticker for o in self.outputs if not o.computed_any]
+
+    @property
+    def context_block(self) -> str:
+        """
+        One section per company, then an explicit line for any company that came
+        back empty. The LLM has to be able to tell "no data for NFLX" apart from
+        "NFLX was never asked about" — without that distinction a partial
+        comparison silently presents itself as a complete one.
+        """
+        if not self.outputs:
+            return ""
+        blocks = [o.context_block for o in self.outputs if o.computed_any]
+        missing = self.missing
+        if not blocks and not missing:
+            return ""
+        parts: list[str] = []
+        if blocks:
+            parts.append("\n\n".join(blocks))
+        if missing:
+            parts.append(
+                "## Companies With No Pre-Computed Ratios — "
+                f"{self.period}\n"
+                "No figures for these companies were available in the metrics store, "
+                "so no ratio was computed for them. Do NOT infer or estimate their "
+                "values, and do not present the comparison as complete:\n"
+                + "\n".join(f"- **{t}**: no data" for t in missing)
+            )
+        return "\n\n".join(parts)
+
 
 class RatioEngine:
     """Fetch raw financials and compute ratios deterministically."""
@@ -1021,6 +1082,62 @@ class RatioEngine:
             logger.warning("ratio_engine_fetch_failed", ticker=ticker, error=str(e)[:120])
             return {}
 
+    async def compute_many(
+        self,
+        tickers: list[str],
+        metrics: list[str],
+        period: str = "FY2025",
+    ) -> "MultiRatioOutput":
+        """
+        Compute the same ratios for several tickers, one RatioEngineOutput each.
+
+        Every ticker asked for gets an entry, in the order asked. A company whose
+        figures are missing produces an output with no ratios rather than being
+        dropped from the result — see MultiRatioOutput.context_block, which prints
+        it as an explicit "no data" line. Silent omission is what made a five-company
+        comparison look like a one-company answer with no indication the other four
+        were ever attempted.
+
+        Fetches run concurrently: the per-ticker work is IO-bound on the metrics
+        store, so five companies cost about what one does.
+        """
+        wanted = list(dict.fromkeys(t.strip().upper() for t in tickers if t and t.strip()))
+        if not wanted:
+            return MultiRatioOutput(period=period, outputs=[])
+
+        results = await asyncio.gather(
+            *[self.compute(ticker=t, metrics=metrics, period=period) for t in wanted],
+            return_exceptions=True,
+        )
+        outputs: list[RatioEngineOutput] = []
+        for ticker, result in zip(wanted, results):
+            if isinstance(result, BaseException):
+                # One company's failure must not take the comparison down with it.
+                logger.warning(
+                    "ratio_engine_ticker_failed",
+                    ticker=ticker, error=str(result)[:160],
+                )
+                outputs.append(RatioEngineOutput(ticker=ticker, period=period))
+                continue
+            outputs.append(result)
+        return MultiRatioOutput(period=period, outputs=outputs)
+
+    async def compute_many_from_query(
+        self,
+        tickers: list[str],
+        query: str,
+        period: str = "FY2025",
+    ) -> "MultiRatioOutput":
+        """Auto-detect ratio intent once, then compute it for every ticker."""
+        metrics = self.detect_ratio_intent(query)
+        if not metrics:
+            return MultiRatioOutput(period=period, outputs=[])
+        logger.info(
+            "ratio_engine_auto_detected",
+            tickers=tickers[:8], query=query[:60], detected_metrics=metrics,
+        )
+        return await self.compute_many(tickers=tickers, metrics=metrics, period=period)
+
     async def compute(
         self,
         ticker: str,
@@ -1029,6 +1146,9 @@ class RatioEngine:
     ) -> RatioEngineOutput:
         """
         Compute requested ratios for ticker/period.
+
+        Single-ticker entry point, kept so existing callers (compute_altman_z and
+        others) are unchanged; compute_many drives this once per company.
 
         Args:
             ticker:  Stock ticker, e.g. "AAPL"
