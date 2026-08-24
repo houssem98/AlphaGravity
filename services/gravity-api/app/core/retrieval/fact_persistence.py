@@ -29,6 +29,9 @@ import re
 
 import structlog
 
+from app.core.retrieval.evidence_gate import encode_provenance
+from app.core.retrieval.fact_verification import VERIFIED
+
 logger = structlog.get_logger()
 
 # A single question resolves a handful of facts. Anything beyond this is a bulk
@@ -86,9 +89,31 @@ def fact_row(result) -> dict | None:
         # The existing exact rows put the XBRL concept in `caption`; a dimensional
         # fact appends its member so the two are distinguishable in the table.
         "caption": tag + (f"@{m['row_label']}" if m.get("row_label") else ""),
-        "source_section": (
-            "xbrl_filing_instance" if m.get("dimensions") else "xbrl_companyconcept"
-        ),
+        # Full identity, so the evidence gate can later decide whether this row
+        # deterministically answers a question or whether the filer must be asked
+        # again. The table has no columns for CIK, period start or verification
+        # state; `source_section` is the provenance field, so the identity travels
+        # there as structured text rather than as a schema migration this task is
+        # not authorised to make. A row without it never bypasses SEC.
+        "source_section": encode_provenance({
+            "src": "filing_instance" if m.get("dimensions") else "companyconcept",
+            "cik": m.get("cik"),
+            "concept": tag,
+            "fy": fy,
+            "fq": q or "",
+            "dim": m.get("row_label") or "",
+            "scope": "segment" if m.get("dimensions") else "consolidated",
+            "fact": "duration" if m.get("period_start") else "instant",
+            "start": m.get("period_start"),
+            "end": m.get("period_end"),
+            "accn": m.get("accn"),
+            "form": m.get("form"),
+            "unit": m.get("unit", "USD"),
+            "filed": m.get("filed"),
+            "restated": "1" if m.get("restated") else "0",
+            "ver": m.get("verification_status") or VERIFIED,
+            "pv": m.get("parser_version") or "",
+        }),
     }
 
 

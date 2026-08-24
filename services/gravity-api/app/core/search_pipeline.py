@@ -306,6 +306,50 @@ class SearchPipeline:
         )
         return valid[best_idx]
 
+    async def _evidence_gate(self, query: str, tickers: list, company_terms=None):
+        """
+        Ask whether exact verified local evidence already answers this question.
+
+        Every input is derived deterministically from the question — the same
+        parsers the EDGAR channel uses — so the routing decision never depends on
+        an LLM, and never on results that do not exist yet. Returns `None` when
+        the question is not pinned enough to be gated (no issuer, or no metric we
+        recognise), which routes to SEC exactly like a miss.
+        """
+        from app.core.retrieval import evidence_gate
+        from app.core.retrieval.edgar_search import (
+            classify_metric,
+            parse_fiscal_years,
+            parse_quarter,
+        )
+
+        try:
+            ticker = (tickers or [None])[0]
+            if not ticker:
+                return None
+            concept, _label = classify_metric(query)
+            years = parse_fiscal_years(query)
+            cik = None
+            edgar = getattr(self.retrieval, "channels", {}).get("edgar")
+            if edgar is not None:
+                # Resolving the CIK uses SEC's ticker file, which the channel
+                # caches for a day. It is identity, not facts — no filing is
+                # fetched, so this does not defeat the point of the gate.
+                cik = await edgar.ticker_to_cik(ticker)
+            return await evidence_gate.check(
+                query=query,
+                ticker=ticker,
+                cik=cik,
+                concept=concept,
+                fiscal_year=years[-1] if years else None,
+                fiscal_quarter=parse_quarter(query),
+                company_terms=company_terms,
+            )
+        except Exception as e:
+            # A gate that errors must not become a gate that silently skips SEC.
+            logger.warning("evidence_gate_failed", error=str(e)[:160])
+            return None
+
     async def search(
         self,
         query: str,
@@ -696,15 +740,44 @@ class SearchPipeline:
                     needs_primary_source=_qc["needs_primary_source"],
                     channels=_channels,
                 )
+                _gate = None
                 if _qc["needs_primary_source"]:
+                    # The verified-evidence gate. This runs BEFORE the retrieval
+                    # fan-out, on one narrow lookup, because the question "must we
+                    # ask the filer?" cannot be answered by RRF after the fact —
+                    # by then the expensive call has already happened. Only exact,
+                    # fully-identified, verified, fresh, unconflicted local
+                    # evidence removes `edgar` from the fan-out.
+                    _names = [
+                        e.get("name", "")
+                        for e in (_companies or [])
+                        if isinstance(e, dict) and e.get("name")
+                    ]
+                    _gate = await self._evidence_gate(query, _tickers, _names)
+                    if _gate is not None and not _gate.sec_invoked:
+                        _channels = [c for c in _channels if c != "edgar"]
+                    if _gate is not None:
+                        query_plan["gate_telemetry"] = _gate.telemetry()
+                        logger.info(
+                            "evidence_gate", trace_id=trace_id, **_gate.telemetry()
+                        )
                     # §14: the user sees source acquisition happening, not a
                     # silent pause followed by an implementation error.
                     yield SearchEvent(
                         type="status",
                         data={
-                            "status": "resolving_primary_source",
-                            "message": "Resolving the filing that reports this...",
+                            "status": (
+                                "answering_from_verified_evidence"
+                                if _gate is not None and not _gate.sec_invoked
+                                else "resolving_primary_source"
+                            ),
+                            "message": (
+                                "Using verified evidence already on file..."
+                                if _gate is not None and not _gate.sec_invoked
+                                else "Resolving the filing that reports this..."
+                            ),
                             "question_class": _qc["question_class"],
+                            **(_gate.telemetry() if _gate else {}),
                         },
                         trace_id=trace_id,
                     )
@@ -1750,6 +1823,9 @@ class SearchPipeline:
                     # Which evidence system the question was routed to, decided
                     # deterministically before retrieval rather than by the LLM.
                     "question_class": query_plan.get("question_class", "GENERAL"),
+                    # Why the filer was or was not asked. Visible without
+                    # exposing anything sensitive — states and counts only.
+                    **(_gt if isinstance(_gt := query_plan.get("gate_telemetry"), dict) else {}),
                     "passages_used": len(top_passages),
                     "cache_hit": False,
                     "cache_provenance": "live",

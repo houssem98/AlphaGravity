@@ -98,10 +98,36 @@ class TestTheRowTheReaderCanActuallyFind:
     def test_the_concept_and_member_are_recorded_in_the_caption(self):
         row = fact_row(_result(**DIMENSIONAL))
         assert row["caption"] == "Revenues@data center"
-        assert row["source_section"] == "xbrl_filing_instance"
 
-    def test_a_consolidated_fact_is_labelled_as_coming_from_companyconcept(self):
-        assert fact_row(_result())["source_section"] == "xbrl_companyconcept"
+    def test_the_row_carries_the_identity_the_evidence_gate_requires(self):
+        """`source_section` holds structured provenance, not just a label. The
+        gate refuses to bypass SEC for any row that cannot prove this much, so a
+        row missing a field here is a row that can never serve a second query."""
+        from app.core.retrieval.evidence_gate import decode_provenance
+
+        prov = decode_provenance(fact_row(_result(**DIMENSIONAL))["source_section"])
+        assert prov is not None
+        assert prov["src"] == "filing_instance"
+        assert prov["cik"] == "1045810"
+        assert prov["concept"] == "Revenues"
+        assert prov["fy"] == "2026"
+        assert prov["fq"] == "3"
+        assert prov["dim"] == "data center"
+        assert prov["scope"] == "segment"
+        assert prov["start"] == "2025-07-28"
+        assert prov["end"] == "2025-10-26"
+        assert prov["accn"] == ACCN
+        assert prov["form"] == "10-Q"
+        assert prov["unit"] == "USD"
+        assert prov["ver"] == "verified"
+
+    def test_a_consolidated_fact_records_its_scope_and_source(self):
+        from app.core.retrieval.evidence_gate import decode_provenance
+
+        prov = decode_provenance(fact_row(_result())["source_section"])
+        assert prov["src"] == "companyconcept"
+        assert prov["scope"] == "consolidated"
+        assert "dim" not in prov, "a consolidated row must carry no breakdown"
 
     def test_only_columns_the_table_has_are_written(self):
         # Measured against the live table on 2026-08-23. `source_url` was in the

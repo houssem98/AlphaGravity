@@ -541,6 +541,11 @@ class EdgarSearch:
                 )
                 continue
             res = self._to_result(ticker, cik, used_tag, label, r)
+            # These rows reached here only by passing verify_fact above; record
+            # that, because the evidence gate refuses to bypass SEC for any row
+            # that cannot show a passing verification state.
+            res.metadata["verification_status"] = status
+            res.metadata["parser_version"] = PARSER_VERSION
             if breakdown_asked:
                 # The question carried words that could name a segment and none
                 # resolved. The consolidated figure is still true and is labelled

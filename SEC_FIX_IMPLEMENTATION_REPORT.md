@@ -33,6 +33,95 @@ shipping an untested authority rule. It also added a committed measurement scrip
 
 ---
 
+## 0b. Verified-evidence gate (`SEC_VERIFIED_EVIDENCE_GATE.md`)
+
+The architecture review was right: the local-hit/local-miss control flow was
+missing. The orchestrator fanned out in parallel, so EDGAR fired on every
+financial question — including ones already answered and persisted. Persistence
+saved the parse but not the request.
+
+Implemented as a **verified-evidence gate**, not an existence check, per the
+spec's explicit instruction.
+
+### VERIFIED
+
+**The four required call-count regressions all pass** —
+`tests/test_evidence_gate.py::TestTheRequiredCallCounts`. Counts come from
+wrapping real channel objects and dispatching through the real
+`RetrievalOrchestrator`, so they are what the retrieval layer actually invoked.
+
+| Case | Required | Measured |
+|---|---|---|
+| verified local hit | `structured 1, edgar 0` | **`{'structured': 1, 'edgar': 0}`** |
+| empty local corpus | `structured 1, edgar 1` | **`{'structured': 1, 'edgar': 1}`** |
+| second query after persistence | `structured 1, edgar 0` | **`{'structured': 1, 'edgar': 0}`** |
+| stale / conflicting local | `structured 1, edgar 1` | **`{'structured': 1, 'edgar': 1}`** |
+
+Also verified **against the live Supabase table**, not only fixtures:
+
+```
+1) gate before      LOCAL_UNVERIFIED  sec_invoked True
+                    "4 local row(s) lack provenance or a passing verification state"
+2) query            SEC fetch -> 51,215,000,000 -> persisted 1 row
+3) gate after       VERIFIED_LOCAL_HIT  sec_invoked False
+                    answers from NVDA_Revenues_DataCenter_FY2026Q3_xbrl = 51,215,000,000
+```
+
+Four states implemented and reported: `VERIFIED_LOCAL_HIT`, `LOCAL_MISS`,
+`LOCAL_UNVERIFIED`, `LOCAL_CONFLICT`. Telemetry emits `local_evidence_status`,
+`sec_invoked`, `sec_skip_reason`, `gate_reason`, `gate_conflicts` — in the log
+line, the streamed status event, and the response metadata. No secrets.
+
+**Identity required before any bypass** (each pinned by its own test): ticker,
+CIK, concept, fiscal year, fiscal quarter, period start, period end, dimension /
+segment, statement scope, unit, fact type, form, accession, verification status,
+freshness, and absence of a conflicting row. A row failing any one routes to SEC.
+
+**Explicitly refused as insufficient** — each has a test:
+a legacy `companyfacts` backfill row (no provenance) → `LOCAL_UNVERIFIED`;
+a row whose verification did not pass; the consolidated total when a segment was
+asked for; wrong unit, wrong quarter, wrong year, wrong CIK, different concept;
+missing accession or period start; two rows disagreeing → `LOCAL_CONFLICT`;
+a row older than 90 days → re-validated against the filer.
+
+**The decision is pre-commitment.** It runs before the fan-out, from one narrow
+`financials` lookup keyed on ticker + period + the `_xbrl` suffix — never from
+fused or reranked output. A test asserts the exact filter used. A lookup that
+throws returns `LOCAL_MISS`, so a broken gate cannot become a gate that skips SEC.
+
+**Provenance contract.** `financials` has no columns for CIK, period start or
+verification state, and a schema migration was not authorised, so identity is
+written as structured text in `source_section` — the column that already records
+where a row came from. Rows lacking it can never bypass SEC, which is the
+conservative direction and is what makes the legacy backfill safe.
+
+**Existing verification was not weakened and the parallel architecture was not
+removed.** Only the `edgar` channel is dropped, only on a verified hit, only for
+the financial classes. Every other question keeps the full fan-out. Two
+persistence tests were updated because the `source_section` contract changed —
+both now assert *more* (every provenance field), not less.
+
+### NOT TESTED
+
+- Gate behaviour under concurrent writers (two queries racing to persist the same
+  fact). Upsert on a deterministic id makes a duplicate harmless, but no test
+  exercises the race.
+- The 90-day freshness window is a policy choice, not a measured one. No data was
+  gathered on how often a restatement lands after 90 days.
+- End-to-end latency saved in production. The local hit avoids 2–4 HTTP requests;
+  that is arithmetic from the probe's `4.2 requests/query`, not a production
+  measurement.
+
+### BLOCKED
+
+- Nothing blocked this work.
+
+### FAILED
+
+- Nothing. All 34 gate tests and the full suite pass.
+
+---
+
 ## 1. Files changed
 
 ### Modified (2)
@@ -53,6 +142,8 @@ shipping an untested authority rule. It also added a committed measurement scrip
 | `app/core/question_class.py` | §3's deterministic pre-retrieval classifier and §12's routing policy. No model call |
 | `tests/test_sec_query_time_regression.py` | 37 tests — empty-corpus regression, adversarial matrix, GAAP namespace guard, citation corroboration |
 | `tests/test_sec_fact_persistence.py` | 17 tests — row shape, refusals, non-blocking behaviour |
+| `app/core/retrieval/evidence_gate.py` | The verified-evidence gate: four routing states, full identity match, provenance codec, conflict and staleness detection |
+| `tests/test_evidence_gate.py` | 34 tests — the four required call-count regressions, every refusal case, end-to-end empty-corpus |
 | `tests/test_sec_amendments.py` | 18 tests — amendment authority, restatement disclosure, false-positive control |
 | `tests/test_question_class.py` | 47 tests — classification, routing, the leading-company regression |
 | `scripts/sec_fact_probe.py` | Committed, seeded measurement script. Exits non-zero on any failing case |
