@@ -61,18 +61,19 @@ async def lifespan(app: FastAPI):
     await _verify_connections()
 
     # Pre-warm embedder + pipeline so the first real query doesn't time out.
-    # Voyage embedder is fast; SPLADE downloads ~500MB of weights on first use,
-    # so we kick it off as a background task to avoid blocking startup and
-    # keep the health check passing.
-    try:
-        from app.dependencies import get_search_pipeline, get_embedder
-        get_embedder()
-        get_search_pipeline()
-        embedder = get_embedder()
-        await embedder.embed_query("warm up")
-        logger.info("pipeline_warmed_up")
-    except Exception as _e:
-        logger.warning("pipeline_warmup_failed", error=str(_e))
+    # get_search_pipeline() is synchronous and spends ~45 s importing the
+    # embedding SDKs, so awaiting it here — or even running it as a plain task —
+    # pins the event loop and leaves /health unanswered for over a minute.
+    # Offload it to a worker thread and let startup finish without it.
+    async def _warm_pipeline():
+        try:
+            from app.dependencies import get_search_pipeline, get_embedder
+            await asyncio.to_thread(get_search_pipeline)
+            await get_embedder().embed_query("warm up")
+            logger.info("pipeline_warmed_up")
+        except Exception as e:
+            logger.warning("pipeline_warmup_failed", error=str(e))
+    asyncio.create_task(_warm_pipeline())
 
     # SPLADE pre-warm skipped by default — loading the model alongside the
     # voyageai + transformers + asyncpg pool blows past 4 GB on Fly. Set

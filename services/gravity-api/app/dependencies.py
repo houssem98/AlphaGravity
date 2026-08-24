@@ -4,12 +4,18 @@ Wires all components together. Called by API routes to get the initialized searc
 Uses lazy initialization so services only start when first needed.
 """
 
+import threading
+
 import structlog
 from functools import lru_cache
 
 logger = structlog.get_logger()
 
 _search_pipeline = None
+# Building the pipeline takes ~45 s (embedding SDK imports). Without this
+# lock, a request arriving mid-build starts a second one and the loser's
+# orchestrator is discarded after paying full memory cost.
+_search_pipeline_lock = threading.Lock()
 _feedback_loop = None
 
 
@@ -106,10 +112,16 @@ def get_reranker():
 
 def get_search_pipeline():
     """Get (or lazily create) the fully wired search pipeline."""
-    global _search_pipeline
-
     if _search_pipeline is not None:
         return _search_pipeline
+    with _search_pipeline_lock:
+        if _search_pipeline is not None:
+            return _search_pipeline
+        return _build_search_pipeline()
+
+
+def _build_search_pipeline():
+    global _search_pipeline
 
     logger.info("initializing_search_pipeline")
 
