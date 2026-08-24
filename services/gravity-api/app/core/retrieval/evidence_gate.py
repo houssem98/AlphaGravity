@@ -223,6 +223,15 @@ def evaluate(
     # missing, which is the failure this gate exists to prevent.
     breakdown_asked = names_a_breakdown(query, ticker, company_terms)
 
+    # A metric is a FAMILY of tags, not one name. A filer reports whichever it
+    # uses — NVIDIA and Wingstop both answer under `Revenues` while the primary
+    # tag is `RevenueFromContract...`. Comparing against the single primary tag
+    # meant the gate never matched the rows this channel actually wrote, so it
+    # called SEC every time for exactly the filers the fallback exists for.
+    from app.core.retrieval.edgar_search import concept_family
+
+    accepted_concepts = {_norm(c) for c in concept_family(concept)}
+
     matches: list[dict] = []
     unverified = 0
     for r in rows:
@@ -240,7 +249,7 @@ def evaluate(
             continue
         if cik is not None and str(prov.get("cik") or "") != str(cik):
             continue
-        if _norm(prov.get("concept")) != _norm(concept):
+        if _norm(prov.get("concept")) not in accepted_concepts:
             continue
         if fiscal_year is not None and str(prov.get("fy") or "") != str(fiscal_year):
             continue

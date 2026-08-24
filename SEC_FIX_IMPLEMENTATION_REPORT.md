@@ -101,6 +101,32 @@ the financial classes. Every other question keeps the full fan-out. Two
 persistence tests were updated because the `source_section` contract changed —
 both now assert *more* (every provenance field), not less.
 
+**A live end-to-end proof on a company with no corpus presence at all**
+(Duolingo, 0 `financials` rows, 0 chunks before the run):
+
+```
+STEP 1  corpus before        financials rows=0  chunks=0
+STEP 2  evidence gate        LOCAL_MISS  sec_invoked=True
+STEP 3  SEC call             DUOL revenue FY2025 Q2 (10-Q): $252,265,000
+                             accession 0001628280-26-053603  CIK 1562088
+                             period 2025-04-01 -> 2025-06-30   verified   544ms
+STEP 4  persist              rows written = 1
+STEP 5  corpus after         DUOL_..._FY2025Q2_xbrl = 252,265,000
+STEP 6  same question again  VERIFIED_LOCAL_HIT  sec_invoked=False
+```
+
+**A bug the live proof caught, which unit tests had missed.** `classify_metric`
+returns the *primary* tag, but many filers report under a fallback — NVIDIA and
+Wingstop both answer under `Revenues`. The gate compared against the single
+primary tag, so a fact fetched and persisted under `Revenues` never matched, and
+SEC was called again on every repeat. The gate was dead for exactly the filers
+the D1 fallback chain exists for. The earlier NVDA "live proof" had passed only
+because the probe hardcoded the concept.
+
+Fixed by matching the metric *family* (`concept_family()` — the channel's own
+`_TAG_FALLBACKS` chain). Pinned by `TestTheConceptIsAFamilyNotOneTag`, including
+a test that the family has not become a wildcard.
+
 ### NOT TESTED
 
 - Gate behaviour under concurrent writers (two queries racing to persist the same
@@ -118,7 +144,10 @@ both now assert *more* (every provenance field), not less.
 
 ### FAILED
 
-- Nothing. All 34 gate tests and the full suite pass.
+- Nothing outstanding. Two defects were found during this work and fixed:
+  the consolidated-answers-a-segment-question hole and the `&` normalisation
+  mismatch (both caught by the gate's own tests), plus the concept-family bug
+  above (caught only by the live run). All 37 gate tests and the full suite pass.
 
 ---
 
@@ -143,7 +172,7 @@ both now assert *more* (every provenance field), not less.
 | `tests/test_sec_query_time_regression.py` | 37 tests — empty-corpus regression, adversarial matrix, GAAP namespace guard, citation corroboration |
 | `tests/test_sec_fact_persistence.py` | 17 tests — row shape, refusals, non-blocking behaviour |
 | `app/core/retrieval/evidence_gate.py` | The verified-evidence gate: four routing states, full identity match, provenance codec, conflict and staleness detection |
-| `tests/test_evidence_gate.py` | 34 tests — the four required call-count regressions, every refusal case, end-to-end empty-corpus |
+| `tests/test_evidence_gate.py` | 37 tests — the four required call-count regressions, every refusal case, end-to-end empty-corpus |
 | `tests/test_sec_amendments.py` | 18 tests — amendment authority, restatement disclosure, false-positive control |
 | `tests/test_question_class.py` | 47 tests — classification, routing, the leading-company regression |
 | `scripts/sec_fact_probe.py` | Committed, seeded measurement script. Exits non-zero on any failing case |

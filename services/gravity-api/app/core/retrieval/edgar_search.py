@@ -127,6 +127,19 @@ _COMMON_NON_TICKERS = {
 }
 
 
+def concept_family(tag: str) -> list[str]:
+    """
+    Every us-gaap tag that can carry this metric — the primary plus its fallbacks.
+
+    A filer reports one of them, not all: NVIDIA and Wingstop both answer under
+    `Revenues` while the primary tag is `RevenueFromContract...`. Anything that
+    compares a stored fact's concept against a single tag name has to compare
+    against the family instead, or it will never match the rows this channel
+    actually wrote.
+    """
+    return [tag] + _TAG_FALLBACKS.get(tag, [])
+
+
 def classify_metric(query: str) -> tuple[str, str]:
     """
     (us-gaap tag, human name). Revenue is the default — it is what an unqualified

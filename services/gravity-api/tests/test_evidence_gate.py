@@ -408,3 +408,48 @@ class TestTheEmptyCorpusPathEndToEnd:
             f"persisted row must close the loop, got {again.status}: {again.reason}"
         )
         assert again.row["value_float"] == DATA_CENTER
+
+
+class TestTheConceptIsAFamilyNotOneTag:
+    """
+    Regression. `classify_metric` returns the PRIMARY tag
+    (`RevenueFromContractWithCustomerExcludingAssessedTax`), but many filers
+    report under a fallback — NVIDIA and Wingstop both answer under `Revenues`.
+    The channel already knows this (it is the D1 fix); the gate did not.
+
+    Measured live before the fix: Wingstop Q2 2025 was fetched from SEC,
+    persisted with `concept=Revenues`, and the very next identical question was
+    still routed to SEC because the gate compared against the primary tag. The
+    gate was therefore dead for exactly the filers the fallback chain exists for.
+    """
+
+    PRIMARY = "RevenueFromContractWithCustomerExcludingAssessedTax"
+
+    def test_a_row_stored_under_a_fallback_tag_still_matches(self):
+        row = _row(prov={"concept": "Revenues"})
+        d = evaluate(
+            [row], query=THE_QUESTION, ticker=TICKER, cik=CIK,
+            concept=self.PRIMARY, fiscal_year=FY, fiscal_quarter=FQ,
+            company_terms=COMPANY_TERMS, now=_now(),
+        )
+        assert d.status == VERIFIED_LOCAL_HIT, (
+            "a fact filed under Revenues must satisfy a question classified to "
+            "the primary revenue tag — they are the same metric"
+        )
+
+    def test_an_unrelated_concept_still_does_not_match(self):
+        """The family must not become a wildcard."""
+        row = _row(prov={"concept": "OperatingIncomeLoss"})
+        d = evaluate(
+            [row], query=THE_QUESTION, ticker=TICKER, cik=CIK,
+            concept=self.PRIMARY, fiscal_year=FY, fiscal_quarter=FQ,
+            company_terms=COMPANY_TERMS, now=_now(),
+        )
+        assert d.status != VERIFIED_LOCAL_HIT
+
+    def test_the_family_is_the_channels_own_fallback_chain(self):
+        from app.core.retrieval.edgar_search import concept_family
+
+        fam = concept_family(self.PRIMARY)
+        assert fam[0] == self.PRIMARY
+        assert "Revenues" in fam, "the tag NVDA and WING actually file under"
