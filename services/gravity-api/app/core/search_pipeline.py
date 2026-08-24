@@ -28,6 +28,8 @@ import structlog
 from app.config import settings
 from app.api.middleware.pii_filter import PIIFilter
 from app.core.query_understanding import suppresses_xbrl
+from app.core.question_class import classify as classify_question
+from app.core.question_class import route_channels
 from app.core.retrieval.fusion import RetrievalResult, authority_aware_rrf
 from app.core.reasoning.prompts import (
     FINANCIAL_ANALYST_SYSTEM,
@@ -677,6 +679,36 @@ class SearchPipeline:
                     if _c not in _channels:
                         _channels.append(_c)
 
+                # Deterministic routing, ahead of retrieval. `query_understanding`
+                # adds `edgar` only when its LLM labels the intent calculation /
+                # simple_lookup or a keyword regex fires — so a slow, quota-limited
+                # or simply wrong model call silently skips the authoritative-source
+                # path and the user is told there is no evidence for a figure that
+                # is in a filing. This decides from the question's own words.
+                _ents = query_plan.get("entities")
+                _qc = classify_question(query, _ents if isinstance(_ents, dict) else None)
+                _channels = route_channels(_qc["question_class"], _channels)
+                query_plan["question_class"] = _qc["question_class"]
+                logger.info(
+                    "question_classified",
+                    trace_id=trace_id,
+                    question_class=_qc["question_class"],
+                    needs_primary_source=_qc["needs_primary_source"],
+                    channels=_channels,
+                )
+                if _qc["needs_primary_source"]:
+                    # §14: the user sees source acquisition happening, not a
+                    # silent pause followed by an implementation error.
+                    yield SearchEvent(
+                        type="status",
+                        data={
+                            "status": "resolving_primary_source",
+                            "message": "Resolving the filing that reports this...",
+                            "question_class": _qc["question_class"],
+                        },
+                        trace_id=trace_id,
+                    )
+
                 if len(_tickers) >= 2:
                     # ANY 2+ ticker query is a comparison → one scoped pass per
                     # company. Don't gate on complexity: "Which grew faster, Meta or
@@ -916,6 +948,32 @@ class SearchPipeline:
                     for e in query_plan.get("entities", {}).get("companies", [])
                 ]
                 company_hint = f" for {', '.join(companies)}" if companies else ""
+                # "Not indexed" is not "does not exist". The live EDGAR channel
+                # queries SEC at request time, so reaching here means the primary
+                # source was consulted and did not yield the fact either —
+                # telling the user to ingest a filing describes our plumbing and
+                # misreports why they got nothing.
+                _edgar_ran = "edgar" in (self.retrieval.channels if self.retrieval else {})
+                if _edgar_ran:
+                    _reason = (
+                        f"No supporting evidence found{company_hint}. "
+                        "The corpus holds nothing on this, and the SEC filings we could "
+                        "resolve for it do not report the figure as asked — check the "
+                        "company, the fiscal period, and whether the metric is disclosed "
+                        "at that level of detail."
+                    )
+                    _state = "UNSUPPORTED"
+                else:
+                    _reason = (
+                        f"No supporting evidence found{company_hint}, and the primary-source "
+                        "channel is not available on this deployment, so SEC filings could "
+                        "not be consulted directly."
+                    )
+                    _state = "SOURCE_UNAVAILABLE"
+                logger.info(
+                    "no_evidence_exit",
+                    trace_id=trace_id, state=_state, companies=companies,
+                )
                 yield SearchEvent(
                     type="sources",
                     data={"sources": []},
@@ -924,13 +982,10 @@ class SearchPipeline:
                 yield SearchEvent(
                     type="answer",
                     data={
-                        "answer": (
-                            f"No indexed documents found{company_hint}. "
-                            f"To get answers, ingest the relevant SEC filings first: "
-                            f"`POST /v1/documents/ingest` with the ticker symbol."
-                        ),
+                        "answer": _reason,
                         "citations": [],
                         "confidence": "NONE",
+                        "answer_state": _state,
                         "follow_up_queries": [],
                         "structured_data": [],
                     },
@@ -1692,6 +1747,9 @@ class SearchPipeline:
                     # → []) used to appear here and falsely imply 5 live channels.
                     "retrieval_channels": [k for k, v in (retrieval_results or {}).items() if v],
                     "channels_dark": [k for k, v in (retrieval_results or {}).items() if not v],
+                    # Which evidence system the question was routed to, decided
+                    # deterministically before retrieval rather than by the LLM.
+                    "question_class": query_plan.get("question_class", "GENERAL"),
                     "passages_used": len(top_passages),
                     "cache_hit": False,
                     "cache_provenance": "live",

@@ -1,0 +1,1010 @@
+<?xml version='1.0' encoding='utf-8'?>
+<xbrli:xbrl xmlns:us-gaap="http://fasb.org/us-gaap/2025" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:xbrli="http://www.xbrl.org/2003/instance"><xbrli:context id="c-1">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-3">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-13">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:RetainedEarningsMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-14">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:AccumulatedOtherComprehensiveIncomeMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-15">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:CommonStockMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-16">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:AdditionalPaidInCapitalMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-39">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:RetainedEarningsMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-40">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:AccumulatedOtherComprehensiveIncomeMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-41">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:CommonStockMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-42">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:AdditionalPaidInCapitalMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-52">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:IncomeStatementLocationAxis">us-gaap:CostOfSalesMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-54">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:IncomeStatementLocationAxis">us-gaap:CostOfSalesMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-56">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:IncomeStatementLocationAxis">us-gaap:ResearchAndDevelopmentExpenseMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-58">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:IncomeStatementLocationAxis">us-gaap:ResearchAndDevelopmentExpenseMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-60">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:IncomeStatementLocationAxis">us-gaap:SellingGeneralAndAdministrativeExpensesMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-62">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:IncomeStatementLocationAxis">us-gaap:SellingGeneralAndAdministrativeExpensesMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-65">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:AwardTypeAxis">nvda:RSUsPSUsandMarketbasedPSUsMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-67">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:AwardTypeAxis">us-gaap:EmployeeStockMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-89">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerOneMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:AccountsReceivableMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-90">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerTwoMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:AccountsReceivableMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-91">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerThreeMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:AccountsReceivableMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-92">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerFourMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:AccountsReceivableMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-97">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:NatureOfExpenseAxis">nvda:InventoryPurchaseObligationsInExcessOfProjectionsMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-99">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:NatureOfExpenseAxis">nvda:InventoryPurchaseObligationsInExcessOfProjectionsMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-108">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:DerivativeInstrumentRiskAxis">us-gaap:ForeignExchangeForwardMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-111">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2026NotesMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-114">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2028NotesMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-117">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2030NotesMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-120">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2031NotesMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-123">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2040NotesMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-126">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2050NotesMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-129">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2060NotesMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-139">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:OperatingSegmentsMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingSegmentMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-140">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:OperatingSegmentsMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:GraphicsSegmentMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-141">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:OperatingSegmentsMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-145">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:OperatingSegmentsMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingSegmentMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-146">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:OperatingSegmentsMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:GraphicsSegmentMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-147">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:OperatingSegmentsMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-151">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingSegmentMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-153">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingSegmentMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-155">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:GraphicsSegmentMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-157">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:GraphicsSegmentMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-159">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:CorporateNonSegmentMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-161">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:CorporateNonSegmentMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-163">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:StatementGeographicalAxis">country:US</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-165">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:StatementGeographicalAxis">country:US</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-167">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:StatementGeographicalAxis">country:TW</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-169">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:StatementGeographicalAxis">country:TW</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-171">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:StatementGeographicalAxis">nvda:ChinaIncludingHongKongMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-173">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:StatementGeographicalAxis">nvda:ChinaIncludingHongKongMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-175">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:StatementGeographicalAxis">nvda:AllOtherCountriesNotSeparatelyDisclosedMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-177">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:StatementGeographicalAxis">nvda:AllOtherCountriesNotSeparatelyDisclosedMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-179">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:MajorCustomersAxis">nvda:UnitedStatesAndEuropeBasedEndCustomersMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="srt:StatementGeographicalAxis">country:TW</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-180">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:StatementGeographicalAxis">us-gaap:NonUsMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-181">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:StatementGeographicalAxis">us-gaap:NonUsMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-184">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerAMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-185">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerBMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-186">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerCMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-187">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerDMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-188">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerOneMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-189">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerTwoMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-196">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:DataCenterMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-198">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:DataCenterMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-200">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:ComputeMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-202">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:ComputeMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-204">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:NetworkingMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-206">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:NetworkingMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-208">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:GamingMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-210">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:GamingMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-212">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:ProfessionalVisualizationMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-214">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:ProfessionalVisualizationMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-216">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:AutomotiveMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-218">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:AutomotiveMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-220">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:OEMAndOtherMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-222">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="srt:ProductOrServiceAxis">nvda:OEMAndOtherMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-01-27</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-227">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="ecd:IndividualAxis">nvda:DeboraShoquistMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-229">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="ecd:IndividualAxis">nvda:DonaldRobertsonMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <xbrli:context id="c-231">
+        <xbrli:entity>
+            <xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>
+            <xbrli:segment>
+                <xbrldi:explicitMember dimension="ecd:IndividualAxis">nvda:AjayPuriMember</xbrldi:explicitMember>
+            </xbrli:segment>
+        </xbrli:entity>
+        <xbrli:period>
+            <xbrli:startDate>2025-07-28</xbrli:startDate>
+            <xbrli:endDate>2025-10-26</xbrli:endDate>
+        </xbrli:period>
+    </xbrli:context>
+    <us-gaap:Revenues contextRef="c-3" decimals="-6" id="f-30" unitRef="usd">57006000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-1" decimals="-6" id="f-32" unitRef="usd">147811000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-139" decimals="-6" id="f-858" unitRef="usd">50908000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-140" decimals="-6" id="f-859" unitRef="usd">6098000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-141" decimals="-6" id="f-860" unitRef="usd">57006000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-145" decimals="-6" id="f-876" unitRef="usd">131828000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-146" decimals="-6" id="f-877" unitRef="usd">15983000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-147" decimals="-6" id="f-878" unitRef="usd">147811000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-163" decimals="-6" id="f-935" unitRef="usd">39177000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-165" decimals="-6" id="f-937" unitRef="usd">97759000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-167" decimals="-6" id="f-939" unitRef="usd">13751000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-169" decimals="-6" id="f-941" unitRef="usd">30301000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-171" decimals="-6" id="f-943" unitRef="usd">2973000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-173" decimals="-6" id="f-945" unitRef="usd">16617000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-175" decimals="-6" id="f-947" unitRef="usd">1105000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-177" decimals="-6" id="f-949" unitRef="usd">3134000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-3" decimals="-6" id="f-951" unitRef="usd">57006000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-1" decimals="-6" id="f-953" unitRef="usd">147811000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-196" decimals="-6" id="f-973" unitRef="usd">51215000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-198" decimals="-6" id="f-975" unitRef="usd">131423000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-200" decimals="-6" id="f-977" unitRef="usd">43028000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-202" decimals="-6" id="f-979" unitRef="usd">111027000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-204" decimals="-6" id="f-981" unitRef="usd">8187000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-206" decimals="-6" id="f-983" unitRef="usd">20396000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-208" decimals="-6" id="f-985" unitRef="usd">4265000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-210" decimals="-6" id="f-987" unitRef="usd">12315000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-212" decimals="-6" id="f-989" unitRef="usd">760000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-214" decimals="-6" id="f-991" unitRef="usd">1870000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-216" decimals="-6" id="f-993" unitRef="usd">592000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-218" decimals="-6" id="f-995" unitRef="usd">1745000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-220" decimals="-6" id="f-997" unitRef="usd">174000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-222" decimals="-6" id="f-999" unitRef="usd">458000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-3" decimals="-6" id="f-1001" unitRef="usd">57006000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-1" decimals="-6" id="f-1003" unitRef="usd">147811000000</us-gaap:Revenues>
+    </xbrli:xbrl>

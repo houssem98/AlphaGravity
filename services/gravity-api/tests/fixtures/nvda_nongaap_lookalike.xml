@@ -1,0 +1,1010 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ns0:xbrl xmlns:ns0="http://www.xbrl.org/2003/instance" xmlns:ns1="http://xbrl.org/2006/xbrldi" xmlns:ns2="http://fasb.org/us-gaap/2025" xmlns:nvda="http://www.nvidia.com/20251026"><ns0:context id="c-1">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-3">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-13">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:RetainedEarningsMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-14">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:AccumulatedOtherComprehensiveIncomeMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-15">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:CommonStockMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-16">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:AdditionalPaidInCapitalMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-39">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:RetainedEarningsMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-40">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:AccumulatedOtherComprehensiveIncomeMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-41">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:CommonStockMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-42">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:StatementEquityComponentsAxis">us-gaap:AdditionalPaidInCapitalMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-52">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:IncomeStatementLocationAxis">us-gaap:CostOfSalesMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-54">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:IncomeStatementLocationAxis">us-gaap:CostOfSalesMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-56">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:IncomeStatementLocationAxis">us-gaap:ResearchAndDevelopmentExpenseMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-58">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:IncomeStatementLocationAxis">us-gaap:ResearchAndDevelopmentExpenseMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-60">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:IncomeStatementLocationAxis">us-gaap:SellingGeneralAndAdministrativeExpensesMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-62">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:IncomeStatementLocationAxis">us-gaap:SellingGeneralAndAdministrativeExpensesMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-65">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:AwardTypeAxis">nvda:RSUsPSUsandMarketbasedPSUsMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-67">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:AwardTypeAxis">us-gaap:EmployeeStockMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-89">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerOneMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:AccountsReceivableMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-90">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerTwoMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:AccountsReceivableMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-91">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerThreeMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:AccountsReceivableMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-92">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerFourMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:AccountsReceivableMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-97">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:NatureOfExpenseAxis">nvda:InventoryPurchaseObligationsInExcessOfProjectionsMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-99">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:NatureOfExpenseAxis">nvda:InventoryPurchaseObligationsInExcessOfProjectionsMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-108">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:DerivativeInstrumentRiskAxis">us-gaap:ForeignExchangeForwardMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-111">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2026NotesMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-114">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2028NotesMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-117">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2030NotesMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-120">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2031NotesMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-123">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2040NotesMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-126">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2050NotesMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-129">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:DebtInstrumentAxis">nvda:A2060NotesMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:LongtermDebtTypeAxis">us-gaap:NotesPayableOtherPayablesMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-139">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:OperatingSegmentsMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingSegmentMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-140">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:OperatingSegmentsMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:GraphicsSegmentMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-141">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:OperatingSegmentsMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-145">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:OperatingSegmentsMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingSegmentMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-146">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:OperatingSegmentsMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:GraphicsSegmentMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-147">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:OperatingSegmentsMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-151">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingSegmentMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-153">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingSegmentMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-155">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:GraphicsSegmentMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-157">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:GraphicsSegmentMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-159">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:CorporateNonSegmentMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-161">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ConsolidationItemsAxis">us-gaap:CorporateNonSegmentMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-163">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:StatementGeographicalAxis">country:US</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-165">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:StatementGeographicalAxis">country:US</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-167">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:StatementGeographicalAxis">country:TW</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-169">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:StatementGeographicalAxis">country:TW</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-171">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:StatementGeographicalAxis">nvda:ChinaIncludingHongKongMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-173">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:StatementGeographicalAxis">nvda:ChinaIncludingHongKongMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-175">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:StatementGeographicalAxis">nvda:AllOtherCountriesNotSeparatelyDisclosedMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-177">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:StatementGeographicalAxis">nvda:AllOtherCountriesNotSeparatelyDisclosedMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-179">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:MajorCustomersAxis">nvda:UnitedStatesAndEuropeBasedEndCustomersMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="srt:StatementGeographicalAxis">country:TW</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-180">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:StatementGeographicalAxis">us-gaap:NonUsMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-181">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:StatementGeographicalAxis">us-gaap:NonUsMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-184">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerAMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-185">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerBMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-186">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerCMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-187">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerDMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-188">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerOneMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-189">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:MajorCustomersAxis">nvda:CustomerTwoMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByBenchmarkAxis">us-gaap:SalesRevenueNetMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:ConcentrationRiskByTypeAxis">us-gaap:CustomerConcentrationRiskMember</ns1:explicitMember>
+                <ns1:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">nvda:ComputeAndNetworkingMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-196">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:DataCenterMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-198">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:DataCenterMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-200">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:ComputeMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-202">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:ComputeMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-204">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:NetworkingMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-206">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:NetworkingMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-208">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:GamingMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-210">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:GamingMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-212">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:ProfessionalVisualizationMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-214">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:ProfessionalVisualizationMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-216">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:AutomotiveMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-218">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:AutomotiveMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-220">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:OEMAndOtherMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-222">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="srt:ProductOrServiceAxis">nvda:OEMAndOtherMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-27</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-227">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="ecd:IndividualAxis">nvda:DeboraShoquistMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-229">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="ecd:IndividualAxis">nvda:DonaldRobertsonMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-231">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001045810</ns0:identifier>
+            <ns0:segment>
+                <ns1:explicitMember dimension="ecd:IndividualAxis">nvda:AjayPuriMember</ns1:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-07-28</ns0:startDate>
+            <ns0:endDate>2025-10-26</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns2:Revenues contextRef="c-3" decimals="-6" id="f-30" unitRef="usd">57006000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-1" decimals="-6" id="f-32" unitRef="usd">147811000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-139" decimals="-6" id="f-858" unitRef="usd">50908000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-140" decimals="-6" id="f-859" unitRef="usd">6098000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-141" decimals="-6" id="f-860" unitRef="usd">57006000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-145" decimals="-6" id="f-876" unitRef="usd">131828000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-146" decimals="-6" id="f-877" unitRef="usd">15983000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-147" decimals="-6" id="f-878" unitRef="usd">147811000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-163" decimals="-6" id="f-935" unitRef="usd">39177000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-165" decimals="-6" id="f-937" unitRef="usd">97759000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-167" decimals="-6" id="f-939" unitRef="usd">13751000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-169" decimals="-6" id="f-941" unitRef="usd">30301000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-171" decimals="-6" id="f-943" unitRef="usd">2973000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-173" decimals="-6" id="f-945" unitRef="usd">16617000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-175" decimals="-6" id="f-947" unitRef="usd">1105000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-177" decimals="-6" id="f-949" unitRef="usd">3134000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-3" decimals="-6" id="f-951" unitRef="usd">57006000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-1" decimals="-6" id="f-953" unitRef="usd">147811000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-196" decimals="-6" id="f-973" unitRef="usd">51215000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-198" decimals="-6" id="f-975" unitRef="usd">131423000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-200" decimals="-6" id="f-977" unitRef="usd">43028000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-202" decimals="-6" id="f-979" unitRef="usd">111027000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-204" decimals="-6" id="f-981" unitRef="usd">8187000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-206" decimals="-6" id="f-983" unitRef="usd">20396000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-208" decimals="-6" id="f-985" unitRef="usd">4265000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-210" decimals="-6" id="f-987" unitRef="usd">12315000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-212" decimals="-6" id="f-989" unitRef="usd">760000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-214" decimals="-6" id="f-991" unitRef="usd">1870000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-216" decimals="-6" id="f-993" unitRef="usd">592000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-218" decimals="-6" id="f-995" unitRef="usd">1745000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-220" decimals="-6" id="f-997" unitRef="usd">174000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-222" decimals="-6" id="f-999" unitRef="usd">458000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-3" decimals="-6" id="f-1001" unitRef="usd">57006000000</ns2:Revenues>
+    <ns2:Revenues contextRef="c-1" decimals="-6" id="f-1003" unitRef="usd">147811000000</ns2:Revenues>
+    <nvda:Revenues contextRef="c-3" unitRef="usd">99999000000</nvda:Revenues></ns0:xbrl>
