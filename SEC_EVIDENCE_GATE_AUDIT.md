@@ -281,12 +281,95 @@ pipeline runs.
 
 ---
 
-## What was NOT done
+## 16. End-to-end through the real `SearchPipeline.search()`
 
-- **NOT TESTED** — the gate under a live `SearchPipeline.search()` end to end.
-  That path requires an LLM round trip and a built pipeline (~45s of SDK
-  imports); the decision method and the routing rule are each verified against
-  the real objects instead.
+**VERIFIED** — `services/gravity-api/tests/test_search_pipeline_sec_e2e.py`, 13 tests.
+
+This closes the item previously recorded here as NOT TESTED. `SearchPipeline` is
+the real class, `RetrievalOrchestrator` the real orchestrator, `EdgarSearch` the
+real channel, and the gate runs where the pipeline runs it. Nothing substitutes
+for the pipeline itself.
+
+Mocks sit only on boundaries that leave the process: the LLM router and query
+understander (inference APIs), SEC HTTP (`EdgarSearch(http_client=...)`, recorded
+fixtures), and Supabase (`sb_select` for the gate's lookup, `sb_insert` for
+persistence). `reranker`, `citation_validator` and `semantic_cache` are passed as
+`None`, which the pipeline already supports — they are Cohere and Redis, and
+neither participates in the SEC decision.
+
+Measured, through the real pipeline:
+
+```
+SCENARIO                        GATE STATUS         SEC?   HTTP  PERSIST
+------------------------------------------------------------------------
+1 verified local                VERIFIED_LOCAL_HIT  False     0        0
+1 verified (cold channel)       VERIFIED_LOCAL_HIT  False     1        0
+2 local removed                 LOCAL_MISS          True      4        1
+3 identical query again         VERIFIED_LOCAL_HIT  False     0        0
+4 unverified local              LOCAL_UNVERIFIED    True      4        1
+4 stale local                   LOCAL_CONFLICT      True      4        1
+5 conflicting local             LOCAL_CONFLICT      True      4        1
+
+Scenario 2 answer       : NVIDIA reported Data Center revenue of $51,215,000,000 in Q3 FY2026.
+Scenario 2 persisted id : NVDA_Revenues_DataCenter_FY2026Q3_xbrl
+Scenario 2 persisted val: 51215000000
+```
+
+The pipeline log confirms the decision is acted on, not merely computed:
+
+```
+question_classified  question_class=EXACT_FINANCIAL_FACT needs_primary_source=True
+evidence_gate        local_evidence_status=VERIFIED_LOCAL_HIT sec_invoked=False
+retrieval_complete   channels_queried=['structured']          ← edgar removed
+```
+
+### Two findings this run produced
+
+**A verified hit costs one SEC request on a cold channel, not zero.** The gate's
+own CIK resolution downloads `https://www.sec.gov/files/company_tickers.json`.
+That is identity, not facts: no filing, no companyconcept, no XBRL instance. In
+production `EdgarSearch` is one long-lived channel caching that map for a day, so
+a steady-state query makes zero requests — which is what row 1 shows, with the
+map warmed exactly as production warms it. Rather than round this to zero, it is
+asserted:
+`test_a_cold_channel_costs_one_identity_request_and_no_facts` pins the URL list
+to exactly `["https://www.sec.gov/files/company_tickers.json"]` and asserts no
+`data.sec.gov` or `Archives` request occurs.
+
+**The emitted citation does not carry the accession number.** The `sources` event
+and the answer's `citations` carry the exact figure, the ticker, the filing title
+(`NVDA 10-Q — FY2026 Q3`) and the filing date, but the accession
+`0001045810-25-000230` appears in neither, and the citation `url` is the generic
+EDGAR *browse* URL rather than the filing. The accession **is** present on the
+retrieval result's metadata and **is** written to persistence — only the
+client-facing payload drops it. This is the same known gap as the unimplemented
+`/v1/documents/filing-url`. It is recorded here rather than asserted, because a
+test locking in current behaviour would fail the day someone fixes it. The
+positive assertions
+(`test_the_exact_verified_fact_reaches_the_answer_path`,
+`test_the_citation_names_the_filing_it_came_from`) check what does arrive.
+
+### Test names
+
+```
+TestScenario1_VerifiedLocalFact::test_the_pipeline_makes_zero_sec_calls
+TestScenario1_VerifiedLocalFact::test_the_pipeline_still_answers
+TestScenario1_VerifiedLocalFact::test_a_cold_channel_costs_one_identity_request_and_no_facts
+TestScenario2_LocalFactRemoved::test_the_pipeline_calls_sec
+TestScenario2_LocalFactRemoved::test_the_instance_document_is_fetched
+TestScenario2_LocalFactRemoved::test_the_exact_verified_fact_reaches_the_answer_path
+TestScenario2_LocalFactRemoved::test_the_citation_names_the_filing_it_came_from
+TestScenario2_LocalFactRemoved::test_the_fact_is_persisted
+TestScenario2_LocalFactRemoved::test_the_persisted_row_carries_verified_provenance
+TestScenario3_IdenticalQueryAgain::test_the_second_run_makes_zero_sec_calls
+TestScenario4_StaleOrUnverifiedLocalFact::test_an_unverified_row_calls_sec
+TestScenario4_StaleOrUnverifiedLocalFact::test_a_stale_row_calls_sec
+TestScenario5_ConflictingLocalFact::test_two_disagreeing_rows_call_sec
+```
+
+---
+
+## What was NOT done
 - **BLOCKED** — deployment. Fly rejects both the remote builder and
   `--local-only` with `status 403: Your account has overdue invoices`. Production
   remains on version 228 (2026-07-07). None of this is running in production.
