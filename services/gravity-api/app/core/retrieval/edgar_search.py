@@ -22,7 +22,8 @@ from datetime import date
 
 import structlog
 
-from app.core.retrieval import fact_persistence, sec_authority
+from app.core.retrieval import fact_persistence, sec_authority, sec_telemetry
+from app.core.retrieval.citation_provenance import valid_accession
 from app.core.retrieval.fact_verification import VERIFIED, verify_fact
 from app.core.retrieval.fusion import RetrievalResult
 from app.core.retrieval.sec_dimensions import resolve_dimensional_fact
@@ -266,6 +267,9 @@ class EdgarSearch:
         self._http = http_client
         self._ticker_map: dict[str, int] = {}
         self._title_map: dict[str, str] = {}   # normalized company name -> ticker
+        # SEC's own registrant name per ticker. A citation has to name the
+        # issuer, and the same download already carries it.
+        self._issuer_by_ticker: dict[str, str] = {}
         self._ticker_map_at: float = 0.0
 
     async def _client(self):
@@ -275,7 +279,11 @@ class EdgarSearch:
             self._http = httpx.AsyncClient(
                 headers={"User-Agent": self._ua}, timeout=10.0
             )
-        return self._http
+        # Every SEC request leaves through here, including the ones
+        # `sec_dimensions` issues on the raw client it is handed. Counting at
+        # this one point is what makes "a verified local hit asks the filer for
+        # nothing" an instrumented invariant rather than a claim.
+        return sec_telemetry.CountingClient(self._http)
 
     async def _get_json(self, url: str) -> dict | None:
         async with _SEC_SEMAPHORE:
@@ -298,6 +306,7 @@ class EdgarSearch:
             return
         tickers: dict[str, int] = {}
         titles: dict[str, str] = {}
+        issuers: dict[str, str] = {}
         for row in data.values():
             if not isinstance(row, dict) or not row.get("ticker"):
                 continue
@@ -310,7 +319,10 @@ class EdgarSearch:
             # "ALPHABET INC" resolves to GOOGL rather than a later share class.
             if title and title not in titles:
                 titles[title] = t
+            if t not in issuers and row.get("title"):
+                issuers[t] = str(row["title"])
         self._ticker_map, self._title_map = tickers, titles
+        self._issuer_by_ticker = issuers
         self._ticker_map_at = time.time()
 
     async def ticker_to_cik(self, ticker: str) -> int | None:
@@ -692,6 +704,7 @@ class EdgarSearch:
             "context_id": fact.context_id,
             "document_url": res["document_url"],
             "source_url": res["document_url"],
+            "extraction_method": "filing_instance",
             "available_breakdowns": res["available"],
             "verification_status": VERIFIED,
             "parser_version": PARSER_VERSION,
@@ -790,7 +803,12 @@ class EdgarSearch:
         self, ticker: str, cik: int, tag: str, label: str, row: dict
     ) -> RetrievalResult:
         period = self._period_label(row)
-        url = filing_url(cik, row.get("accn", ""))
+        accn = str(row.get("accn", "") or "")
+        # An accession that is not shaped like one is not interpolated into a
+        # URL path and is not shown as a citation. The string arrives from a
+        # parsed JSON document; "sec.gov sent it" is an assumption about the
+        # network, not a property of the value.
+        url = filing_url(cik, accn) if valid_accession(accn) else ""
         derived = bool(row.get("derived"))
         form = row.get("form") or "XBRL"
         # The prefix is load-bearing: search_pipeline pins passages carrying it and
@@ -818,8 +836,11 @@ class EdgarSearch:
             document_type="sec_edgar_xbrl",
             source_quality=10,  # sec.gov authority tier, set explicitly
             metadata={
-                "accn": row.get("accn", ""),
+                "accn": accn,
                 "cik": cik,
+                # SEC's own registrant name. A citation states the issuer, and
+                # a ticker is a market symbol, not an issuer.
+                "issuer": self._issuer_by_ticker.get(ticker.upper(), ""),
                 "tag": tag,
                 "unit": row.get("unit", ""),
                 "form": form,
@@ -842,6 +863,12 @@ class EdgarSearch:
                 "superseded": row.get("superseded", []),
                 "filing_url": url,
                 "source_url": url,
+                # Which artefact the number was read out of. A consolidated fact
+                # comes from SEC's companyconcept aggregation; a dimensional one
+                # is overwritten below with the filing's own instance document,
+                # because those are genuinely different evidence.
+                "extraction_method": "companyconcept",
+                "document_url": CONCEPT_URL.format(cik=cik, tag=tag),
                 "channel": "edgar",
             },
         )

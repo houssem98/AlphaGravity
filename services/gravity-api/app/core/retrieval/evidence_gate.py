@@ -83,7 +83,7 @@ def decode_provenance(raw: str) -> dict | None:
 class GateDecision:
     """What the gate decided, and everything telemetry needs to say why."""
 
-    __slots__ = ("status", "row", "reason", "conflicts", "identity")
+    __slots__ = ("status", "row", "reason", "conflicts", "identity", "blocked_reason")
 
     def __init__(self, status, row=None, reason="", conflicts=None, identity=None):
         self.status = status
@@ -91,14 +91,27 @@ class GateDecision:
         self.reason = reason
         self.conflicts = conflicts or []
         self.identity = identity or {}
+        # Set when the evidence is a genuine verified hit but nothing in this
+        # deployment can read it, so the filer is asked anyway. Kept apart from
+        # `status`, which is a statement about the evidence, not about routing.
+        self.blocked_reason = ""
+
+    def block(self, reason: str) -> None:
+        """Record that the bypass could not be taken, and why."""
+        self.blocked_reason = reason
 
     @property
     def sec_invoked(self) -> bool:
-        return self.status != VERIFIED_LOCAL_HIT
+        # Reports what the pipeline will actually do, not what the evidence
+        # would have allowed. Telemetry that says the filer was skipped while
+        # the filer is being called is worse than no telemetry.
+        return self.status != VERIFIED_LOCAL_HIT or bool(self.blocked_reason)
 
     @property
     def sec_skip_reason(self) -> str | None:
-        return VERIFIED_LOCAL_HIT if self.status == VERIFIED_LOCAL_HIT else None
+        if self.status != VERIFIED_LOCAL_HIT or self.blocked_reason:
+            return None
+        return VERIFIED_LOCAL_HIT
 
     def telemetry(self) -> dict:
         return {
@@ -107,6 +120,7 @@ class GateDecision:
             "sec_skip_reason": self.sec_skip_reason,
             "gate_reason": self.reason,
             "gate_conflicts": len(self.conflicts),
+            "gate_bypass_blocked": self.blocked_reason,
         }
 
     def __repr__(self) -> str:
@@ -374,6 +388,31 @@ async def check_verified_local_evidence(
     )
 
 
+def local_channel_can_serve(channels) -> bool:
+    """
+    Whether the channel that would read the verified row is actually running.
+
+    The gate proves a row exists and is exactly the fact asked for. Dropping
+    `edgar` additionally requires that something will *read* that row, and
+    `structured_search.search` returns `[]` unconditionally when
+    `structured_facts_enabled` is off — which is the default, for a stated
+    pre-existing reason (noisy table-extracted rows regressed FinanceBench).
+
+    Dropping the exact-fact channel while the only channel that could replace it
+    is switched off does not produce a local answer. It produces an answer from
+    prose with the exact figure removed from the context, which is the failure
+    this gate exists to prevent, reached from the other side.
+    """
+    if "structured" not in (channels or []):
+        return False
+    try:
+        from app.config import settings
+
+        return bool(getattr(settings, "structured_facts_enabled", False))
+    except Exception:
+        return False
+
+
 def channels_after_gate(channels, decision) -> list:
     """
     The channels the fan-out may use, given the gate's decision.
@@ -382,6 +421,12 @@ def channels_after_gate(channels, decision) -> list:
     test that re-implements "drop edgar when verified" proves its own copy of the
     rule and would stay green while the pipeline regressed.
     """
-    if decision is not None and not decision.sec_invoked:
-        return [c for c in channels if c != "edgar"]
-    return list(channels)
+    if decision is None or decision.sec_invoked:
+        return list(channels)
+    if not local_channel_can_serve(channels):
+        decision.block(
+            "the local corpus channel is not enabled, so the verified row "
+            "cannot be read; asking the filer rather than answering from prose"
+        )
+        return list(channels)
+    return [c for c in channels if c != "edgar"]

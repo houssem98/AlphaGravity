@@ -121,6 +121,13 @@ async def search(
             "chunk_id": c.get("chunk_id", "") or "",
             "char_offset_start": c.get("char_offset_start"),
             "char_offset_end": c.get("char_offset_end"),
+            # This coercion is a whitelist, so a field omitted here is a field
+            # deleted from the API response. The accession and the exact filing
+            # survive every earlier hop and must survive this one.
+            "accession": c.get("accession", "") or "",
+            "filing_url": c.get("filing_url", "") or "",
+            "verification_status": c.get("verification_status", "") or "",
+            "provenance": c.get("provenance") or None,
         }
     citations = [_coerce_citation(c, i) for i, c in enumerate(citations or [])]
 

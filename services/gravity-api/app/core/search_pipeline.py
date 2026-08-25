@@ -30,6 +30,7 @@ from app.api.middleware.pii_filter import PIIFilter
 from app.core.query_understanding import suppresses_xbrl
 from app.core.question_class import classify as classify_question
 from app.core.question_class import route_channels
+from app.core.retrieval import citation_provenance, sec_telemetry
 from app.core.retrieval.fusion import RetrievalResult, authority_aware_rrf
 from app.core.reasoning.prompts import (
     FINANCIAL_ANALYST_SYSTEM,
@@ -376,6 +377,10 @@ class SearchPipeline:
         trace_id = str(uuid.uuid4())
         start = time.perf_counter()
         total_cost = 0.0
+        # Count what this run asks sec.gov for, split into identity lookups and
+        # authoritative fact/filing/archive requests. The evidence gate's claim
+        # is about the second kind only, so the two are never summed.
+        _sec_log = sec_telemetry.start()
         conversation_context = await self._get_conversation_context(conversation_id)
 
         # Observability: start Langfuse trace (no-op if not configured)
@@ -1829,6 +1834,16 @@ class SearchPipeline:
                     # Why the filer was or was not asked. Visible without
                     # exposing anything sensitive — states and counts only.
                     **(_gt if isinstance(_gt := query_plan.get("gate_telemetry"), dict) else {}),
+                    # What was actually asked of sec.gov, measured at the socket.
+                    # `sec_invoked` above is the gate's intent; these are the
+                    # requests that really left, which is what makes the
+                    # "verified hit costs no fact request" invariant observable
+                    # in production and not only in a test.
+                    **_sec_log.telemetry(),
+                    # The filing the answer rests on, promoted out of the
+                    # citation payload so an operator can see provenance in
+                    # telemetry without parsing the answer.
+                    **_answer_provenance(citations_out),
                     "passages_used": len(top_passages),
                     "cache_hit": False,
                     "cache_provenance": "live",
@@ -2193,6 +2208,25 @@ def _edgar_browse_url(ticker: str, filing_type: str = "") -> str:
     return url
 
 
+def _answer_provenance(citations: list) -> dict:
+    """
+    The filing the answer rests on, for telemetry.
+
+    Read off the citations the user is actually shown rather than off the
+    passages, so telemetry and the answer cannot disagree about which filing was
+    cited. Empty strings when nothing authoritative was cited — which is itself
+    the signal that the answer came from prose rather than from a filing.
+    """
+    for c in citations or []:
+        if isinstance(c, dict) and c.get("accession"):
+            return {
+                "source_accession": c.get("accession", ""),
+                "source_filing_url": c.get("filing_url", ""),
+                "verification_status": c.get("verification_status", ""),
+            }
+    return {"source_accession": "", "source_filing_url": "", "verification_status": ""}
+
+
 def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
     """
     Enrich citations into the shape the frontend expects
@@ -2241,7 +2275,23 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
         _tk = c.get("ticker") or _pf("ticker")
         _sec = c.get("section") or _pf("section")
         _ftype = c.get("document_type") or _pf("document_type") or _pf("filing_type")
-        _url = c.get("url") or _pf("url") or _edgar_browse_url(_tk, _ftype)
+        # The filing identity the SEC channel already resolved. It lives on the
+        # passage's `metadata` dict, which this function used to skip entirely —
+        # every field was resolved, verified and persisted, then dropped one step
+        # before the user could see it.
+        _prov = citation_provenance.provenance(
+            getattr(p, "metadata", None) if p is not None else None, ticker=_tk
+        )
+        # An exact filing URL outranks anything else, including a URL the model
+        # emitted: the resolver read the accession out of the filing, the model
+        # did not. Falling back to the generic company-listing URL while an exact
+        # filing is known is the specific downgrade this ordering forbids.
+        _url = (
+            citation_provenance.citation_url(_prov)
+            or c.get("url")
+            or _pf("url")
+            or _edgar_browse_url(_tk, _ftype)
+        )
         _offset_start = c.get("char_offset_start") or (getattr(p, "char_offset_start", None) if p is not None else None)
         _offset_end = c.get("char_offset_end") or (getattr(p, "char_offset_end", None) if p is not None else None)
 
@@ -2261,6 +2311,15 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
             "url": _url,
         }
 
+        # The accession and the exact filing, promoted to top-level fields so a
+        # consumer does not have to know the provenance object exists, plus the
+        # full canonical chain for one that does.
+        if _prov:
+            citation["accession"] = _prov["accession"]
+            citation["filing_url"] = _prov.get("filing_url", "")
+            citation["verification_status"] = _prov.get("verification_status", "")
+            citation["provenance"] = _prov
+
         # Add char offsets for span-level citation highlighting
         if _offset_start is not None and _offset_end is not None:
             citation["char_offset_start"] = _offset_start
@@ -2271,24 +2330,39 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
     # Resilience: the model degrades under rate-limit and drops the citations
     # array entirely, leaving the source panel empty even though passages WERE
     # retrieved. Synthesize citations from the top passages so sources always show.
+    #
+    # This branch builds citations without going through the loop above, so it
+    # needs the same provenance join — otherwise the exact-filing citation is
+    # correct only while the model is healthy, and degrades to a generic company
+    # listing exactly when the answer is most in need of its source.
     if not out and passages:
         for i, p in enumerate(passages[:6], start=1):
-            out.append({
+            _tk = getattr(p, "ticker", "") or ""
+            _prov = citation_provenance.provenance(
+                getattr(p, "metadata", None), ticker=_tk
+            )
+            citation = {
                 "citation_number": i,
                 "chunk_id": getattr(p, "chunk_id", "") or "",
                 "text": (getattr(p, "text", "") or "")[:500],
-                "document_title": getattr(p, "document_title", "") or getattr(p, "ticker", "") or "Source",
-                "ticker": getattr(p, "ticker", "") or "",
+                "document_title": getattr(p, "document_title", "") or _tk or "Source",
+                "ticker": _tk,
                 "section": getattr(p, "section", "") or "",
                 "is_verified": False,
                 "id": i,
-                "source": getattr(p, "document_title", "") or getattr(p, "ticker", "") or "Source",
+                "source": getattr(p, "document_title", "") or _tk or "Source",
                 "date": getattr(p, "filing_date", "") or "",
-                "url": _edgar_browse_url(
-                    getattr(p, "ticker", "") or "",
-                    getattr(p, "document_type", "") or "",
+                "url": citation_provenance.citation_url(
+                    _prov,
+                    _edgar_browse_url(_tk, getattr(p, "document_type", "") or ""),
                 ),
-            })
+            }
+            if _prov:
+                citation["accession"] = _prov["accession"]
+                citation["filing_url"] = _prov.get("filing_url", "")
+                citation["verification_status"] = _prov.get("verification_status", "")
+                citation["provenance"] = _prov
+            out.append(citation)
         return out
 
     out.sort(key=lambda x: x["citation_number"])

@@ -25,7 +25,47 @@ export interface Citation {
   date: string;
   ticker: string;
   text: string;
+  /** Exact filing index URL when the figure came from a filing; otherwise an
+   *  EDGAR company listing. */
   url?: string;
+  /** Authoritative filing provenance, present only for exact SEC facts. The
+   *  API resolves and verifies these before the answer is generated; declaring
+   *  them here is what lets the UI show the filing rather than the company. */
+  accession?: string;
+  filing_url?: string;
+  verification_status?: string;
+  provenance?: CitationProvenance;
+}
+
+/** The canonical evidence object behind an exact filing figure. Every field is
+ *  read out of the filing itself, so an absent field means "not reported",
+ *  never "not looked up". */
+export interface CitationProvenance {
+  issuer?: string;
+  ticker?: string;
+  cik?: number;
+  filing_form?: string;
+  filing_date?: string;
+  accession: string;
+  fiscal_year?: number;
+  fiscal_quarter?: number | null;
+  period_start?: string;
+  period_end?: string;
+  xbrl_concept?: string;
+  dimension?: string[];
+  dimension_value?: string[];
+  unit?: string;
+  value?: number;
+  verification_status?: string;
+  source_url?: string;
+  filing_url?: string;
+  evidence_location?: string;
+  extraction_method?: string;
+  parser_version?: string;
+  scope?: 'segment' | 'consolidated';
+  restated?: boolean;
+  is_amendment?: boolean;
+  provenance_chain?: string[];
 }
 
 export interface SourcePassage {

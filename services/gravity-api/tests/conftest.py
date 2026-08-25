@@ -17,6 +17,23 @@ def test_settings():
 
 
 @pytest.fixture
+def local_corpus_channel_enabled(monkeypatch):
+    """
+    Run under the configuration in which the verified-hit bypass exists.
+
+    `evidence_gate.channels_after_gate` only drops `edgar` when the channel that
+    would read the verified row is actually running, and `structured_facts_enabled`
+    is off by default for a stated pre-existing reason. A test asserting "a
+    verified hit costs zero SEC requests" without this is asserting a claim the
+    default deployment does not make.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "structured_facts_enabled", True, raising=False)
+    return True
+
+
+@pytest.fixture
 def sample_query():
     return "What was Apple's revenue in Q4 2025?"
 
@@ -106,3 +123,19 @@ def mock_llm_json():
         "filters": {"date_range": {"from": "2025-10-01", "to": "2025-12-31"}},
         "retrieval_channels": ["dense", "bm25", "structured"],
     })])
+
+
+def pytest_configure(config):
+    """
+    Register the `live` marker.
+
+    `tests/live/` talks to sec.gov over real sockets. It is opt-in via
+    GRAVITY_LIVE_SEC=1 and skips otherwise, so the deterministic suite never
+    depends on SEC availability:
+
+        DETERMINISTIC CI   pytest tests
+        LIVE AUTHORITY     GRAVITY_LIVE_SEC=1 pytest tests/live -v
+    """
+    config.addinivalue_line(
+        "markers", "live: hits real external infrastructure (sec.gov); opt-in"
+    )

@@ -34,6 +34,11 @@ import xml.etree.ElementTree as ET
 
 import structlog
 
+from app.core.retrieval.citation_provenance import (
+    valid_accession,
+    valid_instance_name,
+)
+
 logger = structlog.get_logger()
 
 INDEX_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{accn_nodash}/index.json"
@@ -140,12 +145,21 @@ async def find_instance_name(http, cik: int, accn: str) -> str | None:
     It is conventionally `{ticker}-{period_end}_htm.xml`, but the ticker prefix
     and the date both vary, so the filing index is read rather than guessed.
     """
+    if not valid_accession(accn):
+        logger.warning("sec_bad_accession", accn=str(accn)[:40])
+        return None
     nodash = accn.replace("-", "")
     r = await http.get(INDEX_URL.format(cik=int(cik), accn_nodash=nodash))
     if r.status_code != 200:
         return None
     items = (r.json().get("directory", {}) or {}).get("item", []) or []
-    names = [i.get("name", "") for i in items]
+    # The filename is about to be appended to an Archives URL. Only a bare
+    # filename is accepted: a scheme, a path separator or a parent-directory hop
+    # in this field would send the fetch somewhere other than the filing
+    # archive, and the field comes off the wire.
+    names = [
+        i.get("name", "") for i in items if valid_instance_name(i.get("name", ""))
+    ]
     for n in names:
         if n.endswith("_htm.xml"):
             return n
@@ -170,8 +184,17 @@ def parse_dimensional_facts(
     Pinning both endpoints is what keeps a year-to-date or prior-year column from
     being mistaken for the quarter that was asked about — they are different
     contexts, and only the requested one is read.
+
+    A body that will not parse yields no facts rather than an exception. The
+    input is a document fetched over the network, so "unparseable" is a normal
+    outcome (a truncated read, an error page served with a 200), and the honest
+    result is the same as "this filing reports no such fact": nothing.
     """
-    root = ET.fromstring(xml_bytes)
+    try:
+        root = ET.fromstring(xml_bytes)
+    except ET.ParseError as e:
+        logger.warning("sec_instance_unparseable", error=str(e)[:160])
+        return []
 
     contexts: dict[str, dict] = {}
     for cx in root.iter():

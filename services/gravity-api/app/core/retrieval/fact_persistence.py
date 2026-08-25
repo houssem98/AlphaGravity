@@ -29,6 +29,7 @@ import re
 
 import structlog
 
+from app.core.retrieval.citation_provenance import valid_instance_name
 from app.core.retrieval.evidence_gate import encode_provenance
 from app.core.retrieval.fact_verification import VERIFIED
 
@@ -98,6 +99,9 @@ def fact_row(result) -> dict | None:
         "source_section": encode_provenance({
             "src": "filing_instance" if m.get("dimensions") else "companyconcept",
             "cik": m.get("cik"),
+            # The registrant SEC names, so a citation rebuilt from this row can
+            # state the issuer rather than only its market symbol.
+            "issuer": m.get("issuer"),
             "concept": tag,
             "fy": fy,
             "fq": q or "",
@@ -113,8 +117,24 @@ def fact_row(result) -> dict | None:
             "restated": "1" if m.get("restated") else "0",
             "ver": m.get("verification_status") or VERIFIED,
             "pv": m.get("parser_version") or "",
+            # Evidence location: which artefact, and where inside it. CIK and
+            # accession already reconstruct the archive path, so only the
+            # instance filename and the XBRL context element are stored — the
+            # two things that make the reading reproducible by hand.
+            "meth": m.get("extraction_method") or "",
+            "ctx": m.get("context_id") or "",
+            "loc": _instance_name(m.get("document_url")),
         }),
     }
+
+
+def _instance_name(document_url) -> str:
+    """
+    The instance document's filename out of its archive URL, or empty when the
+    evidence was the companyconcept aggregation, which has no internal address.
+    """
+    name = str(document_url or "").rsplit("/", 1)[-1]
+    return name if valid_instance_name(name) else ""
 
 
 def _metric_name(m: dict) -> str:

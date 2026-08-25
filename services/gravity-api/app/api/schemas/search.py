@@ -84,6 +84,14 @@ class Citation(BaseModel):
     chunk_id: str = Field("", description="Qdrant chunk ID for drill-to-source")
     char_offset_start: int | None = Field(None, description="Char offset of cited span in chunk text")
     char_offset_end: int | None = Field(None, description="Char offset end of cited span in chunk text")
+    # Authoritative filing provenance, present when the figure came out of a
+    # filing. Without these the response model silently stripped the accession
+    # the SEC channel had already resolved, and `url` degraded to a generic
+    # EDGAR company listing.
+    accession: str = Field("", description="EDGAR accession number of the filing cited")
+    filing_url: str = Field("", description="Exact filing index URL for that accession")
+    verification_status: str = Field("", description="Deterministic verification outcome for the cited fact")
+    provenance: dict | None = Field(None, description="Full canonical evidence chain: issuer, CIK, period, XBRL concept, dimension, unit, value, evidence location")
 
 
 class SourcePassage(BaseModel):
@@ -126,6 +134,20 @@ class SearchMetadata(BaseModel):
     # and model fields describe the ORIGINAL run. legacy = a cache entry written
     # before provenance was stored, so those fields are genuinely unknown.
     cache_provenance: str = "live"
+    # Why the filer was or was not asked, and what was actually asked of it.
+    # These reached the WebSocket metadata event but were dropped by this model,
+    # so the REST caller could not see the routing decision at all.
+    question_class: str = ""
+    local_evidence_status: str = ""
+    sec_invoked: bool | None = None
+    sec_skip_reason: str | None = None
+    sec_identity_requests: int = 0
+    sec_fact_requests: int = 0
+    sec_filing_requests: int = 0
+    sec_archive_requests: int = 0
+    source_accession: str = ""
+    source_filing_url: str = ""
+    verification_status: str = ""
     # Per-stage latency breakdown (P4.3 observability) — 0 when not measured.
     understanding_ms: float = 0.0
     retrieval_ms: float = 0.0

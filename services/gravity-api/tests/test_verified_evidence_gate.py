@@ -37,6 +37,12 @@ from app.core.retrieval.evidence_gate import (
     channels_after_gate,
     check_verified_local_evidence,
 )
+@pytest.fixture(autouse=True)
+def _local_corpus_on(local_corpus_channel_enabled):
+    """These tests assert the verified-hit bypass, which only exists when the
+    local corpus channel can read the row it is bypassing SEC for."""
+
+
 from tests.test_evidence_gate import (
     ACCN,
     CIK,
@@ -134,6 +140,10 @@ class TestA_VerifiedLocalHit:
             "sec_skip_reason": VERIFIED_LOCAL_HIT,
             "gate_reason": r.decision.reason,
             "gate_conflicts": 0,
+            # Empty here because the bypass was actually taken. Non-empty when
+            # the evidence is a verified hit the deployment cannot read, in
+            # which case `sec_invoked` above is True and this says why.
+            "gate_bypass_blocked": "",
         }
 
 

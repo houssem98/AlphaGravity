@@ -59,6 +59,11 @@ from tests.test_verified_evidence_gate import _as_stored
 
 ANSWER = f"NVIDIA reported Data Center revenue of ${DATA_CENTER:,} in Q3 FY2026."
 
+@pytest.fixture(autouse=True)
+def _local_corpus_on(local_corpus_channel_enabled):
+    """These tests assert the verified-hit bypass, which only exists when the
+    local corpus channel can read the row it is bypassing SEC for."""
+
 
 # ── boundary doubles ────────────────────────────────────────────────────────
 
@@ -148,7 +153,11 @@ class _StructuredChannel:
                     score=1.0,
                     ticker=str(row.get("ticker") or ""),
                     document_title=str(row.get("metric_name") or ""),
-                    metadata={"value": row.get("value_float"), "source": "structured"},
+                    # `structured_search` sets `metadata=r` — the whole row. The
+                    # provenance a locally-answered citation is built from lives
+                    # in that row, so a double that summarised it would hide the
+                    # very hop this file exists to prove.
+                    metadata={**row, "source": "structured"},
                 )
             )
         return out
@@ -202,6 +211,13 @@ class Run:
             if e.type == "sources":
                 return (e.data or {}).get("sources", [])
         return []
+
+    @property
+    def metadata(self) -> dict:
+        for e in self.events:
+            if e.type == "metadata":
+                return e.data or {}
+        return {}
 
     @property
     def citations(self) -> list:

@@ -34,6 +34,12 @@ from app.core.retrieval.evidence_gate import (
     evaluate,
 )
 
+@pytest.fixture(autouse=True)
+def _local_corpus_on(local_corpus_channel_enabled):
+    """These tests assert the verified-hit bypass, which only exists when the
+    local corpus channel can read the row it is bypassing SEC for."""
+
+
 TICKER = "NVDA"
 CIK = 1045810
 CONCEPT = "Revenues"
