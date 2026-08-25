@@ -325,7 +325,7 @@ def evaluate(
                         reason="exact verified local evidence", identity=identity)
 
 
-async def check(
+async def check_verified_local_evidence(
     *,
     query: str,
     ticker: str,
@@ -338,6 +338,10 @@ async def check(
     selector=None,
 ) -> GateDecision:
     """
+    SEC is only invoked when no exact verified local evidence satisfies the
+    financial query. This function is that decision; nothing downstream re-makes
+    it and no ranking stage can override it.
+
     Run the gate against `financials`.
 
     One narrow lookup keyed on ticker and period — cheap, and deliberately
@@ -368,3 +372,16 @@ async def check(
         fiscal_year=fiscal_year, fiscal_quarter=fiscal_quarter,
         max_age_days=max_age_days, company_terms=company_terms,
     )
+
+
+def channels_after_gate(channels, decision) -> list:
+    """
+    The channels the fan-out may use, given the gate's decision.
+
+    The pipeline and the call-count tests both route through here on purpose: a
+    test that re-implements "drop edgar when verified" proves its own copy of the
+    rule and would stay green while the pipeline regressed.
+    """
+    if decision is not None and not decision.sec_invoked:
+        return [c for c in channels if c != "edgar"]
+    return list(channels)

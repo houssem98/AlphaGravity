@@ -336,7 +336,7 @@ class SearchPipeline:
                 # caches for a day. It is identity, not facts — no filing is
                 # fetched, so this does not defeat the point of the gate.
                 cik = await edgar.ticker_to_cik(ticker)
-            return await evidence_gate.check(
+            return await evidence_gate.check_verified_local_evidence(
                 query=query,
                 ticker=ticker,
                 cik=cik,
@@ -753,9 +753,12 @@ class SearchPipeline:
                         for e in (_companies or [])
                         if isinstance(e, dict) and e.get("name")
                     ]
+                    from app.core.retrieval import evidence_gate as _eg
+
                     _gate = await self._evidence_gate(query, _tickers, _names)
-                    if _gate is not None and not _gate.sec_invoked:
-                        _channels = [c for c in _channels if c != "edgar"]
+                    # SEC is only invoked when no exact verified local evidence
+                    # satisfies the financial query.
+                    _channels = _eg.channels_after_gate(_channels, _gate)
                     if _gate is not None:
                         query_plan["gate_telemetry"] = _gate.telemetry()
                         logger.info(

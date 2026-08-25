@@ -27,7 +27,8 @@ from app.core.retrieval.evidence_gate import (
     LOCAL_MISS,
     LOCAL_UNVERIFIED,
     VERIFIED_LOCAL_HIT,
-    check,
+    channels_after_gate,
+    check_verified_local_evidence,
     decode_provenance,
     encode_provenance,
     evaluate,
@@ -239,7 +240,7 @@ class TestTheLookupIsNarrowAndPreCommitment:
             seen["table"], seen["filters"] = table, filters
             return [_row()]
 
-        d = await check(
+        d = await check_verified_local_evidence(
             query=THE_QUESTION, ticker=TICKER, cik=CIK, concept=CONCEPT,
             fiscal_year=FY, fiscal_quarter=FQ, selector=_sel,
             company_terms=COMPANY_TERMS,
@@ -252,7 +253,7 @@ class TestTheLookupIsNarrowAndPreCommitment:
 
     @pytest.mark.asyncio
     async def test_no_issuer_means_no_bypass(self):
-        d = await check(query="revenue", ticker="", cik=None, concept=CONCEPT,
+        d = await check_verified_local_evidence(query="revenue", ticker="", cik=None, concept=CONCEPT,
                         fiscal_year=FY, fiscal_quarter=FQ, selector=None)
         assert d.sec_invoked is True
 
@@ -261,7 +262,7 @@ class TestTheLookupIsNarrowAndPreCommitment:
         async def _boom(table, filters, limit=50):
             raise RuntimeError("supabase down")
 
-        d = await check(
+        d = await check_verified_local_evidence(
             query=THE_QUESTION, ticker=TICKER, cik=CIK, concept=CONCEPT,
             fiscal_year=FY, fiscal_quarter=FQ, selector=_boom,
         )
@@ -306,9 +307,8 @@ async def _route(rows, query=THE_QUESTION, max_age_days=90, now=None):
     edgar = _CountingChannel([{"value": DATA_CENTER}])
     orch = RetrievalOrchestrator(structured_search=structured, edgar_search=edgar)
 
-    channels = ["structured", "edgar"]
-    if not decision.sec_invoked:
-        channels = [c for c in channels if c != "edgar"]
+    # The pipeline's own rule, not a copy of it.
+    channels = channels_after_gate(["structured", "edgar"], decision)
     await orch.search(query=query, channels=channels)
     return {"structured": structured.calls, "edgar": edgar.calls}, decision
 
