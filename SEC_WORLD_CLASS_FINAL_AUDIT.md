@@ -6,8 +6,8 @@
 | **Commit** | `f725f8d0be300707fc475e959f7e7529051496f3` (`f725f8d`) |
 | **Base** | `5f9420f7b95b1886f36df24977ae5e0b32e7d946` |
 | **Date** | 2026-08-25 |
-| **Deterministic suite** | 758 passed / 51 skipped / **0 failed** (344s, 310s across two runs) |
-| **Live SEC suite** | 24 passed / 0 failed, 31.4s, **18 real requests** |
+| **Deterministic suite** | 758 passed / 56 skipped / **0 failed** (three runs: 344s, 310s, 327s) |
+| **Live SEC suite** | **29 passed / 0 failed**, 121.7s, **20 real SEC requests** |
 | **Baseline before this work** | 644 passed / 27 skipped / 0 failed |
 
 ---
@@ -16,25 +16,27 @@
 
 **This is NOT 10/10 and I am not calling it a WORLD-CLASS CANDIDATE.**
 
-Section 24 of the hardening document sets 26 conditions and says plainly: if any
-item is not proven, do not call it 10/10. Twenty-four are proven. Two are not:
+Section 24 sets 26 conditions and says plainly: if any item is not proven, do not
+call it 10/10. **Twenty-five are proven. One is not:**
 
-* **"Live SEC failures are handled truthfully"** — failure handling is proven
-  against 30 fixture tests. It is **NOT TESTED LIVE**. Inducing a real SEC
-  failure means either issuing malformed requests or hammering the endpoint
-  until it refuses, and section 11 forbids both. This is a deliberate,
-  documented gap, not an oversight.
 * **"LOOP gates pass"** — `gate-guard`, `graph-lint` and `governance` pass
   cleanly. `loop-lint` reports **8 failing loops out of 37**. Those 8 are
-  pre-existing and none of them was touched: this change adds no loop file and
-  no roadmap file (`git status` confirms). But "LOOP gates pass" is not
+  pre-existing and none was touched: this change adds no loop file and no
+  roadmap file (`git status` confirms), and section 22 says explicitly *"do not
+  modify unrelated failures"*. So they stay. But "LOOP gates pass" is not
   literally true of this repository, and converting that into PASS is the exact
   substitution section 26 forbids.
 
+The other formerly-open item, **"Live SEC failures are handled truthfully"**, is
+now proven live rather than by fixture alone — see section 8b. One residual
+remains inside it and is named there: a real SEC *server-side* outage (5xx,
+throttling, a body truncated mid-transfer) cannot be induced without malformed
+requests or hammering, which section 11 forbids. That path stays fixture-proven.
+
 Everything the two explicit goals asked for is done and measured:
 
-1. **Live SEC validation is genuinely proven, not fixture-only.** 24 tests hit
-   real sec.gov. The NVIDIA golden value is re-derived from SEC by an
+1. **Live SEC validation is genuinely proven, not fixture-only.** 29 tests hit
+   the real network, 20 of those requests reaching sec.gov. The NVIDIA golden value is re-derived from SEC by an
    independent route and compared, rather than asserted from a constant.
 2. **Citation precision now carries complete authoritative provenance** —
    accession and exact filing URL included — all the way to the user-facing
@@ -97,6 +99,7 @@ is never mocked.
 | `services/gravity-api/tests/test_sec_persistence_roundtrip.py` | 18 tests, section 16 |
 | `services/gravity-api/tests/test_sec_error_handling.py` | 30 tests, section 19 |
 | `services/gravity-api/tests/live/test_sec_authority.py` | 24 live tests, sections 8-12 |
+| `services/gravity-api/tests/live/test_sec_failure_handling.py` | 5 live tests, section 19 against the real network |
 
 ### Files changed
 
@@ -106,7 +109,7 @@ is never mocked.
 `app/api/schemas/search.py`, `apps/gravity-ui/src/lib/types.ts`,
 `tests/conftest.py` and three existing SEC test files.
 
-Total: 21 files, +3625 / -22.
+Total: 22 files, +3806 / -22.
 
 ---
 
@@ -401,12 +404,50 @@ having nothing to do with this code.
   a change that starts re-resolving per assertion fails here rather than at
   sec.gov.
 
+## 8b. Live failure handling
+
+**STATUS: VERIFIED live, with one named residual.**
+
+* **File:** `tests/live/test_sec_failure_handling.py`
+* **Command:** `GRAVITY_LIVE_SEC=1 pytest tests/live/test_sec_failure_handling.py -v`
+* **Result:** **5 passed, 5.38s**
+* **Cost to SEC:** two requests, both single 404s
+
+The fixture suite proves the truthful-failure contract deterministically. What a
+fixture cannot prove is that the contract survives the *real* client stack: real
+`httpx`, real DNS, real sockets, real SEC status codes, and the genuine exception
+types those produce rather than the ones a fake was told to raise.
+
+| Live failure | Test | Result |
+|---|---|---|
+| real 404 from `data.sec.gov` — a us-gaap concept NVIDIA never reports | `test_a_concept_the_filer_does_not_report_is_a_real_404` | `_get_json` returns `None`; not raised, not substituted |
+| real 404 from `www.sec.gov/Archives` — a **valid-format** accession naming no filing | `test_a_filing_that_does_not_exist_yields_no_instance` | `find_instance_name` returns `None`; no filename guessed |
+| real DNS failure (RFC 2606 `.invalid` host) | `test_an_unresolvable_host_yields_no_figure` | `search()` returns `[]` |
+| real connect timeout (RFC 5737 TEST-NET-1 `192.0.2.1`) | `test_a_connect_timeout_yields_no_figure` | `search()` returns `[]` |
+| nothing fabricated, nothing citable, nothing stored | `test_nothing_is_fabricated_and_nothing_is_citable` | no value, `provenance()` empty, `persist()` returns 0 |
+
+The last two put **zero load on sec.gov** — no packet reaches it. They are also
+not mocks: nothing serves a fake response, the real socket layer really fails,
+and the code under test sees the genuine `httpx` exception. Redirecting the
+endpoint constant is what makes the client fail; the failure itself is real.
+
+**Residual, stated rather than hidden.** A real SEC *server-side* outage — 5xx,
+throttling, a body truncated mid-transfer — cannot be induced without either
+sending malformed requests or hammering the endpoint until it refuses, and
+section 11 forbids both. Those paths remain fixture-proven in
+`tests/test_sec_error_handling.py` (30 tests). This is the one part of "live SEC
+failures are handled truthfully" that is still not live, and it is not claimed to
+be.
+
 ### Live vs fixture separation (section 12)
 
 ```
-DETERMINISTIC CI    pytest tests                          758 passed / 51 skipped / 0 failed
-LIVE AUTHORITY      GRAVITY_LIVE_SEC=1 pytest tests/live   24 passed / 0 failed / 18 requests
+DETERMINISTIC CI    pytest tests                          758 passed / 56 skipped / 0 failed
+LIVE AUTHORITY      GRAVITY_LIVE_SEC=1 pytest tests/live   29 passed / 0 failed / 20 SEC requests
 ```
+
+The 29 live tests are collected as 29 skips in the deterministic run, so CI never
+depends on SEC availability.
 
 ---
 
@@ -604,14 +645,16 @@ fetches the concept, the filing index and the instance document, and still runs
 
 ```
 $ cd services/gravity-api && python -m pytest tests -q
-758 passed, 51 skipped, 26 warnings in 310.01s
+758 passed, 56 skipped, 26 warnings in 327.11s
 ```
 
 | | Before | After |
 |---|---|---|
 | passed | 644 | **758** (+114) |
-| skipped | 27 | 51 (+24 = the live suite) |
+| skipped | 27 | 56 (+29 = the live suite) |
 | failed | 0 | **0** |
+
+Three full runs: 344s (1 flake, below), 310s clean, 327s clean.
 
 New tests by file: citation provenance 53, error handling 30, persistence
 round-trip 18, provenance E2E 13 = 114.
@@ -623,7 +666,8 @@ It is a **pre-existing wall-clock flake**, not a regression from this work:
 * the test asserts a *10 logins per 5 minutes* window, and the full suite runs
   for 5m10s-5m44s — the window boundary falls inside the run
 * it passes in isolation (1 passed, 37.0s) and within its own file (17 passed, 62.5s)
-* it passes on a **second full run of identical code**: 758 passed, 0 failed
+* it passes on a **second and third full run of identical code**: 758 passed,
+  0 failed both times
 * nothing in this change is imported by the auth suite; `tests/conftest.py` gained
   only a non-autouse fixture and a marker registration
 
@@ -635,8 +679,15 @@ change to a passing area.
 
 ```
 $ GRAVITY_LIVE_SEC=1 python -m pytest tests/live -v
-24 passed in 31.39s          (18 real requests to sec.gov)
+29 passed in 121.72s         (20 real requests to sec.gov)
+
+  tests/live/test_sec_authority.py         24 passed,  31.39s, 18 SEC requests
+  tests/live/test_sec_failure_handling.py   5 passed,   5.38s,  2 SEC requests
 ```
+
+The wall-clock difference between the modules and the total is DNS and connect
+timeouts against the reserved `.invalid` host and TEST-NET-1 address, which are
+supposed to be slow. None of that time is spent on sec.gov.
 
 ### Frontend
 
@@ -722,7 +773,7 @@ instruction.
 | [x] | Empty-corpus regression passes | VERIFIED |
 | [x] | Real SearchPipeline E2E passes | VERIFIED — 26 tests |
 | [x] | Live SEC NVIDIA smoke test passes | VERIFIED — 24/24 live |
-| [ ] | **Live SEC failures are handled truthfully** | **NOT TESTED LIVE** — 30 fixture tests; inducing a live failure violates section 11 |
+| [x] | Live SEC failures are handled truthfully | **VERIFIED live** — 5 tests: real SEC 404s, real DNS failure, real connect timeout, nothing fabricated. Residual: a real SEC *5xx / throttle / truncated body* is uninducible under section 11 and stays fixture-proven (30 tests) |
 | [x] | No accidental generic-ingestion dependency | VERIFIED |
 | [x] | SEC rate limits are respected | VERIFIED — 18 requests, budget enforced by a test |
 | [x] | Security review passes | VERIFIED — 1 real bug found and fixed |
@@ -731,16 +782,21 @@ instruction.
 | [x] | governance passes | VERIFIED — 0 violations |
 | [x] | all relevant tests pass | VERIFIED — 758/0; one unrelated wall-clock flake documented |
 
-**24 of 26 proven. Two not. Therefore: NOT 10/10, and not a WORLD-CLASS
+**25 of 26 proven. One not. Therefore: NOT 10/10, and not a WORLD-CLASS
 CANDIDATE by the document's own definition.**
+
+The single remaining item is `loop-lint`, whose 8 failures are pre-existing,
+untouched, and which section 22 explicitly instructs not to modify.
 
 ---
 
 ## 19. Known limitations, stated
 
-1. **Live SEC failure handling is not proven live.** Fixture-proven only (30
-   tests). Inducing a real outage requires malformed requests or hammering; both
-   violate section 11.
+1. **A real SEC server-side outage is not proven live.** Client-side and
+   SEC-refusal failures now are (5 live tests, section 8b). A genuine 5xx,
+   throttle, or mid-transfer truncation cannot be induced without malformed
+   requests or hammering; both violate section 11, so those stay fixture-proven
+   (30 tests).
 2. **Amended filings and conflicting filing metadata are fixture-based**, with
    the reason given in section 8 above.
 3. **`structured_facts_enabled` is `False` by default**, so in a default
