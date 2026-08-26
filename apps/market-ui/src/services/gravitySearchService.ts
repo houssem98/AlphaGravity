@@ -19,6 +19,22 @@ export interface GravityRAGSource {
     document_type: string;
     source_quality: number;
     score: number;
+    // Verified SEC filing provenance. Present when the passage came out of a
+    // filing; absent for prose and news, which must not acquire a filing link.
+    issuer?: string;
+    cik?: number | null;
+    form?: string;
+    filing_date?: string;
+    fiscal_period?: string;
+    accession?: string;
+    accession_number?: string;
+    filing_url?: string;
+    document_url?: string;
+    source_url?: string;
+    evidence_location?: string;
+    verification_status?: string;
+    /** The exact SEC URL a source click must open. */
+    canonical_url?: string;
 }
 
 export interface GravityRAGResult {
@@ -47,6 +63,22 @@ export interface GravityRAGResult {
         chunk_id?: string;
         char_offset_start?: number;
         char_offset_end?: number;
+    // Verified SEC filing provenance. Present when the passage came out of a
+    // filing; absent for prose and news, which must not acquire a filing link.
+    issuer?: string;
+    cik?: number | null;
+    form?: string;
+    filing_date?: string;
+    fiscal_period?: string;
+    accession?: string;
+    accession_number?: string;
+    filing_url?: string;
+    document_url?: string;
+    source_url?: string;
+    evidence_location?: string;
+    verification_status?: string;
+    /** The exact SEC URL a source click must open. */
+    canonical_url?: string;
     }>;
     confidence: string;
     latency_ms: number;

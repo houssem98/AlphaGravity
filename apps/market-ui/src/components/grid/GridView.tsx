@@ -37,6 +37,7 @@ import { traceSummary, stepGlyph } from '../../services/gridTrace';
 import { saveGridRun, loadLatestGridRun, listGridRuns, loadGridRun, deleteGridRun, type SavedGridRow } from '../../services/gridStore';
 import { useGridRunStore, gridAbort } from '../../stores/gridRunStore';
 import EdgarLink, { parseFilingTitle } from '../EdgarLink';
+import type { SecProvenance } from '../../lib/secUrl';
 import { exportGridToXLSX, downloadBlob } from '../../services/gridExcel';
 import { buildShareLink, readSharedGridFromUrl, clearSharedGridFromUrl } from '../../services/gridShare';
 import { recordExport } from '../../services/auditClient';
@@ -157,6 +158,9 @@ interface SourceViewerData {
     chunk_id?: string;
     char_offset_start?: number;
     char_offset_end?: number;
+    // Verified SEC filing provenance, when the run captured one. Empty for web
+    // sources; `EdgarLink` then falls back to its legacy resolve-by-date path.
+    provenance?: SecProvenance;
 }
 
 export default function GridView({ tickers }: { tickers?: string[] } = {}) {
@@ -1656,6 +1660,7 @@ export default function GridView({ tickers }: { tickers?: string[] } = {}) {
                                     snippet={sourceViewer.text}
                                     filingType={fromTitle.filingType || sourceViewer.documentType || ''}
                                     filingDate={fromTitle.filingDate}
+                                    provenance={sourceViewer.provenance}
                                     className="inline-flex items-center gap-1.5 mt-4 text-xs font-semibold text-[color:var(--accent)] hover:underline"
                                 />
                             );
@@ -1965,6 +1970,7 @@ function CellSources({ citations, activeId, onOpenSource }: { citations: Citatio
             chunk_id: c.chunk_id,
             char_offset_start: c.char_offset_start,
             char_offset_end: c.char_offset_end,
+            provenance: c.sourceData,
         });
     };
 

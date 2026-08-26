@@ -1088,6 +1088,14 @@ class SearchPipeline:
                     "source_quality": p.source_quality,
                     "score": round(p.rrf_score, 4),
                     "channels": p.source_channels,
+                    # A source card is clickable, and it used to carry no URL at
+                    # all — so the frontend rebuilt one from the ticker and
+                    # landed the user on a company listing instead of on the
+                    # filing. The accession is known here; it travels with the
+                    # card.
+                    **citation_provenance.payload(
+                        citation_provenance.provenance(p.metadata, ticker=p.ticker)
+                    ),
                 }
                 for i, p in enumerate(top_passages)
             ]
@@ -2315,9 +2323,7 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
         # consumer does not have to know the provenance object exists, plus the
         # full canonical chain for one that does.
         if _prov:
-            citation["accession"] = _prov["accession"]
-            citation["filing_url"] = _prov.get("filing_url", "")
-            citation["verification_status"] = _prov.get("verification_status", "")
+            citation.update(citation_provenance.payload(_prov))
             citation["provenance"] = _prov
 
         # Add char offsets for span-level citation highlighting
@@ -2358,9 +2364,7 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
                 ),
             }
             if _prov:
-                citation["accession"] = _prov["accession"]
-                citation["filing_url"] = _prov.get("filing_url", "")
-                citation["verification_status"] = _prov.get("verification_status", "")
+                citation.update(citation_provenance.payload(_prov))
                 citation["provenance"] = _prov
             out.append(citation)
         return out

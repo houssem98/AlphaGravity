@@ -89,7 +89,17 @@ class Citation(BaseModel):
     # the SEC channel had already resolved, and `url` degraded to a generic
     # EDGAR company listing.
     accession: str = Field("", description="EDGAR accession number of the filing cited")
+    accession_number: str = Field("", description="Alias of `accession`, the field name the source contract uses")
+    issuer: str = Field("", description="Registrant name as SEC records it")
+    cik: int | None = Field(None, description="SEC Central Index Key")
+    form: str = Field("", description="Filing form, e.g. 10-K")
+    filing_date: str = Field("", description="Date the filing was filed")
+    fiscal_period: str = Field("", description="Fiscal period the fact covers, e.g. FY2025 or FY2026Q3")
     filing_url: str = Field("", description="Exact filing index URL for that accession")
+    document_url: str = Field("", description="The exact document the figure was read from, when SEC served one")
+    source_url: str = Field("", description="Authoritative SEC URL the resolver returned")
+    evidence_location: str = Field("", description="Document plus XBRL context element, where the fact was read")
+    canonical_url: str = Field("", description="The exact SEC URL a source click must open. Empty when no verified filing provenance exists.")
     verification_status: str = Field("", description="Deterministic verification outcome for the cited fact")
     provenance: dict | None = Field(None, description="Full canonical evidence chain: issuer, CIK, period, XBRL concept, dimension, unit, value, evidence location")
 
@@ -106,6 +116,22 @@ class SourcePassage(BaseModel):
     source_quality: int = Field(5, ge=1, le=10, description="Authority score: 10=SEC filing, 9=transcript, 7=broker, 5=news")
     relevance_score: float = 0.0
     source_channels: list[str] = Field(default_factory=list)
+    # Filing provenance, present when the passage came out of an SEC filing.
+    # A source card is clickable; without these it had no URL to click and the
+    # frontend rebuilt a generic company listing from the ticker.
+    issuer: str = ""
+    cik: int | None = None
+    form: str = ""
+    filing_date: str = ""
+    fiscal_period: str = ""
+    accession: str = ""
+    accession_number: str = ""
+    filing_url: str = ""
+    document_url: str = ""
+    source_url: str = ""
+    evidence_location: str = ""
+    verification_status: str = ""
+    canonical_url: str = Field("", description="The exact SEC URL a source click must open. Empty when no verified filing provenance exists.")
 
 
 class StructuredDataPoint(BaseModel):

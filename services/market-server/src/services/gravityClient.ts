@@ -10,6 +10,8 @@ const GRAVITY_TIMEOUT_MS = 15_000;
 
 export interface GravitySource {
     title: string;
+    /** The exact SEC filing URL when the source has verified provenance;
+     *  a company listing only when it never named a filing. */
     url: string;
     content: string;
     score: number;
@@ -18,6 +20,13 @@ export interface GravitySource {
     section?: string;
     document_id?: string;
     retrieval_method?: string;
+    // Verified filing provenance, passed through untouched from gravity-api so
+    // a downstream consumer never has to rebuild a SEC URL from a ticker.
+    accession?: string;
+    cik?: number;
+    filing_url?: string;
+    document_url?: string;
+    canonical_url?: string;
 }
 
 export interface GravityStructuredRow {
@@ -49,16 +58,50 @@ export interface GravityDocument {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Only these hosts are authoritative for a filing citation.
+const SEC_HOSTS = new Set(['www.sec.gov', 'sec.gov', 'data.sec.gov', 'efts.sec.gov']);
+
+function isTrustedSecUrl(url?: string | null): boolean {
+    if (!url) return false;
+    try {
+        const u = new URL(url);
+        return u.protocol === 'https:' && SEC_HOSTS.has(u.hostname);
+    } catch {
+        return false;
+    }
+}
+
+// Last resort only. gravity-api now ships the exact filing URL on every source
+// that has an accession, so this is reached only for sources that never named a
+// filing -- never as a substitute for one that did.
 function buildEdgarUrl(ticker: string, filing_type: string): string {
     return `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(ticker)}&type=${encodeURIComponent(filing_type)}&dateb=&owner=include&count=10`;
+}
+
+/** The exact filing URL a source carries, or '' when it carries none. */
+function exactFilingUrl(s: any): string {
+    for (const candidate of [s?.canonical_url, s?.filing_url, s?.document_url, s?.source_url]) {
+        if (isTrustedSecUrl(candidate) && !/browse-edgar|getcompany/i.test(candidate)) {
+            return candidate as string;
+        }
+    }
+    return '';
 }
 
 function normalizeSources(raw: any[]): GravitySource[] {
     return (raw || []).map((s: any) => ({
         title: [s.document_title, s.section].filter(Boolean).join(' · '),
-        url: s.document_id
-            ? buildEdgarUrl(s.ticker || '', s.filing_type || '')
-            : `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(s.ticker || '')}`,
+        // The exact filing wins. Substituting a company listing for a filing
+        // whose accession is known is the bug this branch used to guarantee.
+        url: exactFilingUrl(s)
+            || (s.document_id
+                ? buildEdgarUrl(s.ticker || '', s.filing_type || '')
+                : `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(s.ticker || '')}`),
+        accession: s.accession || s.accession_number || undefined,
+        cik: s.cik ?? undefined,
+        filing_url: s.filing_url || undefined,
+        document_url: s.document_url || undefined,
+        canonical_url: s.canonical_url || undefined,
         content: s.text || '',
         score: s.score ?? 0,
         published_date: s.filing_date ?? undefined,

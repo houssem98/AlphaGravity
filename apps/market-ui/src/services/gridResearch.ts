@@ -503,7 +503,15 @@ export async function runGridCell(
                         chunk_id: c?.chunk_id,
                         char_offset_start: c?.char_offset_start,
                         char_offset_end: c?.char_offset_end,
-                        sourceData: { text: c?.text || label, ticker: c?.ticker, date: c?.date, section: c?.section },
+                        sourceData: {
+                            text: c?.text || label, ticker: c?.ticker, date: c?.date, section: c?.section,
+                        // Verified filing provenance travels to the source
+                        // modal, so its EDGAR link opens the filing rather than
+                        // a company listing. Undefined for web sources.
+                        accession: c?.accession, cik: c?.cik,
+                        filing_url: c?.filing_url, document_url: c?.document_url,
+                        source_url: c?.source_url, canonical_url: c?.canonical_url,
+                        },
                     };
                 });
             } else if (ragResult.citations && ragResult.citations.length > 0) {
@@ -516,7 +524,12 @@ export async function runGridCell(
                     chunk_id: c.chunk_id,
                     char_offset_start: c.char_offset_start,
                     char_offset_end: c.char_offset_end,
-                    sourceData: { text: c.text, ticker: c.ticker, date: c.date, section: c.section },
+                    sourceData: {
+                        text: c.text, ticker: c.ticker, date: c.date, section: c.section,
+                        accession: c.accession, cik: c.cik,
+                        filing_url: c.filing_url, document_url: c.document_url,
+                        source_url: c.source_url, canonical_url: c.canonical_url,
+                    },
                 }));
             } else {
                 ragCitations = ragResult.sources.map((s, i) => ({
@@ -525,7 +538,13 @@ export async function runGridCell(
                     url: `gravity://source/${s.id}`,
                     source: 'gravity',
                     publishedDate: s.date || undefined,
-                    sourceData: { text: s.text, ticker: s.ticker, date: s.date, documentType: s.document_type, section: s.section },
+                    sourceData: {
+                        text: s.text, ticker: s.ticker, date: s.date,
+                        documentType: s.document_type, section: s.section,
+                        accession: s.accession, cik: s.cik,
+                        filing_url: s.filing_url, document_url: s.document_url,
+                        source_url: s.source_url, canonical_url: s.canonical_url,
+                    },
                 }));
             }
             const enriched = attachToolEvidence(prose, ragCitations, toolResults, ticker);

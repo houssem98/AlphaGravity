@@ -125,7 +125,17 @@ async def search(
             # deleted from the API response. The accession and the exact filing
             # survive every earlier hop and must survive this one.
             "accession": c.get("accession", "") or "",
+            "accession_number": c.get("accession_number", c.get("accession", "")) or "",
+            "issuer": c.get("issuer", "") or "",
+            "cik": c.get("cik"),
+            "form": c.get("form", "") or "",
+            "filing_date": c.get("filing_date", "") or "",
+            "fiscal_period": c.get("fiscal_period", "") or "",
             "filing_url": c.get("filing_url", "") or "",
+            "document_url": c.get("document_url", "") or "",
+            "source_url": c.get("source_url", "") or "",
+            "evidence_location": c.get("evidence_location", "") or "",
+            "canonical_url": c.get("canonical_url", "") or "",
             "verification_status": c.get("verification_status", "") or "",
             "provenance": c.get("provenance") or None,
         }
@@ -158,6 +168,23 @@ async def search(
             "source_quality": s.get("source_quality", 5) or 5,
             "relevance_score": float(s.get("score", s.get("relevance_score", 0.0)) or 0.0),
             "source_channels": s.get("channels", s.get("source_channels", [])) or [],
+            # Filing provenance. This coercion is a whitelist, so a field
+            # omitted here is a field deleted from the API response — and a
+            # source card with no URL is what made the frontend rebuild one
+            # from the ticker.
+            "issuer": str(s.get("issuer", "") or ""),
+            "cik": s.get("cik"),
+            "form": str(s.get("form", "") or ""),
+            "filing_date": str(s.get("filing_date", "") or ""),
+            "fiscal_period": str(s.get("fiscal_period", "") or ""),
+            "accession": str(s.get("accession", "") or ""),
+            "accession_number": str(s.get("accession_number", s.get("accession", "")) or ""),
+            "filing_url": str(s.get("filing_url", "") or ""),
+            "document_url": str(s.get("document_url", "") or ""),
+            "source_url": str(s.get("source_url", "") or ""),
+            "evidence_location": str(s.get("evidence_location", "") or ""),
+            "verification_status": str(s.get("verification_status", "") or ""),
+            "canonical_url": str(s.get("canonical_url", "") or ""),
         }
 
     contradictions = [_coerce_contradiction(c) for c in (contradictions or [])]

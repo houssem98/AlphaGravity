@@ -8,7 +8,30 @@ export type SearchStatus =
     | 'idle' | 'understanding' | 'searching' | 'reranking'
     | 'reasoning' | 'validating' | 'complete' | 'error';
 
-export interface GravitySource {
+// Verified SEC filing provenance, present on a source or citation whose figure
+// came out of a filing. The backend resolves and verifies every field before
+// the answer is generated, so the UI never reconstructs a SEC URL itself — that
+// reconstruction is what sent source clicks to a generic company listing.
+export interface SecFilingProvenance {
+    issuer?: string;
+    cik?: number | null;
+    form?: string;
+    filing_date?: string;
+    fiscal_period?: string;
+    accession?: string;
+    accession_number?: string;
+    filing_url?: string;
+    document_url?: string;
+    source_url?: string;
+    evidence_location?: string;
+    verification_status?: string;
+    /** The exact SEC URL a source click must open. Empty when no verified
+     *  filing provenance exists — which is a reason to show no filing link,
+     *  never a reason to open a company page. */
+    canonical_url?: string;
+}
+
+export interface GravitySource extends SecFilingProvenance {
     chunk_id: string;
     document_id: string;
     text: string;
@@ -21,7 +44,7 @@ export interface GravitySource {
     retrieval_method: string;
 }
 
-export interface GravityCitation {
+export interface GravityCitation extends SecFilingProvenance {
     citation_number: number;
     chunk_id: string;
     text: string;
@@ -29,6 +52,7 @@ export interface GravityCitation {
     ticker: string;
     section: string;
     is_verified: boolean;
+    url?: string;
     char_offset_start?: number;
     char_offset_end?: number;
 }

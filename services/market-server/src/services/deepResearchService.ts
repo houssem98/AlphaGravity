@@ -292,6 +292,28 @@ async function searchTavilyParallel(queries: string[], maxResults = 6): Promise<
     return allResults.sort((a, b) => (b.score || 0) - (a.score || 0));
 }
 
+/** `0000821189-25-000011` — the only shape an EDGAR accession takes. */
+const ACCESSION_RE = /^\d{10}-\d{2}-\d{6}$/;
+
+/**
+ * The exact filing index URL for an EDGAR full-text-search hit.
+ *
+ * EFTS `_id` is "<accession>:<document>" and `_source.ciks` is the filer, so
+ * the exact filing is already known at this point; nothing has to be guessed or
+ * re-fetched. Returns '' when the hit does not carry both, which is the only
+ * case where a company listing is an honest answer.
+ */
+export function edgarFilingUrlFromHit(hit: any): string {
+    const accession = String(hit?._id ?? '').split(':')[0];
+    if (!ACCESSION_RE.test(accession)) return '';
+    const cik = Number(String(hit?._source?.ciks?.[0] ?? ''));
+    if (!Number.isInteger(cik) || cik <= 0) return '';
+    return (
+        `https://www.sec.gov/Archives/edgar/data/${cik}/` +
+        `${accession.replace(/-/g, '')}/${accession}-index.htm`
+    );
+}
+
 async function fetchSECFilings(companies: string[]): Promise<SECFiling[]> {
     const settled = await Promise.allSettled(
         companies.slice(0, 5).map(async (company): Promise<SECFiling[]> => {
@@ -306,7 +328,12 @@ async function fetchSECFilings(companies: string[]): Promise<SECFiling[]> {
                     company,
                     filingType: h._source?.file_type || 'SEC Filing',
                     filingDate: h._source?.file_date || '',
-                    url: `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(company)}&type=10-K&dateb=&owner=include&count=10`,
+                    // Every EFTS hit already names its filing: `_id` is
+                    // "<accession>:<document>" and `_source.ciks` carries the
+                    // filer. This used to discard both and hand the reader a
+                    // company listing for a filing it had just identified.
+                    url: edgarFilingUrlFromHit(h) ||
+                        `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(company)}&type=10-K&dateb=&owner=include&count=10`,
                 }));
             } catch {
                 return [];

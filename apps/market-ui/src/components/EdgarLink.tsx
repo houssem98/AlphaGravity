@@ -1,14 +1,26 @@
-// Deep-link to the actual EDGAR filing document (resolved via the backend,
-// which matches ticker + form + filing date against the SEC submissions API).
-// While resolving — and whenever resolution fails — falls back to the EDGAR
-// company search page. Appends a #:~:text= fragment so supporting browsers
-// scroll to and highlight the cited passage inside the filing itself.
+// Deep-link to the actual EDGAR filing document.
 //
-// Extracted from SearchPage so Research Grid and Company reuse the same
-// resolution instead of linking at a raw/search URL.
+// This used to resolve the link by asking the backend to match ticker + form +
+// filed date against the SEC submissions API, and to fall back to the EDGAR
+// company search page whenever that failed. It failed every time: the endpoint
+// it called, `/v1/documents/filing-url`, does not exist in gravity-api. So every
+// SEC source click opened
+// `browse-edgar?action=getcompany&CIK=EOG&type=10-K` — a company listing —
+// while the exact accession that produced the evidence (0000821189-25-000011)
+// had already been resolved, verified and persisted upstream.
+//
+// Verified provenance now travels with the source and the citation, so the
+// exact filing URL is known before render: no fetch, no guess, no fallback.
+// The legacy resolve-by-date path is kept ONLY for callers that genuinely have
+// no accession — the "latest 10-K" button on the company page — and is never
+// reached when provenance exists.
+//
+// Appends a #:~:text= fragment so supporting browsers scroll to and highlight
+// the cited passage inside the filing itself.
 import { useState, useEffect } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { safeUrl } from '../lib/safeUrl';
+import { canonicalSecUrl, isTrustedSecUrl, type SecProvenance } from '../lib/secUrl';
 import { getAccessToken } from '../services/supabase';
 
 const GRAVITY_API = import.meta.env.VITE_GRAVITY_API_URL || 'http://localhost:8000';
@@ -23,11 +35,61 @@ export function parseFilingTitle(title: string | undefined): { filingType: strin
     };
 }
 
+/**
+ * The href this component will render for a given set of props.
+ *
+ * Exported so the link target can be asserted without a DOM, and so the
+ * decision lives in one place rather than being re-derived inside JSX.
+ * `resolved` is the legacy resolver's answer, which only matters when there is
+ * no provenance.
+ */
+export function edgarHref({
+    provenance,
+    ticker,
+    filingType,
+    snippet,
+    resolved,
+}: {
+    provenance?: SecProvenance | null;
+    ticker?: string;
+    filingType?: string;
+    snippet?: string;
+    resolved?: string | null;
+}): { href: string; exact: boolean } {
+    const canonical = canonicalSecUrl(provenance);
+    // An exact filing is never traded for a company listing.
+    let href = canonical;
+    let exact = Boolean(canonical);
+
+    if (!href) {
+        if (resolved && isTrustedSecUrl(resolved)) {
+            href = resolved;
+            exact = true;
+        } else if (ticker) {
+            href =
+                `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(ticker)}` +
+                `&type=${encodeURIComponent(filingType || '10-K')}&dateb=&owner=include&count=40`;
+        }
+    }
+    if (!href) return { href: '', exact: false };
+
+    // Scroll-to-text fragment: only for verbatim prose citations, and only on an
+    // exact document. A synthesized XBRL snippet ("[EXACT FILING FIGURE] ...")
+    // does not appear in the filing, and a company listing has nothing to scroll.
+    const snip = (snippet ?? '').trim();
+    if (exact && snip && !snip.startsWith('[')) {
+        const frag = snip.split(/\s+/).slice(0, 10).join(' ');
+        href += `#:~:text=${encodeURIComponent(frag).replace(/-/g, '%2D')}`;
+    }
+    return { href, exact };
+}
+
 export default function EdgarLink({
     ticker,
     snippet,
     filingType,
     filingDate,
+    provenance,
     allowLatest = false,
     className,
 }: {
@@ -35,18 +97,22 @@ export default function EdgarLink({
     snippet?: string;
     filingType?: string;
     filingDate?: string;
-    // The resolver matches on the *exact* SEC filed date; given none it returns
-    // the company's LATEST filing of that type. That's what a "latest 10-K"
-    // button wants, but for a citation of an older filing it silently links to
-    // the wrong document — so citations must opt out. Verified against prod:
-    // filed date 2022-02-07 resolves FY2021; 2022-02-01 (6 days off) and
-    // period-end 2021-12-31 both fall back to the FY2025 filing.
+    // Verified filing provenance from the API: canonical_url / filing_url /
+    // document_url / accession / cik. When present the link is exact and
+    // nothing below is consulted.
+    provenance?: SecProvenance | null;
+    // The legacy resolver matches on the *exact* SEC filed date; given none it
+    // returns the company's LATEST filing of that type. That's what a "latest
+    // 10-K" button wants, but for a citation of an older filing it silently
+    // links to the wrong document — so citations must opt out.
     allowLatest?: boolean;
     className?: string;
 }) {
     const [resolved, setResolved] = useState<string | null>(null);
-    // Without an exact filed date, a resolved URL is not the cited filing.
-    const canResolve = Boolean(filingDate) || allowLatest;
+    const canonical = canonicalSecUrl(provenance);
+    // Without an exact filed date, a resolved URL is not the cited filing. And
+    // with provenance there is nothing to resolve — the answer is already here.
+    const canResolve = !canonical && (Boolean(filingDate) || allowLatest);
 
     useEffect(() => {
         let alive = true;
@@ -70,26 +136,28 @@ export default function EdgarLink({
         return () => { alive = false; };
     }, [ticker, filingType, filingDate, canResolve]);
 
-    if (!ticker) return null;
+    if (!ticker && !canonical) return null;
 
-    const fallback = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(ticker)}&type=${encodeURIComponent(filingType || '10-K')}&dateb=&owner=include&count=40`;
-    let href = resolved ?? fallback;
-    // Scroll-to-text fragment: only for verbatim prose citations (synthesized
-    // XBRL snippets like "[EXACT FILING FIGURE] ..." don't exist in the filing).
-    const snip = (snippet ?? '').trim();
-    if (resolved && snip && !snip.startsWith('[')) {
-        const frag = snip.split(/\s+/).slice(0, 10).join(' ');
-        href += `#:~:text=${encodeURIComponent(frag).replace(/-/g, '%2D')}`;
-    }
+    const { href, exact } = edgarHref({ provenance, ticker, filingType, snippet, resolved });
+    if (!href) return null;
+
+    const accession = provenance?.accession ?? provenance?.accession_number ?? '';
+
     return (
         <a
             href={safeUrl(href)}
             target="_blank"
             rel="noopener noreferrer"
+            data-testid="edgar-link"
+            data-exact-filing={exact ? 'true' : 'false'}
+            data-accession={accession || undefined}
             className={className ?? 'flex items-center gap-2 text-xs text-[var(--accent)] hover:text-[var(--accent)] transition-colors'}
         >
             <ExternalLink className="w-3.5 h-3.5" />
-            {resolved ? 'View filing on SEC EDGAR' : 'View on SEC EDGAR'}
+            {exact ? 'View filing on SEC EDGAR' : 'View on SEC EDGAR'}
+            {accession && (
+                <span className="font-mono text-[10px] text-[var(--text-2)]">{accession}</span>
+            )}
         </a>
     );
 }

@@ -110,6 +110,10 @@ def provenance(metadata: dict | None, *, ticker: str = "") -> dict | None:
         "verification_status": _clean(m.get("verification_status")),
         "source_url": _clean(m.get("source_url")),
         "filing_url": _clean(m.get("filing_url")),
+        # The document the figure was actually read from, kept alongside the
+        # filing index rather than collapsed into it: the index is what a source
+        # click opens, this is where the number lives.
+        "document_url": _clean(m.get("document_url")),
         "evidence_location": _clean(evidence_location(m)),
         "extraction_method": _clean(m.get("extraction_method")),
         "parser_version": _clean(m.get("parser_version")),
@@ -223,6 +227,38 @@ def _chain(p: dict) -> list[str]:
     return [f"{k}={v}" for k, v in steps if v]
 
 
+def payload(prov: dict | None) -> dict:
+    """
+    The flat provenance fields a source or citation object carries, so the
+    frontend never has to reconstruct a SEC URL from an untrusted string.
+
+    Empty for a passage that is not an authoritative filing fact, so prose
+    chunks and news are unaffected and nothing is invented for them.
+    """
+    if not prov:
+        return {}
+    return {
+        "issuer": prov.get("issuer", ""),
+        "cik": prov.get("cik"),
+        "form": prov.get("filing_form", ""),
+        "filing_date": prov.get("filing_date", ""),
+        "fiscal_period": _period_label(prov),
+        "accession": prov["accession"],
+        # The specification names this field `accession_number`; the shipped
+        # `Citation` model already calls it `accession`. Both are emitted rather
+        # than renaming a field other tests and clients already depend on.
+        "accession_number": prov["accession"],
+        "filing_url": prov.get("filing_url", ""),
+        "document_url": prov.get("document_url", ""),
+        "source_url": prov.get("source_url", ""),
+        "evidence_location": prov.get("evidence_location", ""),
+        "verification_status": prov.get("verification_status", ""),
+        # The canonical click target, decided on the backend. A client that
+        # honours this never needs the priority rules.
+        "canonical_url": source_click_url(prov),
+    }
+
+
 def _period_label(p: dict) -> str:
     fy, fq = p.get("fiscal_year"), p.get("fiscal_quarter")
     if not fy:
@@ -245,6 +281,60 @@ def _value_label(p: dict) -> str:
     return f"{v} {u}".strip()
 
 
+# The only hosts a citation link may point at. SEC serves filings from
+# www.sec.gov, the structured APIs from data.sec.gov, and full-text search from
+# efts.sec.gov; nothing else is authoritative for a filing citation.
+SEC_HOSTS = frozenset({"www.sec.gov", "sec.gov", "data.sec.gov", "efts.sec.gov"})
+
+
+def is_trusted_sec_url(url) -> bool:
+    """
+    Whether this URL is safe to turn into a clickable external citation link.
+
+    A citation link is rendered from data that has passed through an LLM and a
+    database, so the check is a host allow-list rather than a scheme check: a
+    `https://` URL pointing anywhere else is exactly as wrong as a `javascript:`
+    one for something labelled "the SEC filing this number came from".
+    """
+    from urllib.parse import urlparse
+
+    try:
+        p = urlparse(str(url or ""))
+    except ValueError:
+        return False
+    return p.scheme == "https" and p.hostname in SEC_HOSTS
+
+
+def source_click_url(prov: dict | None) -> str:
+    """
+    The URL a source card should open, given verified provenance.
+
+    Priority, and the reasoning for it:
+
+    1. **`filing_url`** — the exact filing index page, built from the verified
+       CIK and accession. This is the landing point that names the filing and
+       links its documents, and it is the URL the specification asserts.
+    2. **`document_url`**, when SEC itself served it out of `/Archives/` — the
+       actual document the figure was read from.
+    3. **`source_url`**, any remaining authoritative SEC URL.
+
+    The exact evidence location is never *lost* by preferring (1): it stays on
+    the provenance object as `document_url` and `evidence_location`. What (1)
+    avoids is opening a 1.2 MB raw XBRL instance in a browser tab and calling
+    that "the filing".
+
+    Returns "" when nothing trusted is available, which is what stops a generic
+    company listing from being substituted for a filing that is actually known.
+    """
+    if not prov:
+        return ""
+    for key in ("filing_url", "document_url", "source_url"):
+        url = prov.get(key)
+        if url and is_trusted_sec_url(url):
+            return str(url)
+    return ""
+
+
 def citation_url(prov: dict | None, fallback: str = "") -> str:
     """
     The URL a citation should point at.
@@ -253,8 +343,5 @@ def citation_url(prov: dict | None, fallback: str = "") -> str:
     the SEC resolver returned otherwise, and only then whatever generic fallback
     the caller supplies. Never the generic one while an exact one exists.
     """
-    if prov:
-        for key in ("filing_url", "source_url"):
-            if prov.get(key):
-                return str(prov[key])
-    return fallback
+    exact = source_click_url(prov)
+    return exact or fallback

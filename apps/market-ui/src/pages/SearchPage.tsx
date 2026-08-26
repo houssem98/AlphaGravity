@@ -712,15 +712,36 @@ function CitationPanel({ citation, onClose }: { citation: GravityCitation; onClo
                 {/* Source metadata — ticker · form · filed date (parsed from title) */}
                 {(() => {
                     const docTitle = citation.document_title ?? '';
-                    const fm = docTitle.match(/\b(10-K|10-Q|8-K|DEF 14A|S-1|20-F|6-K|40-F|13F-HR|SC 13[DG]|4)\b/);
-                    const dm = docTitle.match(/\d{4}-\d{2}-\d{2}/);
+                    // Prefer the verified filing identity over a regex over the
+                    // title: the form and the filed date are facts the resolver
+                    // read out of the filing, the title is a display string.
+                    const fm = citation.form
+                        ? [citation.form]
+                        : docTitle.match(/\b(10-K|10-Q|8-K|DEF 14A|S-1|20-F|6-K|40-F|13F-HR|SC 13[DG]|4)\b/);
+                    const dm = citation.filing_date
+                        ? [citation.filing_date]
+                        : docTitle.match(/\d{4}-\d{2}-\d{2}/);
                     return (
                         <div className="flex flex-wrap gap-2">
                             {citation.ticker && (
                                 <span className="px-2 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] text-xs font-mono">{citation.ticker}</span>
                             )}
+                            {citation.issuer && (
+                                <span className="px-2 py-0.5 rounded bg-white/[0.04] text-[var(--text-2)] text-xs">{citation.issuer}</span>
+                            )}
                             {fm && (
                                 <span className="px-2 py-0.5 rounded bg-white/[0.06] text-white text-xs font-medium">{fm[0]}</span>
+                            )}
+                            {citation.fiscal_period && (
+                                <span className="px-2 py-0.5 rounded bg-white/[0.04] text-[var(--text-2)] text-xs">{citation.fiscal_period}</span>
+                            )}
+                            {citation.accession && (
+                                <span
+                                    className="px-2 py-0.5 rounded bg-white/[0.04] text-[var(--text-2)] text-[10px] font-mono"
+                                    data-testid="citation-accession"
+                                >
+                                    Accession: {citation.accession}
+                                </span>
                             )}
                             {dm && (
                                 <span className="px-2 py-0.5 rounded bg-white/[0.04] text-[var(--text-2)] text-xs">Filed {dm[0]}</span>
@@ -745,7 +766,18 @@ function CitationPanel({ citation, onClose }: { citation: GravityCitation; onClo
                     text fragments. */}
                 {(() => {
                     const { filingType, filingDate } = parseFilingTitle(citation.document_title);
-                    return <EdgarLink ticker={citation.ticker} snippet={citation.text} filingType={filingType} filingDate={filingDate} />;
+                    // `citation` carries the verified accession and the exact
+                    // filing URL. Passing only the ticker is what sent every SEC
+                    // source click to a company listing.
+                    return (
+                        <EdgarLink
+                            ticker={citation.ticker}
+                            snippet={citation.text}
+                            filingType={filingType}
+                            filingDate={filingDate}
+                            provenance={citation}
+                        />
+                    );
                 })()}
             </div>
         </div>

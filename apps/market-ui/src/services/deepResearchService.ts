@@ -406,6 +406,14 @@ export interface Citation {
         date?: string;
         documentType?: string;
         section?: string;
+        // Verified SEC filing provenance, when the passage came from a filing.
+        // Absent for web sources, which must not acquire a filing link.
+        accession?: string;
+        cik?: number | null;
+        filing_url?: string;
+        document_url?: string;
+        source_url?: string;
+        canonical_url?: string;
     };
 }
 
