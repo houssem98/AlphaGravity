@@ -9,6 +9,9 @@ const REMARK_PLUGINS = [remarkGfm];
 import { useResearchStore } from '../stores/researchStore';
 import { useBackgroundStore } from '../stores/backgroundStore';
 import EdgarLink, { parseFilingTitle } from '../components/EdgarLink';
+import {
+    groupSources, sourceClickUrl, tierLabel, publishedLabel, sourceCategory,
+} from '../lib/sourceUrl';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
     Search, Zap, FileText, Database, ChevronRight, CheckCircle, Clock, Cpu,
@@ -285,23 +288,60 @@ function SourcePills({ citations, onOpen }: {
 
 function SourceCard({ source, index }: { source: GravitySource; index: number }) {
     const [expanded, setExpanded] = useState(false);
+    // The exact document this source came from — the filing for a SEC source,
+    // the fetched page for a web source, and '' for a local corpus chunk that
+    // has no external address. '' renders as plain text rather than as a link
+    // to something reconstructed, which is what used to send filing clicks to a
+    // generic company listing.
+    const href = sourceClickUrl(source);
+    const tier = tierLabel(source);
+    const published = publishedLabel(source);
+    const isWeb = sourceCategory(source) === 'web' || sourceCategory(source) === 'news';
+    const Title = href
+        ? (
+            <a href={href} target="_blank" rel="noopener noreferrer"
+               className="text-xs font-medium text-white truncate hover:text-[var(--accent)] transition-colors block"
+               title={href}>
+                {source.document_title}
+            </a>
+        )
+        : <p className="text-xs font-medium text-white truncate">{source.document_title}</p>;
     return (
         <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 hover:border-[var(--accent)]/20 transition-colors">
             <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                         <span className="text-[10px] font-mono text-[var(--accent)] bg-[var(--accent)]/10 px-1.5 py-0.5 rounded">
-                            {source.ticker || '—'}
+                            {isWeb ? (source.domain || 'web') : (source.ticker || '—')}
                         </span>
                         <span className="text-[10px] text-[var(--text-2)] truncate">{source.section}</span>
                         <span className="ml-auto text-[10px] text-[var(--text-3)]">
                             {Math.round(source.score * 100)}%
                         </span>
                     </div>
-                    <p className="text-xs font-medium text-white truncate">{source.document_title}</p>
-                    {source.filing_date && (
-                        <p className="text-[10px] text-[var(--text-3)] mt-0.5">{source.filing_date}</p>
-                    )}
+                    {Title}
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {/* A publication date, never the retrieval time in its
+                            place: "fetched today" is not "published today". */}
+                        {(published || source.filing_date) && (
+                            <span className="text-[10px] text-[var(--text-3)]">
+                                {published || source.filing_date}
+                            </span>
+                        )}
+                        {tier && (
+                            <span className="text-[10px] text-[var(--text-3)] border border-white/10 rounded px-1">
+                                {tier}
+                            </span>
+                        )}
+                        {/* The page contained instruction-shaped text. Shown, not
+                            hidden — an analyst needs to see exactly that. */}
+                        {source.injection_flags && source.injection_flags.length > 0 && (
+                            <span className="text-[10px] text-[var(--down)] border border-[var(--down)]/30 rounded px-1"
+                                  title={`Page contained instruction-like text: ${source.injection_flags.join(', ')}. Treated as data, never followed.`}>
+                                unverified content
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <span className="flex-shrink-0 w-5 h-5 rounded-full bg-white/5 text-[var(--text-2)] text-[10px] flex items-center justify-center">
                     {index + 1}
@@ -1753,7 +1793,16 @@ export default function SearchPage() {
                                                 <div className="space-y-2">
                                                     {qaState.sources.length === 0
                                                         ? <p className="text-[13px] text-[var(--text-3)] text-center py-8">No sources retrieved yet</p>
-                                                        : qaState.sources.map((s, i) => <SourceCard key={s.chunk_id} source={s} index={i} />)
+                                                        : groupSources(qaState.sources).map(group => (
+                                                            <div key={group.category} className="space-y-2">
+                                                                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)] pt-2">
+                                                                    {group.label} ({group.sources.length})
+                                                                </p>
+                                                                {group.sources.map((s, i) => (
+                                                                    <SourceCard key={s.chunk_id} source={s} index={i} />
+                                                                ))}
+                                                            </div>
+                                                        ))
                                                     }
                                                 </div>
                                             )}

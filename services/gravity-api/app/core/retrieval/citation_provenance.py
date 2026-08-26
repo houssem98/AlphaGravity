@@ -238,6 +238,11 @@ def payload(prov: dict | None) -> dict:
     if not prov:
         return {}
     return {
+        # Names the source class explicitly rather than leaving the consumer to
+        # infer it from which fields happen to be present. The web payload
+        # carries the same key, so a frontend branches on one field instead of
+        # probing for an accession.
+        "source_class": "SEC_EVIDENCE",
         "issuer": prov.get("issuer", ""),
         "cik": prov.get("cik"),
         "form": prov.get("filing_form", ""),
@@ -333,6 +338,109 @@ def source_click_url(prov: dict | None) -> str:
         if url and is_trusted_sec_url(url):
             return str(url)
     return ""
+
+
+# ── Web sources ───────────────────────────────────────────────────────────
+#
+# A web citation is a different dialect of the same object, not a different
+# object. It is built here, beside the SEC one, for the reason the specification
+# gives in §11 and §32: two citation architectures means two places where a URL
+# can be wrong, two schemas the frontend has to branch on, and eventually two
+# answers to "what does this number come from".
+#
+# What it does NOT share is the trust rule. `is_trusted_sec_url` is a host
+# allow-list because a filing citation may only ever point at SEC. A web
+# citation points at the open web by definition, so the check is that the URL is
+# a well-formed https/http URL that survived the SSRF guard at fetch time —
+# a source that was never fetched has no evidence and therefore no citation.
+
+
+def is_renderable_web_url(url) -> bool:
+    """
+    Whether this URL may be rendered as a clickable web citation.
+
+    Not the SSRF guard — that governs what the server fetches and has already
+    run by the time a citation exists. This governs what goes into an `href` in
+    a browser, where the risk is `javascript:` and `data:` rather than internal
+    network access.
+    """
+    from urllib.parse import urlparse
+
+    try:
+        p = urlparse(str(url or ""))
+    except ValueError:
+        return False
+    return p.scheme in ("https", "http") and bool(p.hostname)
+
+
+def web_payload(prov: dict | None) -> dict:
+    """
+    The flat provenance fields a web source or citation carries.
+
+    Mirrors `payload()`: stated fields only, empties omitted, nothing invented.
+    Every field §11 requires of a web citation is here — URL, title, domain,
+    publication date when available, retrieval timestamp, source type, evidence
+    location — plus the claim linkage the caller attaches.
+
+    Returns `{}` when the URL is not renderable, so a malformed URL produces a
+    source with no link rather than a broken or dangerous one.
+    """
+    p = prov or {}
+    url = p.get("url") or p.get("canonical_url") or ""
+    if not is_renderable_web_url(url):
+        return {}
+    out = {
+        "source_class": "WEB_EVIDENCE",
+        "url": url,
+        "canonical_url": p.get("canonical_url", ""),
+        "title": p.get("title", ""),
+        "domain": p.get("domain", ""),
+        "published_at": p.get("published_at", ""),
+        "retrieved_at": p.get("retrieved_at", ""),
+        "source_type": p.get("source_type", "web_page"),
+        "evidence_location": p.get("evidence_location", ""),
+        "fetch_provider": p.get("fetch_provider", ""),
+        "search_provider": p.get("search_provider", ""),
+    }
+    return {k: v for k, v in out.items() if v not in ("", None)}
+
+
+def source_payload(metadata: dict | None, *, ticker: str = "") -> dict:
+    """
+    The provenance payload for one passage, whichever kind of source it is.
+
+    The single entry point the pipeline calls, so a new source class is added in
+    one place rather than at every call site. SEC provenance is tried first: a
+    passage carrying an accession is a filing fact regardless of what else is on
+    its metadata, and that is the stronger claim.
+    """
+    m = metadata or {}
+    sec = payload(provenance(m, ticker=ticker))
+    if sec:
+        return sec
+    if m.get("web_evidence") or m.get("source_class") == "WEB_EVIDENCE":
+        return web_payload(m)
+    return {}
+
+
+def click_url(metadata: dict | None, *, ticker: str = "", fallback: str = "") -> str:
+    """
+    The URL a source card opens, for any source class (§24).
+
+    SEC sources resolve to the exact filing and never to a generic company
+    listing; web sources resolve to the exact canonical page they were read
+    from. A passage with neither gets the caller's fallback, which for a local
+    corpus chunk is correctly empty.
+    """
+    m = metadata or {}
+    exact = source_click_url(provenance(m, ticker=ticker))
+    if exact:
+        return exact
+    web = web_payload(m) if (m.get("web_evidence")
+                             or m.get("source_class") == "WEB_EVIDENCE") else {}
+    if web:
+        return web.get("url", "") or fallback
+    return fallback
 
 
 def citation_url(prov: dict | None, fallback: str = "") -> str:

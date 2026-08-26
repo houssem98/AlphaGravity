@@ -245,6 +245,27 @@ def _build_search_pipeline():
     except Exception as e:
         logger.warning("edgar_unavailable", error=str(e))
 
+    # Channel 11: live web research. Search -> select -> fetch -> extract, with
+    # the SSRF guard on every fetch and every redirect hop. Registered only when
+    # a search provider AND a fetch provider are both usable: a channel that can
+    # search and cannot fetch would produce snippet citations, which is the one
+    # thing the web layer exists to prevent.
+    web_research = None
+    try:
+        from app.core.research.web_research import WebResearchChannel
+
+        _web = WebResearchChannel()
+        if _web.available():
+            web_research = _web
+            logger.info("web_research_ready",
+                        providers=_web._providers.describe())
+        else:
+            logger.warning("web_research_unavailable",
+                           reason="no usable search/fetch provider",
+                           providers=_web._providers.describe())
+    except Exception as e:
+        logger.warning("web_research_init_failed", error=str(e))
+
     orchestrator = RetrievalOrchestrator(
         dense_search=dense,
         dense_pg_search=dense_pg,
@@ -257,6 +278,7 @@ def _build_search_pipeline():
         turbo_quant_search=turbo_quant,
         gdelt_search=gdelt_search,
         edgar_search=edgar,
+        web_research=web_research,
         multi_query=multi_query,
     )
 

@@ -31,7 +31,32 @@ export interface SecFilingProvenance {
     canonical_url?: string;
 }
 
-export interface GravitySource extends SecFilingProvenance {
+// Provenance for a source that came off the live web rather than out of a
+// filing. Emitted by the same backend module as `SecFilingProvenance` — one
+// citation architecture, two dialects — so a source card branches on
+// `source_class` instead of probing for an accession.
+export interface WebSourceProvenance {
+    source_class?: 'SEC_EVIDENCE' | 'LOCAL_EVIDENCE' | 'WEB_EVIDENCE';
+    /** The exact page a web source click must open. */
+    url?: string;
+    domain?: string;
+    /** Present only when the page declared one. An absent date is shown as
+     *  unknown, never filled in with the retrieval time. */
+    published_at?: string;
+    retrieved_at?: string;
+    source_type?: string;
+    /** UI grouping: sec_filings | company | web | news. */
+    category?: string;
+    /** 1 = primary/official, 4 = unknown. Drives ordering and the tier badge. */
+    tier?: number;
+    tier_label?: string;
+    evidence_kind?: string;
+    /** Non-empty when the fetched page contained instruction-shaped text. The
+     *  passage is still shown; it is marked rather than hidden. */
+    injection_flags?: string[];
+}
+
+export interface GravitySource extends SecFilingProvenance, WebSourceProvenance {
     chunk_id: string;
     document_id: string;
     text: string;
@@ -44,7 +69,7 @@ export interface GravitySource extends SecFilingProvenance {
     retrieval_method: string;
 }
 
-export interface GravityCitation extends SecFilingProvenance {
+export interface GravityCitation extends SecFilingProvenance, WebSourceProvenance {
     citation_number: number;
     chunk_id: string;
     text: string;

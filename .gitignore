@@ -74,7 +74,11 @@ graphify-out/20*/
 graphify-out/cache/
 services/gravity-api/data/
 test-results/
-research/
+# Anchored to the repo root: this is the hyperresearch vault. Unanchored,
+# `research/` matches a directory of that name at ANY depth, and it silently
+# swallowed the whole of services/gravity-api/app/core/research/ — the package
+# was written, imported, tested, and excluded from every commit.
+/research/
 personal-website/
 gemini-code-*.md
 apps/market-ui/diag-tmp.mjs

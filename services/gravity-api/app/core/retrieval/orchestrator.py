@@ -75,6 +75,7 @@ class RetrievalOrchestrator:
         gdelt_search=None,        # Channel 8: GDELT global news (free, no key)
         mcp_search=None,          # Channel 9: MCP financial data (FactSet, CapIQ, etc.)
         edgar_search=None,        # Channel 10: live SEC EDGAR XBRL (free, no key)
+        web_research=None,        # Channel 11: live web research (search → fetch → extract)
         multi_query=None,         # MultiQueryRetriever — replaces dense for MEDIUM/COMPLEX
     ):
         self.channels = {}
@@ -102,6 +103,8 @@ class RetrievalOrchestrator:
             self.channels["mcp"] = mcp_search
         if edgar_search:
             self.channels["edgar"] = edgar_search
+        if web_research:
+            self.channels["web"] = web_research
 
         self._multi_query = multi_query
         logger.info("retrieval_orchestrator_init", channels=list(self.channels.keys()),
@@ -115,6 +118,7 @@ class RetrievalOrchestrator:
         channels: list[str] | None = None,
         entities: dict | None = None,
         complexity: str = "simple",
+        question_class: str = "",
     ) -> dict[str, list[RetrievalResult]]:
         """
         Execute all retrieval channels in parallel.
@@ -147,7 +151,8 @@ class RetrievalOrchestrator:
             else:
                 channel = self.channels[channel_name]
                 tasks[channel_name] = self._safe_search(
-                    channel_name, channel, query, expanded_terms, filters, entities
+                    channel_name, channel, query, expanded_terms, filters,
+                    entities, question_class,
                 )
 
         task_list = list(tasks.values())
@@ -208,6 +213,11 @@ class RetrievalOrchestrator:
         "gdelt":       4.0,   # external HTTP; allow extra time
         "mcp":        15.0,   # MCP: external financial data APIs; variable latency
         "edgar":       8.0,   # SEC EDGAR: 2-3 external HTTPS round trips per query
+        # Web research is search + N page fetches, each an external round trip
+        # to a server we do not control. Its own ResearchBudget deadline is
+        # shorter than this; the timeout here is the backstop for a provider
+        # that accepts a connection and then never answers.
+        "web":        40.0,
     }
 
     async def _safe_search(
@@ -218,6 +228,7 @@ class RetrievalOrchestrator:
         expanded_terms: dict | None,
         filters: dict | None,
         entities: dict | None,
+        question_class: str = "",
     ) -> list[RetrievalResult]:
         """Execute a single channel search with per-channel timeout and error handling."""
         timeout_s = self._CHANNEL_TIMEOUTS.get(name, 2.0)
@@ -257,6 +268,15 @@ class RetrievalOrchestrator:
                 # Live SEC XBRL. Needs filters too: the resolved ticker lives in
                 # filters["companies"] for the same reason the structured channel does.
                 coro = channel.search(query=query, filters=filters, entities=entities)
+            elif name == "web":
+                # Live web research. Takes the question class as well: the class
+                # sets the search budget, the recency window and the freshness
+                # rule, and defaulting it to GENERAL here would give a "latest
+                # news" question a year-wide staleness window.
+                coro = channel.search(
+                    query=query, filters=filters, entities=entities,
+                    question_class=question_class or "GENERAL",
+                )
             else:
                 return []
 
@@ -280,6 +300,7 @@ class RetrievalOrchestrator:
         filters: dict | None = None,
         channels: list[str] | None = None,
         complexity: str = "medium",
+        question_class: str = "",
     ) -> dict[str, list[RetrievalResult]]:
         """
         Parallel per-entity retrieval for comparison queries.
@@ -292,20 +313,41 @@ class RetrievalOrchestrator:
         """
         if not tickers:
             return await self.search(query=query, filters=filters,
-                                     channels=channels, complexity=complexity)
+                                     channels=channels, complexity=complexity,
+                                     question_class=question_class)
 
         logger.info("multi_entity_retrieval", tickers=tickers)
+
+        # Web research runs ONCE for the whole question, not once per ticker.
+        # Per-entity fan-out multiplies every channel by N, which is right for a
+        # ticker-scoped lookup and wrong for the web: five tickers would mean
+        # five times the search budget, five times the fetches and five sets of
+        # near-identical articles about the same comparison. The question is
+        # asked once, so the web is asked once.
+        per_entity_channels = [c for c in (channels or []) if c != "web"]
+        run_web = channels is not None and "web" in channels and "web" in self.channels
 
         # One full retrieval pass per entity, in parallel
         per_entity_tasks = [
             self.search(
                 query=query,
                 filters={**(filters or {}), "companies": [ticker]},
-                channels=channels,
+                channels=per_entity_channels or None,
                 complexity=complexity,
+                question_class=question_class,
             )
             for ticker in tickers
         ]
+        if run_web:
+            per_entity_tasks.append(self.search(
+                query=query,
+                filters={**(filters or {}), "companies": list(tickers)},
+                channels=["web"],
+                complexity=complexity,
+                question_class=question_class,
+            ))
+            tickers = list(tickers) + [""]  # the shared web pass has no owning ticker
+
         per_entity_results = await asyncio.gather(*per_entity_tasks, return_exceptions=True)
 
         # Merge: label each result with its ticker, combine into channel buckets
@@ -318,10 +360,15 @@ class RetrievalOrchestrator:
                 if channel not in merged:
                     merged[channel] = []
                 for r in results:
-                    # Tag metadata with entity source for LLM attribution
+                    # Tag metadata with entity source for LLM attribution. The
+                    # shared web pass carries no ticker — an article comparing
+                    # five companies is not evidence *about* any one of them,
+                    # and labelling it with one would invite the LLM to
+                    # attribute its claims to that company alone.
                     if r.metadata is None:
                         r.metadata = {}
-                    r.metadata["entity_ticker"] = ticker
+                    if ticker:
+                        r.metadata["entity_ticker"] = ticker
                     merged[channel].append(r)
 
         logger.info(

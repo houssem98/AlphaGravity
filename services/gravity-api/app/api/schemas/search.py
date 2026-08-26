@@ -102,6 +102,17 @@ class Citation(BaseModel):
     canonical_url: str = Field("", description="The exact SEC URL a source click must open. Empty when no verified filing provenance exists.")
     verification_status: str = Field("", description="Deterministic verification outcome for the cited fact")
     provenance: dict | None = Field(None, description="Full canonical evidence chain: issuer, CIK, period, XBRL concept, dimension, unit, value, evidence location")
+    # Web-source provenance. Present only for a WEB_EVIDENCE citation; a filing
+    # citation leaves every one of these empty rather than acquiring a domain.
+    # Emitted through the same `citation_provenance` module as the SEC fields
+    # above, which is what keeps this one citation architecture rather than two.
+    source_class: str = Field("", description="SEC_EVIDENCE | LOCAL_EVIDENCE | WEB_EVIDENCE")
+    canonical_url: str = Field("", description="Canonicalized page URL, used for deduplication and the source click")
+    domain: str = Field("", description="Registrable domain of the web source")
+    published_at: str = Field("", description="Publication date the page declared, when it declared one")
+    retrieved_at: str = Field("", description="When this page was actually fetched")
+    source_type: str = Field("", description="web_page | news | press_release | filing")
+    evidence_location: str = Field("", description="Where inside the source this passage was read")
 
 
 class SourcePassage(BaseModel):
@@ -116,6 +127,22 @@ class SourcePassage(BaseModel):
     source_quality: int = Field(5, ge=1, le=10, description="Authority score: 10=SEC filing, 9=transcript, 7=broker, 5=news")
     relevance_score: float = 0.0
     source_channels: list[str] = Field(default_factory=list)
+    # The four UI groups (SEC FILINGS / COMPANY / WEB / NEWS) and the named
+    # authority tier behind the numeric score, so the frontend groups and labels
+    # sources without re-deriving the policy from a URL.
+    category: str = Field("", description="sec_filings | company | web | news")
+    tier: int = Field(0, ge=0, le=4, description="1=primary/official, 2=established press, 3=secondary, 4=unknown")
+    tier_label: str = Field("", description="Human-readable tier name")
+    evidence_kind: str = Field("", description="SEC_EVIDENCE | LOCAL_EVIDENCE | WEB_EVIDENCE")
+    url: str = Field("", description="Exact URL this source card opens")
+    canonical_url: str = Field("", description="Canonicalized URL, used for deduplication")
+    domain: str = Field("", description="Registrable domain for a web source")
+    published_at: str = Field("", description="Publication date, when the source declared one")
+    retrieved_at: str = Field("", description="When a web page was fetched")
+    # Non-empty when the fetched page contained text shaped like an instruction
+    # to the model. The passage is still shown — an analyst may need to see
+    # exactly that — but it is marked rather than presented as ordinary prose.
+    injection_flags: list[str] = Field(default_factory=list)
     # Filing provenance, present when the passage came out of an SEC filing.
     # A source card is clickable; without these it had no URL to click and the
     # frontend rebuilt a generic company listing from the ticker.
@@ -174,6 +201,33 @@ class SearchMetadata(BaseModel):
     source_accession: str = ""
     source_filing_url: str = ""
     verification_status: str = ""
+    # ── Source routing and web research (spec §25, §28) ──────────────────
+    # `sec_*` above answers "was the filer asked". These answer the same
+    # question for the other two source classes, and the counts are of what
+    # actually happened rather than of what the budget allowed — a run where the
+    # provider was down reports zero pages and a `web_degraded` reason, which is
+    # a different answer from "we found nothing on the web".
+    sources_selected: list[str] = Field(default_factory=list, description="LOCAL / SEC / WEB actually used")
+    sources_skipped: list[str] = Field(default_factory=list, description="Source classes deliberately not used")
+    routing_reasons: dict = Field(default_factory=dict, description="Why each source class was or was not used")
+    fresh_intent: bool = False
+    web_search_queries: int = 0
+    web_results_returned: int = 0
+    web_pages_attempted: int = 0
+    web_pages_fetched: int = 0
+    web_pages_blocked: int = Field(0, description="URLs refused by the SSRF guard")
+    web_evidence_created: int = 0
+    web_duplicates_dropped: int = 0
+    web_stale_dropped: int = 0
+    web_injection_flags: int = Field(0, description="Fetched pages containing instruction-shaped text")
+    web_provider: str = ""
+    web_latency_ms: float = 0.0
+    web_degraded: str = Field("", description="Why the web leg produced nothing, when it produced nothing")
+    web_errors: list[str] = Field(default_factory=list)
+    # Claim-level grounding (spec §13, §25).
+    claims_total: int = 0
+    claims_supported: int = 0
+    claims_inferred: int = 0
     # Per-stage latency breakdown (P4.3 observability) — 0 when not measured.
     understanding_ms: float = 0.0
     retrieval_ms: float = 0.0

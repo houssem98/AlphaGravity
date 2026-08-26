@@ -29,7 +29,7 @@ from app.config import settings
 from app.api.middleware.pii_filter import PIIFilter
 from app.core.query_understanding import suppresses_xbrl
 from app.core.question_class import classify as classify_question
-from app.core.question_class import route_channels
+from app.core.question_class import route_channels, route_sources
 from app.core.retrieval import citation_provenance, sec_telemetry
 from app.core.retrieval.fusion import RetrievalResult, authority_aware_rrf
 from app.core.reasoning.prompts import (
@@ -738,12 +738,29 @@ class SearchPipeline:
                 _qc = classify_question(query, _ents if isinstance(_ents, dict) else None)
                 _channels = route_channels(_qc["question_class"], _channels)
                 query_plan["question_class"] = _qc["question_class"]
+
+                # §4: deterministic LOCAL / SEC / WEB routing, decided from the
+                # question's own words before anything is retrieved. The plan is
+                # advisory for SEC — `evidence_gate` below makes the real call,
+                # because only it can see whether the local row is the right
+                # fact — and authoritative for WEB, which has no gate of its own.
+                _plan = route_sources(_qc["question_class"], query)
+                query_plan["source_plan"] = _plan.telemetry()
+                if not _plan.web and "web" in _channels:
+                    _channels = [c for c in _channels if c != "web"]
                 logger.info(
                     "question_classified",
                     trace_id=trace_id,
                     question_class=_qc["question_class"],
                     needs_primary_source=_qc["needs_primary_source"],
                     channels=_channels,
+                    # `telemetry()` carries `question_class` too, and passing it
+                    # twice raises TypeError inside structlog — which the
+                    # pipeline catches as `search_error` and turns into an empty
+                    # answer. The routing log took down every search until this
+                    # was removed.
+                    **{k: v for k, v in _plan.telemetry().items()
+                       if k != "question_class"},
                 )
                 _gate = None
                 if _qc["needs_primary_source"]:
@@ -801,6 +818,7 @@ class SearchPipeline:
                         filters=filters or {},
                         channels=_channels,
                         complexity=complexity,
+                        question_class=_qc["question_class"],
                     )
                 else:
                     # Scope a single-company query to its resolved ticker so
@@ -815,8 +833,24 @@ class SearchPipeline:
                         filters=_eff_filters,
                         channels=_channels,
                         complexity=complexity,
+                        question_class=_qc["question_class"],
                     )
                 retrieval_ms = (time.perf_counter() - t1) * 1000
+
+                # What the web leg actually did. Read off the channel rather
+                # than inferred from the results: "no web evidence" and "the
+                # provider was down" produce the same empty list and are
+                # completely different answers to give a user (§15, §25, §28).
+                _web_usage = {}
+                _web_channel = getattr(self.retrieval, "channels", {}).get("web")
+                if _web_channel is not None:
+                    _run = getattr(_web_channel, "last_run", None) or {}
+                    _usage_obj = _run.get("usage")
+                    if _usage_obj is not None:
+                        _web_usage = _usage_obj.as_dict()
+                        query_plan["web_usage"] = _web_usage
+                        logger.info("web_research_usage", trace_id=trace_id,
+                                    **_web_usage)
                 _tracer.record_stage(_otrace, "retrieval", latency_ms=retrieval_ms,
                                      channels=list(retrieval_results.keys()),
                                      total_retrieved=sum(len(v) for v in retrieval_results.values()))
@@ -1093,9 +1127,14 @@ class SearchPipeline:
                     # landed the user on a company listing instead of on the
                     # filing. The accession is known here; it travels with the
                     # card.
-                    **citation_provenance.payload(
-                        citation_provenance.provenance(p.metadata, ticker=p.ticker)
-                    ),
+                    # One entry point for every source class: a SEC passage gets
+                    # its accession and exact filing URL, a web passage gets its
+                    # canonical URL, domain, publication and retrieval times, and
+                    # a local prose chunk gets neither rather than an invented
+                    # one. Previously only the SEC branch existed, so a web
+                    # source would have reached the UI with no URL at all and the
+                    # card would have been unclickable.
+                    **citation_provenance.source_payload(p.metadata, ticker=p.ticker),
                 }
                 for i, p in enumerate(top_passages)
             ]
@@ -1839,6 +1878,17 @@ class SearchPipeline:
                     # Which evidence system the question was routed to, decided
                     # deterministically before retrieval rather than by the LLM.
                     "question_class": query_plan.get("question_class", "GENERAL"),
+                    # Which of LOCAL / SEC / WEB the router picked, and why.
+                    # `sources_skipped` matters as much as `sources_selected`:
+                    # "we did not search the web" and "we searched and found
+                    # nothing" are different answers and used to look identical.
+                    **{k: v for k, v in
+                       (query_plan.get("source_plan") or {}).items()
+                       if k != "question_class"},
+                    # What the web leg actually spent and produced, including
+                    # URLs the SSRF guard refused and pages whose text was
+                    # shaped like an instruction.
+                    **(query_plan.get("web_usage") or {}),
                     # Why the filer was or was not asked. Visible without
                     # exposing anything sensitive — states and counts only.
                     **(_gt if isinstance(_gt := query_plan.get("gate_telemetry"), dict) else {}),
@@ -2290,15 +2340,26 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
         _prov = citation_provenance.provenance(
             getattr(p, "metadata", None) if p is not None else None, ticker=_tk
         )
+        _meta = (getattr(p, "metadata", None) if p is not None else None) or {}
+        _is_web = bool(_meta.get("web_evidence")
+                       or _meta.get("source_class") == "WEB_EVIDENCE")
+        _web_prov = citation_provenance.web_payload(_meta) if _is_web else {}
         # An exact filing URL outranks anything else, including a URL the model
         # emitted: the resolver read the accession out of the filing, the model
         # did not. Falling back to the generic company-listing URL while an exact
         # filing is known is the specific downgrade this ordering forbids.
+        #
+        # A web citation never reaches that fallback. `_edgar_browse_url` would
+        # hand a Reuters article a `browse-edgar?action=getcompany` link — a
+        # source card that opens a company filing list while claiming to be the
+        # article it quoted, which is the same class of bug as the SEC one this
+        # ordering was written to fix, pointed the other way.
         _url = (
             citation_provenance.citation_url(_prov)
+            or _web_prov.get("url", "")
             or c.get("url")
             or _pf("url")
-            or _edgar_browse_url(_tk, _ftype)
+            or ("" if _is_web else _edgar_browse_url(_tk, _ftype))
         )
         _offset_start = c.get("char_offset_start") or (getattr(p, "char_offset_start", None) if p is not None else None)
         _offset_end = c.get("char_offset_end") or (getattr(p, "char_offset_end", None) if p is not None else None)
@@ -2325,6 +2386,15 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
         if _prov:
             citation.update(citation_provenance.payload(_prov))
             citation["provenance"] = _prov
+        elif _web_prov:
+            # Same treatment for a web source, through the same module: the
+            # canonical URL, domain, publication date, retrieval timestamp and
+            # evidence location promoted to top level, and the whole object
+            # under `provenance` for a consumer that wants the chain. §11's
+            # required web fields, none of them invented — a page that declared
+            # no publication date carries none.
+            citation.update(_web_prov)
+            citation["provenance"] = _web_prov
 
         # Add char offsets for span-level citation highlighting
         if _offset_start is not None and _offset_end is not None:
