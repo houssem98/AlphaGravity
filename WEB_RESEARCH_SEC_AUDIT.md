@@ -519,9 +519,12 @@ apps/market-ui/src/pages/SearchPage.tsx     .gitignore
 
 ## 22. Commit SHA
 
-See the commit created at the end of this work; the SHA is reported in the
-execution summary rather than hardcoded here, so this document does not claim a
-value it cannot verify.
+```
+912f48f18411c586ef3ab15c520ae6553c96ec9d
+```
+
+`feat(research): live web research as a third source class, under one evidence
+architecture` — 30 files, +7,343 / -19.
 
 ## 23. Branch
 
