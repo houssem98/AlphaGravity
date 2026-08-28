@@ -7,9 +7,10 @@ import { create } from 'zustand';
 import { getAccessToken } from '../services/supabase';
 import { useBackgroundStore } from './backgroundStore';
 import {
-    cleanAnswer, INITIAL_SEARCH_STATE,
+    cleanAnswer, INITIAL_SEARCH_STATE, toPipelineEvent, isBackendStage,
     type GravitySearchState, type SearchStatus, type SearchFilters, type AgentTraceStep,
     type GravityCitation, type GravitySource, type GravityMetric, type ChartSpec,
+    type AnswerState, type ConfidenceLabel, type RetrievalReport,
 } from '../hooks/useGravitySearch';
 import { createQaConversation, saveQaTurn, conversationTitle } from '../services/qaHistory';
 
@@ -70,6 +71,9 @@ export const useQaStore = create<QaState>((set) => ({
 // cancelled only here, never by a component unmount.
 const qaSockets: Record<string, WebSocket | null> = {};
 const qaReconnect: Record<string, number> = {};
+// The trace id addresses the run on the server. Cancel names it, and every
+// reconnect re-sends it so the server attaches instead of re-running.
+const qaTraceIds: Record<string, string> = {};
 
 const store = () => useQaStore.getState();
 
@@ -107,7 +111,7 @@ function patchSearch(id: string, updater: (prev: GravitySearchState) => GravityS
     const entry = store().byConv[id] ?? qaDefault;
     const next = updater(entry.search);
     store().patch(id, { search: next });
-    if (next.status === 'complete' || next.status === 'error') {
+    if (next.status === 'complete' || next.status === 'error' || next.status === 'cancelled') {
         const jobId = store().byConv[id]?.bgJobId;
         if (jobId) {
             useBackgroundStore.getState().endJob(jobId);
@@ -117,9 +121,17 @@ function patchSearch(id: string, updater: (prev: GravitySearchState) => GravityS
     }
 }
 
-export function runQa(id: string, query: string, filters?: SearchFilters): void {
+/**
+ * `query` is what the reader typed and what the thread shows. `prompt` is what
+ * actually goes on the wire, and differs only for an analysis command: `/risks
+ * AMD` is the turn, and the authored paragraph it stands for is the request.
+ * Displaying the expansion instead is the failure the Company Brief shipped —
+ * the authored prompt came back at the reader as though it were the answer.
+ */
+export function runQa(id: string, query: string, filters?: SearchFilters, prompt?: string): void {
     const q = query.trim();
     if (!q) return;
+    const wire = prompt?.trim() || q;
     const entry = store().byConv[id] ?? qaDefault;
 
     // Commit the previous finished exchange into the thread before starting a new
@@ -158,6 +170,7 @@ export function runQa(id: string, query: string, filters?: SearchFilters): void 
     qaReconnect[id] = 0;
 
     const traceId = crypto.randomUUID();
+    qaTraceIds[id] = traceId;
 
     // Browsers can't set WS headers, so the token is passed as a query param. A
     // FRESH token is fetched on every attempt (initial + reconnects).
@@ -173,7 +186,7 @@ export function runQa(id: string, query: string, filters?: SearchFilters): void 
         ws.onopen = () => {
             qaReconnect[id] = 0;
             ws.send(JSON.stringify({
-                query: q,
+                query: wire,
                 trace_id: traceId,
                 conversation_id: id,
                 filters: filters && Object.keys(filters).length > 0 ? filters : undefined,
@@ -185,10 +198,32 @@ export function runQa(id: string, query: string, filters?: SearchFilters): void 
             try {
                 const msg = JSON.parse(ev.data as string);
                 const { type, data } = msg;
+                // Every frame the server sends becomes a log line, and only a
+                // frame the server sent can. The progress view reads this array
+                // and has no timeline of its own.
+                const logged = toPipelineEvent(msg);
                 patchSearch(id, (prev) => {
+                    const withEvent = logged
+                        // A reconnect replays the buffer, so drop anything this
+                        // client has already recorded rather than double-logging.
+                        && !prev.events.some(e => e.seq === logged.seq && e.type === logged.type)
+                        ? { ...prev, events: [...prev.events, logged] }
+                        : prev;
+                    prev = withEvent;
                     switch (type) {
                         case 'status':
-                            return { ...prev, status: data.status as SearchStatus };
+                            // An unrecognised status leaves the stage where it
+                            // was. It used to be written straight into state,
+                            // and the progress map turned anything it did not
+                            // know into "no stage at all" — which is what
+                            // resolving_primary_source did to the whole display.
+                            return isBackendStage(data.status)
+                                ? { ...prev, status: data.status as SearchStatus }
+                                : prev;
+                        case 'retrieval':
+                            return { ...prev, retrieval: data as RetrievalReport };
+                        case 'cancelled':
+                            return { ...prev, status: 'cancelled', answerState: 'CANCELLED' };
                         case 'sources':
                             return { ...prev, sources: data.sources ?? [] };
                         case 'token':
@@ -200,7 +235,16 @@ export function runQa(id: string, query: string, filters?: SearchFilters): void 
                                 finalAnswer: cleanAnswer(data.answer ?? ''),
                                 streamingAnswer: '',
                                 citations: data.citations ?? [],
-                                confidence: data.confidence ?? 0,
+                                // The word the server sent, kept as a word. It
+                                // was coerced into a number and rendered as
+                                // `Math.round(confidence * 100)` — NaN for
+                                // every value the server actually sends.
+                                confidence: (data.confidence ?? null) as ConfidenceLabel,
+                                // The evidence gate's verdict for the answer as
+                                // a whole. Dropped entirely until now, so an
+                                // answer the backend had marked UNSUPPORTED
+                                // rendered in the same frame as a cited one.
+                                answerState: (data.answer_state ?? 'ANSWERED') as AnswerState,
                                 followUpQueries: data.follow_up_queries ?? [],
                                 structuredData: data.structured_data ?? [],
                                 chartSpecs: data.chart_specs ?? [],
@@ -236,7 +280,7 @@ export function runQa(id: string, query: string, filters?: SearchFilters): void 
                             };
                         case 'error':
                             if (prev.finalAnswer || prev.streamingAnswer) return prev;
-                            return { ...prev, status: 'error', error: data.message ?? 'Search failed' };
+                            return { ...prev, status: 'error', answerState: 'SYSTEM_ERROR', error: data.message ?? 'Search failed' };
                         default:
                             return prev;
                     }
@@ -247,10 +291,15 @@ export function runQa(id: string, query: string, filters?: SearchFilters): void 
         ws.onclose = () => {
             if (qaSockets[id] !== ws) return;
             patchSearch(id, (prev) => {
-                if (prev.status === 'complete' || prev.status === 'error') return prev;
-                if (prev.finalAnswer || prev.streamingAnswer || prev.sources.length > 0) {
-                    return { ...prev, status: 'complete' };
-                }
+                if (prev.status === 'complete' || prev.status === 'error'
+                    || prev.status === 'cancelled') return prev;
+
+                // A dropped socket that had already delivered sources used to be
+                // marked `complete` — the UI declaring an answer finished that
+                // the server never sent. Reconnect instead: the run is addressed
+                // by trace_id and the server attaches this connection to the run
+                // already in flight, replaying what was missed rather than
+                // starting (and billing) a second search.
                 if ((qaReconnect[id] ?? 0) < 3) {
                     const delay = 1000 * Math.pow(2, qaReconnect[id]++);
                     setTimeout(connect, delay);
@@ -259,7 +308,10 @@ export function runQa(id: string, query: string, filters?: SearchFilters): void 
                 return {
                     ...prev,
                     status: 'error',
-                    error: 'Could not connect to the Gravity backend. Check VITE_GRAVITY_API_URL and that the API is reachable.',
+                    answerState: 'SYSTEM_ERROR',
+                    error: prev.sources.length > 0 || prev.streamingAnswer
+                        ? 'The connection dropped before the answer finished, and could not be resumed. The partial result above is incomplete.'
+                        : 'Could not connect to the Gravity backend. Check VITE_GRAVITY_API_URL and that the API is reachable.',
                 };
             });
         };
@@ -271,12 +323,23 @@ export function runQa(id: string, query: string, filters?: SearchFilters): void 
 }
 
 export function cancelQa(id: string): void {
-    qaSockets[id]?.close();
+    // Closing the socket is not cancellation: the server kept retrieving and
+    // generating, and kept paying for it. Send the cancel frame first so the
+    // run's task is actually cancelled, then stop reconnecting and close.
+    const ws = qaSockets[id];
+    const traceId = qaTraceIds[id];
+    if (ws && ws.readyState === WebSocket.OPEN && traceId) {
+        try { ws.send(JSON.stringify({ type: 'cancel', trace_id: traceId })); } catch { /* socket already gone */ }
+    }
+    // Block the reconnect path — otherwise onclose would resume the very run
+    // the user just cancelled.
+    qaReconnect[id] = 99;
+    ws?.close();
     qaSockets[id] = null;
     const e = store().byConv[id];
     if (e?.bgJobId) useBackgroundStore.getState().endJob(e.bgJobId);
     store().patch(id, {
-        search: { ...(e?.search ?? INITIAL_SEARCH_STATE), status: 'idle' },
+        search: { ...(e?.search ?? INITIAL_SEARCH_STATE), status: 'cancelled', answerState: 'CANCELLED' },
         bgJobId: null,
     });
 }

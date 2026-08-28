@@ -206,6 +206,11 @@ DEFAULT_CHANNEL_WEIGHTS = {
     "tree_nav": 1.1,     # navigated filing sections
     "mcp": 1.0,
     "edgar": 1.2,        # live XBRL from the filer itself: exact, like structured
+    # Filing prose read straight from the filer. Above corpus prose because it
+    # is the primary document rather than an ingested copy of one, but below the
+    # exact-fact channels: a paragraph describing a number never outranks the
+    # number as filed.
+    "edgar_text": 1.1,
 }
 
 

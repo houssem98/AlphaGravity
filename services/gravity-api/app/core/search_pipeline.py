@@ -20,7 +20,7 @@ import re
 import time
 import uuid
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import AsyncIterator
 
 import structlog
@@ -41,6 +41,7 @@ from app.core.reasoning.prompts import (
 from app.core.reasoning.numeric_verifier import verify_answer_numerics, format_mismatch_report
 from app.core.reasoning.temporal_verifier import verify_temporal_consistency, format_temporal_report
 from app.core.reasoning.nli_judge import FinanceNLIJudge
+from app.core.verification import citation_verdict
 from app.core.feedback.routing_feedback import RoutingFeedbackLoop, FeedbackRecord
 from app.llm.base import LLMConfig, LLMMessage
 from app.llm.router import LLMRouter, RoutingDecision
@@ -102,13 +103,36 @@ def replay_metadata(prov: dict | None, latency_ms: float, trace_id: str) -> dict
 
 
 # ── Event Types for Progressive Streaming ───────────────────────────────
+# The stages a client may be told about. An event naming a stage outside this
+# set is a bug in the pipeline, not a new feature of the UI: the progress view
+# is a projection of these and may not invent members of its own.
+SEARCH_STAGES: frozenset[str] = frozenset({
+    "understanding",
+    "searching",
+    "resolving_primary_source",
+    "answering_from_verified_evidence",
+    "reranking",
+    "reasoning",
+    "cancelled",
+})
+
+
 @dataclass
 class SearchEvent:
-    """Events streamed to the client via WebSocket."""
+    """Events streamed to the client via WebSocket.
+
+    `event_id` and `ts` exist so a consumer can identify an event and
+    reconstruct the order it was produced in. Without them a reconnecting
+    client could not tell a replayed frame from a new one, and the UI had no
+    measured time to show — which is why it used to animate its own.
+    """
     type: str       # "status" | "sources" | "token" | "answer" | "metadata" | "error"
                     # + "agent_trace" | "structured_table" | "agent_trace_complete"
+                    # + "retrieval" | "verification" | "cancelled"
     data: dict | str | list | None = None
     trace_id: str = ""
+    event_id: str = field(default_factory=lambda: uuid.uuid4().hex[:16])
+    ts: float = field(default_factory=time.time)
 
 
 # ── Search Pipeline ─────────────────────────────────────────────────────
@@ -359,6 +383,7 @@ class SearchPipeline:
         reasoning_depth: str = "auto",
         conversation_id: str | None = None,
         user_id: str | None = None,
+        trace_id: str | None = None,
     ) -> AsyncIterator[SearchEvent]:
         """
         Execute the full search pipeline with progressive streaming.
@@ -374,7 +399,10 @@ class SearchPipeline:
         When reasoning_depth="agentic" (or auto-detected complex), delegates
         to the AgentOrchestrator for multi-agent processing.
         """
-        trace_id = str(uuid.uuid4())
+        # The caller's trace id wins when given. The WebSocket route derives it
+        # from the client's own id so that a reconnect addresses this same run
+        # rather than starting a second one, and so a cancel can name it.
+        trace_id = trace_id or str(uuid.uuid4())
         start = time.perf_counter()
         total_cost = 0.0
         # Count what this run asks sec.gov for, split into identity lookups and
@@ -736,7 +764,7 @@ class SearchPipeline:
                 # is in a filing. This decides from the question's own words.
                 _ents = query_plan.get("entities")
                 _qc = classify_question(query, _ents if isinstance(_ents, dict) else None)
-                _channels = route_channels(_qc["question_class"], _channels)
+                _channels = route_channels(_qc["question_class"], _channels, query)
                 query_plan["question_class"] = _qc["question_class"]
 
                 # §4: deterministic LOCAL / SEC / WEB routing, decided from the
@@ -748,6 +776,13 @@ class SearchPipeline:
                 query_plan["source_plan"] = _plan.telemetry()
                 if not _plan.web and "web" in _channels:
                     _channels = [c for c in _channels if c != "web"]
+                # Authoritative means both directions. The plan could previously
+                # only veto web, never enable it, so a question the plan routed
+                # to WEB still ran without the web channel whenever the class had
+                # not already added it — which is every class outside
+                # NEEDS_WEB_RESEARCH and WEB_AUGMENTED.
+                elif _plan.web and "web" not in _channels:
+                    _channels.append("web")
                 logger.info(
                     "question_classified",
                     trace_id=trace_id,
@@ -1139,6 +1174,36 @@ class SearchPipeline:
                 for i, p in enumerate(top_passages)
             ]
             yield SearchEvent(type="status", data={"status": "reranking", "message": "Reranking results..."}, trace_id=trace_id)
+            # Channels that raised, as opposed to channels that simply matched
+            # nothing. The orchestrator keeps them apart; everything downstream
+            # used to see both as an empty list.
+            _channel_failures = dict(getattr(retrieval_results, "failed", {}) or {})
+            # What retrieval actually did, measured rather than described. The
+            # progress view used to narrate a fixed five-channel sequence naming
+            # Qdrant, Elasticsearch, Neo4j and Cohere on every query, including
+            # on deployments where those channels are not configured at all. It
+            # can now only report the channels named here.
+            yield SearchEvent(
+                type="retrieval",
+                data={
+                    "channels_used": sorted(k for k, v in (retrieval_results or {}).items() if v),
+                    # Dark means "ran and found nothing". A channel that raised
+                    # is reported under channels_failed instead — collapsing the
+                    # two would tell the user the corpus was searched when the
+                    # channel never answered.
+                    "channels_dark": sorted(
+                        k for k, v in (retrieval_results or {}).items()
+                        if not v and k not in _channel_failures
+                    ),
+                    "channels_failed": _channel_failures,
+                    "degraded": bool(_channel_failures),
+                    "candidates": sum(len(v) for v in (retrieval_results or {}).values()),
+                    "passages_used": len(top_passages),
+                    "retrieval_ms": round(retrieval_ms, 1),
+                    "rerank_ms": round(rerank_ms, 1),
+                },
+                trace_id=trace_id,
+            )
             yield SearchEvent(type="sources", data={"sources": source_data}, trace_id=trace_id)
 
             # ── Stage 5b: Deterministic Ratio Pre-Pass ─────────────────
@@ -1785,6 +1850,12 @@ class SearchPipeline:
                     "contradictions": contradictions_out,
                     "model_used": routing_decision.primary_model,
                     "confidence": confidence_out,
+                    # The answer's evidence state, on every answer rather than
+                    # only on the no-evidence exit. It was absent here, so the
+                    # client saw `answer_state: None` on a successful run and
+                    # had to infer "answered" from the field being missing —
+                    # indistinguishable from an older server that never sent it.
+                    "answer_state": audit_answer_state(citations_out),
                     "validation": validation_result,
                     "structured_data": structured_data_out,
                     "chart_specs": chart_specs_out,
@@ -1829,6 +1900,7 @@ class SearchPipeline:
                         "follow_up_queries": follow_up_queries,
                         "structured_data": structured_data_out,
                         "confidence": confidence_out,
+                        "answer_state": audit_answer_state(citations_out),
                         "sources": source_data,
                         # Provenance travels with the answer. Without it a cache hit
                         # reports channels [] and model "unknown", so the cheapest
@@ -1874,7 +1946,13 @@ class SearchPipeline:
                     # A dispatched-but-empty channel (ES down → [], structured gated
                     # → []) used to appear here and falsely imply 5 live channels.
                     "retrieval_channels": [k for k, v in (retrieval_results or {}).items() if v],
-                    "channels_dark": [k for k, v in (retrieval_results or {}).items() if not v],
+                    "channels_dark": [k for k, v in (retrieval_results or {}).items()
+                                      if not v and k not in (getattr(retrieval_results, "failed", {}) or {})],
+                    # A channel that errored, named as such. Reporting it as
+                    # merely dark is how a provider outage came to look like an
+                    # honest empty result.
+                    "channels_failed": dict(getattr(retrieval_results, "failed", {}) or {}),
+                    "degraded": bool(getattr(retrieval_results, "failed", {})),
                     # Which evidence system the question was routed to, decided
                     # deterministically before retrieval rather than by the LLM.
                     "question_class": query_plan.get("question_class", "GENERAL"),
@@ -1938,7 +2016,10 @@ class SearchPipeline:
             # ── Feedback Recording (fire-and-forget) ─────────────────────
             if self.feedback:
                 try:
-                    _conf_map = {"HIGH": 0.9, "MEDIUM": 0.6, "LOW": 0.3}
+                    _conf_map = {"HIGH": 0.9, "MEDIUM": 0.6, "LOW": 0.3, "NONE": 0.0}
+                    # Derived from the citation verdicts rather than from the
+                    # model's own confidence word, which is not evidence.
+                    _audit_answer_state = audit_answer_state(citations_out)
                     conf_value = _conf_map.get(confidence_out, 0.6)
                     asyncio.create_task(self.feedback.record(FeedbackRecord(
                         trace_id=trace_id,
@@ -1961,6 +2042,7 @@ class SearchPipeline:
                     from compliance.audit_log import (
                         AuditEvent, QueryContext, RetrievalContext, RetrievedChunk,
                         ModelContext, ResponseContext, PerformanceContext, CostContext,
+                        CitationRecord,
                     )
                     _conf_map = {"HIGH": 0.9, "MEDIUM": 0.6, "LOW": 0.3}
                     from compliance.audit_log import UserContext as _UserContext
@@ -1981,6 +2063,16 @@ class SearchPipeline:
                                 )
                                 for p in top_passages[:20]
                             ],
+                            # Measured, not assumed. These three fields used to
+                            # be left at defaults that named Qdrant, Voyage and
+                            # Cohere on every record regardless of deployment.
+                            channels_used=sorted(
+                                k for k, v in (retrieval_results or {}).items() if v
+                            ),
+                            channels_failed=dict(
+                                getattr(retrieval_results, "failed", {}) or {}
+                            ),
+                            degraded=bool(getattr(retrieval_results, "failed", {})),
                         ),
                         model=ModelContext(
                             provider=routing_decision.primary_model.split("-")[0],
@@ -1990,6 +2082,35 @@ class SearchPipeline:
                         response=ResponseContext(
                             raw=full_response,
                             confidence_score=_conf_map.get(confidence_out, 0.6),
+                            confidence_label=str(confidence_out),
+                            # The gate's verdict for the answer as a whole. An
+                            # abstention and a confident answer used to be
+                            # indistinguishable in the record.
+                            answer_state=_audit_answer_state,
+                            # Citations were never persisted at all: this list
+                            # was left empty on every record, so the one thing
+                            # an audit most needs to reconstruct — which source
+                            # was cited for what, and whether it checked out —
+                            # was the one thing not written down.
+                            citations=[
+                                CitationRecord(
+                                    chunk_id=str(c.get("chunk_id", "")),
+                                    char_span=[
+                                        int(c.get("char_offset_start") or 0),
+                                        int(c.get("char_offset_end") or 0),
+                                    ],
+                                    source_uri=str(c.get("url", "")),
+                                    confidence=1.0 if c.get("is_verified") else 0.0,
+                                    verification_status=str(
+                                        c.get("verification_status", "not_verifiable")
+                                    ),
+                                    verification_reasons=list(
+                                        c.get("verification_reasons", []) or []
+                                    ),
+                                    citation_number=int(c.get("citation_number", 0) or 0),
+                                )
+                                for c in (citations_out or [])[:50]
+                            ],
                         ),
                         performance=PerformanceContext(
                             ttft_ms=int(reasoning_ms),
@@ -2285,6 +2406,24 @@ def _answer_provenance(citations: list) -> dict:
     return {"source_accession": "", "source_filing_url": "", "verification_status": ""}
 
 
+def audit_answer_state(citations: list) -> str:
+    """The answer's evidence state, derived from citation verdicts.
+
+    Deliberately not the model's confidence word: "HIGH" is a self-report, and
+    the audit record is the artifact a reviewer trusts months later. Conflicting
+    evidence outranks everything — one citation that contradicts its source is
+    enough to stop calling the answer supported.
+    """
+    verdicts = {str(c.get("verification_status", "")) for c in (citations or [])}
+    if not verdicts:
+        return "ANSWERED"
+    if "conflicting" in verdicts:
+        return "CONFLICTING_EVIDENCE"
+    if verdicts <= {"unsupported", "not_verifiable"}:
+        return "UNSUPPORTED"
+    return "ANSWERED"
+
+
 def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
     """
     Enrich citations into the shape the frontend expects
@@ -2364,6 +2503,19 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
         _offset_start = c.get("char_offset_start") or (getattr(p, "char_offset_start", None) if p is not None else None)
         _offset_end = c.get("char_offset_end") or (getattr(p, "char_offset_end", None) if p is not None else None)
 
+        # `is_verified` used to be whatever the model reported as `entailed`,
+        # so a citation the model invented — index 99 against five passages —
+        # reached the UI with no source and a green verified badge. The verdict
+        # is now derived from the retrieved evidence; the model's opinion can
+        # only raise a citation that already resolves and does not contradict
+        # its passage.
+        _model_entailed = c.get("entailed", c.get("is_verified"))
+        _verdict = citation_verdict.verdict_for_citation(
+            {"citation_number": num, "chunk_id": chunk_id, "text": text, "ticker": _tk},
+            passages or [],
+            model_entailed=(bool(_model_entailed) if _model_entailed is not None else None),
+        )
+
         citation = {
             # Frontend/WS shape …
             "citation_number": num,
@@ -2372,7 +2524,9 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
             "document_title": doc_title,
             "ticker": _tk,
             "section": _sec,
-            "is_verified": bool(c.get("entailed", c.get("is_verified", False))),
+            "is_verified": _verdict.is_verified,
+            "verification_status": _verdict.status,
+            "verification_reasons": _verdict.reasons,
             # … plus REST SearchResponse.Citation required fields (id, source).
             "id": num,
             "source": doc_title,
@@ -2395,6 +2549,21 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
             # no publication date carries none.
             citation.update(_web_prov)
             citation["provenance"] = _web_prov
+
+        # The provenance payloads above each carry a `verification_status` of
+        # their own, meaning "was this FILING verified against the filer" — a
+        # different question from "does this source support this claim". Their
+        # `.update()` was overwriting the citation verdict, so a citation with a
+        # period mismatch against a verified filing came out marked `verified`
+        # with `period_mismatch` still listed in its reasons. That is the exact
+        # false-verified this module exists to prevent, so the verdict is
+        # re-applied last and the filing's own state keeps a distinct name.
+        _filing_status = citation.get("verification_status")
+        if _filing_status and _filing_status != _verdict.status:
+            citation["filing_verification_status"] = _filing_status
+        citation["verification_status"] = _verdict.status
+        citation["verification_reasons"] = _verdict.reasons
+        citation["is_verified"] = _verdict.is_verified
 
         # Add char offsets for span-level citation highlighting
         if _offset_start is not None and _offset_end is not None:
@@ -2424,7 +2593,12 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
                 "document_title": getattr(p, "document_title", "") or _tk or "Source",
                 "ticker": _tk,
                 "section": getattr(p, "section", "") or "",
+                # Synthesized from a passage rather than cited by the model:
+                # the source is real, but nothing asserted that it supports a
+                # claim, so it is not verifiable rather than merely unverified.
                 "is_verified": False,
+                "verification_status": citation_verdict.NOT_VERIFIABLE,
+                "verification_reasons": ["synthesized_from_passage_not_model_cited"],
                 "id": i,
                 "source": getattr(p, "document_title", "") or _tk or "Source",
                 "date": getattr(p, "filing_date", "") or "",

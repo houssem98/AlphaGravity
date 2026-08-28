@@ -239,7 +239,26 @@ def classify(query: str, entities: dict | None = None) -> dict:
     }
 
 
-def route_channels(question_class: str, channels: list[str]) -> list[str]:
+# Overrides the class rather than joining it, for the same reason `_FRESH_INTENT`
+# below does: a question can be classified as a calculation and still be
+# answerable only from the filing's narrative. "Review the quarter's revenue and
+# the drivers management gives in the MD&A" classifies as FINANCIAL_CALCULATION
+# and reached the XBRL channels and no prose channel at all; "describe the
+# business and who it competes with" classifies as FINANCIAL_TABLE and reached
+# the same. Both are questions a filing answers in sentences.
+_FILING_PROSE_INTENT = re.compile(
+    r"\b(risk factors?|item\s+\d+[a-z]?|md&a|management.s discussion|"
+    r"legal proceedings?|litigation|properties|competitors?|competitive|"
+    r"competes|business description|reporting segments?|"
+    r"guidance|outlook|liquidity|capital resources|"
+    r"discloses?|disclosed|disclosures?)\b",
+    re.I,
+)
+
+
+def route_channels(
+    question_class: str, channels: list[str], query: str = ""
+) -> list[str]:
     """
     §12's routing policy: send the question to the evidence system that can
     answer it, without switching the others off.
@@ -254,7 +273,11 @@ def route_channels(question_class: str, channels: list[str]) -> list[str]:
             if c not in out:
                 out.append(c)
     elif question_class == FILING_QUALITATIVE:
-        for c in ("dense", "bm25", "splade", "tree_nav"):
+        # `edgar_text` sits with them because the other four read the ingested
+        # corpus, which covers the tickers ingestion happened to reach. A
+        # qualitative question about any other registrant had no source at all
+        # until this channel; with it the class answers from the filing itself.
+        for c in ("dense", "bm25", "splade", "tree_nav", "edgar_text"):
             if c not in out:
                 out.append(c)
     elif question_class == MARKET_NEWS:
@@ -263,6 +286,10 @@ def route_channels(question_class: str, channels: list[str]) -> list[str]:
     if question_class in NEEDS_WEB_RESEARCH or question_class in WEB_AUGMENTED:
         if "web" not in out:
             out.append("web")
+    # Class-independent: what the filing says in sentences is not the property of
+    # one label. `route_sources` still decides whether SEC is consulted at all.
+    if _FILING_PROSE_INTENT.search(query or "") and "edgar_text" not in out:
+        out.append("edgar_text")
     return out
 
 

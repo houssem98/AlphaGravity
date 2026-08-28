@@ -80,16 +80,20 @@ describe('parseCommand — row 2, each of the eight §4 commands', () => {
         expect(findCommand('screening')?.blocked).toContain('not a screener');
     });
 
-    it('the matrix carries exactly the eight §4 rows, five buildable after the CT-9 probe', () => {
-        expect(COMMANDS).toHaveLength(8);
-        expect(COMMANDS.filter(c => c.status === 'buildable')).toHaveLength(5);
+    it('the matrix carries the eight §4 rows plus the four analysis skills', () => {
+        expect(COMMANDS).toHaveLength(12);
+        expect(COMMANDS.filter(c => c.status === 'buildable')).toHaveLength(9);
         expect(COMMANDS.filter(c => c.status === 'blocked').map(c => c.name))
             .toEqual(['screening', 'capex', 'tariff-risk']);
+        // The three that were still blocked stay blocked: the analysis skills
+        // were added because a channel now answers them, not by relaxing the bar.
+        expect(COMMANDS.filter(c => c.status === 'blocked')).toHaveLength(3);
     });
 
     it('a blocked name is never offered by the palette', () => {
         expect(matchCommands('').map(c => c.name)).toEqual(
-            ['company', 'filings', 'sentiment', 'data', 'peer-compare'],
+            ['company', 'filings', 'sentiment', 'data', 'peer-compare',
+             'earnings', 'risks', 'moat', 'research'],
         );
         expect(matchCommands('cap')).toEqual([]);
         expect(matchCommands('tariff')).toEqual([]);
@@ -112,6 +116,8 @@ describe('command categories', () => {
         expect(byCat('Company')).toEqual(['company', 'filings', 'sentiment', 'data']);
         // peer-compare mounts GridView, which is a different surface.
         expect(byCat('Comparison')).toEqual(['peer-compare']);
+        // The analysis skills mount nothing at all — they run the pipeline.
+        expect(byCat('Analysis')).toEqual(['earnings', 'risks', 'moat', 'research']);
     });
 
     it('every blocked command is Unavailable, and nothing else is', () => {

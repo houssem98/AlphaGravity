@@ -69,11 +69,29 @@ class RetrievedChunk:
 
 @dataclass
 class RetrievalContext:
-    vector_store: str = "qdrant"
-    embedding_model: str = "voyage-finance-2"
+    """What retrieval actually did for this request.
+
+    `vector_store`, `embedding_model` and `reranker` used to default to
+    "qdrant", "voyage-finance-2" and "cohere-rerank-v3.5", and the only caller
+    never set them — so every audit record in the system asserted three
+    providers regardless of which ones the deployment had configured or reached.
+    An audit record that names a provider it did not observe is worse than one
+    that says nothing, because it is the artifact a reviewer trusts. They now
+    default to empty: unknown unless the caller states it.
+    """
+    vector_store: str = ""
+    embedding_model: str = ""
     top_k: int = 20
-    reranker: str = "cohere-rerank-v3.5"
+    reranker: str = ""
     retrieved_chunks: list[RetrievedChunk] = field(default_factory=list)
+    #: Channels that returned results, as measured.
+    channels_used: list[str] = field(default_factory=list)
+    #: Channel name -> exception type, for channels that raised. Distinct from
+    #: a channel that ran and matched nothing.
+    channels_failed: dict = field(default_factory=dict)
+    #: True when at least one channel failed, so the answer rests on less
+    #: evidence than a healthy run would have used.
+    degraded: bool = False
 
 
 @dataclass
@@ -90,10 +108,22 @@ class ModelContext:
 
 @dataclass
 class CitationRecord:
+    """One citation as it was actually graded.
+
+    `confidence` alone could not answer the question an audit has to answer —
+    *did the cited source support the claim?* The verdict and its reasons are
+    what make a bad answer reconstructable months later, so they are stored
+    rather than recomputed from a model that may no longer exist.
+    """
     chunk_id: str
     char_span: list[int]
     source_uri: str
     confidence: float
+    #: verified | partially_supported | unsupported | conflicting | not_verifiable
+    verification_status: str = "not_verifiable"
+    #: Machine-readable grounds, e.g. "citation_index_out_of_range".
+    verification_reasons: list[str] = field(default_factory=list)
+    citation_number: int = 0
 
 
 @dataclass
@@ -103,6 +133,13 @@ class ResponseContext:
     stop_reason: str = "end_turn"
     citations: list[CitationRecord] = field(default_factory=list)
     confidence_score: float = 0.0
+    #: The evidence gate's verdict for the answer as a whole: ANSWERED,
+    #: UNSUPPORTED, SOURCE_UNAVAILABLE, CONFLICTING_EVIDENCE. Without it an
+    #: abstention and a confident answer are indistinguishable in the record.
+    answer_state: str = ""
+    #: The word the model reported (HIGH/MEDIUM/LOW/NONE), kept alongside the
+    #: numeric score so the mapping stays auditable.
+    confidence_label: str = ""
 
 
 @dataclass

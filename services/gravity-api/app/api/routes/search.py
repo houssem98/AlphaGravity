@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from app.api.schemas.search import SearchRequest, SearchResponse
 from app.api.middleware.auth import require_auth, _validate_api_key, _validate_jwt
 from app.api.middleware.rate_limit import check_rate_limit
+from app.core.streaming import run_registry
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -255,27 +256,64 @@ async def search_stream(websocket: WebSocket):
             await websocket.close(code=1008, reason=e.detail)
             return
 
+        # One receive loop for the whole connection, with each search forwarded
+        # from its own task. The previous shape blocked inside
+        # `async for event in pipeline.search(...)`, so while a search was
+        # running the server could not read the socket at all — a cancel message
+        # had nowhere to arrive, which is why cancelling only ever closed the
+        # browser's end and left the work running.
+        forward_task: asyncio.Task | None = None
+
+        async def _forward(run) -> None:
+            """Stream one run's events to this socket."""
+            try:
+                async for event in run.subscribe():
+                    await websocket.send_json(event)
+            except (WebSocketDisconnect, RuntimeError):
+                # The socket went away. The run itself keeps going and stays
+                # attachable by trace id, so a reconnect resumes it instead of
+                # paying for a second search.
+                logger.info("forward_detached", trace_id=run.trace_id)
+
         while True:
-            # Wait for search request from client
             data = await websocket.receive_json()
+
+            # Control frame: cancel the run this connection is watching.
+            if isinstance(data, dict) and data.get("type") == "cancel":
+                cancel_id = data.get("trace_id") or ""
+                # Scoped to this connection's user: a trace id is a browser
+                # UUID, not a capability.
+                cancelled = run_registry.registry.cancel(cancel_id, user_id)
+                logger.info("cancel_requested", trace_id=cancel_id, cancelled=cancelled)
+                continue
+
             request = SearchRequest(**data)
+
+            # The client already generates a trace id and re-sends it on every
+            # reconnect. Honouring it is what makes a reconnect free: the same
+            # id addresses the same run.
+            trace_id = (data.get("trace_id") if isinstance(data, dict) else None) or str(uuid.uuid4())
 
             from app.dependencies import get_search_pipeline
             pipeline = get_search_pipeline()
 
-            # Stream all events to client
-            async for event in pipeline.search(
-                query=request.query,
-                filters=request.filters.model_dump() if request.filters else None,
-                stream=True,
-                reasoning_depth=request.options.reasoning_depth,
-                user_id=user_id,
-            ):
-                await websocket.send_json({
-                    "type": event.type,
-                    "data": event.data,
-                    "trace_id": event.trace_id,
-                })
+            def _source_factory():
+                return pipeline.search(
+                    query=request.query,
+                    filters=request.filters.model_dump() if request.filters else None,
+                    stream=True,
+                    reasoning_depth=request.options.reasoning_depth,
+                    user_id=user_id,
+                    trace_id=trace_id,
+                )
+
+            # A new query on the same socket supersedes the previous forwarder,
+            # matching the client, which discards frames from a superseded run.
+            if forward_task is not None and not forward_task.done():
+                forward_task.cancel()
+
+            run = run_registry.registry.start(trace_id, request.query, user_id, _source_factory)
+            forward_task = asyncio.create_task(_forward(run))
 
     except WebSocketDisconnect:
         logger.info("websocket_disconnected")

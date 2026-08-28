@@ -1,0 +1,62 @@
+{
+  "version": "1.0.0",
+  "created": "2026-08-28",
+  "purpose": "Live end-to-end Quick Answer cases. Each expected_value is the figure as reported in the company's own filing, recorded here so grading never depends on model output.",
+  "grading": "A case passes only when the answer contains the expected figure AND at least one citation is graded 'verified' AND no citation is flagged. A right number with an unchecked citation is a failure.",
+  "cases": [
+    {
+      "id": "nvda-fy2025-revenue",
+      "category": "annual_revenue",
+      "query": "What was NVIDIA revenue in FY2025?",
+      "expected_value": 130497000000,
+      "expect": "answer",
+      "source": "NVIDIA 10-K FY2025: revenue $130,497 million"
+    },
+    {
+      "id": "nvda-fy2024-revenue",
+      "category": "annual_revenue",
+      "query": "What was NVIDIA total revenue in fiscal year 2024?",
+      "expected_value": 60922000000,
+      "expect": "answer",
+      "source": "NVIDIA 10-K FY2025 comparative: FY2024 revenue $60,922 million"
+    },
+    {
+      "id": "nvda-fy2025-datacenter",
+      "category": "segment_revenue",
+      "query": "What was NVIDIA Data Center revenue in FY2025?",
+      "expected_value": 115186000000,
+      "expect": "answer",
+      "source": "NVIDIA 10-K FY2025: Data Center revenue $115,186 million"
+    },
+    {
+      "id": "aapl-fy2025-revenue",
+      "category": "annual_revenue",
+      "query": "What were Apple's total net sales in fiscal 2025?",
+      "expected_value": 416161000000,
+      "expect": "answer",
+      "source": "Apple 10-K FY2025: total net sales $416,161 million"
+    },
+    {
+      "id": "msft-fy2025-revenue",
+      "category": "annual_revenue",
+      "query": "What was Microsoft total revenue in fiscal year 2025?",
+      "expected_value": 281724000000,
+      "expect": "answer",
+      "source": "Microsoft 10-K FY2025: total revenue $281,724 million"
+    },
+    {
+      "id": "unanswerable-nonexistent-company",
+      "category": "abstention",
+      "query": "What was the fiscal 2031 revenue of Zorblax Quantum Holdings Incorporated?",
+      "expect": "abstain",
+      "source": "No such issuer exists; the system must abstain rather than invent a figure."
+    },
+    {
+      "id": "unanswerable-future-period",
+      "category": "abstention",
+      "query": "What will NVIDIA report as revenue for fiscal year 2032?",
+      "expect": "abstain",
+      "source": "A period that has not been reported; no filing can support an answer."
+    }
+  ]
+}

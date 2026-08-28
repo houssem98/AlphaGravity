@@ -49,7 +49,11 @@ _SCALE_MAP = {"k": 1e3, "m": 1e6, "b": 1e9, "t": 1e12,
               "thousand": 1e3, "million": 1e6, "billion": 1e9, "trillion": 1e12}
 _NUM_RE    = re.compile(
     r"(-?\(?)(\$|€|£|¥)?([\d,]+\.?\d*)\s*"
-    r"(trillion|billion|million|thousand|[tbmkTBMK])?\)?\s*(%|bps|bp|percent|basis\s*points)?",
+    # The single-letter scale suffixes need a boundary after them, or they eat
+    # the first letter of the next word: "$2,024 to $5,000" parsed 2024 with a
+    # "t" scale and produced 2.024e15. Financial prose is full of "X million to
+    # Y", so this mis-parse was reachable from ordinary text.
+    r"(trillion|billion|million|thousand|[tbmkTBMK](?![a-zA-Z]))?\)?\s*(%|bps|bp|percent|basis\s*points)?",
     re.IGNORECASE,
 )
 
@@ -83,6 +87,21 @@ def _extract_numbers(text: str) -> list[float]:
     return nums
 
 
+def close_enough(a: float, b: float) -> bool:
+    """Same-number test at financial reporting precision.
+
+    Module level so the citation verdict layer grades numbers by the identical
+    tolerance this pre-check uses; two copies of the rule would drift.
+    """
+    if a == 0 and b == 0:
+        return True
+    if a == 0 or b == 0:
+        return abs(a - b) < 1e-9
+    # ±1 in the last reported digit ≈ ±0.5% for most financial figures
+    rel = abs(a - b) / max(abs(a), abs(b))
+    return rel <= 0.005
+
+
 def numeric_precheck(premise: str, hypothesis: str) -> Optional[bool]:
     """
     Returns True  — all numbers in hypothesis are numerically equivalent in premise.
@@ -94,15 +113,6 @@ def numeric_precheck(premise: str, hypothesis: str) -> Optional[bool]:
         return None     # no numeric claims → pass to NLI layers
 
     pre_nums = _extract_numbers(premise)
-
-    def close_enough(a: float, b: float) -> bool:
-        if a == 0 and b == 0:
-            return True
-        if a == 0 or b == 0:
-            return abs(a - b) < 1e-9
-        # ±1 in the last reported digit ≈ ±0.5% for most financial figures
-        rel = abs(a - b) / max(abs(a), abs(b))
-        return rel <= 0.005
 
     for hnum in hyp_nums:
         if not any(close_enough(hnum, pnum) for pnum in pre_nums):

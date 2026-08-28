@@ -245,6 +245,19 @@ def _build_search_pipeline():
     except Exception as e:
         logger.warning("edgar_unavailable", error=str(e))
 
+    # Channel 10b: the same trip, for prose. `edgar` made numbers universal;
+    # qualitative questions still answered only for the tickers the corpus
+    # ingested. It composes `edgar` for the ticker map and the shared client, so
+    # it exists only when that channel does.
+    edgar_text = None
+    if edgar is not None:
+        try:
+            from app.core.retrieval.edgar_text_search import EdgarTextSearch
+            edgar_text = EdgarTextSearch(edgar)
+            logger.info("edgar_text_ready")
+        except Exception as e:
+            logger.warning("edgar_text_unavailable", error=str(e))
+
     # Channel 11: live web research. Search -> select -> fetch -> extract, with
     # the SSRF guard on every fetch and every redirect hop. Registered only when
     # a search provider AND a fetch provider are both usable: a channel that can
@@ -278,6 +291,7 @@ def _build_search_pipeline():
         turbo_quant_search=turbo_quant,
         gdelt_search=gdelt_search,
         edgar_search=edgar,
+        edgar_text_search=edgar_text,
         web_research=web_research,
         multi_query=multi_query,
     )

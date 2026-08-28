@@ -18,9 +18,11 @@ import {
     Sparkles, ChevronDown, Check, Feather, Plus, Trash2, ArrowUp, Edit3,
     Settings as SettingsIcon, Bookmark, BookmarkCheck, X, Grid3x3, Building2, PanelLeft,
 } from 'lucide-react';
+import AnswerStateBanner from '../components/qa/AnswerStateBanner';
 import GridView from '../components/grid/GridView';
 import CompanyPage from './CompanyPage';
-import { cleanAnswer, type GravityCitation, type GravitySource, type GravityMetric, type ChartSpec, type SearchFilters } from '../hooks/useGravitySearch';
+import { showsVerifiedBadge } from '../lib/answerState';
+import { cleanAnswer, verificationSummary, type GravityCitation, type GravitySource, type GravityMetric, type ChartSpec, type SearchFilters } from '../hooks/useGravitySearch';
 import { useQaStore, qaDefault, runQa, cancelQa, type ChatTurn } from '../stores/qaStore';
 import {
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -53,7 +55,7 @@ type SearchMode = 'grid' | 'company' | 'qa' | 'research';
 
 // HistoryItem is defined in researchStore.ts
 import type { HistoryItem } from '../stores/researchStore';
-import { parseCommand, matchCommands, findCommand, CATEGORY_ORDER, type CommandSpec } from '../lib/commands';
+import { parseCommand, matchCommands, findCommand, expandCommand, CATEGORY_ORDER, type CommandSpec } from '../lib/commands';
 import { COMMAND_LANG, dexterLang, isCommandBlock, parseBlock, renderCommandBlock } from '../services/dexterBlocks';
 import type { CompanyTab } from './CompanyPage';
 
@@ -78,13 +80,19 @@ const RESEARCH_EXAMPLES = [
 
 // ─── Status labels for QA streaming ───────────────────────────────────────────
 
+// One label per stage the backend actually emits. `searching` used to read
+// "Searching 5 retrieval channels…" on every query regardless of how many
+// channels the deployment has, and `validating` was a stage the pipeline never
+// emits at all. The live channel count comes from the retrieval event instead.
 const STATUS_LABELS: Record<string, string> = {
     understanding: 'Understanding query…',
-    searching: 'Searching 5 retrieval channels…',
+    searching: 'Searching indexed documents…',
+    resolving_primary_source: 'Resolving the primary source filing…',
+    answering_from_verified_evidence: 'Answering from evidence already on file…',
     reranking: 'Reranking results…',
     reasoning: 'Generating cited answer…',
-    validating: 'Verifying citations…',
     complete: 'Done',
+    cancelled: 'Cancelled',
     error: 'Error',
 };
 
@@ -273,7 +281,7 @@ function SourcePills({ citations, onOpen }: {
                         <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
                                 {c.ticker && <span className="text-[11px] font-mono font-semibold text-[var(--accent)]">{c.ticker}</span>}
-                                {c.is_verified && <CheckCircle className="w-3 h-3 text-green-400 flex-shrink-0" />}
+                                {showsVerifiedBadge(c) && <CheckCircle className="w-3 h-3 text-green-400 flex-shrink-0" />}
                             </span>
                             <span className="block text-[10px] text-[var(--text-3)] truncate">{c.document_title}</span>
                         </span>
@@ -789,7 +797,7 @@ function CitationPanel({ citation, onClose }: { citation: GravityCitation; onClo
                             {citation.section && (
                                 <span className="px-2 py-0.5 rounded bg-white/[0.04] text-[var(--text-2)] text-xs">{citation.section}</span>
                             )}
-                            {citation.is_verified && (
+                            {showsVerifiedBadge(citation) && (
                                 <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-green-500/10 text-green-400 text-xs">
                                     <CheckCircle className="w-3 h-3" /> Verified
                                 </span>
@@ -1086,6 +1094,9 @@ export default function SearchPage() {
         }
 
         const cmd = parseCommand(raw.trimEnd() + ' ', raw.length + 1);
+        // An analysis command mounts nothing — it runs the pipeline — so it is
+        // not handled here and falls through to the search path below.
+        if (cmd && findCommand(cmd.name)?.expand) return false;
         const mountable = COMMAND_TABS[cmd?.name ?? ''] || cmd?.name === 'peer-compare';
         if (!cmd?.complete || !mountable || cmd.args.length === 0) return false;
 
@@ -1116,8 +1127,10 @@ export default function SearchPage() {
         setActiveTab('answer');
         setOpenCitation(null);
         // The store commits the prior finished exchange, starts the stream, and
-        // registers the bg job — all keyed by the active conversation.
-        runQa(activeConvId, q.trim(), filters);
+        // registers the bg job — all keyed by the active conversation. An
+        // analysis command travels as its authored prompt and is still SHOWN as
+        // what was typed.
+        runQa(activeConvId, q.trim(), filters, expandCommand(q.trim()) ?? undefined);
         requestAnimationFrame(() => threadEndRef.current?.scrollIntoView({ behavior: 'smooth' }));
     };
 
@@ -1595,11 +1608,23 @@ export default function SearchPage() {
                                 {qaState.modelUsed && (
                                     <span className="flex items-center gap-1"><Cpu className="w-3 h-3" />{qaState.modelUsed}</span>
                                 )}
-                                {qaState.confidence > 0 && (
-                                    <span className={qaState.confidence > 0.8 ? 'up' : qaState.confidence > 0.6 ? '' : 'down'}>
-                                        {Math.round(qaState.confidence * 100)}% conf
-                                    </span>
-                                )}
+                                {/* Citation verdicts, counted. This used to render
+                                    `Math.round(confidence * 100)% conf` from a field the
+                                    backend sends as the word "MEDIUM" — NaN for every real
+                                    value, and a decorative number even if it had parsed.
+                                    A count of verified citations is a fact; a percentage
+                                    derived from the model's own self-report is not. */}
+                                {qaState.citations.length > 0 && (() => {
+                                    const v = verificationSummary(qaState.citations);
+                                    const verified = v.verified ?? 0;
+                                    const flagged = (v.unsupported ?? 0) + (v.conflicting ?? 0);
+                                    return (
+                                        <span className={flagged > 0 ? 'down' : verified === qaState.citations.length ? 'up' : ''}>
+                                            {verified}/{qaState.citations.length} citations verified
+                                            {flagged > 0 ? ` · ${flagged} flagged` : ''}
+                                        </span>
+                                    );
+                                })()}
                             </div>
                         )}
                     </div>
@@ -1714,8 +1739,9 @@ export default function SearchPage() {
                                         <QaSearchProgress
                                             status={qaState.status}
                                             sourcesCount={qaState.sources.length}
-                                            citationsCount={qaState.citations.length}
-                                            agentSteps={qaState.agentSteps}
+                                            citations={qaState.citations}
+                                            events={qaState.events}
+                                            retrieval={qaState.retrieval}
                                         />
                                     )}
 
@@ -1750,6 +1776,11 @@ export default function SearchPage() {
                                                         complete={qaState.agentTraceComplete}
                                                         totalIterations={qaState.totalIterations}
                                                         totalCostUsd={qaState.totalCostUsd}
+                                                    />
+
+                                                    <AnswerStateBanner
+                                                        state={qaState.answerState}
+                                                        citations={qaState.citations}
                                                     />
 
                                                     {displayAnswer

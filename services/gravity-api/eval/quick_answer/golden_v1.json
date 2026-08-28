@@ -1,0 +1,420 @@
+{
+  "version": "1.1.0",
+  "created": "2026-08-27",
+  "purpose": "Quick Answer citation-verification golden set (roadmap Phase 8). Each case pairs a claim with the passage cited for it and a deterministically expected verdict. Expected values are derived from the fixture passages, never from model output.",
+  "note": "This set grades the VERIFICATION layer, which is deterministic and needs no provider key. End-to-end answer accuracy is a separate, key-dependent benchmark (eval/financebench_grader.py) and is not measured here.",
+  "passages": [
+    {
+      "chunk_id": "nvda_fy25_rev",
+      "ticker": "NVDA",
+      "filing_date": "2025-02-26",
+      "document_title": "NVIDIA 10-K FY2025",
+      "text": "Revenue for fiscal year 2025 was $130,497 million, up from $60,922 million in fiscal year 2024."
+    },
+    {
+      "chunk_id": "nvda_fy25_dc",
+      "ticker": "NVDA",
+      "filing_date": "2025-02-26",
+      "document_title": "NVIDIA 10-K FY2025",
+      "text": "Data Center revenue for fiscal 2025 was $115,186 million compared with $47,525 million for fiscal 2024."
+    },
+    {
+      "chunk_id": "nvda_fy25_margin",
+      "ticker": "NVDA",
+      "filing_date": "2025-02-26",
+      "document_title": "NVIDIA 10-K FY2025",
+      "text": "Gross margin was 75.0% in fiscal 2025 compared with 72.7% in fiscal 2024."
+    },
+    {
+      "chunk_id": "nvda_fy25_opinc",
+      "ticker": "NVDA",
+      "filing_date": "2025-02-26",
+      "document_title": "NVIDIA 10-K FY2025",
+      "text": "Income from operations was $81,453 million for fiscal year 2025."
+    },
+    {
+      "chunk_id": "nvda_fy25_eps",
+      "ticker": "NVDA",
+      "filing_date": "2025-02-26",
+      "document_title": "NVIDIA 10-K FY2025",
+      "text": "Diluted earnings per share was $2.94 for fiscal year 2025."
+    },
+    {
+      "chunk_id": "nvda_q3fy26",
+      "ticker": "NVDA",
+      "filing_date": "2025-11-19",
+      "document_title": "NVIDIA 10-Q Q3 FY2026",
+      "text": "Revenue for the third quarter of fiscal 2026 was $57,006 million, up 62% from a year earlier."
+    },
+    {
+      "chunk_id": "amd_fy24_rev",
+      "ticker": "AMD",
+      "filing_date": "2025-02-05",
+      "document_title": "AMD 10-K FY2024",
+      "text": "Revenue for the year ended December 28, 2024 was $25,785 million."
+    },
+    {
+      "chunk_id": "amd_fy24_dc",
+      "ticker": "AMD",
+      "filing_date": "2025-02-05",
+      "document_title": "AMD 10-K FY2024",
+      "text": "Data Center segment revenue was $12,580 million for fiscal year 2024, up 94% year over year."
+    },
+    {
+      "chunk_id": "aapl_fy25_rev",
+      "ticker": "AAPL",
+      "filing_date": "2025-10-31",
+      "document_title": "Apple 10-K FY2025",
+      "text": "Total net sales for fiscal 2025 were $416,161 million."
+    },
+    {
+      "chunk_id": "tsla_fy24_rev",
+      "ticker": "TSLA",
+      "filing_date": "2025-01-29",
+      "document_title": "Tesla 10-K FY2024",
+      "text": "Total revenues for the year ended December 31, 2024 were $97,690 million."
+    },
+    {
+      "chunk_id": "thousands_fixture",
+      "ticker": "XYZ",
+      "filing_date": "2025-03-01",
+      "document_title": "XYZ 10-K FY2024",
+      "text": "Net revenue for fiscal 2024 totaled 4,250 thousand."
+    },
+    {
+      "chunk_id": "old_filing",
+      "ticker": "NVDA",
+      "filing_date": "2023-02-24",
+      "document_title": "NVIDIA 10-K FY2023",
+      "text": "Revenue for fiscal year 2023 was $26,974 million."
+    },
+    {
+      "chunk_id": "xbrl_exact_fact",
+      "ticker": "AAPL",
+      "filing_date": "2025-10-31",
+      "document_title": "Apple 10-K FY2025 (XBRL)",
+      "text": "[EXACT FILING FIGURE] AAPL revenue for FY2025 (10-K): $416,161,000,000"
+    }
+  ],
+  "cases": [
+    {
+      "id": "exact-annual-revenue",
+      "category": "exact_fact",
+      "chunk_id": "nvda_fy25_rev",
+      "ticker": "NVDA",
+      "claim": "Revenue for fiscal year 2025 was $130,497 million.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "exact-annual-revenue-billions",
+      "category": "units",
+      "chunk_id": "nvda_fy25_rev",
+      "ticker": "NVDA",
+      "claim": "Revenue for fiscal year 2025 was $130.5 billion.",
+      "model_entailed": true,
+      "expect": "verified",
+      "why": "The same figure restated in billions is the same claim."
+    },
+    {
+      "id": "exact-segment-revenue",
+      "category": "exact_fact",
+      "chunk_id": "nvda_fy25_dc",
+      "ticker": "NVDA",
+      "claim": "Data Center revenue for fiscal 2025 was $115,186 million.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "exact-operating-income",
+      "category": "exact_fact",
+      "chunk_id": "nvda_fy25_opinc",
+      "ticker": "NVDA",
+      "claim": "Income from operations was $81,453 million for fiscal year 2025.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "exact-eps",
+      "category": "exact_fact",
+      "chunk_id": "nvda_fy25_eps",
+      "ticker": "NVDA",
+      "claim": "Diluted earnings per share was $2.94 for fiscal year 2025.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "exact-quarterly-revenue",
+      "category": "exact_fact",
+      "chunk_id": "nvda_q3fy26",
+      "ticker": "NVDA",
+      "claim": "Revenue for the third quarter of fiscal 2026 was $57,006 million.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "exact-margin-percent",
+      "category": "exact_fact",
+      "chunk_id": "nvda_fy25_margin",
+      "ticker": "NVDA",
+      "claim": "Gross margin was 75.0% in fiscal 2025.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "peer-annual-revenue",
+      "category": "exact_fact",
+      "chunk_id": "amd_fy24_rev",
+      "ticker": "AMD",
+      "claim": "Revenue for the year ended December 28, 2024 was $25,785 million.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "peer-segment-revenue",
+      "category": "exact_fact",
+      "chunk_id": "amd_fy24_dc",
+      "ticker": "AMD",
+      "claim": "Data Center segment revenue was $12,580 million for fiscal year 2024.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "apple-fiscal-revenue",
+      "category": "exact_fact",
+      "chunk_id": "aapl_fy25_rev",
+      "ticker": "AAPL",
+      "claim": "Total net sales for fiscal 2025 were $416,161 million.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "tesla-annual-revenue",
+      "category": "exact_fact",
+      "chunk_id": "tsla_fy24_rev",
+      "ticker": "TSLA",
+      "claim": "Total revenues for the year ended December 31, 2024 were $97,690 million.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "thousands-scale",
+      "category": "units",
+      "chunk_id": "thousands_fixture",
+      "ticker": "XYZ",
+      "claim": "Net revenue for fiscal 2024 totaled 4,250 thousand.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "trap-million-vs-billion",
+      "category": "units_adversarial",
+      "chunk_id": "nvda_fy25_rev",
+      "ticker": "NVDA",
+      "claim": "Revenue for fiscal year 2025 was $130,497 billion.",
+      "model_entailed": true,
+      "expect": "conflicting",
+      "why": "A thousand-fold scale error."
+    },
+    {
+      "id": "trap-percent-vs-points",
+      "category": "units_adversarial",
+      "chunk_id": "nvda_fy25_margin",
+      "ticker": "NVDA",
+      "claim": "Gross margin was 75.0 percentage points in fiscal 2025.",
+      "model_entailed": true,
+      "expect": "conflicting",
+      "why": "A level stated as a change."
+    },
+    {
+      "id": "trap-wrong-fiscal-year",
+      "category": "temporal_adversarial",
+      "chunk_id": "nvda_fy25_rev",
+      "ticker": "NVDA",
+      "claim": "Revenue for fiscal year 2023 was $130,497 million.",
+      "model_entailed": true,
+      "expect": "conflicting"
+    },
+    {
+      "id": "trap-old-filing-cited-for-new-year",
+      "category": "temporal_adversarial",
+      "chunk_id": "old_filing",
+      "ticker": "NVDA",
+      "claim": "Revenue for fiscal year 2025 was $26,974 million.",
+      "model_entailed": true,
+      "expect": "conflicting"
+    },
+    {
+      "id": "trap-wrong-quarter",
+      "category": "temporal_adversarial",
+      "chunk_id": "nvda_q3fy26",
+      "ticker": "NVDA",
+      "claim": "Revenue for the first quarter of fiscal 2024 was $57,006 million.",
+      "model_entailed": true,
+      "expect": "conflicting"
+    },
+    {
+      "id": "trap-wrong-company",
+      "category": "entity_adversarial",
+      "chunk_id": "nvda_fy25_rev",
+      "ticker": "AMD",
+      "claim": "Revenue for fiscal year 2025 was $130,497 million.",
+      "model_entailed": true,
+      "expect": "conflicting"
+    },
+    {
+      "id": "trap-peer-figure-attributed-to-other",
+      "category": "entity_adversarial",
+      "chunk_id": "amd_fy24_dc",
+      "ticker": "NVDA",
+      "claim": "Data Center segment revenue was $12,580 million for fiscal year 2024.",
+      "model_entailed": true,
+      "expect": "conflicting"
+    },
+    {
+      "id": "trap-plausible-but-absent-number",
+      "category": "evidence_adversarial",
+      "chunk_id": "nvda_fy25_dc",
+      "ticker": "NVDA",
+      "claim": "Data Center revenue for fiscal 2025 was $142,000 million.",
+      "model_entailed": true,
+      "expect": "conflicting"
+    },
+    {
+      "id": "trap-arithmetic-wrong",
+      "category": "arithmetic_adversarial",
+      "chunk_id": "nvda_fy25_rev",
+      "ticker": "NVDA",
+      "claim": "Revenue grew to $130,497 million from $70,000 million in fiscal 2024.",
+      "model_entailed": true,
+      "expect": "conflicting",
+      "why": "The prior-year figure in the source is $60,922 million."
+    },
+    {
+      "id": "trap-fabricated-index",
+      "category": "citation_adversarial",
+      "chunk_id": null,
+      "citation_number": 99,
+      "ticker": "NVDA",
+      "claim": "Revenue for fiscal year 2025 was $130,497 million.",
+      "model_entailed": true,
+      "expect": "unsupported"
+    },
+    {
+      "id": "trap-foreign-chunk",
+      "category": "citation_adversarial",
+      "chunk_id": "not_in_this_answer",
+      "ticker": "NVDA",
+      "claim": "Revenue for fiscal year 2025 was $130,497 million.",
+      "model_entailed": true,
+      "expect": "unsupported"
+    },
+    {
+      "id": "trap-citation-number-zero",
+      "category": "citation_adversarial",
+      "chunk_id": null,
+      "citation_number": 0,
+      "ticker": "NVDA",
+      "claim": "Revenue was $130,497 million.",
+      "model_entailed": true,
+      "expect": "unsupported"
+    },
+    {
+      "id": "abstain-no-passages",
+      "category": "abstention",
+      "chunk_id": null,
+      "citation_number": 1,
+      "ticker": "NVDA",
+      "claim": "Revenue for fiscal year 2025 was $130,497 million.",
+      "no_passages": true,
+      "model_entailed": true,
+      "expect": "not_verifiable"
+    },
+    {
+      "id": "abstain-prose-claim",
+      "category": "abstention",
+      "chunk_id": "nvda_fy25_rev",
+      "ticker": "NVDA",
+      "claim": "The company described exceptionally strong demand across all segments.",
+      "model_entailed": true,
+      "expect": "partially_supported",
+      "why": "Nothing numeric to check; the model's word alone is not evidence."
+    },
+    {
+      "id": "abstain-model-disagrees",
+      "category": "abstention",
+      "chunk_id": "nvda_fy25_rev",
+      "ticker": "NVDA",
+      "claim": "Revenue for fiscal year 2025 was $130,497 million.",
+      "model_entailed": false,
+      "expect": "partially_supported"
+    },
+    {
+      "id": "comparison-yoy-both-figures-present",
+      "category": "comparison",
+      "chunk_id": "nvda_fy25_rev",
+      "ticker": "NVDA",
+      "claim": "Revenue rose from $60,922 million in fiscal 2024 to $130,497 million in fiscal 2025.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "comparison-margin-change-points",
+      "category": "comparison",
+      "chunk_id": "nvda_fy25_margin",
+      "ticker": "NVDA",
+      "claim": "Gross margin was 75.0% in fiscal 2025 against 72.7% in fiscal 2024.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "comparison-segment-growth-figures",
+      "category": "comparison",
+      "chunk_id": "amd_fy24_dc",
+      "ticker": "AMD",
+      "claim": "Data Center segment revenue was $12,580 million, up 94% year over year.",
+      "model_entailed": true,
+      "expect": "verified"
+    },
+    {
+      "id": "implied-scale-xbrl-vs-table",
+      "category": "units",
+      "chunk_id": "xbrl_exact_fact",
+      "ticker": "AAPL",
+      "claim": "Apple total net sales for fiscal 2025 were $416,161 million.",
+      "model_entailed": true,
+      "expect": "verified",
+      "why": "A table row states millions; the XBRL fact states whole dollars. One figure, two notations."
+    },
+    {
+      "id": "partial-multi-year-table-row",
+      "category": "evidence_partial",
+      "chunk_id": "xbrl_exact_fact",
+      "ticker": "AAPL",
+      "claim": "Total net sales $ 416,161 6 % $ 391,035 2 % $ 383,285",
+      "model_entailed": true,
+      "expect": "partially_supported",
+      "why": "The cited exact-fact passage covers FY2025 only. The other years are absent, not contradicted."
+    },
+    {
+      "id": "contradiction-not-mere-absence",
+      "category": "arithmetic_adversarial",
+      "chunk_id": "nvda_fy25_rev",
+      "ticker": "NVDA",
+      "claim": "Revenue grew to $130,497 million from $70,000 million in fiscal 2024.",
+      "model_entailed": true,
+      "expect": "conflicting",
+      "why": "The source states $60,922 million for FY2024, so 70,000 competes with a figure the source actually gives."
+    },
+    {
+      "id": "margin-percent-is-graded",
+      "category": "exact_fact",
+      "chunk_id": "nvda_fy25_margin",
+      "ticker": "NVDA",
+      "claim": "Gross margin was 75.0% in fiscal 2025.",
+      "model_entailed": true,
+      "expect": "verified",
+      "why": "A percent is the figure a margin claim rests on and must be checked, not set aside."
+    }
+  ]
+}

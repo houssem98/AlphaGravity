@@ -58,6 +58,31 @@ async def _gdelt_to_results(gdelt_client, query: str) -> list[RetrievalResult]:
     return results
 
 
+class ChannelResults(dict):
+    """Channel name -> results, plus the channels that raised while producing them.
+
+    A channel that fails was previously stored as an empty list, which made it
+    indistinguishable from a channel that ran and legitimately found nothing.
+    Downstream that difference is the whole story: "Elasticsearch returned no
+    match for this query" and "Elasticsearch is down" are different answers, and
+    reporting the second as the first tells the user the corpus was searched
+    when it was not.
+
+    A plain dict subclass so every existing consumer keeps working unchanged.
+    """
+
+    #: channel name -> exception class name. Empty when every channel completed.
+    failed: dict
+
+    def __init__(self, *args, failed: dict | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.failed = failed or {}
+
+    @property
+    def degraded(self) -> bool:
+        return bool(self.failed)
+
+
 class RetrievalOrchestrator:
     """Parallel dispatch to all search backends with graceful degradation."""
 
@@ -75,6 +100,7 @@ class RetrievalOrchestrator:
         gdelt_search=None,        # Channel 8: GDELT global news (free, no key)
         mcp_search=None,          # Channel 9: MCP financial data (FactSet, CapIQ, etc.)
         edgar_search=None,        # Channel 10: live SEC EDGAR XBRL (free, no key)
+        edgar_text_search=None,   # Channel 10b: live SEC filing prose (free, no key)
         web_research=None,        # Channel 11: live web research (search → fetch → extract)
         multi_query=None,         # MultiQueryRetriever — replaces dense for MEDIUM/COMPLEX
     ):
@@ -103,6 +129,8 @@ class RetrievalOrchestrator:
             self.channels["mcp"] = mcp_search
         if edgar_search:
             self.channels["edgar"] = edgar_search
+        if edgar_text_search:
+            self.channels["edgar_text"] = edgar_text_search
         if web_research:
             self.channels["web"] = web_research
 
@@ -144,6 +172,12 @@ class RetrievalOrchestrator:
         )
 
         tasks = {}
+        # Collected by the channel coroutines themselves, because `_safe_search`
+        # swallows its own timeouts and exceptions: nothing ever reaches the
+        # `return_exceptions=True` below, so without this the failure map stayed
+        # empty even with three providers refusing connections.
+        channel_failures: dict = {}
+
         for channel_name in active_channels:
             if channel_name == "dense" and use_multi_query:
                 # Swap dense → multi-query (runs HyDE × 4 variants internally)
@@ -152,18 +186,22 @@ class RetrievalOrchestrator:
                 channel = self.channels[channel_name]
                 tasks[channel_name] = self._safe_search(
                     channel_name, channel, query, expanded_terms, filters,
-                    entities, question_class,
+                    entities, question_class, failures=channel_failures,
                 )
 
         task_list = list(tasks.values())
         channel_names = list(tasks.keys())
         results_list = await asyncio.gather(*task_list, return_exceptions=True)
 
-        results = {}
+        results = ChannelResults(failed=dict(channel_failures))
         for name, result in zip(channel_names, results_list):
             if isinstance(result, Exception):
                 logger.error("channel_failed", channel=name, error=str(result))
                 results[name] = []
+                # Kept separately so a failure is never reported as an empty
+                # result. The exception type only — never the message, which can
+                # carry a connection string or a key.
+                results.failed[name] = type(result).__name__
             else:
                 results[name] = result
 
@@ -173,6 +211,7 @@ class RetrievalOrchestrator:
             channels_queried=channel_names,
             multi_query_used=use_multi_query,
             total_results={k: len(v) for k, v in results.items()},
+            channels_failed=results.failed,
             latency_ms=round(elapsed_ms, 1),
         )
         return results
@@ -213,6 +252,10 @@ class RetrievalOrchestrator:
         "gdelt":       4.0,   # external HTTP; allow extra time
         "mcp":        15.0,   # MCP: external financial data APIs; variable latency
         "edgar":       8.0,   # SEC EDGAR: 2-3 external HTTPS round trips per query
+        # Filing prose costs what filing facts do plus one multi-megabyte
+        # document download and parse. The parsed Items are cached per
+        # accession, so the budget covers a cold filing, not every query.
+        "edgar_text": 25.0,
         # Web research is search + N page fetches, each an external round trip
         # to a server we do not control. Its own ResearchBudget deadline is
         # shorter than this; the timeout here is the backstop for a provider
@@ -229,8 +272,17 @@ class RetrievalOrchestrator:
         filters: dict | None,
         entities: dict | None,
         question_class: str = "",
+        failures: dict | None = None,
     ) -> list[RetrievalResult]:
-        """Execute a single channel search with per-channel timeout and error handling."""
+        """Execute a single channel search with per-channel timeout and error handling.
+
+        `failures` collects the channels that did not complete. Without it a
+        channel that timed out or raised was indistinguishable from one that ran
+        and matched nothing: both returned `[]` here, and the empty list is all
+        the caller ever saw. With Qdrant, Elasticsearch and Neo4j refusing
+        connections, every one of them was being reported to the user as a
+        channel that had searched and found nothing.
+        """
         timeout_s = self._CHANNEL_TIMEOUTS.get(name, 2.0)
         try:
             t0 = time.perf_counter()
@@ -268,6 +320,9 @@ class RetrievalOrchestrator:
                 # Live SEC XBRL. Needs filters too: the resolved ticker lives in
                 # filters["companies"] for the same reason the structured channel does.
                 coro = channel.search(query=query, filters=filters, entities=entities)
+            elif name == "edgar_text":
+                # Live SEC filing prose. Same company resolution as `edgar`.
+                coro = channel.search(query=query, filters=filters, entities=entities)
             elif name == "web":
                 # Live web research. Takes the question class as well: the class
                 # sets the search budget, the recency window and the freshness
@@ -288,9 +343,14 @@ class RetrievalOrchestrator:
 
         except asyncio.TimeoutError:
             logger.warning("channel_timeout", channel=name, timeout_s=timeout_s)
+            if failures is not None:
+                failures[name] = "TimeoutError"
             return []
         except Exception as e:
             logger.error("channel_error", channel=name, error=str(e))
+            if failures is not None:
+                # The exception type only — a message can carry a DSN or a key.
+                failures[name] = type(e).__name__
             return []
 
     async def search_multi_entity(

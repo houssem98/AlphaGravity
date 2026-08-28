@@ -4,6 +4,14 @@ import { Link } from 'react-router-dom';
 import { signIn, signUp, getSession, signOut } from '../services/supabase';
 import { Brain, Loader2, Mail, Lock, ArrowRight, Sparkles, ShieldCheck } from 'lucide-react';
 
+// Pasting a credential blob ("Email: a@b.co Password: hunter2") into either field
+// fills both. Private windows have no autofill, so without this the password has
+// to be retyped by hand every time.
+export function parseCredentialPaste(text: string): { email: string; password: string } | null {
+    const m = text.match(/e-?mail\s*[:=]\s*(\S+)[\s\S]*?pass(?:word)?\s*[:=]\s*(\S+)/i);
+    return m ? { email: m[1], password: m[2] } : null;
+}
+
 export default function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
@@ -24,6 +32,14 @@ export default function AuthPage() {
     const handleSignOut = async () => {
         try { await signOut(); } catch { /* ignore */ }
         setExistingEmail(null);
+    };
+
+    const handleCredentialPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        const parsed = parseCredentialPaste(e.clipboardData.getData('text'));
+        if (!parsed) return;   // ordinary paste — let the browser do it
+        e.preventDefault();
+        setEmail(parsed.email);
+        setPassword(parsed.password);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -179,6 +195,7 @@ export default function AuthPage() {
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
+                                    onPaste={handleCredentialPaste}
                                     placeholder="you@example.com"
                                     required
                                     className="w-full pl-10 pr-4 py-3 rounded-lg bg-[#0D1225] border border-[rgba(0,240,255,0.1)] text-[#F4F6FF] placeholder-[#A7B0C8]/30 text-base sm:text-sm focus:outline-none focus:border-[#00F0FF]/40 transition-colors"
@@ -195,6 +212,7 @@ export default function AuthPage() {
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
+                                    onPaste={handleCredentialPaste}
                                     placeholder={isLogin ? 'Enter password' : 'Min 6 characters'}
                                     required
                                     minLength={6}
