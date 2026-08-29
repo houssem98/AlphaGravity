@@ -22,7 +22,12 @@ from datetime import date
 
 import structlog
 
-from app.core.retrieval import fact_persistence, sec_authority, sec_telemetry
+from app.core.retrieval import (
+    fact_persistence,
+    sec_authority,
+    sec_filing_resolver,
+    sec_telemetry,
+)
 from app.core.retrieval.citation_provenance import valid_accession
 from app.core.retrieval.fact_verification import VERIFIED, verify_fact
 from app.core.retrieval.fusion import RetrievalResult
@@ -473,6 +478,13 @@ class EdgarSearch:
                 quarter=quarter,
             )
             out = out[:top_k]
+            # Which document of the filing the figure belongs to. The XBRL API
+            # names the concept, never the filing's primary document, so
+            # "View filing" would otherwise have nothing exact to open — and
+            # the specification forbids guessing the filename. One submissions
+            # fetch per registrant, cached, and a failure leaves the fields
+            # absent rather than wrong.
+            await sec_filing_resolver.attach_filing_identity(out)
             # The answer does not wait for this; the next identical question is
             # served from the corpus instead of from EDGAR.
             fact_persistence.schedule(out)

@@ -114,6 +114,17 @@ def provenance(metadata: dict | None, *, ticker: str = "") -> dict | None:
         # filing index rather than collapsed into it: the index is what a source
         # click opens, this is where the number lives.
         "document_url": _clean(m.get("document_url")),
+        # The filing's own primary document, named by SEC's submissions API and
+        # never inferred. Absent here means "View filing" is not offered — see
+        # `filing_links` below.
+        "period_of_report": _clean(m.get("period_of_report") or m.get("report_date")),
+        "primary_document": _clean(m.get("primary_document")),
+        "primary_document_url": _clean(m.get("primary_document_url")),
+        "filing_index_url": _clean(m.get("filing_index_url")),
+        # Why the resolver could not name the primary document, so the UI can
+        # say which of "SEC was unreachable" and "this filing has none" it is
+        # looking at instead of showing a bare missing link.
+        "primary_unresolved_reason": _clean(m.get("primary_unresolved_reason")),
         "evidence_location": _clean(evidence_location(m)),
         "extraction_method": _clean(m.get("extraction_method")),
         "parser_version": _clean(m.get("parser_version")),
@@ -237,6 +248,7 @@ def payload(prov: dict | None) -> dict:
     """
     if not prov:
         return {}
+    links = filing_links(prov)
     return {
         # Names the source class explicitly rather than leaving the consumer to
         # infer it from which fields happen to be present. The web payload
@@ -261,6 +273,15 @@ def payload(prov: dict | None) -> dict:
         # The canonical click target, decided on the backend. A client that
         # honours this never needs the priority rules.
         "canonical_url": source_click_url(prov),
+        # The two links the UI offers, decided here so the frontend never
+        # constructs a SEC URL. `view_filing_url` is empty exactly when the
+        # primary document could not be read from authoritative metadata, and
+        # the UI must then offer "Filing details" alone.
+        "period_of_report": prov.get("period_of_report", ""),
+        "primary_document": links["primary_document"],
+        "view_filing_url": links["view_filing_url"],
+        "filing_details_url": links["filing_details_url"],
+        "primary_unresolved_reason": links["unresolved_reason"],
     }
 
 
@@ -308,6 +329,78 @@ def is_trusted_sec_url(url) -> bool:
     except ValueError:
         return False
     return p.scheme == "https" and p.hostname in SEC_HOSTS
+
+
+def filing_links(prov: dict | None) -> dict:
+    """
+    The two links a SEC source card offers, and which of them exists.
+
+        view_filing_url     the primary document itself — the 10-K you read
+        filing_details_url  `<accession>-index.htm`, EDGAR's manifest
+
+    They are never the same URL. "Filing details" is deterministic from a
+    validated CIK and accession, so it exists whenever the filing can be named
+    at all. "View filing" exists only when the primary document was named by
+    SEC's own submissions metadata AND the resulting URL is inside this exact
+    filing's archive directory — the second check is what stops a stale or
+    mismatched `primary_document_url` from being presented as this filing.
+
+    `unresolved_reason` is set exactly when `view_filing_url` is empty, so a
+    caller can say why the link is missing instead of silently dropping it.
+
+    Nothing here fetches. The primary document name arrives on the provenance
+    from `sec_filing_resolver`, whose sole authority is the submissions API;
+    this function only validates and assembles.
+    """
+    from app.core.retrieval import sec_filing_resolver as sfr
+
+    p = prov or {}
+    cik, accession = p.get("cik"), p.get("accession")
+    details = sfr.filing_index_url(cik, accession)
+    if not details:
+        # Fall back to a stored index URL only when it is a real EDGAR archive
+        # URL for a filing we could not otherwise name.
+        stored = p.get("filing_index_url") or p.get("filing_url") or ""
+        parsed = sfr.parse_archive_url(stored) if is_trusted_sec_url(stored) else None
+        if parsed:
+            cik, accession = parsed["cik"], parsed["accession"]
+            details = sfr.filing_index_url(cik, accession)
+    if not details:
+        return {
+            "view_filing_url": "",
+            "filing_details_url": "",
+            "primary_document": "",
+            "unresolved_reason": "filing has no valid CIK and accession",
+        }
+
+    candidate = p.get("primary_document_url") or ""
+    name = p.get("primary_document") or ""
+    if not candidate and name:
+        candidate = sfr.archive_document_url(cik, accession, name)
+
+    if candidate and is_trusted_sec_url(candidate) and sfr.belongs_to_filing(
+        candidate, cik, accession
+    ):
+        parsed = sfr.parse_archive_url(candidate) or {}
+        doc = parsed.get("document") or name
+        if sfr.valid_primary_document(doc) and candidate != details:
+            return {
+                "view_filing_url": candidate,
+                "filing_details_url": details,
+                "primary_document": doc,
+                "unresolved_reason": "",
+            }
+
+    return {
+        "view_filing_url": "",
+        "filing_details_url": details,
+        "primary_document": "",
+        "unresolved_reason": str(
+            p.get("primary_unresolved_reason")
+            or ("primary document does not belong to this filing" if candidate
+                else "primary document not named by SEC filing metadata")
+        ),
+    }
 
 
 def source_click_url(prov: dict | None) -> str:

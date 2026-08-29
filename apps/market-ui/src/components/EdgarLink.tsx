@@ -20,7 +20,7 @@
 import { useState, useEffect } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { safeUrl } from '../lib/safeUrl';
-import { canonicalSecUrl, isTrustedSecUrl, type SecProvenance } from '../lib/secUrl';
+import { canonicalSecUrl, filingLinks, isTrustedSecUrl, type SecProvenance } from '../lib/secUrl';
 import { getAccessToken } from '../services/supabase';
 
 const GRAVITY_API = import.meta.env.VITE_GRAVITY_API_URL || 'http://localhost:8000';
@@ -45,8 +45,6 @@ export function parseFilingTitle(title: string | undefined): { filingType: strin
  */
 export function edgarHref({
     provenance,
-    ticker,
-    filingType,
     snippet,
     resolved,
 }: {
@@ -57,31 +55,38 @@ export function edgarHref({
     resolved?: string | null;
 }): { href: string; exact: boolean } {
     const canonical = canonicalSecUrl(provenance);
-    // An exact filing is never traded for a company listing.
+    // An exact filing is never traded for a company listing. And when there is
+    // no exact filing there is no link: this used to build
+    // `browse-edgar?action=getcompany&CIK=<ticker>` from the ticker, which is a
+    // company listing wearing a filing's label. A URL the frontend invents from
+    // market data is not provenance, so the fallback is now the empty string —
+    // the caller renders nothing rather than something wrong.
     let href = canonical;
     let exact = Boolean(canonical);
 
-    if (!href) {
-        if (resolved && isTrustedSecUrl(resolved)) {
-            href = resolved;
-            exact = true;
-        } else if (ticker) {
-            href =
-                `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(ticker)}` +
-                `&type=${encodeURIComponent(filingType || '10-K')}&dateb=&owner=include&count=40`;
-        }
+    if (!href && resolved && isTrustedSecUrl(resolved)) {
+        href = resolved;
+        exact = true;
     }
     if (!href) return { href: '', exact: false };
 
     // Scroll-to-text fragment: only for verbatim prose citations, and only on an
     // exact document. A synthesized XBRL snippet ("[EXACT FILING FIGURE] ...")
-    // does not appear in the filing, and a company listing has nothing to scroll.
+    // does not appear in the filing, and a manifest page has nothing to scroll.
     const snip = (snippet ?? '').trim();
     if (exact && snip && !snip.startsWith('[')) {
         const frag = snip.split(/\s+/).slice(0, 10).join(' ');
         href += `#:~:text=${encodeURIComponent(frag).replace(/-/g, '%2D')}`;
     }
     return { href, exact };
+}
+
+/** The scroll-to-text fragment a verbatim prose citation adds to a document URL. */
+function withHighlight(url: string, snippet?: string): string {
+    const snip = (snippet ?? '').trim();
+    if (!url || !snip || snip.startsWith('[')) return url;
+    const frag = snip.split(/\s+/).slice(0, 10).join(' ');
+    return `${url}#:~:text=${encodeURIComponent(frag).replace(/-/g, '%2D')}`;
 }
 
 export default function EdgarLink({
@@ -136,28 +141,63 @@ export default function EdgarLink({
         return () => { alive = false; };
     }, [ticker, filingType, filingDate, canResolve]);
 
-    if (!ticker && !canonical) return null;
-
-    const { href, exact } = edgarHref({ provenance, ticker, filingType, snippet, resolved });
-    if (!href) return null;
+    const links = filingLinks(provenance);
+    const { href, exact } = edgarHref({ provenance, snippet, resolved });
+    // "View filing" is the primary document; the legacy resolver's answer is
+    // also a document, so it fills the same slot when there is no provenance.
+    const viewFiling = links.viewFiling
+        ? withHighlight(links.viewFiling, snippet)
+        : (exact && !links.filingDetails ? href : '');
+    const details = links.filingDetails;
+    if (!viewFiling && !details) return null;
 
     const accession = provenance?.accession ?? provenance?.accession_number ?? '';
+    const base = className ?? 'flex items-center gap-2 text-xs text-[var(--accent)] hover:text-[var(--accent)] transition-colors';
 
     return (
-        <a
-            href={safeUrl(href)}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="edgar-link"
-            data-exact-filing={exact ? 'true' : 'false'}
-            data-accession={accession || undefined}
-            className={className ?? 'flex items-center gap-2 text-xs text-[var(--accent)] hover:text-[var(--accent)] transition-colors'}
-        >
-            <ExternalLink className="w-3.5 h-3.5" />
-            {exact ? 'View filing on SEC EDGAR' : 'View on SEC EDGAR'}
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="edgar-links">
+            {viewFiling && (
+                <a
+                    href={safeUrl(viewFiling)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="edgar-link"
+                    data-exact-filing="true"
+                    data-accession={accession || undefined}
+                    data-primary-document={links.primaryDocument || undefined}
+                    className={base}
+                >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    View filing
+                </a>
+            )}
+            {details && (
+                <a
+                    href={safeUrl(details)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="edgar-details-link"
+                    data-accession={accession || undefined}
+                    className={base}
+                >
+                    {!viewFiling && <ExternalLink className="w-3.5 h-3.5" />}
+                    Filing details
+                </a>
+            )}
+            {/* Why the document link is absent, rather than silently offering
+                only the manifest and letting it read as the filing. */}
+            {!viewFiling && details && links.reason && (
+                <span
+                    data-testid="edgar-primary-unresolved"
+                    title={links.reason}
+                    className="text-[10px] text-[var(--text-2)]"
+                >
+                    primary document unavailable
+                </span>
+            )}
             {accession && (
                 <span className="font-mono text-[10px] text-[var(--text-2)]">{accession}</span>
             )}
-        </a>
+        </span>
     );
 }

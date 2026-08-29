@@ -90,6 +90,136 @@ export interface SecProvenance {
     accession_number?: string;
     cik?: number | string | null;
     url?: string;
+    // The canonical two-link contract, decided by the backend
+    // (`citation_provenance.filing_links`). When these are present nothing
+    // below is inferred — they are used verbatim.
+    view_filing_url?: string;
+    filing_details_url?: string;
+    filing_index_url?: string;
+    primary_document?: string;
+    primary_document_url?: string;
+    primary_unresolved_reason?: string;
+    form?: string;
+    filing_date?: string;
+    period_of_report?: string;
+}
+
+/** `.../Archives/edgar/data/<cik>/<18 digits>[/<document>]`. */
+const ARCHIVE_RE = /\/Archives\/edgar\/data\/(\d{1,10})\/(\d{18})(?:\/([^/?#]+))?/i;
+const INDEX_NAME_RE = /^\d{10}-\d{2}-\d{6}-index\.html?$/i;
+/** A bare HTML filename. Never a path, a scheme, or a parent hop. */
+const PRIMARY_DOC_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.(?:htm|html)$/i;
+
+/** The CIK and accession an EDGAR Archives URL names, or null. */
+export function parseArchiveUrl(url?: string | null): {
+    cik: number; accession: string; document: string; isIndex: boolean;
+} | null {
+    const m = ARCHIVE_RE.exec(url ?? '');
+    if (!m) return null;
+    const cik = Number(m[1]);
+    const raw = m[2];
+    const accession = `${raw.slice(0, 10)}-${raw.slice(10, 12)}-${raw.slice(12)}`;
+    if (!Number.isInteger(cik) || cik <= 0 || !isValidAccession(accession)) return null;
+    const doc = m[3] ?? '';
+    const isIndex = INDEX_NAME_RE.test(doc);
+    return { cik, accession, document: isIndex ? '' : doc, isIndex };
+}
+
+/**
+ * Whether this URL is a document of exactly this filing.
+ *
+ * Mirrors `sec_filing_resolver.belongs_to_filing`. A URL from another
+ * accession, another registrant, another host, or a downgradeable scheme is
+ * not this filing's primary document however plausible its filename looks.
+ */
+export function belongsToFiling(
+    url: string | undefined | null,
+    cik: number | string | null | undefined,
+    accession: string | undefined | null,
+): boolean {
+    if (!isTrustedSecUrl(url)) return false;
+    const parsed = parseArchiveUrl(url);
+    if (!parsed) return false;
+    return parsed.cik === Number(cik) && parsed.accession === accession;
+}
+
+/** The identity a payload names, taking whichever URL carries it. */
+function filingIdentity(p: SecProvenance): { cik: number; accession: string } | null {
+    const accession = p.accession ?? p.accession_number ?? '';
+    const cik = Number(p.cik);
+    if (isValidAccession(accession) && Number.isInteger(cik) && cik > 0) {
+        return { cik, accession };
+    }
+    for (const u of [p.filing_details_url, p.filing_index_url, p.filing_url,
+                     p.canonical_url, p.primary_document_url, p.view_filing_url]) {
+        if (!isTrustedSecUrl(u)) continue;
+        const parsed = parseArchiveUrl(u);
+        if (parsed) return { cik: parsed.cik, accession: parsed.accession };
+    }
+    return null;
+}
+
+/**
+ * `Filing details` — EDGAR's manifest page for this filing.
+ *
+ * Deterministic from a validated CIK and accession, so it exists whenever the
+ * filing can be named at all. Returns '' otherwise; it is never a company
+ * listing, which names no filing.
+ */
+export function filingDetailsUrl(p?: SecProvenance | null): string {
+    if (!p) return '';
+    if (isTrustedSecUrl(p.filing_details_url) && !isGenericEdgarUrl(p.filing_details_url)) {
+        return p.filing_details_url as string;
+    }
+    const id = filingIdentity(p);
+    return id ? filingIndexUrl(id.cik, id.accession) : '';
+}
+
+/**
+ * `View filing` — the primary document itself, or '' when it is not known.
+ *
+ * The empty case is load-bearing: the caller must then render "Filing details"
+ * alone rather than substituting the manifest, an exhibit, or a company page
+ * for the document. The primary document name is only ever what SEC's own
+ * filing metadata called it — this function validates, it does not infer, and
+ * in particular it never derives a filename from a ticker or a date.
+ */
+export function viewFilingUrl(p?: SecProvenance | null): string {
+    if (!p) return '';
+    const id = filingIdentity(p);
+    if (!id) return '';
+
+    const candidate = isTrustedSecUrl(p.view_filing_url)
+        ? p.view_filing_url
+        : p.primary_document_url;
+    if (!belongsToFiling(candidate, id.cik, id.accession)) return '';
+
+    const parsed = parseArchiveUrl(candidate);
+    if (!parsed || parsed.isIndex || !PRIMARY_DOC_RE.test(parsed.document)) return '';
+
+    const details = filingIndexUrl(id.cik, id.accession);
+    // The two links are different pages by definition. Equal means the primary
+    // was never resolved and the manifest is standing in for it.
+    return candidate === details ? '' : (candidate as string);
+}
+
+/** Both links plus why the primary is missing, for one render decision. */
+export function filingLinks(p?: SecProvenance | null): {
+    viewFiling: string; filingDetails: string; primaryDocument: string; reason: string;
+} {
+    const viewFiling = viewFilingUrl(p);
+    const filingDetails = filingDetailsUrl(p);
+    return {
+        viewFiling,
+        filingDetails,
+        primaryDocument: viewFiling ? (parseArchiveUrl(viewFiling)?.document ?? '') : '',
+        reason: viewFiling
+            ? ''
+            : (p?.primary_unresolved_reason
+                || (filingDetails
+                    ? 'the primary document is not named by SEC filing metadata'
+                    : 'no filing identity')),
+    };
 }
 
 /**

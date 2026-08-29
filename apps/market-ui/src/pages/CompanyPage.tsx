@@ -20,6 +20,12 @@ import LatestQuarterCard from '../components/company/LatestQuarterCard';
 import TranscriptSummary from '../components/company/TranscriptSummary';
 import DevilsAdvocate from '../components/company/DevilsAdvocate';
 import EdgarLink from '../components/EdgarLink';
+import {
+    headline as sentimentHeadline,
+    sentimentSkillUrl,
+    toView,
+    type SentimentView,
+} from '../lib/sentimentSkill';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -213,6 +219,10 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
     const [sentimentRefusal, setSentimentRefusal] = useState<
         { status: number; detail: string; documentId: string; filing: string } | null>(null);
     const [sentimentDelta, setSentimentDelta] = useState<SentimentDelta | null>(null);
+    // The universal skill's full answer — evidence, window, source mix and
+    // limitations — kept alongside the score so the tab can render the basis
+    // rather than a bare number.
+    const [sentimentView, setSentimentView] = useState<SentimentView | null>(null);
     const [longitudinal, setLongitudinal] = useState<LongitudinalPoint[]>([]);
     const [loading, setLoading] = useState(true);
     // CT-7 · row 9. A surface that failed is NAMED. A credential fault and a data
@@ -356,37 +366,57 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
     // malformed request rather than the real gap.
     //
     // So: ask correctly, then state whatever comes back. Never synthesise a score.
+    // The universal path. `/v1/skills/sentiment?company=` resolves the mention
+    // against SEC's whole ticker file and reads the filing at query time, so it
+    // answers for any registrant and needs no local document — which is why
+    // this effect depends on `symbol` alone. The old cache-read endpoint is
+    // still consulted, but only after this one has declined, and it can no
+    // longer be the reason a company has no sentiment.
     useEffect(() => {
-        if (!symbol || !documents.length) return;
-        const doc = documents[0];   // filings arrive newest-first
+        if (!symbol) return;
         let alive = true;
         setSentimentRefusal(null);
+        setSentimentView(null);
         (async () => {
-            const qs = new URLSearchParams({ document_id: doc.id, period: doc.filing_date ?? '' });
             try {
-                const res = await fetch(`${GRAVITY_BASE}/v1/analytics/sentiment/${symbol}?${qs}`, {
+                const res = await fetch(sentimentSkillUrl(GRAVITY_BASE, symbol), {
                     headers: { 'X-API-Key': 'deep-research-internal' },
                 });
                 const body = await res.json().catch(() => null);
                 if (!alive) return;
-                if (res.ok && body?.overall_score !== undefined) { setSentiment(body); return; }
+                const view = toView(body);
+                if (view) {
+                    setSentimentView(view);
+                    // A score is set ONLY when the skill produced one. An
+                    // abstention leaves it null, so no number renders.
+                    if (view.score !== null) {
+                        setSentiment({
+                            ticker: symbol,
+                            overall_score: view.score,
+                            label: view.label,
+                            confidence: 0,
+                            document_count: view.window.filings.length,
+                            period: view.period,
+                        });
+                    }
+                    return;
+                }
                 setSentimentRefusal({
                     status: res.status,
-                    // The server's own words. Paraphrasing an error is how a
-                    // credential fault starts looking like a data gap.
-                    detail: typeof body?.detail === 'string' ? body.detail : JSON.stringify(body?.detail ?? body),
-                    documentId: doc.id,
-                    filing: `${doc.filing_type || NULL_MARK} · ${doc.filing_date || NULL_MARK}`,
+                    detail: typeof body?.detail === 'string'
+                        ? body.detail : JSON.stringify(body?.detail ?? body),
+                    documentId: '—',
+                    filing: 'the latest filing the skill could read',
                 });
             } catch (e) {
                 if (alive) setSentimentRefusal({
-                    status: 0, detail: String(e), documentId: doc.id,
-                    filing: `${doc.filing_type || NULL_MARK} · ${doc.filing_date || NULL_MARK}`,
+                    status: 0, detail: String(e), documentId: '—',
+                    filing: 'the latest filing the skill could read',
                 });
             }
         })();
         return () => { alive = false; };
-    }, [symbol, documents]);
+    }, [symbol]);
 
     // No ticker in the URL (the "Companies" nav link points to bare /companies).
     // Render a ticker picker instead of a blank page (which looked like a freeze).
@@ -611,7 +641,7 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                             // P2). It now mounts on a score OR on a stated
                             // refusal — the one thing it must never do is mount
                             // and show a number nothing returned.
-                            ...(sentiment || sentimentRefusal
+                            ...(sentiment || sentimentRefusal || sentimentView
                                 ? [{ key: 'sentiment', label: 'Sentiment', icon: Activity } as const] : []),
                         ] as const).map(({ key, label, icon: Icon }) => (
                             <button
@@ -705,11 +735,73 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                     {/* Sentiment tab */}
                     {activeTab === 'sentiment' && (
                         <div className="space-y-5">
+                            {/* The skill's own account of the reading: what was
+                                measured, over which filings, and what it does
+                                not cover. Rendered whenever the skill answered,
+                                score or no score — an abstention has a basis
+                                too, and hiding it is what made the old tab look
+                                like a broken endpoint. */}
+                            {sentimentView && (
+                                <div data-sentiment-basis className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-3">
+                                    <p data-sentiment-headline className="text-sm text-white">
+                                        {sentimentHeadline(sentimentView, symbol)}
+                                    </p>
+                                    {sentimentView.candidates.length > 0 && (
+                                        <p className="text-xs text-[#A7B0C8]">
+                                            Candidates:{' '}
+                                            {sentimentView.candidates.map(c => `${c.ticker} (${c.name})`).join(' · ')}
+                                        </p>
+                                    )}
+                                    {sentimentView.window.filings.length > 0 && (
+                                        <p className="text-xs text-[#A7B0C8]">
+                                            Window: <span className="text-white">{sentimentView.window.start || NULL_MARK}</span>
+                                            {' → '}<span className="text-white">{sentimentView.window.end || NULL_MARK}</span>
+                                            {' · '}{sentimentView.window.filings.join(', ')}
+                                        </p>
+                                    )}
+                                    {Object.keys(sentimentView.sourceMix).length > 0 && (
+                                        <p className="text-xs text-[#A7B0C8]">
+                                            Sources:{' '}
+                                            {Object.entries(sentimentView.sourceMix)
+                                                .map(([k, n]) => `${k} (${n})`).join(' · ')}
+                                        </p>
+                                    )}
+                                    {(sentimentView.positive.length > 0 || sentimentView.negative.length > 0) && (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div data-sentiment-positive className="space-y-1">
+                                                <p className="text-xs uppercase tracking-wider text-green-400">Positive evidence</p>
+                                                {sentimentView.positive.length === 0
+                                                    ? <p className="text-xs text-[#4A5568]">None above the evidence threshold.</p>
+                                                    : sentimentView.positive.map((e, i) => (
+                                                        <p key={i} className="text-xs text-[#A7B0C8]">“{e.text}”</p>
+                                                    ))}
+                                            </div>
+                                            <div data-sentiment-negative className="space-y-1">
+                                                <p className="text-xs uppercase tracking-wider text-red-400">Negative evidence</p>
+                                                {sentimentView.negative.length === 0
+                                                    ? <p className="text-xs text-[#4A5568]">None above the evidence threshold.</p>
+                                                    : sentimentView.negative.map((e, i) => (
+                                                        <p key={i} className="text-xs text-[#A7B0C8]">“{e.text}”</p>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {sentimentView.limitations.length > 0 && (
+                                        <ul data-sentiment-limitations className="list-disc pl-4 space-y-1">
+                                            {sentimentView.limitations.map((l, i) => (
+                                                <li key={i} className="text-xs text-[#4A5568]">{l}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            )}
+
                             {!sentiment ? (
                                 // CT2-5 · row R6. "No sentiment data indexed yet"
                                 // was a guess about WHY. State what was asked and
                                 // what the server said, verbatim — and show no
                                 // number, because none was returned.
+                                sentimentView ? null : (
                                 <div data-sentiment-refusal className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-2">
                                     <p className="text-sm text-white">No sentiment score for {symbol}.</p>
                                     {sentimentRefusal ? (
@@ -728,6 +820,7 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                                         <p className="text-xs text-[#A7B0C8]">No filing to score against yet — the filings index returned nothing for {symbol}.</p>
                                     )}
                                 </div>
+                                )
                             ) : (
                                 <>
                                     {/* Score card */}
@@ -739,11 +832,18 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                                             </p>
                                             <p className="text-xs text-[#A7B0C8] mt-1 capitalize">{sentiment.label}</p>
                                         </div>
-                                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                                            <p className="text-xs text-[#4A5568] uppercase tracking-wider mb-1">Confidence</p>
-                                            <p className="text-3xl font-bold text-white">{(sentiment.confidence * 100).toFixed(0)}%</p>
-                                            <p className="text-xs text-[#4A5568] mt-1">{sentiment.document_count} documents analyzed</p>
-                                        </div>
+                                        {/* Only when the source actually returned a
+                                            confidence. The skill does not compute one,
+                                            and rendering `0%` for "absent" is the same
+                                            fabrication as rendering 0 for a missing
+                                            metric. */}
+                                        {sentiment.confidence > 0 && (
+                                            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+                                                <p className="text-xs text-[#4A5568] uppercase tracking-wider mb-1">Confidence</p>
+                                                <p className="text-3xl font-bold text-white">{(sentiment.confidence * 100).toFixed(0)}%</p>
+                                                <p className="text-xs text-[#4A5568] mt-1">{sentiment.document_count} documents analyzed</p>
+                                            </div>
+                                        )}
                                         {sentimentDelta && (
                                             <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
                                                 <p className="text-xs text-[#4A5568] uppercase tracking-wider mb-1">vs Prior Period</p>

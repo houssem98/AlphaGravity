@@ -252,6 +252,12 @@ class EdgarTextSearch:
                     "accn": accn,
                     "filed": filed or "",
                     "report": report or "",
+                    # SEC's own name for the filing's primary document. This is
+                    # the one authoritative source for it, and it is already in
+                    # hand here — the channel reads this very document. Carrying
+                    # it forward is what lets "View filing" open the exact HTML
+                    # without a second fetch or a guessed filename.
+                    "primary_document": doc,
                     "document_url": ARCHIVE_DOC_URL.format(
                         cik=int(cik), nodash=accn.replace("-", ""), doc=doc
                     ),
@@ -443,6 +449,12 @@ class EdgarTextSearch:
                 "filing_url": filing_url(cik, accn),
                 "document_url": filing["document_url"],
                 "source_url": filing["document_url"],
+                # Canonical filing identity — the two links the UI offers are
+                # built from these and from nothing the frontend infers.
+                "filing_index_url": filing_url(cik, accn),
+                "primary_document": filing.get("primary_document", ""),
+                "primary_document_url": filing["document_url"],
+                "period_of_report": filing["report"],
                 "extraction_method": "sec_filing_text",
             },
         )

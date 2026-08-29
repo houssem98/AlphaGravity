@@ -1,0 +1,69 @@
+{
+  "dataset": "quick_answer_skill_coverage",
+  "version": "1.0.0",
+  "note": "Issuers span nine sectors. None appears in app/core/entity_resolver.py _ALIASES, in app/core/entities/group_aliases.py, or in any pipeline fixture. If a skill depended on a curated company list, every 'unseen_company' case would fail.",
+  "issuers": [
+    {"ticker": "CPRT", "cik": "900075", "legal_name": "COPART INC", "sector": "salvage auctions", "fy_end_month": 7},
+    {"ticker": "ODFL", "cik": "878927", "legal_name": "OLD DOMINION FREIGHT LINE INC", "sector": "trucking", "fy_end_month": 12},
+    {"ticker": "TPL", "cik": "1811074", "legal_name": "TEXAS PACIFIC LAND CORP", "sector": "land and royalties", "fy_end_month": 12},
+    {"ticker": "EXPD", "cik": "746515", "legal_name": "EXPEDITORS INTERNATIONAL OF WASHINGTON INC", "sector": "logistics", "fy_end_month": 12},
+    {"ticker": "WSO", "cik": "105016", "legal_name": "WATSCO INC", "sector": "HVAC distribution", "fy_end_month": 12},
+    {"ticker": "LNTH", "cik": "1521036", "legal_name": "LANTHEUS HOLDINGS INC", "sector": "radiopharmaceuticals", "fy_end_month": 12},
+    {"ticker": "AOS", "cik": "91142", "legal_name": "A O SMITH CORP", "sector": "water heaters", "fy_end_month": 12},
+    {"ticker": "JPM", "cik": "19617", "legal_name": "JPMORGAN CHASE & CO", "sector": "banking", "fy_end_month": 12},
+    {"ticker": "NVDA", "cik": "1045810", "legal_name": "NVIDIA CORP", "sector": "semiconductors", "fy_end_month": 1}
+  ],
+  "cases": [
+    {"id": "co-unseen-ticker-cprt", "skill": "company", "category": "unseen_company", "company": "CPRT", "period": "latest", "expect_status": ["success", "partial"], "expect_entity": "CPRT"},
+    {"id": "co-unseen-ticker-odfl", "skill": "company", "category": "unseen_company", "company": "ODFL", "period": "latest", "expect_status": ["success", "partial"], "expect_entity": "ODFL"},
+    {"id": "co-unseen-ticker-tpl", "skill": "company", "category": "unseen_company", "company": "TPL", "period": "latest", "expect_status": ["success", "partial"], "expect_entity": "TPL"},
+    {"id": "co-unseen-ticker-expd", "skill": "company", "category": "unseen_company", "company": "EXPD", "period": "latest", "expect_status": ["success", "partial"], "expect_entity": "EXPD"},
+    {"id": "co-unseen-ticker-wso", "skill": "company", "category": "unseen_company", "company": "WSO", "period": "latest", "expect_status": ["success", "partial"], "expect_entity": "WSO"},
+    {"id": "co-unseen-ticker-lnth", "skill": "company", "category": "unseen_company", "company": "LNTH", "period": "latest", "expect_status": ["success", "partial"], "expect_entity": "LNTH"},
+    {"id": "co-unseen-ticker-aos", "skill": "company", "category": "unseen_company", "company": "AOS", "period": "latest", "expect_status": ["success", "partial"], "expect_entity": "AOS"},
+
+    {"id": "co-legal-name-cprt", "skill": "company", "category": "legal_name", "company": "COPART INC", "period": "latest", "expect_status": ["success", "partial"], "expect_entity": "CPRT"},
+    {"id": "co-legal-name-expd", "skill": "company", "category": "legal_name", "company": "EXPEDITORS INTERNATIONAL OF WASHINGTON INC", "period": "latest", "expect_status": ["success", "partial"], "expect_entity": "EXPD"},
+
+    {"id": "co-annual-2025", "skill": "company", "category": "annual", "company": "ODFL", "period": "FY2025", "expect_status": ["success", "partial"], "expect_period": "FY2025"},
+    {"id": "co-quarterly-q1-2026", "skill": "company", "category": "quarterly", "company": "ODFL", "period": "Q1 2026", "expect_status": ["success", "partial"], "expect_period": "FY2026Q1"},
+
+    {"id": "co-missing-metric-bank", "skill": "company", "category": "missing_metric", "company": "JPM", "period": "latest", "supply": {"total revenue": 170000000000.0, "net income": 58000000000.0}, "expect_status": ["partial"], "expect_absent": ["Gross profit"], "expect_no_zero": true},
+    {"id": "co-all-metrics-absent", "skill": "company", "category": "missing_metric", "company": "TPL", "period": "latest", "supply": {}, "channel": "empty", "expect_status": ["insufficient_data"], "expect_no_zero": true},
+
+    {"id": "co-future-fy", "skill": "company", "category": "future_period", "company": "CPRT", "period": "FY2029", "expect_status": ["insufficient_data"], "expect_abstain": true, "expect_no_channel_call": true},
+    {"id": "co-future-quarter", "skill": "company", "category": "future_period", "company": "WSO", "period": "Q4 2028", "expect_status": ["insufficient_data"], "expect_abstain": true, "expect_no_channel_call": true},
+
+    {"id": "co-ambiguous", "skill": "company", "category": "ambiguity", "company": "Apple", "ambiguous": true, "expect_status": ["ambiguous_entity"], "expect_abstain": true},
+    {"id": "co-unknown", "skill": "company", "category": "unknown_company", "company": "Wobblegonk Industries Plc", "expect_status": ["insufficient_data"], "expect_abstain": true},
+
+    {"id": "co-channel-failed", "skill": "company", "category": "channel_failure", "company": "AOS", "channel": "failed", "expect_status": ["error"], "expect_channel_state": "failed"},
+    {"id": "co-channel-timeout", "skill": "company", "category": "channel_failure", "company": "AOS", "channel": "timeout", "expect_status": ["error"], "expect_channel_state": "timeout"},
+    {"id": "co-channel-empty", "skill": "company", "category": "channel_failure", "company": "AOS", "channel": "empty", "expect_status": ["insufficient_data"], "expect_channel_state": "empty"},
+
+    {"id": "co-citations-exact", "skill": "company", "category": "citation_validity", "company": "NVDA", "period": "latest", "expect_status": ["success", "partial"], "expect_two_links": true},
+
+    {"id": "se-unseen-ticker-cprt", "skill": "sentiment", "category": "unseen_company", "company": "CPRT", "tone": "positive", "expect_status": ["success", "conflicting_evidence"], "expect_entity": "CPRT"},
+    {"id": "se-unseen-ticker-odfl", "skill": "sentiment", "category": "unseen_company", "company": "ODFL", "tone": "positive", "expect_status": ["success", "conflicting_evidence"], "expect_entity": "ODFL"},
+    {"id": "se-unseen-ticker-tpl", "skill": "sentiment", "category": "unseen_company", "company": "TPL", "tone": "negative", "expect_status": ["success", "conflicting_evidence"], "expect_entity": "TPL"},
+    {"id": "se-unseen-ticker-lnth", "skill": "sentiment", "category": "unseen_company", "company": "LNTH", "tone": "negative", "expect_status": ["success", "conflicting_evidence"], "expect_entity": "LNTH"},
+    {"id": "se-unseen-ticker-expd", "skill": "sentiment", "category": "unseen_company", "company": "EXPD", "tone": "positive", "expect_status": ["success", "conflicting_evidence"], "expect_entity": "EXPD"},
+
+    {"id": "se-legal-name", "skill": "sentiment", "category": "legal_name", "company": "WATSCO INC", "tone": "positive", "expect_status": ["success", "conflicting_evidence"], "expect_entity": "WSO"},
+
+    {"id": "se-conflicting", "skill": "sentiment", "category": "conflicting_evidence", "company": "AOS", "tone": "mixed", "expect_conflict_or_directional": true},
+    {"id": "se-insufficient", "skill": "sentiment", "category": "insufficient_evidence", "company": "EXPD", "tone": "thin", "expect_status": ["insufficient_data"], "expect_abstain": true, "expect_no_score": true},
+
+    {"id": "se-future-period", "skill": "sentiment", "category": "future_period", "company": "CPRT", "period": "FY2029", "tone": "positive", "expect_status": ["insufficient_data"], "expect_abstain": true, "expect_no_channel_call": true},
+
+    {"id": "se-ambiguous", "skill": "sentiment", "category": "ambiguity", "company": "Apple", "ambiguous": true, "expect_status": ["ambiguous_entity"], "expect_abstain": true},
+    {"id": "se-unknown", "skill": "sentiment", "category": "unknown_company", "company": "Wobblegonk Industries Plc", "expect_status": ["insufficient_data"], "expect_abstain": true},
+
+    {"id": "se-channel-failed", "skill": "sentiment", "category": "channel_failure", "company": "WSO", "channel": "failed", "expect_status": ["error"], "expect_channel_state": "failed"},
+    {"id": "se-channel-timeout", "skill": "sentiment", "category": "channel_failure", "company": "WSO", "channel": "timeout", "expect_status": ["error"], "expect_channel_state": "timeout"},
+    {"id": "se-channel-empty", "skill": "sentiment", "category": "channel_failure", "company": "WSO", "channel": "empty", "expect_status": ["insufficient_data"], "expect_channel_state": "empty"},
+
+    {"id": "se-no-price", "skill": "sentiment", "category": "no_market_proxy", "company": "TPL", "tone": "negative", "expect_no_market_data": true},
+    {"id": "se-citations", "skill": "sentiment", "category": "citation_validity", "company": "CPRT", "tone": "positive", "expect_two_links": true}
+  ]
+}

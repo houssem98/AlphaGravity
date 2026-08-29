@@ -356,6 +356,8 @@ from app.api.routes import forecast
 app.include_router(forecast.router, tags=["Forecast (Kronos)"])
 from app.api.routes import company
 app.include_router(company.router, prefix="/v1", tags=["Company Intelligence"])
+from app.api.routes import skills
+app.include_router(skills.router, prefix="/v1", tags=["Skills"])
 
 # ── Prometheus-compatible /metrics endpoint ──────────────────────────────
 @app.get("/metrics", include_in_schema=False)
