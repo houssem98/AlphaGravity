@@ -56,9 +56,11 @@ python -m pytest ... > /c/tmp/out.txt 2>&1; echo "EXIT=$?"
 | 14 | Live skill runs | 3 issuers × 2 skills vs real sec.gov | 0 | 6/6 | **PASS** |
 | 15 | **Finance performance** | `python -m eval.finance_quick_answer.perf` | 0 | measured, §6 | **PASS** |
 | 16 | Gate integrity | `node ~/.claude/scripts/gate-guard.mjs` | 0 | clean | **PASS** |
-| 17 | Browser E2E | — | — | §7 | **BLOCKED** |
-| 18 | End-to-end answer accuracy | — | — | §7 | **BLOCKED** |
-| 19 | End-to-end latency | — | — | §7 | **BLOCKED** |
+| 17 | **End-to-end answer accuracy** | `python -m eval.quick_answer.live_e2e` | 1 | **6/7**; answer accuracy **1.0**, citation coverage 1.0, verified rate **0.8**, abstention 1.0 | **PARTIAL** |
+| 18 | **End-to-end latency** | same run, real WebSocket | 1 | **p50 26,996 ms · p95 27,501 ms** | **PASS (measured)** |
+| 19 | Component latency | `python -m eval.quick_answer.live_perf` | 0 | LLM 1,288 ms · embed 637 ms · rerank 1,509 ms · verify 14 ms | **PARTIAL** |
+| 20 | Retrieval latency | same run | 0 | harness refused: Docker daemon down | **BLOCKED** |
+| 21 | Browser E2E | — | — | harness exists; **no spec covers the SEC links** | **BLOCKED** |
 
 Backend delta **1536 → 1849 = +313**, exactly the five new test files
 (76 + 105 + 31 + 91 + 5 = 308) plus 5 route tests added to
@@ -239,15 +241,83 @@ this work. **No verification was removed to improve any number.**
 
 ## 7. BLOCKED, PARTIAL and UNVERIFIED
 
-**`BLOCKED` — browser/live validation (Phase 14).** No browser was driven
-against a running stack; the stack needs Supabase credentials and this session
-is non-interactive. What was proven programmatically: both SEC links resolve to
-different real pages and both return HTTP 200 with the primary confirmed HTML
-(12/12 filings), and 26 real-DOM tests mount `EdgarLink`, click the anchor and
-assert the navigation target. The *visual* result was not observed.
+**Correction to an earlier label.** A previous revision of this document
+recorded end-to-end accuracy and latency as `BLOCKED (credentials)`. That was
+wrong, and the correction matters more than the original claim: the credentials
+are live. `DEEPSEEK_API_KEY`, `COHERE_API_KEY` and `VOYAGE_API_KEY` all answer
+`200`, and Supabase returns corpus rows under the service-role key. The API
+boots, and the gates below were run. What is actually down is the local **Docker
+daemon**, which takes Postgres, Qdrant, Elasticsearch and Redis with it — a
+different problem with a different fix.
 
-**`BLOCKED` — end-to-end answer accuracy and latency.** Needs live LLM and
-reranker credentials. No accuracy figure and no end-to-end timing is claimed.
+`ANTHROPIC_API_KEY` and `GROQ_API_KEY` do return `401`, but the router falls
+through to DeepSeek and the pipeline answers without them.
+
+**`PARTIAL` — end-to-end answer accuracy.** `python -m eval.quick_answer.live_e2e`
+against a locally booted API, real WebSocket, real sec.gov, real model:
+
+```
+6/7 passed          p50 26,996.1ms   p95 27,500.9ms
+  answer accuracy        1.0
+  citation coverage      1.0
+  citation verified rate 0.8
+  abstention accuracy    1.0
+```
+
+The one failure is the harness working. `aapl-fy2025-revenue` produced the
+**right** answer — $416,161,000,000, +6% YoY, which is Apple's FY2025 net sales
+— and the harness failed it anyway, because a right answer whose citation was
+never verified is not a pass. Two citations came back:
+
+| # | Provenance | Verdict | Reason |
+|---|---|---|---|
+| 1 | full — accession `0000320193-25-000079`, CIK, `view_filing_url` | `partially_supported` | `some_claim_figures_not_in_cited_source` |
+| 2 | **none** — no accession, no CIK, no filing URL | `conflicting` | `numeric_not_in_source` |
+
+Citation 1's source text is `Total net sales $ 416,161 6 % $ 391,035 2 %
+$ 383,285`, and its `filing_verification_status` is `verified` — the filing is
+confirmed, the claim binding is not. That is the verifier being correctly
+conservative rather than a defect.
+
+Citation 2 is a genuine gap and is **not** fixed by this pass: a chunk titled
+"AAPL 10-K FY2025" carrying no SEC provenance at all and dated `2026-04-30`,
+which is not that filing's date. The two-link work covers citations that *have*
+provenance; this one reaches the answer without any. Recorded here rather than
+folded into a claim of completeness.
+
+**`PASS` — end-to-end latency, measured.** p50 **26,996 ms**, p95 **27,501 ms**,
+seven live queries. This confirms the roadmap's recorded ~28 s rather than
+resting on it. Component medians from `live_perf`:
+
+| Stage | Median |
+|---|---|
+| LLM generation (DeepSeek) | 1,288.5 ms |
+| Embedding (Voyage) | 637.2 ms |
+| Rerank (Cohere) | 1,509.4 ms |
+| Citation verification (34 cases) | 14.0 ms |
+| **Sum of the above** | **~3.4 s** |
+| **Observed end to end** | **~27.0 s** |
+
+The ~23 s gap is not in generation, embedding, reranking or verification. It is
+in retrieval and its SEC round trips, which is where any latency work should
+start — and which the harness explicitly declined to time, because Docker is
+down and "a retrieval or end-to-end figure would be fabricated". Verification is
+**14 ms across all 34 cases**: removing it would buy nothing.
+
+**`BLOCKED` — retrieval latency.** Docker Desktop is not running, so Postgres,
+Qdrant, Elasticsearch and Redis refuse connections. Fix is `make infra`, not a
+key.
+
+**`BLOCKED` — browser E2E (Phase 14), for a precise reason.** The harness is not
+missing: `apps/market-ui/playwright.config.ts` exists, `npm run e2e` is wired,
+auth setup is present, and `baseURL` defaults to the deployed
+`market-ui-self.vercel.app`. The blocker is coverage — **no spec references
+`EdgarLink`, "View filing", "Filing details" or `sec.gov`**, so running the
+suite today would prove nothing about the SEC work. Closing this needs a new
+spec plus a target carrying these changes, which are not deployed. The DOM
+behaviour is covered by 26 real-DOM tests that mount the component, click the
+anchor and assert the navigation target; the *visual* result remains
+unobserved.
 
 **`PARTIAL` — the plan is advisory, not yet an executor.** `finance_plan` is
 computed on every search and emitted into `query_plan`, and the plan endpoint
