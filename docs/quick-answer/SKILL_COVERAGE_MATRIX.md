@@ -169,6 +169,47 @@ company.
 
 ---
 
+## 3b. The finance layer (added 2026-08-30)
+
+Three modules sit between the question and the answer. None contains a company
+name, and none makes a network call, so all three are deterministic.
+
+### `app/core/finance/query_plan.py` — what was asked
+
+| | |
+|---|---|
+| **Input** | the question text, plus resolved companies when available |
+| **Output** | `FinancePlan`: intent, metrics (each with a `Basis`), period, comparison, `change_unit`, `ttm`, scope |
+| **Reachable at** | `GET /v1/skills/_/plan?q=...`, and `query_plan["finance_plan"]` on every search |
+| **Guarantee** | pure function of the question — `test_planning_makes_no_network_call` replaces `socket.socket` with a raiser |
+| **Limitation** | advisory. The generation stage does not yet consume `change_unit`; see the verification doc SS7. |
+
+Ten intents: `lookup`, `growth`, `margin`, `comparison`, `ranking`, `guidance`,
+`risk`, `sentiment`, `filings`, `unknown`. A ranking question outranks the
+metric it also names, because answering a set question as a lookup is how a
+sample becomes a census.
+
+### `app/core/finance/period_math.py` -- whether the numbers may be combined
+
+| | |
+|---|---|
+| **Input** | `Quantity` objects carrying company, metric, period, unit, basis, citation |
+| **Output** | `Computed` (with inputs, periods, citations) or `Refusal` (with a code and a sentence) |
+| **Operations** | `growth`, `margin`, `delta` (pp/bps), `cagr`, `ttm`, `calendar_year_overlap` |
+| **Guarantee** | twelve refusal classes; no operation can return `inf`, `nan`, or a zero standing in for undefined |
+| **Limitation** | it does not replace `app/core/financial_calculator.py`, which remains in use elsewhere on bare floats. |
+
+### `app/core/skills/scope.py` -- how much of the universe was covered
+
+| | |
+|---|---|
+| **Output** | `scope_status` (exhaustive/partial/insufficient) + per-member `coverage_status` |
+| **Guarantee** | `EXHAUSTIVE` requires a universe whose size is known *and* whose membership was retrieved, plus an examined count reaching it |
+| **Evidence rule** | a secondary source may discover a candidate; only a primary filing may confirm one |
+| **Limitation** | nothing in the repo fetches index constituents yet, so every set question answers `confirmed_partial` in practice. Correct today, not optimal. |
+
+---
+
 ## 4. SEC citation provenance — the two links
 
 Every SEC citation now carries both, and they are never the same page:

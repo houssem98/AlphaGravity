@@ -1,0 +1,71 @@
+{
+  "dataset": "finance_quick_answer",
+  "version": "1.0.0",
+  "note": "Question-level planning and computation, graded deterministically. Every case asserts what the system decided the question WAS and what it computed from given evidence — not what a live corpus returned, which is `eval/quick_answer_skill_coverage/live_sec_matrix.py` and the live probes. Companies span 14 sectors; none is in _ALIASES or group_aliases.",
+  "cases": [
+    {"id": "plan-rev-fy", "kind": "plan", "q": "What was Copart revenue in FY2025?", "intent": "lookup", "metrics": ["revenue"], "period": "FY2025", "comparison": "none", "change_unit": ""},
+    {"id": "plan-rev-q", "kind": "plan", "q": "Old Dominion revenue Q2 2025", "intent": "lookup", "metrics": ["revenue"], "period": "FY2025Q2"},
+    {"id": "plan-rev-latest", "kind": "plan", "q": "Watsco revenue", "intent": "lookup", "metrics": ["revenue"], "period": "latest"},
+    {"id": "plan-ni", "kind": "plan", "q": "Lantheus net income FY2025", "intent": "lookup", "metrics": ["net_income"]},
+    {"id": "plan-oi", "kind": "plan", "q": "A.O. Smith operating income FY2025", "intent": "lookup", "metrics": ["operating_income"]},
+    {"id": "plan-eps", "kind": "plan", "q": "Expeditors diluted EPS Q3 2025", "intent": "lookup", "metrics": ["eps"], "period": "FY2025Q3"},
+    {"id": "plan-fcf", "kind": "plan", "q": "Texas Pacific Land free cash flow", "intent": "lookup", "metrics": ["free_cash_flow"]},
+    {"id": "plan-gp", "kind": "plan", "q": "Watsco gross profit FY2025", "intent": "lookup", "metrics": ["gross_profit"]},
+    {"id": "plan-capex", "kind": "plan", "q": "Old Dominion capex 2025", "intent": "lookup", "metrics": ["capex"]},
+    {"id": "plan-cash", "kind": "plan", "q": "Copart cash and equivalents", "intent": "lookup", "metrics": ["cash"]},
+
+    {"id": "plan-growth-yoy", "kind": "plan", "q": "Copart revenue year-over-year growth", "intent": "growth", "comparison": "yoy", "change_unit": "%"},
+    {"id": "plan-growth-qoq", "kind": "plan", "q": "Old Dominion revenue quarter-over-quarter", "intent": "growth", "comparison": "qoq", "change_unit": "%"},
+    {"id": "plan-growth-bare", "kind": "plan", "q": "Did Watsco revenue grow?", "intent": "growth", "comparison": "yoy"},
+    {"id": "plan-cagr", "kind": "plan", "q": "Lantheus revenue CAGR from 2020 to 2025", "intent": "growth", "comparison": "cagr"},
+    {"id": "plan-ttm", "kind": "plan", "q": "Expeditors TTM revenue", "intent": "lookup", "metrics": ["revenue"], "ttm": true},
+
+    {"id": "plan-margin", "kind": "plan", "q": "A.O. Smith operating margin FY2025", "intent": "margin", "metrics": ["operating_margin"], "change_unit": ""},
+    {"id": "plan-margin-yoy", "kind": "plan", "q": "Copart gross margin year-over-year", "intent": "growth", "metrics": ["gross_margin"], "change_unit": "pp"},
+    {"id": "plan-margin-qoq", "kind": "plan", "q": "Watsco net margin quarter-over-quarter", "change_unit": "pp"},
+
+    {"id": "plan-compare", "kind": "plan", "q": "Compare Copart and Old Dominion revenue", "companies": ["CPRT", "ODFL"], "intent": "comparison", "comparison": "cross_company"},
+    {"id": "plan-compare-vs", "kind": "plan", "q": "Watsco versus Lennox operating margin", "companies": ["WSO", "LII"], "intent": "comparison"},
+
+    {"id": "plan-rank-sp500", "kind": "plan", "q": "Which S&P 500 companies mentioned tariff risk in their 10-K?", "intent": "ranking", "universe": "the S&P 500", "size_hint": 503, "is_set_question": true},
+    {"id": "plan-rank-ndx", "kind": "plan", "q": "Which Nasdaq-100 companies grew revenue in 2025?", "intent": "ranking", "universe": "the Nasdaq-100", "size_hint": 101},
+    {"id": "plan-rank-topn", "kind": "plan", "q": "Top 25 companies by free cash flow", "intent": "ranking", "top_n": 25},
+    {"id": "plan-rank-unbounded", "kind": "plan", "q": "Which companies mentioned export controls?", "intent": "ranking", "universe": "", "size_hint": 0, "is_set_question": true},
+
+    {"id": "plan-guidance", "kind": "plan", "q": "What guidance did Copart give for next year?", "intent": "guidance"},
+    {"id": "plan-risk-tariff", "kind": "plan", "q": "How exposed is Watsco to tariffs?", "intent": "risk"},
+    {"id": "plan-risk-trade", "kind": "plan", "q": "Old Dominion trade war exposure", "intent": "risk"},
+    {"id": "plan-risk-factors", "kind": "plan", "q": "What risk factors did Lantheus disclose?", "intent": "risk"},
+    {"id": "plan-sentiment", "kind": "plan", "q": "What is the sentiment in A.O. Smith's 10-K?", "intent": "sentiment"},
+    {"id": "plan-filings", "kind": "plan", "q": "List Expeditors 10-K filings", "intent": "filings"},
+
+    {"id": "calc-yoy", "kind": "calc", "op": "growth", "current": {"v": 5000, "y": 2025}, "prior": {"v": 4000, "y": 2024}, "expect_value": 25.0, "expect_unit": "%"},
+    {"id": "calc-yoy-decline", "kind": "calc", "op": "growth", "current": {"v": 3600, "y": 2025}, "prior": {"v": 4000, "y": 2024}, "expect_value": -10.0},
+    {"id": "calc-qoq", "kind": "calc", "op": "growth", "current": {"v": 1100, "y": 2025, "q": 2}, "prior": {"v": 1000, "y": 2025, "q": 1}, "expect_value": 10.0},
+    {"id": "calc-margin", "kind": "calc", "op": "margin", "current": {"v": 1500, "y": 2025}, "prior": {"v": 6000, "y": 2025}, "expect_value": 25.0, "expect_unit": "%"},
+    {"id": "calc-margin-negative", "kind": "calc", "op": "margin", "current": {"v": -300, "y": 2025}, "prior": {"v": 6000, "y": 2025}, "expect_value": -5.0},
+    {"id": "calc-cagr", "kind": "calc", "op": "cagr", "current": {"v": 2000, "y": 2025}, "prior": {"v": 1000, "y": 2020}, "expect_value": 14.8698},
+    {"id": "calc-pp", "kind": "calc", "op": "delta", "rate": true, "current": {"v": 25.0, "y": 2025}, "prior": {"v": 20.0, "y": 2024}, "expect_value": 5.0, "expect_unit": "pp"},
+    {"id": "calc-bps", "kind": "calc", "op": "delta_bps", "rate": true, "current": {"v": 25.0, "y": 2025}, "prior": {"v": 20.0, "y": 2024}, "expect_value": 500.0, "expect_unit": "bps"},
+    {"id": "calc-ttm", "kind": "calc", "op": "ttm", "expect_value": 4000, "expect_unit": "USD"},
+
+    {"id": "refuse-mixed-period-margin", "kind": "calc", "op": "margin", "current": {"v": 1696714000, "y": 2025}, "prior": {"v": 1805695000, "y": 2018}, "expect_refusal": "period_mismatch"},
+    {"id": "refuse-cross-company-growth", "kind": "calc", "op": "growth", "current": {"v": 5000, "y": 2025, "co": "cik:900075"}, "prior": {"v": 4000, "y": 2024, "co": "cik:878927"}, "expect_refusal": "company_mismatch"},
+    {"id": "refuse-zero-base", "kind": "calc", "op": "growth", "current": {"v": 5000, "y": 2025}, "prior": {"v": 0, "y": 2024}, "expect_refusal": "zero_base"},
+    {"id": "refuse-zero-denominator", "kind": "calc", "op": "margin", "current": {"v": 500, "y": 2025}, "prior": {"v": 0, "y": 2025}, "expect_refusal": "zero_denominator"},
+    {"id": "refuse-rate-growth", "kind": "calc", "op": "growth", "rate": true, "current": {"v": 25.0, "y": 2025}, "prior": {"v": 20.0, "y": 2024}, "expect_refusal": "rate_growth"},
+    {"id": "refuse-unlabelled-gap", "kind": "calc", "op": "growth", "current": {"v": 5000, "y": 2025}, "prior": {"v": 4000, "y": 2018}, "expect_refusal": "unlabelled_interval"},
+    {"id": "refuse-cagr-loss", "kind": "calc", "op": "cagr", "current": {"v": 2000, "y": 2025}, "prior": {"v": -500, "y": 2020}, "expect_refusal": "non_positive"},
+    {"id": "refuse-backwards", "kind": "calc", "op": "growth", "current": {"v": 4000, "y": 2024}, "prior": {"v": 5000, "y": 2025}, "expect_refusal": "not_ordered"},
+    {"id": "refuse-unit-mismatch", "kind": "calc", "op": "growth", "current": {"v": 5000, "y": 2025, "unit": "EUR"}, "prior": {"v": 4000, "y": 2024, "unit": "USD"}, "expect_refusal": "unit_mismatch"},
+    {"id": "refuse-delta-on-amounts", "kind": "calc", "op": "delta", "current": {"v": 5000, "y": 2025}, "prior": {"v": 4000, "y": 2024}, "expect_refusal": "not_a_rate"},
+
+    {"id": "scope-partial", "kind": "scope", "confirmed": 11, "candidates": 0, "universe": "the S&P 500", "size": 503, "enumerable": true, "examined": 40, "expect_status": "confirmed_partial", "expect_headline_contains": ["At least 11", "503", "may be others"]},
+    {"id": "scope-exhaustive", "kind": "scope", "confirmed": 11, "universe": "the S&P 500", "size": 503, "enumerable": true, "examined": 503, "expect_status": "confirmed_exhaustive"},
+    {"id": "scope-unbounded-never-exhaustive", "kind": "scope", "confirmed": 50, "universe": "", "size": 0, "enumerable": false, "examined": 10000, "expect_status": "confirmed_partial"},
+    {"id": "scope-known-size-unlisted", "kind": "scope", "confirmed": 5, "universe": "the S&P 500", "size": 503, "enumerable": false, "examined": 503, "expect_status": "confirmed_partial"},
+    {"id": "scope-insufficient", "kind": "scope", "confirmed": 0, "candidates": 3, "universe": "the S&P 500", "size": 503, "enumerable": true, "examined": 20, "expect_status": "insufficient_evidence", "expect_headline_contains": ["not evidence that none match"]},
+    {"id": "scope-empty-not-exhaustive", "kind": "scope", "confirmed": 0, "universe": "the S&P 500", "size": 503, "enumerable": true, "examined": 503, "expect_status": "insufficient_evidence"},
+    {"id": "scope-candidates-flagged", "kind": "scope", "confirmed": 2, "candidates": 4, "universe": "the S&P 500", "size": 503, "enumerable": true, "examined": 30, "expect_status": "confirmed_partial", "expect_limitation_contains": ["4 further name(s)"]}
+  ]
+}

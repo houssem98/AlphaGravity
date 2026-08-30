@@ -98,3 +98,41 @@ def test_the_response_carries_the_whole_contract(client, monkeypatch):
     for key in ("skill", "status", "entities", "period", "claims", "data",
                 "citations", "verification", "limitations", "channels"):
         assert key in body, key
+
+
+# ── The plan endpoint ─────────────────────────────────────────────────────
+
+
+def test_the_plan_endpoint_answers_without_a_company_or_a_network(client):
+    r = client.get("/v1/skills/_/plan", params={"q": "Apple revenue FY2025"})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["intent"] == "lookup"
+    assert [m["key"] for m in d["metrics"]] == ["revenue"]
+    assert d["period"] == "FY2025"
+
+
+def test_the_plan_endpoint_marks_a_set_question_as_a_ranking(client):
+    r = client.get("/v1/skills/_/plan",
+                   params={"q": "Which S&P 500 companies mentioned tariff risk?"})
+    d = r.json()
+    assert d["intent"] == "ranking"
+    assert d["scope"]["is_set_question"] is True
+    assert d["scope"]["size_hint"] == 503
+
+
+def test_the_plan_endpoint_reports_a_margin_change_in_points(client):
+    r = client.get("/v1/skills/_/plan",
+                   params={"q": "NVIDIA operating margin year-over-year"})
+    assert r.json()["change_unit"] == "pp"
+
+
+def test_the_plan_endpoint_rejects_an_empty_question(client):
+    assert client.get("/v1/skills/_/plan", params={"q": ""}).status_code == 422
+
+
+def test_the_plan_endpoint_is_stable_across_repeated_calls(client):
+    q = {"q": "Compare Apple and Microsoft free cash flow"}
+    first = client.get("/v1/skills/_/plan", params=q).json()
+    for _ in range(5):
+        assert client.get("/v1/skills/_/plan", params=q).json() == first

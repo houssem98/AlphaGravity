@@ -97,3 +97,18 @@ async def run_skill(
     return JSONResponse(
         status_code=_HTTP.get(result.status, 200), content=result.as_dict()
     )
+
+
+@router.get("/_/plan")
+async def plan(q: str = Query(..., min_length=1, description="A finance question")):
+    """
+    What a question asks for, before anything is retrieved.
+
+    Exposed because the plan is the contract between the question and the
+    answer, and a contract that can only be inspected by reading model output
+    is not one. Same question in, same plan out, with no network call — so this
+    is also the cheapest way to see why a question routed the way it did.
+    """
+    from app.core.finance.query_plan import plan_query
+
+    return plan_query(q).as_dict()

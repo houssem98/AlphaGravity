@@ -28,6 +28,7 @@ import structlog
 from app.config import settings
 from app.api.middleware.pii_filter import PIIFilter
 from app.core.query_understanding import suppresses_xbrl
+from app.core.finance.query_plan import plan_query as plan_finance_query
 from app.core.question_class import classify as classify_question
 from app.core.question_class import route_channels, route_sources
 from app.core.retrieval import citation_provenance, sec_telemetry
@@ -766,6 +767,26 @@ class SearchPipeline:
                 _qc = classify_question(query, _ents if isinstance(_ents, dict) else None)
                 _channels = route_channels(_qc["question_class"], _channels, query)
                 query_plan["question_class"] = _qc["question_class"]
+
+                # What the question asks for, in structured form, decided here
+                # rather than re-derived from whatever came back. A plan built
+                # after retrieval is shaped by the evidence: a growth question
+                # that finds one period quietly answers as a lookup, and a set
+                # question that finds five names quietly answers as a census.
+                # Emitting it into the plan makes both visible in telemetry and
+                # gives the answer stage the metric basis it needs to keep a
+                # margin move in percentage points.
+                try:
+                    _fin = plan_finance_query(
+                        query,
+                        entities=_ents if isinstance(_ents, dict) else None,
+                    )
+                    query_plan["finance_plan"] = _fin.as_dict()
+                except Exception as e:  # noqa: BLE001
+                    # Advisory only. A planning failure must not take down a
+                    # search that would otherwise answer.
+                    logger.warning("finance_plan_failed",
+                                   trace_id=trace_id, error_type=type(e).__name__)
 
                 # §4: deterministic LOCAL / SEC / WEB routing, decided from the
                 # question's own words before anything is retrieved. The plan is
