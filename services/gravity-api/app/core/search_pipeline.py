@@ -1389,8 +1389,19 @@ class SearchPipeline:
                         n for n in dict.fromkeys(candidate_numbers)
                         if not calc_guard.looks_like_a_year(n)
                     ][:4]
-                    if len(uniq) >= 2 and calc_guard.plausible_operand_pair(
-                            uniq[0], uniq[1], calc_type):
+                    _calc_ok = len(uniq) >= 2 and calc_guard.plausible_operand_pair(
+                        uniq[0], uniq[1], calc_type)
+                    if not _calc_ok:
+                        # Say so. A silent refusal is the same invisibility that
+                        # let a 2s timeout and a 20,160% growth rate both hide
+                        # in plain sight: without this line, "the guard is
+                        # working" and "the pre-pass never ran" look identical.
+                        logger.info(
+                            "calculator_refused", trace_id=trace_id,
+                            calc_type=calc_type, candidates=len(uniq),
+                            operands=uniq[:2],
+                        )
+                    if _calc_ok:
                         calc_result = execute_calculation(calc_type, {
                             "old": uniq[1], "new": uniq[0],           # percentage_change / yoy_growth
                             "current": uniq[0], "prior_year": uniq[1], # yoy_growth alt params

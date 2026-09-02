@@ -209,6 +209,19 @@ def _declines_the_period(text: str, case: dict) -> bool:
     return any(p in t for p in _DECLINE_PHRASES)
 
 
+#: A bulleted or comma-joined list of capitalised names — the shape a set
+#: question's answer takes when it actually claims members.
+_MEMBER_LIST = re.compile(
+    r"(?:^|\n)\s*[-*•]\s*\*{0,2}[A-Z][\w.&'-]+"
+    r"|\b[A-Z][\w.&'-]+(?:,\s*[A-Z][\w.&'-]+){2,}",
+)
+
+
+def _names_members(text: str) -> bool:
+    """Whether the reply actually lists companies, as opposed to declining to."""
+    return bool(_MEMBER_LIST.search(text or ""))
+
+
 def _figures_attributed_to(text: str, case: dict) -> set[str]:
     """
     Figures stated in the same sentence as the unreported period.
@@ -334,7 +347,21 @@ def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None
             # "revenue grew 20,160%" into "the sources do not provide FY2025
             # revenue, so the growth rate cannot be computed". Both score zero
             # on correctness; only one of them would have misled anyone.
-            declined = _declines_the_period(text, case) and not _financial_figures(text)
+            # "Declined" means it refused THE ASKED-FOR quantity, and an
+            # explicit refusal is the evidence for that. Other figures in the
+            # reply are context, not competing claims: an answer that gives
+            # FY2025 revenue and says the FY2024 base is unavailable so growth
+            # cannot be computed has declined, and scoring it as a confident
+            # wrong answer punishes exactly the behaviour `calc_guard` was
+            # added to produce.
+            #
+            # This deliberately does NOT reuse the abstention-case rule. There,
+            # the whole question is whether any figure was offered for an
+            # unreported period, so a sentence-scoped figure check is right.
+            # Here the expected value is already known to be absent — that is
+            # why this branch runs — so the only question left is whether the
+            # system said so or guessed.
+            declined = _declines_the_period(text, case)
             card.scores["correctness"] = 0.0
             card.notes["correctness"] = (
                 f"expected {expected}; the answer declined rather than guessing"
@@ -390,12 +417,21 @@ def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None
         hedged = any(p in low for p in (
             "at least", "partial", "were examined", "may be others",
             "not exhaustive", "not a complete"))
+        # A reply that names NO members and says so is not overstating its
+        # coverage — it is the strongest possible statement of limited coverage.
+        # The hedge list only recognises partial answers, so a complete refusal
+        # scored zero for "presenting a partial scan as complete", which is the
+        # opposite of what it did.
+        refused = any(p in low for p in _DECLINE_PHRASES) and not _names_members(text)
         if scope_status == "confirmed_exhaustive":
             card.scores["scope"] = 1.0
+        elif hedged or refused:
+            card.scores["scope"] = 1.0
+            card.notes["scope"] = ("coverage refused outright" if refused and not hedged
+                                   else "partial coverage stated")
         else:
-            card.scores["scope"] = 1.0 if hedged else 0.0
-            card.notes["scope"] = ("partial coverage stated" if hedged
-                                   else "partial scan presented as complete")
+            card.scores["scope"] = 0.0
+            card.notes["scope"] = "partial scan presented as complete"
     else:
         card.scores["scope"] = None
         card.notes["scope"] = "not a set question"

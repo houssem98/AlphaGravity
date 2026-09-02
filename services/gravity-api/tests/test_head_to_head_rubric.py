@@ -533,3 +533,86 @@ def test_the_aggregate_reports_both_counts():
     agg = aggregate(cards)
     assert agg["false_confidence"] == 1
     assert agg["false_abstention"] == 1
+
+
+# ── Two more grader bugs, found by benchmark run 4 ────────────────────────
+#
+# Both punished an honest answer, which is the same class as the three before:
+# the grader does not merely mis-score, it aims the system at the wrong target.
+
+
+def test_a_complete_refusal_on_a_set_question_is_not_an_overstated_scan():
+    """
+    Run 4 scored this 0.0 for "partial scan presented as complete":
+
+        "No source passage identifies which S&P 500 companies mentioned tariff
+         risk in their 10-K filings. The available evidence covers earnings
+         calls, not 10-Ks, and does not name individual companies."
+
+    It names nobody. That is the strongest possible statement of limited
+    coverage, and the hedge list only recognised PARTIAL answers.
+    """
+    c = score_answer(
+        BY_ID["sp500-tariff-scope"],
+        "No source passage identifies which S&P 500 companies mentioned tariff "
+        "risk in their 10-K filings. The available evidence covers earnings "
+        "calls, not 10-Ks, and does not name individual companies.",
+        citations=SEC, scope_status="confirmed_partial")
+    assert c.scores["scope"] == 1.0, c.notes["scope"]
+    assert "refused" in c.notes["scope"]
+
+
+def test_a_list_of_names_with_no_hedge_still_scores_zero_scope():
+    """The fix must not excuse an actual unhedged list."""
+    c = score_answer(
+        BY_ID["sp500-tariff-scope"],
+        "Apple, Microsoft, Nike and Ford mentioned tariff risk in their "
+        "10-K filings [1].",
+        citations=SEC, scope_status="confirmed_partial")
+    assert c.scores["scope"] == 0.0
+
+
+def test_a_bulleted_list_counts_as_naming_members():
+    c = score_answer(
+        BY_ID["sp500-tariff-scope"],
+        "The following mentioned tariff risk:\n- Apple\n- Microsoft\n- Nike\n",
+        citations=SEC, scope_status="confirmed_partial")
+    assert c.scores["scope"] == 0.0
+
+
+def test_declining_the_asked_metric_while_reporting_another_is_not_false_confidence():
+    """
+    Run 4 labelled this `false_confidence`:
+
+        "Apple's total net sales for FY2025 were $416.161B[1]. The sources do
+         not contain Apple's FY2024 total net sales figure, so the
+         year-over-year growth rate for FY2025 cannot be computed."
+
+    It reports the figure it HAS and declines the one it does not. Scoring that
+    as a confident wrong answer punishes precisely the behaviour `calc_guard`
+    was added to produce.
+    """
+    c = score_answer(
+        BY_ID["aapl-fy2025-growth"],
+        "Apple's total net sales for FY2025 (fiscal year ended September 27, "
+        "2025) were $416.161B[1]. The sources do not contain Apple's FY2024 "
+        "total net sales figure, so the year-over-year growth rate for FY2025 "
+        "cannot be computed.",
+        citations=SEC)
+    assert c.scores["correctness"] == 0.0
+    assert c.notes["failure_mode"] == "false_abstention", c.notes["correctness"]
+
+
+def test_a_genuinely_wrong_growth_rate_is_still_false_confidence():
+    """
+    The fix must not reclassify a real error. Run 4's NVIDIA answer stated
+    85.2% using a derived FY2025 base of $116.599B against a filed
+    $130,497,000,000 — a wrong number, confidently given.
+    """
+    c = score_answer(
+        BY_ID["nvda-fy2026-growth"],
+        "NVIDIA's revenue grew 85.2% YoY in fiscal 2026, reaching $215.938B "
+        "versus $116.599B in fiscal 2025 [1].",
+        citations=SEC)
+    assert c.scores["correctness"] == 0.0
+    assert c.notes["failure_mode"] == "false_confidence"

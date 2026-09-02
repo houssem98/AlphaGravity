@@ -170,16 +170,22 @@ Lookups are stable. Anything requiring two figures and an operation is not.
 **Three of the five failures were my grader's fault, not the system's**, and
 finding that out is the reason the rubric has its own test suite:
 
-| Grader bug | What it did |
-|---|---|
-| The sign was not parsed | `-5.48%` read as `5.48`, so a **correctly reported decline** scored zero against an expected `-5.476` |
-| Any figure failed an abstention | An answer that correctly declined FY2031 *and then cited the newest filed quarter* scored zero — training the system toward abstentions that cannot say what **is** known |
-| Wrong evidence vocabulary | The rubric knew `answer_contract.SourceClass` names; the pipeline emits `research.evidence` names (`SEC_EVIDENCE`), so **every real SEC citation scored as non-primary** |
+| # | Grader bug | What it did | Found in |
+|---|---|---|---|
+| 1 | The sign was not parsed | `-5.48%` read as `5.48`, so a **correctly reported decline** scored zero against an expected `-5.476` | run 1 |
+| 2 | Any figure failed an abstention | An answer that correctly declined FY2031 *and then cited the newest filed quarter* scored zero — training the system toward abstentions that cannot say what **is** known | run 1 |
+| 3 | Wrong evidence vocabulary | The rubric knew `answer_contract.SourceClass` names; the pipeline emits `research.evidence` names (`SEC_EVIDENCE`), so **every real SEC citation scored as non-primary** | run 1 |
+| 4 | A complete refusal scored as an overstated scan | *"No source passage identifies which S&P 500 companies mentioned tariff risk… does not name individual companies"* scored **0.0 for "partial scan presented as complete"**. It names nobody — the strongest possible statement of limited coverage — but the hedge list only recognised *partial* answers | run 4 |
+| 5 | Declining one metric while reporting another read as false confidence | *"FY2025 net sales were $416.161B. The sources do not contain FY2024, so growth cannot be computed"* was labelled `false_confidence`, punishing precisely the behaviour `calc_guard` was added to produce | run 4 |
 
-All three marked a **right answer wrong**, which is the worst class of grader
-defect: it does not merely mis-score, it points optimisation at the wrong
-target. Each is fixed and pinned by regression tests in
-`test_head_to_head_rubric.py`.
+**All five marked a right answer wrong.** That is the worst class of grader
+defect: it does not merely mis-score, it aims optimisation at the wrong target —
+and bugs 4 and 5 would have aimed it directly against the honesty fixes made
+earlier in the same session. Each is fixed and pinned by regression tests in
+`test_head_to_head_rubric.py`, including
+`test_a_list_of_names_with_no_hedge_still_scores_zero_scope` and
+`test_a_genuinely_wrong_growth_rate_is_still_false_confidence`, which check that
+the fixes did not simply make the rubric lenient.
 
 ### Genuine system defects the benchmark found
 
@@ -222,6 +228,15 @@ The block's label no longer claims the result is verified.
 The asymmetry is deliberate and asserted in `test_the_guard_is_conservative_by_design`:
 a false refusal costs an injected convenience; a false acceptance costs a
 fabricated figure presented to a user as verified. 50 tests.
+
+**A third invisibility, caught before it became a fourth bug.** After the guard
+shipped, `calculator_injected` stopped appearing in the logs entirely — which
+could mean the guard was refusing every bad pair, or that the pre-pass had
+stopped running at all. Those two look identical when only the success path
+logs, and that is the same blindness that hid a 2 s timeout and a 20,160%
+growth rate. A `calculator_refused` line now carries the calc type and the
+operands it declined, so the guard working and the guard being bypassed are
+distinguishable without attaching a debugger.
 
 **Also non-deterministic, and corrected rather than left overstated:**
 

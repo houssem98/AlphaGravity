@@ -193,3 +193,32 @@ def test_the_injected_block_no_longer_calls_an_unattributed_result_verified():
     src = inspect.getsource(search_pipeline.SearchPipeline.search)
     assert "Use this verified result" not in src
     assert "NOT period- or metric-verified" in src
+
+
+def test_a_refusal_is_logged_rather_than_silent():
+    """
+    Without this, "the guard is working" and "the pre-pass never ran" look
+    identical in the logs — which is the same invisibility that let a 2s
+    timeout and a 20,160% growth rate both hide in plain sight.
+    """
+    import inspect
+
+    from app.core import search_pipeline
+
+    src = inspect.getsource(search_pipeline.SearchPipeline.search)
+    assert "calculator_refused" in src
+    i = src.index("calculator_refused")
+    window = src[max(0, i - 400):i + 300]
+    assert "calc_type" in window and "operands" in window
+
+
+def test_the_injection_and_the_refusal_are_mutually_exclusive():
+    """One path or the other, never both, never neither."""
+    import inspect
+
+    from app.core import search_pipeline
+
+    src = inspect.getsource(search_pipeline.SearchPipeline.search)
+    assert "_calc_ok = len(uniq) >= 2 and calc_guard.plausible_operand_pair(" in src
+    assert "if not _calc_ok:" in src
+    assert "if _calc_ok:" in src
