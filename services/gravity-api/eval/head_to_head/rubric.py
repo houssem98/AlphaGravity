@@ -198,8 +198,15 @@ def _financial_figures(text: str) -> set[str]:
 _DECLINE_PHRASES = (
     "not available", "not reported", "has not ended", "has not begun",
     "no filing", "no 10-k", "not yet", "future period", "cannot",
-    "no data", "does not", "no supporting evidence", "unable",
+    "no data", "no supporting evidence", "unable",
     "not been reported", "nothing", "no results", "not found",
+    # The plain negations. Their absence is what made a clean refusal —
+    # "The sources DO NOT identify which companies…", "NO SOURCE passage
+    # identifies…" — score as an overstated scan: the phrase list recognised
+    # "does not" but not "do not", and recognised no leading "no <noun>" form
+    # at all.
+    "do not", "does not", "did not", "no source", "none of the",
+    "cannot be computed", "could not",
 )
 
 
@@ -422,7 +429,16 @@ def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None
         # The hedge list only recognises partial answers, so a complete refusal
         # scored zero for "presenting a partial scan as complete", which is the
         # opposite of what it did.
-        refused = any(p in low for p in _DECLINE_PHRASES) and not _names_members(text)
+        # Judged on the OPENING sentence. A reply that begins "The sources do
+        # not identify which companies..." is refusing, whatever follows — and
+        # what follows is routinely a bulleted list of the SOURCES it consulted,
+        # which the member-list heuristic cannot tell from a list of companies.
+        # Scanning the whole reply made a clean refusal score zero for
+        # "presenting a partial scan as complete", which is the opposite of
+        # what it did.
+        first = re.split(r"(?<=[.!?])\s+|\n", text.strip(), maxsplit=1)[0].lower()
+        refused = (any(p in first for p in _DECLINE_PHRASES)
+                   and not _names_members(first))
         if scope_status == "confirmed_exhaustive":
             card.scores["scope"] = 1.0
         elif hedged or refused:

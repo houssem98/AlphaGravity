@@ -616,3 +616,46 @@ def test_a_genuinely_wrong_growth_rate_is_still_false_confidence():
         citations=SEC)
     assert c.scores["correctness"] == 0.0
     assert c.notes["failure_mode"] == "false_confidence"
+
+
+def test_a_refusal_followed_by_a_source_list_is_still_a_refusal():
+    """
+    Grader bug 6, from run 5. The reply opens with a clean refusal and then
+    lists the SOURCES it consulted:
+
+        "The sources do not identify which S&P 500 companies mentioned tariff
+         risk in their 10-K filings. ...
+         FactSet ..."
+
+    `_names_members` cannot tell a list of sources from a list of companies, so
+    scanning the whole reply scored a clean refusal 0.0 for "presenting a
+    partial scan as complete". The opening sentence is the honest place to judge
+    what the answer claims.
+    """
+    c = score_answer(
+        BY_ID["sp500-tariff-scope"],
+        "The sources do not identify which S&P 500 companies mentioned tariff "
+        "risk in their 10-K filings. The provided material covers earnings "
+        "conference calls, not 10-K filings, and does not name individual "
+        "companies.\n\nSources consulted:\n- FactSet\n- Reuters\n- Bloomberg\n",
+        citations=SEC, scope_status="confirmed_partial")
+    assert c.scores["scope"] == 1.0, c.notes["scope"]
+
+
+def test_an_opening_list_of_companies_is_still_scored_zero():
+    """The fix must not excuse an answer that opens by naming members."""
+    c = score_answer(
+        BY_ID["sp500-tariff-scope"],
+        "Apple, Microsoft, Nike and Ford mentioned tariff risk in their 10-Ks "
+        "[1]. No other companies were checked.",
+        citations=SEC, scope_status="confirmed_partial")
+    assert c.scores["scope"] == 0.0
+
+
+def test_a_hedged_partial_answer_is_unaffected_by_the_opening_sentence_rule():
+    c = score_answer(
+        BY_ID["sp500-tariff-scope"],
+        "At least 3 match. 40 of 503 members were examined, so there may be "
+        "others [1].\n\n- Apple\n- Microsoft\n- Nike",
+        citations=SEC, scope_status="confirmed_partial")
+    assert c.scores["scope"] == 1.0

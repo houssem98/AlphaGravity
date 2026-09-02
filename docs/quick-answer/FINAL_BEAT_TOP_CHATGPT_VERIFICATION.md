@@ -137,25 +137,36 @@ Three live runs, 14 cases each, against a locally booted API. Run 2 followed
 the grader's own defects being fixed; run 3 followed the entity-resolver
 latency fix:
 
-| Dimension | run 1 | run 2 | run 3 |
-|---|---|---|---|
-| **mean weighted** | 0.5433 | 0.7506 | 0.6866 |
-| **correctness** | 0.6154 | **0.8462** | **0.6923** |
-| evidence | 0.3571 | 0.7071 | 0.7071 |
-| period_entity | 0.9167 | 0.9167 | 0.9167 |
-| scope | 1.0 | 1.0 | 1.0 |
-| latency | 0.1551 | 0.1604 | **0.1871** |
-| reasoning | ungraded | ungraded | ungraded |
-| clarity | ungraded | ungraded | ungraded |
+| Dimension | run 1 | run 2 | run 3 | run 4 | run 5 |
+|---|---|---|---|---|---|
+| **mean weighted** | 0.5433 | 0.7506 | 0.6866 | 0.6660 | 0.6482 |
+| **correctness** | 0.6154 | **0.8462** | 0.6923 | 0.6923 | **0.6154** |
+| evidence | 0.3571 | 0.7071 | 0.7071 | 0.7071 | 0.7571 |
+| period_entity | 0.9167 | 0.9167 | 0.9167 | 0.9167 | 0.9167 |
+| scope | 1.0 | 1.0 | 1.0 | 0.0* | 0.0* |
+| latency | 0.1551 | 0.1604 | **0.1871** | 0.1843 | 0.1779 |
+| false_confidence | — | — | — | 2 | **1** |
+| false_abstention | — | — | — | 2 | **4** |
+| reasoning | ungraded | ungraded | ungraded | ungraded | ungraded |
+| clarity | ungraded | ungraded | ungraded | ungraded | ungraded |
 
-Graded weight 62.1% throughout.
+Graded weight 62.1% throughout. The false-confidence / false-abstention split
+was added after run 3.
+
+\* The run 4 and 5 scope zeros are **grader bug 6**, not a regression: a clean
+refusal was scored as an overstated scan. Rescoring run 5's recorded answer with
+the corrected rubric gives `scope 1.0 (coverage refused outright)`.
 
 **The run-to-run spread is the finding, not the score.** Correctness moved
-0.6154 → 0.8462 → 0.6923 with the answer path unchanged between runs 2 and 3.
-Reporting any single one of these as "the" correctness number would be a coin
-flip dressed as a measurement — which is exactly why three runs are recorded
-and why the head-to-head verdict stays `UNVERIFIED` rather than being read off
-one sample.
+0.6154 → 0.8462 → 0.6923 → 0.6923 → 0.6154 across five runs. Reporting any
+single one as "the" correctness number would be a coin flip dressed as a
+measurement — which is why all five are recorded and why the head-to-head
+verdict stays `UNVERIFIED` rather than being read off one sample.
+
+**The most useful number is the split, not the mean.** Run 5: **1 false
+confidence, 4 false abstentions.** Four of the five misses are the system
+declining rather than guessing — which is the behaviour `calc_guard` was built
+to produce, and which a single "correctness 0.6154" hides completely.
 
 Per-case, the instability is concentrated in the derived (growth) questions:
 
@@ -176,9 +187,10 @@ finding that out is the reason the rubric has its own test suite:
 | 2 | Any figure failed an abstention | An answer that correctly declined FY2031 *and then cited the newest filed quarter* scored zero — training the system toward abstentions that cannot say what **is** known | run 1 |
 | 3 | Wrong evidence vocabulary | The rubric knew `answer_contract.SourceClass` names; the pipeline emits `research.evidence` names (`SEC_EVIDENCE`), so **every real SEC citation scored as non-primary** | run 1 |
 | 4 | A complete refusal scored as an overstated scan | *"No source passage identifies which S&P 500 companies mentioned tariff risk… does not name individual companies"* scored **0.0 for "partial scan presented as complete"**. It names nobody — the strongest possible statement of limited coverage — but the hedge list only recognised *partial* answers | run 4 |
+| 6 | The refusal vocabulary missed plain negations, twice | The first fix for bug 4 did not work, because `_DECLINE_PHRASES` contained `"does not"` but not `"do not"`, and no leading `"no <noun>"` form at all — so *"The sources **do not** identify…"* and *"**No source** passage identifies…"* both still scored zero. It also scanned the whole reply, where a bulleted list of the **sources consulted** is indistinguishable from a list of member companies. Now judged on the opening sentence, with the negations added | run 5 |
 | 5 | Declining one metric while reporting another read as false confidence | *"FY2025 net sales were $416.161B. The sources do not contain FY2024, so growth cannot be computed"* was labelled `false_confidence`, punishing precisely the behaviour `calc_guard` was added to produce | run 4 |
 
-**All five marked a right answer wrong.** That is the worst class of grader
+**All six marked a right answer wrong.** That is the worst class of grader
 defect: it does not merely mis-score, it aims optimisation at the wrong target —
 and bugs 4 and 5 would have aimed it directly against the honesty fixes made
 earlier in the same session. Each is fixed and pinned by regression tests in
