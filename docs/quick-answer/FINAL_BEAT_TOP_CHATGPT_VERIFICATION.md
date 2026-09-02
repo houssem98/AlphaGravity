@@ -1,0 +1,233 @@
+# Beat Top ChatGPT — Finance Quick Answer Verification
+
+Every number came from a command run in this repository on 2026-09-02. Gates
+that could not be run say `BLOCKED` and why. **No claim is made anywhere in
+this document that AlphaGravity beats ChatGPT** — the head-to-head could not be
+run, and the roadmap forbids inferring it from green tests.
+
+Branch `feat/web-research-sec-integration` · baseline commit `b6d8441`
+
+Covers `BEAT_TOP_CHATGPT_FINANCE_QUICK_ANSWER_ROADMAP.md`. Items 1–8 and 15–16
+were delivered by `8ccc1ed` and `29aa6f6` and are verified in
+[FINAL_FIX_VERIFICATION.md](FINAL_FIX_VERIFICATION.md) and
+[FINAL_FINANCE_QUICK_ANSWER_VERIFICATION.md](FINAL_FINANCE_QUICK_ANSWER_VERIFICATION.md).
+This pass adds **9, 10, 11, 12, 13, 14**.
+
+---
+
+## 1. The headline result: the ~23 s is found
+
+The previous pass measured ~27 s end to end and could account for ~3.4 s of it.
+The remaining ~23 s was invisible because **an unmeasured stage and a fast stage
+look identical in a report**.
+
+`app/core/finance/stage_trace.py` instruments all twelve boundaries. Across 11
+live traces captured on 2026-09-02:
+
+| Stage | n | min | median | max | stdev |
+|---|---|---|---|---|---|
+| **retrieval** | 11 | 5,661 | **11,324** | 24,930 | 6,338 |
+| **serialization** | 11 | 12 | **4,069** | 4,103 | 1,644 |
+| **entity** | 11 | 2,003 | **4,007** | 4,079 | 607 |
+| generation | 11 | 1,304 | 2,456 | 13,441 | 4,453 |
+| planning | 11 | 1,525 | 1,974 | 2,384 | 282 |
+| rerank | 11 | 383 | 634 | 8,347 | 2,346 |
+| evidence_gate | 10 | 374 | 510 | 3,108 | 831 |
+| provenance | 11 | 0 | 166 | 2,536 | 866 |
+| **verification** | 11 | 2 | **14** | 63 | 18 |
+| context | 11 | 0 | 0 | 7 | 3 |
+| merge_dedup | 11 | 0 | 0 | 0 | 0 |
+
+`unattributed_ms` fell from ~23,000 to **~3,000–4,100**.
+
+**Verification costs 14 ms at the median.** It is the cheapest stage measured.
+Any proposal to disable it for speed is trading a correctness guarantee for
+0.05% of the request, and this table is the reason that trade will not be made.
+
+### The defect the trace exposed
+
+`entity` was a *constant* 2003 ms or 4007 ms. **Constant time is a timeout, not
+work.** The log line that should have explained it read, on every request:
+
+```
+entity_resolution_skipped   error=
+```
+
+`asyncio.TimeoutError` has an empty `str()`, so `error=str(e)` printed nothing.
+Two defects, one symptom:
+
+1. `get_resolver` rebuilds whenever its singleton is not ready. With the SEC
+   ticker file unreachable it never becomes ready, so **every request paid the
+   full 2 s `wait_for` timeout with no possibility of success** — twice, in the
+   4007 ms case.
+2. The failure was invisible, which is how a ~15%-of-request defect survived.
+
+Fixed in `search_pipeline.py`: the failure now logs `error_type` and arms a
+60-second backoff, so a dead resolver is paid for once a minute rather than once
+a query. Pinned by `tests/test_resolver_backoff.py` (8 tests), including
+`test_timeout_error_really_does_stringify_to_nothing`, which asserts the premise
+rather than assuming it.
+
+### Where the rest of the time is
+
+`retrieval` at a median 11.3 s dominates, and inside it the **`dense` channel is
+the slowest, at 8.6–12.0 s, repeatedly hitting its own 12 s timeout**
+(`channel_timeout channel=dense timeout_s=12.0`). Per-channel numbers exist
+because the fan-out costs its slowest member, not the sum — one straggler is
+invisible in an aggregate while setting the floor for the whole request.
+
+`serialization` is bimodal: min 12 ms, median 4,069 ms. That window contains
+Stage 9 (cache write). **Not yet diagnosed** — stated as an open finding rather
+than guessed at.
+
+---
+
+## 2. Gate table
+
+| # | Gate | Command | Exit | Result | Verdict |
+|---|---|---|---|---|---|
+| 1 | Backend tests | `pytest tests/ -q --ignore=tests/live --ignore=tests/eval` | 0 | **2008 passed, 0 failed**, 394.90s | **PASS** |
+| 2 | Frontend tests | `npx vitest run src/` | 0 | **1516 passed, 87 files** | **PASS** |
+| 2b | Typecheck | `npx tsc --noEmit -p tsconfig.app.json` | 0 | no errors | **PASS** |
+| 2c | Build | `npx tsc -b && npx vite build` | 0 | `dist/` written, 74s | **PASS** |
+| 3 | Stage trace | `pytest tests/test_stage_trace.py -q` | 0 | **19 passed** | **PASS** |
+| 4 | Answer contract | `pytest tests/test_answer_contract.py -q` | 0 | **62 passed** | **PASS** |
+| 5 | Head-to-head rubric | `pytest tests/test_head_to_head_rubric.py -q` | 0 | **70 passed** | **PASS** |
+| 6 | Resolver backoff | `pytest tests/test_resolver_backoff.py -q` | 0 | **8 passed** | **PASS** |
+| 7 | Query planning | `pytest tests/test_finance_query_plan.py -q` | 0 | 105 passed | **PASS** |
+| 8 | Pipeline E2E | `pytest tests/test_quick_answer_pipeline_e2e.py tests/test_search_pipeline_sec_e2e.py -q` | 0 | 25 passed | **PASS** |
+| 9 | Gate integrity | `node ~/.claude/scripts/gate-guard.mjs` | 0 | clean | **PASS** |
+| 10 | **Live benchmark** | `python -m eval.head_to_head.run_benchmark --live` | 0 | 14 cases, §3 | **PARTIAL** |
+| 11 | **Blind head-to-head** | same, `--reference refs.json` | — | no reference answers exist | **BLOCKED** |
+| 12 | Latency forensics | 11 live stage traces | 0 | §1 | **PASS** |
+| 13 | Browser E2E | — | — | no spec covers the SEC links | **BLOCKED** |
+
+---
+
+## 3. The golden benchmark
+
+`eval/head_to_head/` — 14 cases, ground truth **fetched from SEC's XBRL
+`companyconcept` API on 2026-09-02**, not from any model and not from a
+reference answer. Every figure carries its accession number in
+`cases.json:provenance`. If a reference answer disagrees with these, the
+reference is wrong; that is what an independent key is for.
+
+First live run, 14 cases against a locally booted API:
+
+```
+ALPHAGRAVITY   mean weighted 0.5433 over 62.1% of the rubric's weight
+  correctness      0.6154
+  evidence         0.3571
+  period_entity    0.9167
+  scope            1.0
+  latency          0.1551
+  reasoning        ungraded
+  clarity          ungraded
+```
+
+**Three of the five failures were my grader's fault, not the system's**, and
+finding that out is the reason the rubric has its own test suite:
+
+| Grader bug | What it did |
+|---|---|
+| The sign was not parsed | `-5.48%` read as `5.48`, so a **correctly reported decline** scored zero against an expected `-5.476` |
+| Any figure failed an abstention | An answer that correctly declined FY2031 *and then cited the newest filed quarter* scored zero — training the system toward abstentions that cannot say what **is** known |
+| Wrong evidence vocabulary | The rubric knew `answer_contract.SourceClass` names; the pipeline emits `research.evidence` names (`SEC_EVIDENCE`), so **every real SEC citation scored as non-primary** |
+
+All three marked a **right answer wrong**, which is the worst class of grader
+defect: it does not merely mis-score, it points optimisation at the wrong
+target. Each is fixed and pinned by regression tests in
+`test_head_to_head_rubric.py`.
+
+### Genuine system defects the benchmark found
+
+- **`cprt-fy2025-revenue` and `odfl-fy2025-revenue`: 225,767 ms and 220,047 ms
+  with zero citations**, answering "No supporting evidence found". Both are
+  registrants outside the ~30-ticker local corpus. Real coverage and latency
+  failure, unfixed in this pass.
+- **`aapl-fy2025-growth`: reported FY2024 revenue as `$391.535B`.** The filing
+  says **391,035,000,000**. A transposed digit produced 6.3% growth against a
+  true 6.4255%. Real correctness defect, unfixed.
+
+---
+
+## 4. Items 9–12, what was built
+
+**#9 Channel status.** `ChannelResults` now carries `timings` beside `failed`.
+`_safe_search` records the duration **including on timeout** — the timeout is
+the most interesting duration to keep, since it is the channel that set the
+fan-out's floor. Per-channel latency, error type and result count reach the
+trace and the metadata.
+
+**#10 Latency forensics.** §1.
+
+**#11 Answer Contract.** `app/core/finance/answer_contract.py`. Six answer
+modes, evidence obligations, source priority, abstention, scope and shape —
+computed from the plan alone, before retrieval, and carried in
+`query_plan["answer_contract"]`.
+
+The half that matters is `FinalGate.check()`. Whether an answer needs a filing
+was previously argued for **inside a prompt**, and a prompt is a request, not a
+constraint: if the model decided a news article was good enough, nothing
+downstream disagreed, and the citation looked fine because a citation existed.
+The gate reports violations and **never rewrites** — a gate that edits an answer
+to satisfy itself is grading its own work, asserted by
+`test_the_gate_never_rewrites_the_answer`.
+
+**#12 Answer quality.** `prompts.contract_directives()` renders the contract as
+instructions. `test_every_gate_clause_has_a_matching_directive` pins that the
+two halves cannot drift: if the gate can fail an answer for a rule the model was
+never given, the system is punishing the model for a secret.
+
+---
+
+## 5. BLOCKED, and why no number is invented
+
+**`BLOCKED` — the blind head-to-head (#14).** The harness is complete: rubric
+with the roadmap's exact weights (30/20/15/10/10/10/5, asserted to sum to 100),
+seeded blinding so a grader cannot tell which side is ours, and a runner that
+takes `--reference`. What does not exist is **a recording of what a top ChatGPT
+finance answer actually said**. Producing one requires a human running the same
+14 questions.
+
+The runner therefore reports `reference_status: BLOCKED` and
+`verdict: UNVERIFIED`. Writing reference answers myself would make the benchmark
+score the system against itself, which is the specific failure the roadmap
+names. **No "beats ChatGPT" claim appears in this document or in the code.**
+
+**`UNGRADED` — 25 of 100 rubric points.** `reasoning` and `clarity` need human
+or multi-trial judgement. Repeated identical LLM-judge calls flip their pairwise
+preference often enough that a single call at a fixed threshold is a biased
+coin, so those dimensions are reported as ungraded and the weighted score is
+renormalised over the graded weight — otherwise both systems get an identical
+25-point hole and it gets called a total.
+
+**`BLOCKED` — browser E2E (#15, partial).** `playwright.config.ts` and
+`npm run e2e` exist and target the deployed build, but **no spec references
+`EdgarLink`, "View filing", "Filing details" or `sec.gov`**, so running the
+suite proves nothing about the SEC work.
+
+**Open, unfixed, and named rather than closed:**
+
+1. CPRT/ODFL: 220 s+, zero citations, for registrants outside the local corpus.
+2. `aapl-fy2025-growth`: FY2024 revenue reported as 391.535B against a filed
+   391.035B.
+3. `serialization`'s bimodal 12 ms / 4,069 ms — window identified, cause not.
+4. `dense` channel hitting its 12 s timeout repeatedly.
+
+---
+
+## 6. Files
+
+Modified (4): `search_pipeline.py`, `retrieval/orchestrator.py`,
+`reasoning/prompts.py`, `tests/test_finance_query_plan.py`.
+
+Added (9): `finance/stage_trace.py`, `finance/answer_contract.py`,
+`eval/head_to_head/{__init__,cases.json,rubric.py,run_benchmark.py}`,
+`tests/{test_stage_trace,test_answer_contract,test_head_to_head_rubric,test_resolver_backoff}.py`.
+
+One test was **rewritten, not weakened**:
+`test_a_planning_failure_cannot_take_down_a_search` scanned a fixed 700-character
+window of source text and broke when a statement was added inside the same
+`try`. It now walks the AST and asserts the call sits inside a `try` with a
+broad handler that logs — a strictly stronger check. gate-guard reports clean.

@@ -219,7 +219,57 @@ def format_sources(passages: list, max_passages: int = 15) -> str:
     return "\n".join(parts)
 
 
-def build_user_message(query: str, passages: list, structured_data: str = "") -> str:
+def contract_directives(contract: dict | None) -> str:
+    """
+    The Answer Contract, rendered as instructions the model can follow.
+
+    These are the same obligations `FinalGate` checks afterwards, which is the
+    point: the model is told the rule and then the answer is measured against
+    it. Telling without checking is a wish; checking without telling is a trap.
+    """
+    if not contract:
+        return ""
+    lines: list[str] = []
+    if contract.get("answer_first"):
+        lines.append("- Lead with the answer. The first sentence states the result.")
+    if contract.get("max_words"):
+        lines.append(f"- Keep it under {contract['max_words']} words.")
+    if contract.get("show_calculation"):
+        lines.append("- Show the arithmetic: both inputs, their periods, the result.")
+    if contract.get("prefer_table"):
+        lines.append("- Use a compact table when comparing more than two figures.")
+    if contract.get("change_unit") == "pp":
+        lines.append(
+            "- This metric is a RATE. Report its change in percentage points "
+            "(pp) or basis points (bps), never as a percent change."
+        )
+    if contract.get("requires_period_statement"):
+        lines.append("- Name the fiscal period the figures are actually from.")
+    if contract.get("requires_scope_statement"):
+        lines.append(
+            "- State how much of the named group was examined. Never present a "
+            "partial scan as complete; lead with 'At least N'."
+        )
+    if contract.get("requires_primary_source"):
+        lines.append(
+            "- Rest the answer on the SEC filing. A news report about a filing "
+            "is not the filing."
+        )
+    if contract.get("must_abstain"):
+        lines.append(
+            "- ABSTAIN. State plainly that nothing is reported for this period, "
+            "and give no figure, estimate or projection."
+        )
+    for lim in contract.get("limitations") or []:
+        lines.append(f"- {lim}")
+    if not lines:
+        return ""
+    header = "\n\nANSWER CONTRACT (requirements, not suggestions):\n"
+    return header + "\n".join(lines)
+
+
+def build_user_message(query: str, passages: list, structured_data: str = "",
+                       contract: dict | None = None) -> str:
     """Build the full user message with position-optimised sources and structured data."""
     sources = format_sources(passages)
     structured = structured_data if structured_data else "No structured data available for this query."
@@ -227,7 +277,7 @@ def build_user_message(query: str, passages: list, structured_data: str = "") ->
         query=query,
         sources=sources,
         structured_data=structured,
-    )
+    ) + contract_directives(contract)
 
 
 import re as _re

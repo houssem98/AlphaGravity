@@ -1,0 +1,428 @@
+"""
+The blind head-to-head rubric, and why it is shaped like this.
+
+The roadmap asks whether AlphaGravity beats a top ChatGPT finance answer, with
+a fixed weighting: correctness 30, evidence 20, reasoning 15, period/entity 10,
+scope 10, clarity 10, latency 5.
+
+Three things this module refuses to do, each because the alternative produces a
+number that looks like a result and is not one:
+
+**It does not grade with a model by default.** Repeated identical LLM-judge
+calls flip their pairwise preference often enough that a single call at a fixed
+threshold is a biased coin. Every dimension below that CAN be scored
+mechanically is scored mechanically — correctness against a recorded
+ground-truth figure, evidence against citation presence and class, period and
+entity against the plan. What genuinely needs judgement is left `None` and
+reported as ungraded rather than guessed.
+
+**It does not let either side be scored by its own author.** The reference
+answers live in `cases.json` as data, recorded before the run, and the grader
+cannot see which system produced which answer — `blind_pairs()` shuffles and
+returns opaque labels.
+
+**It does not tune on the reference.** The ground-truth figures come from the
+filings, not from the reference answer. If the reference is wrong, it loses
+points; that is the whole purpose of an independent key.
+
+A run that cannot score a dimension reports it as ungraded. An aggregate over
+partially-graded dimensions is reported with the coverage attached, because
+"we won 62 to 58" means nothing if a third of the rubric never ran.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import random
+import re
+from dataclasses import dataclass, field
+
+__all__ = [
+    "DIMENSIONS", "Dimension", "Scorecard", "blind_pairs", "score_answer",
+]
+
+
+@dataclass(frozen=True)
+class Dimension:
+    key: str
+    weight: int
+    mechanical: bool
+    what: str
+
+
+#: The roadmap's weights, verbatim. They sum to 100 and a test asserts it.
+DIMENSIONS: tuple[Dimension, ...] = (
+    Dimension("correctness", 30, True,
+              "the stated figure matches the filing"),
+    Dimension("evidence", 20, True,
+              "claims carry citations, and to primary sources where required"),
+    Dimension("reasoning", 15, False,
+              "the derivation is stated and sound"),
+    Dimension("period_entity", 10, True,
+              "the right company and the right fiscal period"),
+    Dimension("scope", 10, True,
+              "coverage is stated; a partial scan is not presented as complete"),
+    Dimension("clarity", 10, False,
+              "answer first, no padding, no pipeline noise"),
+    Dimension("latency", 5, True,
+              "wall time to a complete answer"),
+)
+
+_BY_KEY = {d.key: d for d in DIMENSIONS}
+
+
+@dataclass
+class Scorecard:
+    """One system's score on one case. `None` means ungraded, never zero."""
+
+    system: str = ""
+    case_id: str = ""
+    scores: dict[str, float | None] = field(default_factory=dict)
+    notes: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def graded_keys(self) -> list[str]:
+        return [k for k, v in self.scores.items() if v is not None]
+
+    @property
+    def graded_weight(self) -> int:
+        return sum(_BY_KEY[k].weight for k in self.graded_keys if k in _BY_KEY)
+
+    @property
+    def weighted(self) -> float | None:
+        """
+        Weighted score over the dimensions that were actually graded.
+
+        Renormalised to the graded weight, so a run that could not score
+        `reasoning` does not silently hand both systems a 15-point hole and
+        call the remainder a total.
+        """
+        gw = self.graded_weight
+        if not gw:
+            return None
+        total = sum(_BY_KEY[k].weight * float(self.scores[k])
+                    for k in self.graded_keys if k in _BY_KEY)
+        return round(total / gw, 4)
+
+    def as_dict(self) -> dict:
+        return {
+            "system": self.system,
+            "case_id": self.case_id,
+            "scores": self.scores,
+            "notes": self.notes,
+            "graded_weight": self.graded_weight,
+            "ungraded": [d.key for d in DIMENSIONS if self.scores.get(d.key) is None],
+            "weighted": self.weighted,
+        }
+
+
+# ── Mechanical scoring ────────────────────────────────────────────────────
+
+_SCALE = {"k": 1e3, "m": 1e6, "mm": 1e6, "b": 1e9, "bn": 1e9, "t": 1e12,
+          "thousand": 1e3, "million": 1e6, "billion": 1e9, "trillion": 1e12}
+
+#: The sign is part of the number. Without it "-5.48%" parsed as 5.48 and a
+#: correctly reported DECLINE scored zero against an expected -5.476 — the
+#: rubric marking the right answer wrong, which is the worst kind of grader bug
+#: because it pushes the system away from the truth.
+_NUM = re.compile(
+    r"(?:(?<![\w.])[-−–]\s*)?"
+    r"\$?\s*([\d,]+(?:\.\d+)?)\s*"
+    r"(k|mm|m|bn|b|t|thousand|million|billion|trillion)?(?![a-z])",
+    re.I,
+)
+
+#: Words that make a following figure negative even when no minus sign appears.
+#: A 10-K says "declined 5.5%", not "grew -5.5%".
+_NEGATIVE_CUE = re.compile(
+    r"\b(decreas\w*|declin\w*|fell|fall\w*|drop\w*|down|lower|contract\w*|"
+    r"loss|negative|shrank|shrunk)\b", re.I)
+
+
+def numbers_in(text: str, *, signed: bool = True) -> set[float]:
+    """
+    Every number in the text, normalised to base units.
+
+    When `signed`, a leading minus and nearby decline vocabulary both produce
+    the negative reading — alongside the positive one, never instead of it, so
+    a genuinely positive figure elsewhere in the same sentence is not flipped.
+    """
+    out: set[float] = set()
+    t = text or ""
+    for m in _NUM.finditer(t):
+        raw, suffix = m.group(1), m.group(2)
+        try:
+            v = float(raw.replace(",", ""))
+        except ValueError:
+            continue
+        scaled = v * _SCALE.get((suffix or "").lower(), 1.0)
+        out.add(scaled)
+        out.add(v)          # keep the bare reading: "416,161" in millions
+        if not signed:
+            continue
+        lead = t[max(0, m.start() - 2):m.start()]
+        window = t[max(0, m.start() - 60):m.start()]
+        if any(c in lead for c in "-−–") or _NEGATIVE_CUE.search(window):
+            out.add(-scaled)
+            out.add(-v)
+    return out
+
+
+#: A figure that makes a financial CLAIM, as opposed to a year or an ordinal.
+#: Requires a currency mark, a magnitude word, or a percent — the things a
+#: number needs in order to assert how much something was.
+_CLAIM = re.compile(
+    r"\$\s*[\d,]+(?:\.\d+)?"
+    r"|[\d,]+(?:\.\d+)?\s*(?:k|mm|m|bn|b|t)\b"
+    r"|[\d,]+(?:\.\d+)?\s*(?:thousand|million|billion|trillion)"
+    r"|[\d,]+(?:\.\d+)?\s*(?:%|percent|pp|bps)",
+    re.I,
+)
+
+#: A four-digit year, which an honest abstention must be free to name.
+_YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
+
+
+def _financial_figures(text: str) -> set[str]:
+    """Figures that assert a quantity. Years and bare ordinals are excluded."""
+    out = set()
+    for m in _CLAIM.finditer(text or ""):
+        frag = m.group(0).strip()
+        # "$2031" would be a claim; "fiscal 2031" is not.
+        if _YEAR.fullmatch(frag):
+            continue
+        out.add(frag)
+    return out
+
+
+_DECLINE_PHRASES = (
+    "not available", "not reported", "has not ended", "has not begun",
+    "no filing", "no 10-k", "not yet", "future period", "cannot",
+    "no data", "does not", "no supporting evidence", "unable",
+    "not been reported", "nothing", "no results", "not found",
+)
+
+
+def _declines_the_period(text: str, case: dict) -> bool:
+    """Does the reply actually say the asked-for period is unreported?"""
+    t = (text or "").lower()
+    return any(p in t for p in _DECLINE_PHRASES)
+
+
+def _figures_attributed_to(text: str, case: dict) -> set[str]:
+    """
+    Figures stated in the same sentence as the unreported period.
+
+    Sentence scope is the honest granularity: a figure sitting beside "FY2031"
+    is being offered as FY2031's, while one in a later sentence about the last
+    filed quarter is context. Anything finer would need parsing the model's
+    grammar; anything coarser flags the whole reply.
+    """
+    tokens = [t.lower() for t in case.get("expect_period_tokens", [])]
+    # Pull the period out of the question when the case names none.
+    if not tokens:
+        tokens = [y for y in _YEAR.findall(case.get("query", ""))]
+    if not tokens:
+        return set()
+    out: set[str] = set()
+    for sentence in re.split(r"(?<=[.!?])\s+|\n", text or ""):
+        low = sentence.lower()
+        if not any(tok in low for tok in tokens):
+            continue
+        if any(p in low for p in _DECLINE_PHRASES):
+            # "FY2031 revenue is not available" names the period precisely to
+            # deny it. The denial is the answer, not a claim.
+            continue
+        out |= _financial_figures(sentence)
+    return out
+
+
+#: What the pipeline actually calls its evidence classes. The rubric was
+#: written against the names in `answer_contract.SourceClass` and the pipeline
+#: emits `app/core/research/evidence`'s names, so every real SEC citation was
+#: being scored as non-primary — the grader reporting a fault in the system
+#: that was a fault in the grader. Both vocabularies are accepted, and the
+#: accession is honoured as the last word: a citation carrying a real accession
+#: number came from a filing whatever anyone labelled it.
+_PRIMARY_CLASS_NAMES = frozenset({
+    "sec_filing", "sec_xbrl", "edgar", "edgar_text", "structured",
+    "sec_evidence", "local_evidence",
+})
+
+
+def _is_primary(cites: list[dict]) -> bool:
+    for c in cites:
+        cls = str(c.get("source_class", "")).strip().lower()
+        if cls in _PRIMARY_CLASS_NAMES:
+            return True
+        if c.get("accession") or c.get("accession_number"):
+            return True
+        url = str(c.get("view_filing_url") or c.get("url") or "")
+        if "sec.gov/Archives" in url:
+            return True
+    return False
+
+
+def _matches(expected: float, text: str, tol: float = 0.01) -> bool:
+    for got in numbers_in(text):
+        if expected == 0:
+            if got == 0:
+                return True
+            continue
+        if abs(got - expected) / abs(expected) <= tol:
+            return True
+        # A figure quoted in millions against an expected in base units.
+        for scale in (1e3, 1e6, 1e9):
+            if abs(got * scale - expected) / abs(expected) <= tol:
+                return True
+    return False
+
+
+def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None,
+                 latency_ms: float | None = None,
+                 scope_status: str = "", system: str = "") -> Scorecard:
+    """
+    Score one answer against one case, mechanically where possible.
+
+    Every dimension that cannot be decided from the case data is left `None`.
+    Guessing it would put a number on the scorecard that no evidence supports,
+    which is the exact failure this whole effort is about.
+    """
+    cites = citations or []
+    card = Scorecard(system=system, case_id=case.get("id", ""))
+    text = answer or ""
+    low = text.lower()
+
+    # correctness ---------------------------------------------------------
+    expected = case.get("expect_value")
+    if case.get("expect_abstain"):
+        # The failure is a figure attributed to the UNREPORTED period, not a
+        # figure anywhere in the reply. An answer that declines FY2031 and then
+        # cites the latest period it does have is doing the right thing; a
+        # rubric that scores that zero trains the system toward abstentions
+        # which cannot say what IS known, which is worse for a reader and no
+        # more honest.
+        declined = _declines_the_period(text, case)
+        offending = _figures_attributed_to(text, case)
+        ok = declined and not offending
+        card.scores["correctness"] = 1.0 if ok else 0.0
+        # A stated figure is the more informative diagnosis, so it is reported
+        # first: "it answered the unanswerable" tells you more than "it did not
+        # say no", and an answer doing the former is always also doing the latter.
+        if offending:
+            card.notes["correctness"] = (
+                f"abstention case: figure(s) attributed to the unreported "
+                f"period: {sorted(offending)}"
+            )
+        elif not declined:
+            card.notes["correctness"] = "abstention case: the reply never declines the period"
+        else:
+            card.notes["correctness"] = "abstention case: declined, no figure for that period"
+    elif expected is not None:
+        hit = _matches(float(expected), text)
+        card.scores["correctness"] = 1.0 if hit else 0.0
+        card.notes["correctness"] = f"expected {expected}"
+    else:
+        card.scores["correctness"] = None
+        card.notes["correctness"] = "no ground-truth figure recorded"
+
+    # evidence ------------------------------------------------------------
+    if case.get("expect_abstain"):
+        card.scores["evidence"] = 1.0
+        card.notes["evidence"] = "abstention needs no citation"
+    else:
+        has_marker = bool(re.search(r"\[\d+\]", text))
+        classes = {str(c.get("source_class", "")) for c in cites}
+        primary = _is_primary(cites)
+        need_primary = bool(case.get("requires_primary", True))
+        if not cites and not has_marker:
+            card.scores["evidence"] = 0.0
+            card.notes["evidence"] = "no citations at all"
+        elif need_primary and cites and not primary:
+            card.scores["evidence"] = 0.3
+            card.notes["evidence"] = f"cited, but no primary source ({sorted(classes)})"
+        elif cites and primary:
+            card.scores["evidence"] = 1.0
+        else:
+            # A citation marker with no resolvable citation object: a reference
+            # to nothing reads exactly like a reference to something.
+            card.scores["evidence"] = 0.5
+            card.notes["evidence"] = "citation markers with no citation objects"
+
+    # period / entity -----------------------------------------------------
+    checks, hits = 0, 0
+    for token in case.get("expect_period_tokens", []):
+        checks += 1
+        hits += int(token.lower() in low)
+    for token in case.get("expect_entity_tokens", []):
+        checks += 1
+        hits += int(token.lower() in low)
+    for token in case.get("forbid_tokens", []):
+        checks += 1
+        hits += int(token.lower() not in low)
+    card.scores["period_entity"] = round(hits / checks, 4) if checks else None
+    if not checks:
+        card.notes["period_entity"] = "no period/entity tokens recorded"
+
+    # scope ---------------------------------------------------------------
+    if case.get("is_set_question"):
+        hedged = any(p in low for p in (
+            "at least", "partial", "were examined", "may be others",
+            "not exhaustive", "not a complete"))
+        if scope_status == "confirmed_exhaustive":
+            card.scores["scope"] = 1.0
+        else:
+            card.scores["scope"] = 1.0 if hedged else 0.0
+            card.notes["scope"] = ("partial coverage stated" if hedged
+                                   else "partial scan presented as complete")
+    else:
+        card.scores["scope"] = None
+        card.notes["scope"] = "not a set question"
+
+    # latency -------------------------------------------------------------
+    if latency_ms is None:
+        card.scores["latency"] = None
+        card.notes["latency"] = "not measured for this system"
+    else:
+        # The roadmap's targets: simple 2-5s, normal 4-8s, complex 6-10s.
+        budget = float(case.get("latency_budget_ms", 8000))
+        card.scores["latency"] = round(
+            max(0.0, min(1.0, budget / max(latency_ms, 1.0))), 4)
+        card.notes["latency"] = f"{latency_ms:.0f}ms against a {budget:.0f}ms budget"
+
+    # judgement dimensions ------------------------------------------------
+    # Left ungraded on purpose. A single model-judge call at a fixed threshold
+    # is a biased coin, and a fabricated 0.8 here would move the aggregate by
+    # 25 points of weight on no evidence.
+    card.scores["reasoning"] = None
+    card.notes["reasoning"] = "requires human or multi-trial judgement; not graded"
+    card.scores["clarity"] = None
+    card.notes["clarity"] = "requires human or multi-trial judgement; not graded"
+
+    return card
+
+
+# ── Blinding ──────────────────────────────────────────────────────────────
+
+
+def blind_pairs(pairs: list[tuple[str, str]], *, seed: str = "") -> list[dict]:
+    """
+    Shuffle each (system_a_answer, system_b_answer) pair behind opaque labels.
+
+    A grader who can tell which answer is ours is not grading; the shuffle is
+    seeded so a run is reproducible without being predictable per-case.
+    """
+    out = []
+    for i, (a, b) in enumerate(pairs):
+        h = hashlib.sha256(f"{seed}:{i}".encode()).hexdigest()
+        rng = random.Random(h)
+        flip = rng.random() < 0.5
+        out.append({
+            "index": i,
+            "left": b if flip else a,
+            "right": a if flip else b,
+            # The key is kept so the run can be scored afterwards, but it is a
+            # separate field a grader is not shown.
+            "_left_is": "b" if flip else "a",
+        })
+    return out

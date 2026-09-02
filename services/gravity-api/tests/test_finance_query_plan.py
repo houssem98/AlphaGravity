@@ -402,17 +402,44 @@ def test_the_pipeline_computes_the_finance_plan_at_classification_time():
 
 
 def test_a_planning_failure_cannot_take_down_a_search():
-    """Advisory means advisory: a raise here must not lose the answer."""
+    """
+    Advisory means advisory: a raise here must not lose the answer.
+
+    Checked structurally rather than by scanning a fixed window of source
+    text. The window version broke the moment another statement was added
+    inside the same `try`, which is a false alarm about a guard that was still
+    there — and a guard test that cries wolf is a guard test that gets deleted.
+    """
+    import ast
     import inspect
+    import textwrap
 
     from app.core import search_pipeline
 
-    src = inspect.getsource(search_pipeline)
-    i = src.find("_fin = plan_finance_query(")
-    assert i != -1
-    after = src[i:i + 700]
-    assert "except Exception" in after
-    assert "finance_plan_failed" in after
+    tree = ast.parse(textwrap.dedent(inspect.getsource(search_pipeline.SearchPipeline)))
+
+    protected = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        calls = {
+            n.func.id
+            for n in ast.walk(node)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+        }
+        if "plan_finance_query" not in calls:
+            continue
+        # It must be caught by a bare `Exception`, not a narrow subclass that
+        # would let an unexpected error through.
+        broad = any(
+            h.type is None or (isinstance(h.type, ast.Name) and h.type.id == "Exception")
+            for h in node.handlers
+        )
+        logged = "finance_plan_failed" in ast.dump(node)
+        protected.append(broad and logged)
+
+    assert protected, "plan_finance_query is not inside any try block"
+    assert all(protected), "a plan_finance_query call is not guarded by except Exception + log"
 
 
 def test_the_plan_written_into_query_plan_is_the_serialized_form():

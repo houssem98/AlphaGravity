@@ -82,6 +82,18 @@ def cache_provenance_of(retrieval_results, routing_decision, passages_used, trac
     }
 
 
+#: When the entity resolver may next be attempted. A list so the closure inside
+#: `search()` can write to it without a `global`.
+#:
+#: The resolver is rebuilt by `get_resolver` whenever its singleton is not
+#: ready. With the SEC ticker file unreachable it never becomes ready, so every
+#: request paid the full 2s `wait_for` timeout and then silently skipped
+#: resolution — a fixed 2-4s tax that the stage trace exposed as a suspiciously
+#: CONSTANT `entity` span. Constant time is a timeout, not work.
+_RESOLVER_BACKOFF_S = 60.0
+_resolver_backoff_until = [0.0]
+
+
 def replay_metadata(prov: dict | None, latency_ms: float, trace_id: str) -> dict:
     """Metadata for a cache hit.
 
@@ -405,6 +417,13 @@ class SearchPipeline:
         # rather than starting a second one, and so a cancel can name it.
         trace_id = trace_id or str(uuid.uuid4())
         start = time.perf_counter()
+        # Boundary-by-boundary timing. Three stages were timed before this and
+        # ~23s of a ~27s request happened in none of them: an unmeasured stage
+        # is indistinguishable from a fast one. Every boundary now reports, and
+        # the report names any remainder as unattributed rather than absorbing
+        # it into whichever stage happens to wrap it.
+        from app.core.finance.stage_trace import StageTrace
+        _st = StageTrace(trace_id)
         total_cost = 0.0
         # Count what this run asks sec.gov for, split into identity lookups and
         # authoritative fact/filing/archive requests. The evidence gate's claim
@@ -462,6 +481,7 @@ class SearchPipeline:
             import copy as _copy2
             query_plan = _copy2.deepcopy(query_plan) if isinstance(query_plan, dict) else query_plan
             understanding_ms = (time.perf_counter() - t0) * 1000
+            _st.add("planning", understanding_ms)
             # Init timing metrics so every retrieval path (single-pass, iterative,
             # on-demand) is safe to reference at Stage 10 — the iterative branch
             # never set rerank_ms, raising UnboundLocalError on complex queries.
@@ -472,8 +492,14 @@ class SearchPipeline:
             # Disambiguate company mentions → canonical (ticker, CIK, name).
             # Runs fire-and-forget in parallel with cache check (no await needed
             # for the result — we enrich query_plan in place if resolver is ready).
+            _t_entity = time.perf_counter()
             _raw_companies = query_plan.get("entities", {}).get("companies", [])
-            if _raw_companies:
+            # A resolver that failed a moment ago will fail again, and paying
+            # its 2s timeout on every request buys nothing. `get_resolver`
+            # rebuilds whenever the singleton is not ready, so with the ticker
+            # file unreachable this was a guaranteed 2-4s tax per query — the
+            # single largest fixed cost the stage trace found.
+            if _raw_companies and time.time() >= _resolver_backoff_until[0]:
                 try:
                     from app.core.entity_resolver import get_resolver
                     from app.db.redis import redis_client as _redis
@@ -503,7 +529,17 @@ class SearchPipeline:
                         resolved=[e.ticker for e in _resolved if e.ticker],
                     )
                 except Exception as _er:
-                    logger.debug("entity_resolution_skipped", trace_id=trace_id, error=str(_er))
+                    # The TYPE, not the message. `asyncio.TimeoutError` has an
+                    # empty `str()`, so this line read `error=` on every single
+                    # request and the stage-trace showed a flat 2s/4s in
+                    # `entity` that nothing in the logs explained. Four seconds
+                    # per request were being spent failing invisibly.
+                    _resolver_backoff_until[0] = time.time() + _RESOLVER_BACKOFF_S
+                    logger.warning(
+                        "entity_resolution_skipped", trace_id=trace_id,
+                        error_type=type(_er).__name__,
+                        backoff_s=_RESOLVER_BACKOFF_S,
+                    )
 
             # Deterministic recovery + AUGMENT: query-understanding (gemini) often
             # returns companies=[] ("Coca Cola FY2021 revenue" → no entity) OR drops
@@ -587,6 +623,8 @@ class SearchPipeline:
                 entities=query_plan.get("entities", {}),
                 latency_ms=round(understanding_ms, 1),
             )
+
+            _st.add("entity", (time.perf_counter() - _t_entity) * 1000)
 
             # Resolved company tickers — used to namespace the semantic cache so
             # a query about one company can't return another company's answer.
@@ -731,6 +769,7 @@ class SearchPipeline:
                 top_passages = irag_result.all_passages[:settings.max_context_passages]
                 total_cost += irag_result.cost_usd
                 retrieval_ms = (time.perf_counter() - t1) * 1000
+                _st.add("retrieval", retrieval_ms, path="iterative")
                 logger.info(
                     "iterative_retrieval_complete",
                     trace_id=trace_id,
@@ -782,6 +821,12 @@ class SearchPipeline:
                         entities=_ents if isinstance(_ents, dict) else None,
                     )
                     query_plan["finance_plan"] = _fin.as_dict()
+                    # What the answer is OBLIGED to do, decided here rather than
+                    # argued for inside a prompt. A prompt is a request; this is
+                    # a thing `FinalGate` can check the finished answer against.
+                    from app.core.finance.answer_contract import build_contract
+                    _contract = build_contract(_fin)
+                    query_plan["answer_contract"] = _contract.as_dict()
                 except Exception as e:  # noqa: BLE001
                     # Advisory only. A planning failure must not take down a
                     # search that would otherwise answer.
@@ -819,6 +864,7 @@ class SearchPipeline:
                        if k != "question_class"},
                 )
                 _gate = None
+                _t_gate = time.perf_counter()
                 if _qc["needs_primary_source"]:
                     # The verified-evidence gate. This runs BEFORE the retrieval
                     # fan-out, on one narrow lookup, because the question "must we
@@ -834,6 +880,7 @@ class SearchPipeline:
                     from app.core.retrieval import evidence_gate as _eg
 
                     _gate = await self._evidence_gate(query, _tickers, _names)
+                    _st.add("evidence_gate", (time.perf_counter() - _t_gate) * 1000)
                     # SEC is only invoked when no exact verified local evidence
                     # satisfies the financial query.
                     _channels = _eg.channels_after_gate(_channels, _gate)
@@ -892,6 +939,15 @@ class SearchPipeline:
                         question_class=_qc["question_class"],
                     )
                 retrieval_ms = (time.perf_counter() - t1) * 1000
+                _st.add("retrieval", retrieval_ms, path="single_pass")
+                # Per-channel wall time. The fan-out costs its SLOWEST channel,
+                # not the sum, so one straggler is invisible in the aggregate
+                # while setting the floor for the whole request.
+                _st.add_channels(
+                    getattr(retrieval_results, "timings", None),
+                    failed=getattr(retrieval_results, "failed", None),
+                    counts={k: len(v) for k, v in (retrieval_results or {}).items()},
+                )
 
                 # What the web leg actually did. Read off the channel rather
                 # than inferred from the results: "no web evidence" and "the
@@ -917,6 +973,8 @@ class SearchPipeline:
                 # overpowering strong multi-channel news matches.
                 t2 = time.perf_counter()
                 fused = authority_aware_rrf(retrieval_results, k=settings.rrf_k, authority_weight=0.15)
+                _st.add("merge_dedup", (time.perf_counter() - t2) * 1000, fused=len(fused))
+                _t_rr = time.perf_counter()
                 if self.reranker and len(fused) > 0:
                     reranked = await self.reranker.rerank(
                         query=query,
@@ -1028,6 +1086,7 @@ class SearchPipeline:
                         # "gross margin not provided". Preserve the expanded length.
                         top_passages = (_on + _off)[:len(top_passages)]
                 rerank_ms = (time.perf_counter() - t2) * 1000
+                _st.add("rerank", (time.perf_counter() - _t_rr) * 1000)
                 logger.info(
                     "retrieval_complete",
                     trace_id=trace_id,
@@ -1227,6 +1286,7 @@ class SearchPipeline:
             )
             yield SearchEvent(type="sources", data={"sources": source_data}, trace_id=trace_id)
 
+            _t_ctx = time.perf_counter()
             # ── Stage 5b: Deterministic Ratio Pre-Pass ─────────────────
             # For math/valuation queries: compute ratios deterministically
             # from TimescaleDB BEFORE sending to LLM. This injects verified
@@ -1326,6 +1386,8 @@ class SearchPipeline:
             except Exception as _calc_err:
                 logger.warning("calculator_pre_pass_failed", trace_id=trace_id, error=str(_calc_err))
 
+            _st.add("context", (time.perf_counter() - _t_ctx) * 1000)
+
             # ── Stage 6: LLM Reasoning (200ms–2s) ──────────────────────
             t3 = time.perf_counter()
             yield SearchEvent(type="status", data={"status": "reasoning", "message": "Generating cited answer..."}, trace_id=trace_id)
@@ -1346,7 +1408,14 @@ class SearchPipeline:
                 complexity=complexity,
             )
             system_msg = LLMMessage(role="system", content=reasoning_system)
-            user_content = build_user_message(query, top_passages)
+            # The contract's obligations go to the model as instructions, and
+            # the same obligations are checked against the finished answer by
+            # `FinalGate` below. Telling without checking is a wish; checking
+            # without telling is a trap.
+            user_content = build_user_message(
+                query, top_passages,
+                contract=query_plan.get("answer_contract"),
+            )
             # TEMPORAL HONESTY (RESEARCH_ASSISTANT_ROADMAP §0) — the corpus is SEC
             # filings only; we have NO live market data. If the query wants something
             # real-time (current price, today's move, intraday), say so instead of
@@ -1537,6 +1606,8 @@ class SearchPipeline:
                     trace_id=trace_id,
                 )
 
+            _st.add("generation", (time.perf_counter() - t3) * 1000)
+
             # ── Stage 7: Deterministic Verification (0ms, $0) ───────────
             # Layer 1: Numeric + Temporal verifiers (existing)
             # Layer 2: Logic verifier — checks financial reasoning chains
@@ -1667,6 +1738,8 @@ class SearchPipeline:
                 logger.warning("lynx_check_failed", trace_id=trace_id, error=str(_lynx_err))
 
             validation_ms = (time.perf_counter() - t4) * 1000
+            _st.add("verification", validation_ms)
+            _t_prov = time.perf_counter()
 
             # ── Stage 8: Parse JSON answer → extract citations, follow-ups ─
             import json as _json
@@ -1851,6 +1924,9 @@ class SearchPipeline:
                 except Exception as _alce_err:
                     logger.warning("alce_attribution_failed", trace_id=trace_id, error=str(_alce_err))
 
+            _st.add("provenance", (time.perf_counter() - _t_prov) * 1000)
+            _t_ser = time.perf_counter()
+
             # ── Stage 8c: Yield Complete Answer ─────────────────────────
             # Enrich citations to the frontend shape (document_title/chunk_id/
             # ticker) by joining to the retrieved passages, so the source panel
@@ -1948,13 +2024,45 @@ class SearchPipeline:
             except Exception as _store_err:
                 logger.debug("memory_store_skipped", trace_id=trace_id, error=str(_store_err))
 
+            # ── Final gate: did the answer honour its contract? ─────────
+            # Reported, never enforced by rewriting: a gate that edits an answer
+            # to satisfy itself is grading its own work. Violations ride in the
+            # metadata so a caller can see exactly which clause was missed.
+            _gate_result = None
+            try:
+                _c = locals().get("_contract")
+                if _c is not None:
+                    from app.core.finance.answer_contract import FinalGate
+                    _gate_result = FinalGate.check(
+                        _c,
+                        answer=str(parsed_answer or ""),
+                        citations=citations_out or [],
+                        scope_status=str(query_plan.get("scope_status", "")),
+                    ).as_dict()
+                    if not _gate_result["passed"]:
+                        logger.warning("answer_contract_violated",
+                                       trace_id=trace_id,
+                                       violations=_gate_result["violations"])
+            except Exception as _ge:  # noqa: BLE001 — a gate must not lose an answer
+                logger.warning("final_gate_failed", trace_id=trace_id,
+                               error_type=type(_ge).__name__)
+
             # ── Stage 10: Yield Metadata ────────────────────────────────
+            _st.add("serialization", (time.perf_counter() - _t_ser) * 1000)
             total_ms = (time.perf_counter() - start) * 1000
+            # One line per request naming where the time went, and naming what
+            # is still unaccounted for rather than implying the measured stages
+            # are the whole story.
+            _st.log(question_class=query_plan.get("question_class", ""))
+            _stage_report = _st.report()
             yield SearchEvent(
                 type="metadata",
                 data={
                     "trace_id": trace_id,
                     "latency_ms": round(total_ms, 1),
+                    "stage_trace": _stage_report,
+                    "answer_contract": query_plan.get("answer_contract"),
+                    "contract_gate": _gate_result,
                     "understanding_ms": round(understanding_ms, 1),
                     "retrieval_ms": round(retrieval_ms, 1),
                     "rerank_ms": round(rerank_ms, 1),

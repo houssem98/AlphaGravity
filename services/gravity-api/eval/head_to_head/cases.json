@@ -1,0 +1,162 @@
+{
+  "dataset": "finance_head_to_head",
+  "version": "1.0.0",
+  "ground_truth_source": "SEC XBRL companyconcept API, fetched 2026-09-02. Every expect_value below was read from the filer's own submission, not from any model output and not from the reference answer. If a reference answer disagrees with these, the reference is wrong and loses points — that is what an independent key is for.",
+  "provenance": [
+    "AAPL FY2025 revenue 416161000000 accn 0000320193-25-000079 (RevenueFromContractWithCustomerExcludingAssessedTax, end 2025-09-27)",
+    "AAPL FY2024 revenue 391035000000 accn 0000320193-24-000123 (end 2024-09-28)",
+    "NVDA FY2026 revenue 215938000000 accn 0001045810-26-000021 (Revenues, end 2026-01-25)",
+    "NVDA FY2025 revenue 130497000000 accn 0001045810-25-000023 (end 2025-01-26)",
+    "MSFT FY2026 revenue 331839000000 accn 0001193125-26-323660 (end 2026-06-30)",
+    "MSFT FY2025 revenue 281724000000 accn 0000950170-25-100235 (end 2025-06-30)",
+    "CPRT FY2025 revenue 4646958000 accn 0001628280-25-042946 (RevenueFromContractWithCustomerIncludingAssessedTax, end 2025-07-31)",
+    "CPRT FY2024 revenue 4236823000 accn 0000900075-24-000024 (end 2024-07-31)",
+    "ODFL FY2025 revenue 5496389000 accn 0001193125-26-067161 (end 2025-12-31)",
+    "ODFL FY2024 revenue 5814810000 accn 0000950170-25-026661 (end 2024-12-31)",
+    "AOS FY2025 revenue 3830200000 accn 0000091142-26-000008 (end 2025-12-31)"
+  ],
+  "cases": [
+    {
+      "id": "aapl-fy2025-revenue",
+      "category": "exact_fact",
+      "query": "What were Apple's total net sales in fiscal 2025?",
+      "expect_value": 416161000000,
+      "expect_period_tokens": ["2025"],
+      "expect_entity_tokens": ["apple"],
+      "requires_primary": true,
+      "latency_budget_ms": 5000
+    },
+    {
+      "id": "nvda-fy2026-revenue",
+      "category": "exact_fact",
+      "query": "What was NVIDIA's revenue in fiscal year 2026?",
+      "expect_value": 215938000000,
+      "expect_period_tokens": ["2026"],
+      "expect_entity_tokens": ["nvidia"],
+      "requires_primary": true,
+      "latency_budget_ms": 5000
+    },
+    {
+      "id": "msft-fy2026-revenue",
+      "category": "exact_fact",
+      "query": "What was Microsoft's revenue in fiscal 2026?",
+      "expect_value": 331839000000,
+      "expect_period_tokens": ["2026"],
+      "expect_entity_tokens": ["microsoft"],
+      "requires_primary": true,
+      "latency_budget_ms": 5000
+    },
+    {
+      "id": "cprt-fy2025-revenue",
+      "category": "unseen_company",
+      "query": "What was Copart's revenue in fiscal year 2025?",
+      "expect_value": 4646958000,
+      "expect_period_tokens": ["2025"],
+      "expect_entity_tokens": ["copart"],
+      "requires_primary": true,
+      "latency_budget_ms": 8000
+    },
+    {
+      "id": "odfl-fy2025-revenue",
+      "category": "unseen_company",
+      "query": "What was Old Dominion Freight Line's revenue in fiscal 2025?",
+      "expect_value": 5496389000,
+      "expect_period_tokens": ["2025"],
+      "expect_entity_tokens": ["old dominion"],
+      "requires_primary": true,
+      "latency_budget_ms": 8000
+    },
+    {
+      "id": "aos-fy2025-revenue",
+      "category": "unseen_company",
+      "query": "What was A.O. Smith's revenue in fiscal 2025?",
+      "expect_value": 3830200000,
+      "expect_period_tokens": ["2025"],
+      "expect_entity_tokens": ["smith"],
+      "requires_primary": true,
+      "latency_budget_ms": 8000
+    },
+    {
+      "id": "aapl-fy2025-growth",
+      "category": "growth",
+      "query": "How much did Apple's revenue grow year over year in fiscal 2025?",
+      "expect_value": 6.4255,
+      "expect_period_tokens": ["2025"],
+      "expect_entity_tokens": ["apple"],
+      "requires_primary": true,
+      "latency_budget_ms": 8000,
+      "note": "416161/391035 - 1 = 6.4255%. Both endpoints are in provenance above."
+    },
+    {
+      "id": "nvda-fy2026-growth",
+      "category": "growth",
+      "query": "How much did NVIDIA's revenue grow year over year in fiscal 2026?",
+      "expect_value": 65.4735,
+      "expect_period_tokens": ["2026"],
+      "expect_entity_tokens": ["nvidia"],
+      "requires_primary": true,
+      "latency_budget_ms": 8000,
+      "note": "215938/130497 - 1 = 65.4735%."
+    },
+    {
+      "id": "odfl-fy2025-decline",
+      "category": "growth",
+      "query": "Did Old Dominion Freight Line's revenue grow or decline in fiscal 2025?",
+      "expect_value": -5.476,
+      "expect_period_tokens": ["2025"],
+      "expect_entity_tokens": ["old dominion"],
+      "forbid_tokens": ["grew", "increased"],
+      "requires_primary": true,
+      "latency_budget_ms": 8000,
+      "note": "5496389/5814810 - 1 = -5.476%. A decline stated as growth is a correctness failure, not a wording one."
+    },
+    {
+      "id": "cprt-vs-odfl-revenue",
+      "category": "comparison",
+      "query": "Compare Copart and Old Dominion Freight Line revenue for fiscal 2025.",
+      "expect_value": 4646958000,
+      "expect_period_tokens": ["2025"],
+      "expect_entity_tokens": ["copart", "old dominion"],
+      "requires_primary": true,
+      "latency_budget_ms": 10000
+    },
+    {
+      "id": "future-period-abstain",
+      "category": "abstention",
+      "query": "What was Apple's revenue in fiscal year 2031?",
+      "expect_abstain": true,
+      "expect_entity_tokens": ["apple"],
+      "requires_primary": false,
+      "latency_budget_ms": 5000,
+      "note": "FY2031 has not ended. Any figure scores zero on correctness."
+    },
+    {
+      "id": "unknown-company-abstain",
+      "category": "abstention",
+      "query": "What was Wobblegonk Industries Plc revenue in fiscal 2025?",
+      "expect_abstain": true,
+      "requires_primary": false,
+      "latency_budget_ms": 5000
+    },
+    {
+      "id": "sp500-tariff-scope",
+      "category": "scoped_set",
+      "query": "Which S&P 500 companies mentioned tariff risk in their 10-K?",
+      "is_set_question": true,
+      "requires_primary": true,
+      "latency_budget_ms": 10000,
+      "note": "No expect_value: correctness here is about scope honesty, which the scope dimension scores. Presenting a partial scan as complete scores zero on scope."
+    },
+    {
+      "id": "aapl-latest-revenue",
+      "category": "latest",
+      "query": "What is Apple's latest reported annual revenue?",
+      "expect_value": 416161000000,
+      "expect_period_tokens": ["2025"],
+      "expect_entity_tokens": ["apple"],
+      "requires_primary": true,
+      "latency_budget_ms": 5000,
+      "note": "'latest' is a request, not an answer: the reply must name the period it resolved to."
+    }
+  ]
+}

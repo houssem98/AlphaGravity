@@ -73,10 +73,18 @@ class ChannelResults(dict):
 
     #: channel name -> exception class name. Empty when every channel completed.
     failed: dict
+    #: channel name -> wall milliseconds that channel spent. Kept because the
+    #: fan-out's total is the SLOWEST channel, not the sum, so a single slow
+    #: provider is invisible in the aggregate while setting the floor for the
+    #: whole request. Without per-channel numbers there is no way to tell a
+    #: uniformly slow fan-out from one straggler.
+    timings: dict
 
-    def __init__(self, *args, failed: dict | None = None, **kwargs):
+    def __init__(self, *args, failed: dict | None = None,
+                 timings: dict | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.failed = failed or {}
+        self.timings = timings or {}
 
     @property
     def degraded(self) -> bool:
@@ -177,6 +185,9 @@ class RetrievalOrchestrator:
         # `return_exceptions=True` below, so without this the failure map stayed
         # empty even with three providers refusing connections.
         channel_failures: dict = {}
+        #: Filled by `_safe_search` for the same reason `channel_failures` is:
+        #: it swallows its own timeouts, so nothing observable escapes it.
+        channel_timings: dict = {}
 
         for channel_name in active_channels:
             if channel_name == "dense" and use_multi_query:
@@ -187,13 +198,15 @@ class RetrievalOrchestrator:
                 tasks[channel_name] = self._safe_search(
                     channel_name, channel, query, expanded_terms, filters,
                     entities, question_class, failures=channel_failures,
+                    timings=channel_timings,
                 )
 
         task_list = list(tasks.values())
         channel_names = list(tasks.keys())
         results_list = await asyncio.gather(*task_list, return_exceptions=True)
 
-        results = ChannelResults(failed=dict(channel_failures))
+        results = ChannelResults(failed=dict(channel_failures),
+                                 timings=dict(channel_timings))
         for name, result in zip(channel_names, results_list):
             if isinstance(result, Exception):
                 logger.error("channel_failed", channel=name, error=str(result))
@@ -273,6 +286,7 @@ class RetrievalOrchestrator:
         entities: dict | None,
         question_class: str = "",
         failures: dict | None = None,
+        timings: dict | None = None,
     ) -> list[RetrievalResult]:
         """Execute a single channel search with per-channel timeout and error handling.
 
@@ -338,15 +352,24 @@ class RetrievalOrchestrator:
             results = await asyncio.wait_for(coro, timeout=timeout_s)
 
             ms = (time.perf_counter() - t0) * 1000
+            if timings is not None:
+                timings[name] = round(ms, 1)
             logger.debug("channel_search", channel=name, results=len(results), ms=round(ms, 1))
             return results
 
         except asyncio.TimeoutError:
+            # A timeout is the MOST interesting duration to keep: it is the
+            # channel that set the fan-out's floor, and dropping its number
+            # leaves the one provider that cost the most time unmeasured.
+            if timings is not None:
+                timings[name] = round((time.perf_counter() - t0) * 1000, 1)
             logger.warning("channel_timeout", channel=name, timeout_s=timeout_s)
             if failures is not None:
                 failures[name] = "TimeoutError"
             return []
         except Exception as e:
+            if timings is not None:
+                timings[name] = round((time.perf_counter() - t0) * 1000, 1)
             logger.error("channel_error", channel=name, error=str(e))
             if failures is not None:
                 # The exception type only — a message can carry a DSN or a key.
