@@ -130,7 +130,7 @@ Each follows the fixed nine-step cycle. Only the parts that differ are written o
 ### L1 — Cache safety · D2
 
 - **INPUT:** graph N2, N16.
-- **INSPECT:** `search_pipeline.py:653` — the early `return` after yielding a
+- **INSPECT:** `search_pipeline.py:659` — the early `return` after yielding a
   cached answer.
 - **TEST (write first, must fail):** a cached entry whose stored
   `contract_gate.passed` is `false` is replayed; assert the caller can tell.
