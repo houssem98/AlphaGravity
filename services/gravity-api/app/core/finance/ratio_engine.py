@@ -972,14 +972,22 @@ class RatioEngineOutput:
     def context_block(self) -> str:
         """
         Format results as a block to inject into LLM context.
-        Label it clearly so the LLM treats these as ground truth.
+
+        The label states what the engine can actually show: the rows are exact
+        XBRL facts, tag- and period-matched. It deliberately stops short of
+        naming a filing, because the fetch carries a row id and not an
+        accession number — and it no longer instructs the model to skip
+        checking, which is the instruction that turned an unverified operand
+        into a confidently-stated growth rate on the calculator path.
         """
         if not self.ratios:
             return ""
         lines = [
             f"## Pre-Computed Financial Ratios — {self.ticker} ({self.period})",
-            "⚠ These values are computed deterministically from audited filings. "
-            "Do NOT recompute them. Cite them directly.",
+            "Computed from exactly-tagged XBRL facts (`*_xbrl` rows) for this "
+            "fiscal period. The arithmetic is deterministic; the operands are "
+            "tag- and period-matched but carry no accession number, so do not "
+            "attribute them to a named filing.",
             "",
         ]
         for r in self.ratios:
@@ -1097,8 +1105,18 @@ class RatioEngine:
             async def _facts_for(yr: int) -> dict[str, float]:
                 rows = await supabase_rest.sb_select(
                     "financials",
-                    {"ticker": f"eq.{ticker.upper()}", "period": f"eq.FY{yr}"},
-                    select="caption,value_float", limit=200,
+                    # `id` restricted to the exactly-tagged population. The table
+                    # holds three, and only `*_xbrl` rows carry filed values with
+                    # their units intact — measured 2026-08-17,
+                    # NVDA_CostOfRevenue_FY2026_xbrl = 62,475,000,000 against
+                    # NVDA_Cost_of_revenue_2026-05-20_backfill = 39.5, a unitless
+                    # scrape of the same caption. `structured_search` already
+                    # gates on this; the ratio engine did not, while telling the
+                    # model its output was audited. A ratio over the second
+                    # number is wrong rather than missing.
+                    {"ticker": f"eq.{ticker.upper()}", "period": f"eq.FY{yr}",
+                     "id": "like.*_xbrl"},
+                    select="id,caption,value_float", limit=200,
                 )
                 base: dict[str, float] = {}
                 for r in rows:

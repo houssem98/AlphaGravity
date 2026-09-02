@@ -101,13 +101,19 @@ def replay_metadata(prov: dict | None, latency_ms: float, trace_id: str) -> dict
     `legacy` and keep the unknowns visible — an empty channel list presented as a
     measurement is worse than one labelled as missing.
     """
+    # An entry stored before the gate existed cannot claim the gate passed, and
+    # an absent key reads as None exactly like a silent pass. Say "not recorded".
+    _unrecorded = {"recorded": False, "passed": None,
+                   "reason": "cached before the answer contract was checked"}
     base = {"latency_ms": latency_ms, "cache_hit": True, "trace_id": trace_id,
             "estimated_cost_usd": 0.0}
     if not prov:
         return {**base, "cache_provenance": "legacy", "model_used": "unknown",
                 "complexity": "unknown", "retrieval_channels": [],
-                "channels_dark": [], "passages_used": 0}
+                "channels_dark": [], "passages_used": 0,
+                "contract_gate": _unrecorded}
     return {**base, "cache_provenance": "replay",
+            "contract_gate": prov.get("contract_gate") or _unrecorded,
             "model_used": prov.get("model_used", "unknown"),
             "complexity": prov.get("complexity", "unknown"),
             "retrieval_channels": prov.get("retrieval_channels", []),
@@ -2030,6 +2036,29 @@ class SearchPipeline:
             # cache used to store every answer, so an intermittent failure (a channel
             # timeout → empty retrieval → "not found") got cached and then served on
             # ~25% of identical re-queries (the 3s "fail" = a cache hit of the poison).
+            # ── Final gate: did the answer honour its contract? ─────────
+            # Reported, never enforced by rewriting: a gate that edits an answer
+            # to satisfy itself is grading its own work. Violations ride in the
+            # metadata so a caller can see exactly which clause was missed.
+            _gate_result = None
+            try:
+                _c = locals().get("_contract")
+                if _c is not None:
+                    from app.core.finance.answer_contract import FinalGate
+                    _gate_result = FinalGate.check(
+                        _c,
+                        answer=str(parsed_answer or ""),
+                        citations=citations_out or [],
+                        scope_status=str(query_plan.get("scope_status", "")),
+                    ).as_dict()
+                    if not _gate_result["passed"]:
+                        logger.warning("answer_contract_violated",
+                                       trace_id=trace_id,
+                                       violations=_gate_result["violations"])
+            except Exception as _ge:  # noqa: BLE001 — a gate must not lose an answer
+                logger.warning("final_gate_failed", trace_id=trace_id,
+                               error_type=type(_ge).__name__)
+
             _ans_l = (parsed_answer or "").lower()
             _is_refusal = (not parsed_answer or not source_data
                            or str(confidence_out).upper() in ("NONE", "")
@@ -2053,8 +2082,16 @@ class SearchPipeline:
                         # Provenance travels with the answer. Without it a cache hit
                         # reports channels [] and model "unknown", so the cheapest
                         # replies are the ones nobody can audit.
-                        "_provenance": cache_provenance_of(
-                            retrieval_results, routing_decision, len(top_passages), trace_id),
+                        # The gate verdict travels with the answer too. Without
+                        # it a replay reports no verdict at all, and "passed
+                        # silently" and "never checked" become the same value to
+                        # anyone reading the metadata.
+                        "_provenance": {
+                            **cache_provenance_of(
+                                retrieval_results, routing_decision,
+                                len(top_passages), trace_id),
+                            "contract_gate": _gate_result,
+                        },
                     }, tickers=_cache_tickers)
                 except Exception as e:
                     logger.warning("cache_set_skip", trace_id=trace_id, error=str(e))
@@ -2074,29 +2111,6 @@ class SearchPipeline:
                 ))
             except Exception as _store_err:
                 logger.debug("memory_store_skipped", trace_id=trace_id, error=str(_store_err))
-
-            # ── Final gate: did the answer honour its contract? ─────────
-            # Reported, never enforced by rewriting: a gate that edits an answer
-            # to satisfy itself is grading its own work. Violations ride in the
-            # metadata so a caller can see exactly which clause was missed.
-            _gate_result = None
-            try:
-                _c = locals().get("_contract")
-                if _c is not None:
-                    from app.core.finance.answer_contract import FinalGate
-                    _gate_result = FinalGate.check(
-                        _c,
-                        answer=str(parsed_answer or ""),
-                        citations=citations_out or [],
-                        scope_status=str(query_plan.get("scope_status", "")),
-                    ).as_dict()
-                    if not _gate_result["passed"]:
-                        logger.warning("answer_contract_violated",
-                                       trace_id=trace_id,
-                                       violations=_gate_result["violations"])
-            except Exception as _ge:  # noqa: BLE001 — a gate must not lose an answer
-                logger.warning("final_gate_failed", trace_id=trace_id,
-                               error_type=type(_ge).__name__)
 
             # ── Stage 10: Yield Metadata ────────────────────────────────
             _st.add("serialization", (time.perf_counter() - _t_ser) * 1000)

@@ -107,14 +107,16 @@ than guessed at.
 
 | # | Gate | Command | Exit | Result | Verdict |
 |---|---|---|---|---|---|
-| 1 | Backend tests | `pytest tests/ -q --ignore=tests/live --ignore=tests/eval` | 0 | **2078 passed, 0 failed**, 401.01s | **PASS** |
+| 1 | Backend tests | `pytest tests/ -q --ignore=tests/live --ignore=tests/eval` | 0 | **2097 passed, 0 failed**, 288.51s | **PASS** |
 | 2 | Frontend tests | `npx vitest run src/` | 0 | **1516 passed, 87 files** | **PASS** |
 | 2b | Typecheck | `npx tsc --noEmit -p tsconfig.app.json` | 0 | no errors | **PASS** |
 | 2c | Build | `npx tsc -b && npx vite build` | 0 | `dist/` written, 74s | **PASS** |
 | 3 | Stage trace | `pytest tests/test_stage_trace.py -q` | 0 | **19 passed** | **PASS** |
 | 4 | Answer contract | `pytest tests/test_answer_contract.py -q` | 0 | **62 passed** | **PASS** |
-| 5 | Head-to-head rubric | `pytest tests/test_head_to_head_rubric.py -q` | 0 | **84 passed** | **PASS** |
+| 5 | Head-to-head rubric | `pytest tests/test_head_to_head_rubric.py -q` | 0 | **89 passed** | **PASS** |
 | 5b | Calculator guard | `pytest tests/test_calc_guard.py -q` | 0 | **52 passed** | **PASS** |
+| 5c | Ratio provenance | `pytest tests/test_ratio_engine_provenance.py -q` | 0 | **8 passed** (8 failed pre-fix) | **PASS** |
+| 5d | Cache gate verdict | `pytest tests/test_cache_gate_provenance.py -q` | 0 | **6 passed** (5 failed pre-fix) | **PASS** |
 | 6 | Resolver backoff | `pytest tests/test_resolver_backoff.py -q` | 0 | **12 passed** | **PASS** |
 | 7 | Query planning | `pytest tests/test_finance_query_plan.py -q` | 0 | 105 passed | **PASS** |
 | 8 | Pipeline E2E | `pytest tests/test_quick_answer_pipeline_e2e.py tests/test_search_pipeline_sec_e2e.py -q` | 0 | 25 passed | **PASS** |
@@ -154,7 +156,11 @@ latency fix; run 4 followed `calc_guard`; run 5 followed grader bugs 4 and 5:
 | clarity | ungraded | ungraded | ungraded | ungraded | ungraded |
 
 Graded weight 62.1% throughout. The false-confidence / false-abstention split
-was added after run 3.
+was added after run 3. **The `evidence` row predates grader bug 7's fix** —
+every run above scored a mixed citation list at 1.0, so those figures are
+upper bounds and a sixth run would report them lower. They are left as
+recorded rather than retro-adjusted, because a rescore against 220-character
+truncated excerpts is what had to be discarded once already.
 
 \* The run 4 and 5 scope zeros are **grader bug 6**, not a regression: a clean
 refusal was scored as an overstated scan. Rescoring run 5's recorded answer with
@@ -194,11 +200,23 @@ finding that out is the reason the rubric has its own test suite:
 | 4 | A complete refusal scored as an overstated scan | *"No source passage identifies which S&P 500 companies mentioned tariff risk… does not name individual companies"* scored **0.0 for "partial scan presented as complete"**. It names nobody — the strongest possible statement of limited coverage — but the hedge list only recognised *partial* answers | run 4 |
 | 5 | Declining one metric while reporting another read as false confidence | *"FY2025 net sales were $416.161B. The sources do not contain FY2024, so growth cannot be computed"* was labelled `false_confidence`, punishing precisely the behaviour `calc_guard` was added to produce | run 4 |
 | 6 | The refusal vocabulary missed plain negations, twice | The first fix for bug 4 did not work, because `_DECLINE_PHRASES` contained `"does not"` but not `"do not"`, and no leading `"no <noun>"` form at all — so *"The sources **do not** identify…"* and *"**No source** passage identifies…"* both still scored zero. It also scanned the whole reply, where a bulleted list of the **sources consulted** is indistinguishable from a list of member companies. Now judged on the opening sentence, with the negations added | run 5 |
+| 7 | A perfect evidence score for an unverified property | `_is_primary` is an ANY over the citation list, so `elif cites and primary: 1.0` paid the **full 20 points** when one SEC filing sat among four news articles, with nothing checking that the stated figure came from the filing. The rubric cannot prove claim-level attribution (excerpts truncate at 220 chars), so it no longer invents a penalty — it stops paying a PERFECT score for something it never verified: all-primary keeps 1.0, mixed scores 0.8 with the reason in the note | external audit |
 
-**All six marked a right answer wrong.** That is the worst class of grader
-defect: it does not merely mis-score, it aims optimisation at the wrong target —
-and bugs 4 and 5 would have aimed it directly against the honesty fixes made
-earlier in the same session. Each is fixed and pinned by regression tests in
+**Six of the seven marked a right answer wrong; the seventh marked a
+possibly-wrong answer right.** The first six are the worst class of grader
+defect in one direction: they do not merely mis-score, they aim optimisation at
+the wrong target — and bugs 4 and 5 would have aimed it directly against the
+honesty fixes made earlier in the same session.
+
+Bug 7 runs the other way, and for a benchmark used to argue quality that is
+arguably worse. Harshness surfaces as a bad score somebody investigates.
+Leniency surfaces as a good score somebody believes. It was found by an
+external audit rather than by any run of the benchmark itself, because a
+lenient grader has no failing case to point at.
+
+`test_an_answer_cited_entirely_to_filings_still_scores_full_evidence` guards the
+fix from becoming bug 8 — six of the seven were created by exactly that kind of
+over-tightening. Each is fixed and pinned by regression tests in
 `test_head_to_head_rubric.py`, including
 `test_a_list_of_names_with_no_hedge_still_scores_zero_scope` and
 `test_a_genuinely_wrong_growth_rate_is_still_false_confidence`, which check that
@@ -214,6 +232,57 @@ the fixes did not simply make the rubric lenient.
   same way in runs 3–5. Both are registrants outside the ~30-ticker local
   corpus. A real coverage failure and the worst latency in the suite,
   reproduced five times.
+
+### Found by an external audit, and fixed
+
+An external ChatGPT audit was run against this branch, scoped to the Quick
+Answer path. It made four claims. **Its headline P0 was wrong** — it reported
+that `FinalGate` is never called, and `FinalGate.check()` runs at
+`search_pipeline.py:2087` with its verdict shipped as `contract_gate` in the
+metadata event. The other three held, and two were real correctness defects:
+
+**`ratio_engine.py` computed ratios from rows it could not vouch for, then
+labelled the result audited.** `_fetch_metrics` selected `caption,value_float`
+from `financials` filtered on ticker and period **alone**. That table holds
+three populations and only the `*_xbrl` rows are exactly tagged.
+`structured_search.py` already gates on this and records why:
+
+```
+NVDA_CostOfRevenue_FY2026_xbrl           = 62,475,000,000   (dollars, as filed)
+NVDA_Cost_of_revenue_2026-05-20_backfill = 39.5             (a unitless scrape)
+```
+
+The engine was free to pick up the second number, divide by it, and inject the
+result under *"⚠ These values are computed deterministically from audited
+filings. Do NOT recompute them. Cite them directly."* — the same
+authoritative-label-on-an-unverified-operand shape as the 20,160% growth rate,
+in a path `calc_guard` does not cover, and with the additional problem that its
+own docstring already promised "the Supabase XBRL financials table" while the
+query never filtered for XBRL. A docstring is not a filter.
+
+Fixed: the fetch gates on `id=like.*_xbrl`, selects `id` so provenance exists at
+all, and the injected label now states only what can be shown — exact tagged
+facts, tag- and period-matched, explicitly **not** attributable to a named
+filing, and with the instruction not to recompute removed. 8 tests in
+`tests/test_ratio_engine_provenance.py`, verified to fail against the unfixed
+file before the fix landed.
+
+**A replayed answer reported no gate verdict at all.** The audit framed this as
+cached answers bypassing verification, which overstates it — the answer was
+gated before being cached. The real defect sat underneath: the cache was written
+at line 2045 and the gate ran at line 2087, so the verdict **did not exist yet**
+at the moment it would have been stored, and `replay_metadata` had no
+`contract_gate` key. `metadata.get("contract_gate")` therefore returned `None`
+for both "passed silently" and "never checked" — the exact mistake that
+function's own docstring warns about for channels ("an empty channel list
+presented as a measurement is worse than one labelled as missing") and did not
+apply to itself.
+
+Fixed: the gate now runs before the cache write, the verdict travels in
+`_provenance`, and an entry that carries none reports
+`{"recorded": false, "passed": null}` rather than nothing. 6 tests in
+`tests/test_cache_gate_provenance.py`.
+
 
 **The most serious defect found, and fixed: a fabricated growth rate labelled
 "deterministic".** Run 3 produced:
@@ -341,13 +410,14 @@ suite proves nothing about the SEC work.
 
 ## 6. Files
 
-Modified (4): `search_pipeline.py`, `retrieval/orchestrator.py`,
-`reasoning/prompts.py`, `tests/test_finance_query_plan.py`.
+Modified (6): `search_pipeline.py`, `retrieval/orchestrator.py`,
+`reasoning/prompts.py`, `finance/ratio_engine.py`,
+`eval/head_to_head/rubric.py`, `tests/test_finance_query_plan.py`.
 
-Added (11): `finance/stage_trace.py`, `finance/answer_contract.py`,
+Added (13): `finance/stage_trace.py`, `finance/answer_contract.py`,
 `finance/calc_guard.py`,
 `eval/head_to_head/{__init__,cases.json,rubric.py,run_benchmark.py}`,
-`tests/{test_stage_trace,test_answer_contract,test_head_to_head_rubric,test_resolver_backoff,test_calc_guard}.py`.
+`tests/{test_stage_trace,test_answer_contract,test_head_to_head_rubric,test_resolver_backoff,test_calc_guard,test_ratio_engine_provenance,test_cache_gate_provenance}.py`.
 
 One test was **rewritten, not weakened**:
 `test_a_planning_failure_cannot_take_down_a_search` scanned a fixed 700-character

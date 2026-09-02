@@ -397,7 +397,24 @@ def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None
             card.scores["evidence"] = 0.3
             card.notes["evidence"] = f"cited, but no primary source ({sorted(classes)})"
         elif cites and primary:
-            card.scores["evidence"] = 1.0
+            # Grader bug 7. `_is_primary` is an ANY over the list, so one filing
+            # among four news articles used to score the full 20 points with
+            # nothing checking that the STATED FIGURE came from the filing.
+            #
+            # The rubric cannot prove claim-level attribution — that needs a
+            # claim map, and the recorded excerpts are truncated to 220 chars.
+            # So it does not invent a penalty it cannot justify; it stops paying
+            # a PERFECT score for a property it never verified, and says so.
+            _prim = sum(1 for c in cites if _is_primary([c]))
+            if _prim == len(cites):
+                card.scores["evidence"] = 1.0
+                card.notes["evidence"] = "every citation is a primary source"
+            else:
+                card.scores["evidence"] = 0.8
+                card.notes["evidence"] = (
+                    f"{_prim} of {len(cites)} citations primary; the stated "
+                    "figure's attribution to one of them is NOT verified"
+                )
         else:
             # A citation marker with no resolvable citation object: a reference
             # to nothing reads exactly like a reference to something.

@@ -675,3 +675,91 @@ def test_a_hedged_partial_answer_is_unaffected_by_the_opening_sentence_rule():
         "others [1].\n\n- Apple\n- Microsoft\n- Nike",
         citations=SEC, scope_status="confirmed_partial")
     assert c.scores["scope"] == 1.0
+
+
+# ── Grader bug 7: a perfect evidence score for an unverified property ─────
+#
+# Found by an external audit, and it is the FIRST of the seven that runs in the
+# lenient direction. Bugs 1-6 all marked a right answer wrong. This one marked
+# a possibly-wrong answer right, which for a benchmark used to argue quality is
+# the worse failure: harshness shows up as a bad score you go and investigate,
+# leniency shows up as a good score you believe.
+#
+#     elif cites and primary: card.scores["evidence"] = 1.0
+#
+# `_is_primary` is an ANY over the citation list. An answer citing one SEC
+# filing and four news articles scored the full 20 points, with nothing
+# checking that the figure it stated came from the filing rather than the news.
+#
+# The rubric cannot prove claim-level attribution — that needs a claim map, and
+# the recorded excerpts are truncated to 220 characters, which is how an
+# earlier rescore attempt had to be discarded. So the fix is not to invent a
+# penalty it cannot justify. It is to stop paying a PERFECT score for a
+# property that was never verified, and to say so in the note.
+
+
+def _cite(cls, **kw):
+    return {"source_class": cls, **kw}
+
+
+def test_an_answer_cited_entirely_to_filings_still_scores_full_evidence():
+    """
+    The guard against over-correcting. Bugs 1-6 were all created by tightening
+    a check until it punished correct behaviour; this test exists so the fix
+    for bug 7 cannot become bug 8.
+    """
+    case = {"id": "t", "query": "q", "expect_value": 100.0,
+            "requires_primary": True, "category": "exact_fact"}
+    card = score_answer(case, "Revenue was $100. [1]",
+                        citations=[_cite("sec_filing"), _cite("sec_xbrl")],
+                        latency_ms=1000, system="alphagravity")
+    assert card.scores["evidence"] == 1.0
+
+
+def test_one_filing_among_news_no_longer_earns_a_perfect_score():
+    case = {"id": "t", "query": "q", "expect_value": 100.0,
+            "requires_primary": True, "category": "exact_fact"}
+    card = score_answer(case, "Revenue was $100. [1]",
+                        citations=[_cite("sec_filing"), _cite("web"),
+                                   _cite("news"), _cite("web")],
+                        latency_ms=1000, system="alphagravity")
+    assert card.scores["evidence"] < 1.0
+
+
+def test_a_mixed_citation_list_still_beats_having_no_filing_at_all():
+    """
+    Partial credit must stay ordered. A filing plus context is materially
+    better evidence than no filing, and collapsing them to the same score would
+    remove the grader's ability to tell them apart.
+    """
+    case = {"id": "t", "query": "q", "expect_value": 100.0,
+            "requires_primary": True, "category": "exact_fact"}
+    mixed = score_answer(case, "Revenue was $100. [1]",
+                         citations=[_cite("sec_filing"), _cite("web")],
+                         latency_ms=1000, system="alphagravity")
+    none_primary = score_answer(case, "Revenue was $100. [1]",
+                                citations=[_cite("web"), _cite("news")],
+                                latency_ms=1000, system="alphagravity")
+    assert mixed.scores["evidence"] > none_primary.scores["evidence"]
+
+
+def test_the_note_says_the_attribution_was_not_verified():
+    """
+    A number that dropped with no stated reason is a number someone will later
+    tune back up. The note records WHY it is not a perfect score.
+    """
+    case = {"id": "t", "query": "q", "expect_value": 100.0,
+            "requires_primary": True, "category": "exact_fact"}
+    card = score_answer(case, "Revenue was $100. [1]",
+                        citations=[_cite("sec_filing"), _cite("web")],
+                        latency_ms=1000, system="alphagravity")
+    assert "attribut" in card.notes["evidence"].lower()
+
+
+def test_an_abstention_is_untouched_by_the_change():
+    """Bug 2 was exactly this: a tightening that caught abstentions too."""
+    case = {"id": "t", "query": "q", "expect_abstain": True,
+            "requires_primary": True, "category": "abstention"}
+    card = score_answer(case, "The sources do not contain that figure.",
+                        citations=[], latency_ms=1000, system="alphagravity")
+    assert card.scores["evidence"] == 1.0
