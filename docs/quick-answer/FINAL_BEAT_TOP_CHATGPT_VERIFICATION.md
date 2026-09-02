@@ -133,23 +133,39 @@ reference answer. Every figure carries its accession number in
 `cases.json:provenance`. If a reference answer disagrees with these, the
 reference is wrong; that is what an independent key is for.
 
-Two live runs, 14 cases each, against a locally booted API. The second ran
-after the grader's own defects were fixed:
+Three live runs, 14 cases each, against a locally booted API. Run 2 followed
+the grader's own defects being fixed; run 3 followed the entity-resolver
+latency fix:
 
-| Dimension | run 1 | run 2 |
-|---|---|---|
-| **mean weighted** | 0.5433 | **0.7506** |
-| correctness | 0.6154 | **0.8462** |
-| evidence | 0.3571 | **0.7071** |
-| period_entity | 0.9167 | 0.9167 |
-| scope | 1.0 | 1.0 |
-| latency | 0.1551 | 0.1604 |
-| reasoning | ungraded | ungraded |
-| clarity | ungraded | ungraded |
+| Dimension | run 1 | run 2 | run 3 |
+|---|---|---|---|
+| **mean weighted** | 0.5433 | 0.7506 | 0.6866 |
+| **correctness** | 0.6154 | **0.8462** | **0.6923** |
+| evidence | 0.3571 | 0.7071 | 0.7071 |
+| period_entity | 0.9167 | 0.9167 | 0.9167 |
+| scope | 1.0 | 1.0 | 1.0 |
+| latency | 0.1551 | 0.1604 | **0.1871** |
+| reasoning | ungraded | ungraded | ungraded |
+| clarity | ungraded | ungraded | ungraded |
 
-Graded weight 62.1% in both. The improvement is almost entirely the grader
-being corrected, not the system changing — which is the point of recording both
-runs rather than only the better one.
+Graded weight 62.1% throughout.
+
+**The run-to-run spread is the finding, not the score.** Correctness moved
+0.6154 → 0.8462 → 0.6923 with the answer path unchanged between runs 2 and 3.
+Reporting any single one of these as "the" correctness number would be a coin
+flip dressed as a measurement — which is exactly why three runs are recorded
+and why the head-to-head verdict stays `UNVERIFIED` rather than being read off
+one sample.
+
+Per-case, the instability is concentrated in the derived (growth) questions:
+
+| case | run 1 | run 2 | run 3 |
+|---|---|---|---|
+| `aapl-fy2025-growth` | FAIL | pass | FAIL |
+| `nvda-fy2026-growth` | pass | pass | FAIL |
+| every exact-fact case | pass | pass | pass |
+
+Lookups are stable. Anything requiring two figures and an operation is not.
 
 **Three of the five failures were my grader's fault, not the system's**, and
 finding that out is the reason the rubric has its own test suite:
@@ -175,15 +191,46 @@ target. Each is fixed and pinned by regression tests in
   registrants outside the ~30-ticker local corpus. A real coverage failure and
   the worst latency in the suite, reproduced twice.
 
-**Non-deterministic, and corrected here rather than left overstated:**
+**The most serious defect found, and fixed: a fabricated growth rate labelled
+"deterministic".** Run 3 produced:
 
-- `aapl-fy2025-growth` failed run 1, reporting FY2024 revenue as `$391.535B`
-  against a filed `391,035,000,000` — a transposed digit yielding 6.3% growth
-  against a true 6.4255%. It **passed run 2** (w=0.9359) with the same code and
-  the same question. So this is generation variance, not a systematic defect,
-  and describing it as the latter would have been wrong. Recording it anyway:
-  a figure that is right on one run and wrong on the next is still a figure a
-  user cannot rely on, and the two runs are the evidence that it varies.
+```
+NVIDIA's revenue grew 20,160% year over year in fiscal 2026, from $10.0B to
+$215.9B. This is the deterministic calculation result provided
+(yoy_growth(current=2026.0, prior_year=10.0) = 20160.0).
+```
+
+**2026 was the fiscal year.** The "Deterministic Calculator Pre-Pass" regex-
+scrapes every number out of the top five passages, takes the first two distinct
+ones, feeds them to `financial_calculator.yoy_growth`, and injects the result
+into the prompt under the heading *Deterministic Calculation Result* with the
+instruction *"Use this verified result in your answer. Do not recompute."*
+
+Nothing on that path knows what the two numbers are — no metric, no period, no
+company — so a page number, a footnote marker and a fiscal year are all equally
+eligible operands. The model reported the figure as authoritative because it was
+handed to it as authoritative.
+
+This is precisely the failure `period_math.py` was built to prevent, arriving
+through a path that never had typed quantities to check. `app/core/finance/
+calc_guard.py` does the one thing possible with floats alone: reject pairs that
+**cannot** be one metric in two periods — a four-digit year in either position,
+a zero operand, a sign flip, or a ratio beyond 100x. When it refuses, nothing is
+injected and the model answers from the passages, which is the honest fallback.
+The block's label no longer claims the result is verified.
+
+The asymmetry is deliberate and asserted in `test_the_guard_is_conservative_by_design`:
+a false refusal costs an injected convenience; a false acceptance costs a
+fabricated figure presented to a user as verified. 50 tests.
+
+**Also non-deterministic, and corrected rather than left overstated:**
+
+- `aapl-fy2025-growth` failed run 1 reporting FY2024 revenue as `$391.535B`
+  against a filed `391,035,000,000`, **passed** run 2, and failed run 3 for a
+  different reason ("the sources provided do not contain Apple's FY2024 total
+  net sales figure"). Calling this a single systematic defect would have been
+  wrong. It is retrieval and generation variance on derived questions, and the
+  three runs are the evidence.
 
 **Latency is the standing failure.** 0.16 on a dimension where 1.0 means
 meeting the roadmap's 5–10 s budgets. Median case ~35 s. §1 says where it goes.

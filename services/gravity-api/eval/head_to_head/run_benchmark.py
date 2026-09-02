@@ -92,11 +92,16 @@ def aggregate(cards: list) -> dict:
     for d in DIMENSIONS:
         vals = [c.scores[d.key] for c in cards if c.scores.get(d.key) is not None]
         per_dim[d.key] = round(sum(vals) / len(vals), 4) if vals else None
+    # The roadmap asks for these separately, and they are not the same failure:
+    # one puts a wrong number in front of a user, the other declines to.
+    modes = [c.notes.get("failure_mode") for c in cards]
     return {
         "n": len(scored),
         "mean_weighted": round(mean, 4),
         "graded_weight_pct": round(100 * cov, 1),
         "per_dimension": per_dim,
+        "false_confidence": modes.count("false_confidence"),
+        "false_abstention": modes.count("false_abstention"),
     }
 
 
@@ -189,6 +194,10 @@ async def main() -> int:
               f"over {ours_agg['graded_weight_pct']}% of the rubric's weight")
         for k, v in (ours_agg.get("per_dimension") or {}).items():
             print(f"  {k:16} {v if v is not None else 'ungraded'}")
+        print(f"  {'false_confidence':16} {ours_agg.get('false_confidence')} "
+              f"(a wrong figure stated)")
+        print(f"  {'false_abstention':16} {ours_agg.get('false_abstention')} "
+              f"(declined a question it should have answered)")
         print()
         for r in rows:
             if "error" in r:

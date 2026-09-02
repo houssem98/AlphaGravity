@@ -1355,6 +1355,7 @@ class SearchPipeline:
             # LLMs hallucinate arithmetic — this guarantees correct math at $0 cost.
             calculator_block = ""
             try:
+                from app.core.finance import calc_guard
                 from app.core.financial_calculator import detect_calculation_type, execute_calculation, parse_financial_number
                 calc_type = detect_calculation_type(query)
                 if calc_type:
@@ -1369,8 +1370,27 @@ class SearchPipeline:
                                 candidate_numbers.append(v)
 
                     # Attempt calculation with first two distinct candidates
-                    uniq = list(dict.fromkeys(candidate_numbers))[:4]
-                    if len(uniq) >= 2:
+                    # The operands are two arbitrary regex hits from prose. They
+                    # carry no metric, no period and no company, so nothing here
+                    # can tell revenue from a page number — and the block below
+                    # tells the model the result is verified and not to
+                    # recompute it. The live benchmark produced exactly the
+                    # failure that invites:
+                    #
+                    #   yoy_growth(current=2026.0, prior_year=10.0) = 20160.0
+                    #   "NVIDIA's revenue grew 20,160% year over year"
+                    #
+                    # 2026 was the FISCAL YEAR, scraped as a revenue figure.
+                    # `plausible_operand_pair` refuses the pairs that cannot be
+                    # a real year-over-year comparison; when it refuses, no
+                    # calculation is injected and the model works from the
+                    # passages, which is the honest fallback.
+                    uniq = [
+                        n for n in dict.fromkeys(candidate_numbers)
+                        if not calc_guard.looks_like_a_year(n)
+                    ][:4]
+                    if len(uniq) >= 2 and calc_guard.plausible_operand_pair(
+                            uniq[0], uniq[1], calc_type):
                         calc_result = execute_calculation(calc_type, {
                             "old": uniq[1], "new": uniq[0],           # percentage_change / yoy_growth
                             "current": uniq[0], "prior_year": uniq[1], # yoy_growth alt params
@@ -1387,7 +1407,15 @@ class SearchPipeline:
                                 f"Formula: {calc_result['formula']}\n"
                                 f"Result: {calc_result['result']}\n"
                                 f"Description: {calc_result.get('description', '')}\n"
-                                f"(Use this verified result in your answer. Do not recompute.)\n"
+                                # Not "verified". The operands are regex hits
+                                # from prose with no metric, period or company
+                                # attached, and telling the model otherwise is
+                                # how a scraped fiscal year became a reported
+                                # 20,160% growth rate.
+                                f"(Arithmetic only. The operands were read from the "
+                                f"passages above and are NOT period- or metric-verified. "
+                                f"If they are not the same line item in two periods, "
+                                f"ignore this block and answer from the sources.)\n"
                             )
                             logger.info(
                                 "calculator_injected",

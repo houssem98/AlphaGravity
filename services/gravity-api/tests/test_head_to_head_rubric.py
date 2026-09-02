@@ -466,3 +466,70 @@ def test_web_evidence_alone_is_still_not_primary():
     c = score_answer(BY_ID["aapl-fy2025-revenue"], "$416,161 million [1].",
                      citations=[{"source_class": "WEB_EVIDENCE"}])
     assert c.scores["evidence"] < 1.0
+
+
+# ── A wrong number and an honest decline are different failures ───────────
+#
+# Added after calc_guard turned a fabricated "revenue grew 20,160%" into "the
+# sources do not provide FY2025 revenue, so the growth rate cannot be computed".
+# Both score zero on correctness. Only one of them would have misled anyone, and
+# the roadmap asks for false-confidence and false-abstention separately for
+# exactly that reason. A rubric that cannot tell them apart cannot see the
+# difference between a system getting safer and a system getting worse.
+
+
+def test_a_wrong_figure_is_recorded_as_false_confidence():
+    c = score_answer(BY_ID["nvda-fy2026-growth"],
+                     "NVIDIA's revenue grew 20,160% year over year in fiscal "
+                     "2026, from $10.0B to $215.9B [1].", citations=SEC)
+    assert c.scores["correctness"] == 0.0
+    assert c.notes["failure_mode"] == "false_confidence"
+
+
+def test_an_honest_decline_is_recorded_as_false_abstention():
+    c = score_answer(BY_ID["nvda-fy2026-growth"],
+                     "The sources do not provide NVIDIA's FY2025 revenue, so "
+                     "the year-over-year growth rate cannot be computed.",
+                     citations=SEC)
+    assert c.scores["correctness"] == 0.0
+    assert c.notes["failure_mode"] == "false_abstention"
+    assert "declined rather than guessing" in c.notes["correctness"]
+
+
+def test_a_correct_answer_records_no_failure_mode():
+    c = score_answer(BY_ID["aapl-fy2025-revenue"],
+                     "Apple reported $416,161 million for fiscal 2025 [1].",
+                     citations=SEC)
+    assert c.scores["correctness"] == 1.0
+    assert "failure_mode" not in c.notes
+
+
+def test_both_failure_modes_still_score_zero():
+    """
+    The distinction is diagnostic, not a partial credit. Declining a question
+    you should have answered is a failure; it is simply a different one, and
+    softening its score would reward abstention.
+    """
+    wrong = score_answer(BY_ID["nvda-fy2026-growth"],
+                         "Revenue grew 20,160% [1].", citations=SEC)
+    declined = score_answer(BY_ID["nvda-fy2026-growth"],
+                            "The sources do not provide the prior year, so it "
+                            "cannot be computed.", citations=SEC)
+    assert wrong.scores["correctness"] == declined.scores["correctness"] == 0.0
+
+
+def test_the_aggregate_reports_both_counts():
+    from eval.head_to_head.run_benchmark import aggregate
+
+    cards = [
+        score_answer(BY_ID["nvda-fy2026-growth"], "grew 20,160% [1].", citations=SEC),
+        score_answer(BY_ID["aapl-fy2025-growth"],
+                     "The sources do not contain the prior year figure, so it "
+                     "cannot be computed.", citations=SEC),
+        score_answer(BY_ID["aapl-fy2025-revenue"],
+                     "Apple reported $416,161 million for fiscal 2025 [1].",
+                     citations=SEC),
+    ]
+    agg = aggregate(cards)
+    assert agg["false_confidence"] == 1
+    assert agg["false_abstention"] == 1

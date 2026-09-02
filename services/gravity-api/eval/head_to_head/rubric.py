@@ -320,8 +320,29 @@ def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None
             card.notes["correctness"] = "abstention case: declined, no figure for that period"
     elif expected is not None:
         hit = _matches(float(expected), text)
-        card.scores["correctness"] = 1.0 if hit else 0.0
-        card.notes["correctness"] = f"expected {expected}"
+        if hit:
+            card.scores["correctness"] = 1.0
+            card.notes["correctness"] = f"expected {expected}"
+        else:
+            # A wrong figure and an honest "I cannot compute this from the
+            # evidence" are both misses, and they are NOT the same failure.
+            # The roadmap asks for false-confidence and false-abstention as
+            # separate metrics precisely because one puts a wrong number in
+            # front of a user and the other does not.
+            #
+            # This distinction was added after `calc_guard` turned a fabricated
+            # "revenue grew 20,160%" into "the sources do not provide FY2025
+            # revenue, so the growth rate cannot be computed". Both score zero
+            # on correctness; only one of them would have misled anyone.
+            declined = _declines_the_period(text, case) and not _financial_figures(text)
+            card.scores["correctness"] = 0.0
+            card.notes["correctness"] = (
+                f"expected {expected}; the answer declined rather than guessing"
+                if declined else f"expected {expected}; a different figure was stated"
+            )
+            card.notes["failure_mode"] = (
+                "false_abstention" if declined else "false_confidence"
+            )
     else:
         card.scores["correctness"] = None
         card.notes["correctness"] = "no ground-truth figure recorded"
