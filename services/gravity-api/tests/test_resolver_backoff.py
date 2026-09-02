@@ -101,3 +101,57 @@ def test_timeout_error_really_does_stringify_to_nothing():
 
     assert str(asyncio.TimeoutError()) == ""
     assert type(asyncio.TimeoutError()).__name__ == "TimeoutError"
+
+
+# ── The second timeout in the same stage ──────────────────────────────────
+#
+# `entity` measured a flat 4007ms, not 2003ms, because there are TWO
+# independent `wait_for(get_resolver(...), timeout=2.0)` calls inside that one
+# stage: the primary resolution and the deterministic recovery/augment pass.
+# Gating only the first left half the cost in place, which the live trace
+# showed immediately: 4055ms on the first request, then a stubborn ~2023ms.
+
+
+def test_both_resolver_calls_are_inside_the_entity_stage():
+    import inspect
+
+    src = inspect.getsource(sp.SearchPipeline.search)
+    i = src.index("_t_entity = time.perf_counter()")
+    j = src.index('_st.add("entity"')
+    window = src[i:j]
+    assert window.count("get_resolver(redis_client=_redis)") == 2, (
+        "the entity stage no longer contains exactly two resolver builds; "
+        "the backoff gates must match whatever is there now"
+    )
+
+
+def test_both_resolver_calls_are_gated_by_the_backoff():
+    import inspect
+
+    src = inspect.getsource(sp.SearchPipeline.search)
+    i = src.index("_t_entity = time.perf_counter()")
+    j = src.index('_st.add("entity"')
+    window = src[i:j]
+    # One gate per build: the `if` before the primary, the raise before the
+    # recovery pass.
+    assert "_raw_companies and time.time() >=" in window
+    assert "time.time() < _resolver_backoff_until[0]" in window
+
+
+def test_the_recovery_pass_also_logs_a_type_not_an_empty_message():
+    import inspect
+
+    src = inspect.getsource(sp.SearchPipeline.search)
+    i = src.index("company_fallback_skipped")
+    window = src[max(0, i - 500):i + 200]
+    assert "type(_er2).__name__" in window
+    assert "error=str(_er2)" not in window
+
+
+def test_a_recovery_timeout_also_arms_the_backoff():
+    import inspect
+
+    src = inspect.getsource(sp.SearchPipeline.search)
+    i = src.index("company_fallback_skipped")
+    window = src[max(0, i - 500):i + 200]
+    assert "_resolver_backoff_until[0] =" in window

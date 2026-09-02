@@ -62,11 +62,32 @@ Two defects, one symptom:
    4007 ms case.
 2. The failure was invisible, which is how a ~15%-of-request defect survived.
 
-Fixed in `search_pipeline.py`: the failure now logs `error_type` and arms a
-60-second backoff, so a dead resolver is paid for once a minute rather than once
-a query. Pinned by `tests/test_resolver_backoff.py` (8 tests), including
+There were **two** such calls inside the one stage — the primary resolution and
+a deterministic recovery/augment pass — which is why the span read a flat
+4007 ms rather than 2003 ms. Gating only the first left half the cost in place,
+and the live trace said so immediately: 4055 ms on the first request, then a
+stubborn ~2023 ms.
+
+Fixed in `search_pipeline.py`: both call sites log `error_type`, both arm a
+60-second backoff, and both are gated by it.
+
+**Measured before and after, same code path, live:**
+
+| request | `entity` before | `entity` after |
+|---|---|---|
+| 1 | 4,055 ms | 2,001 ms *(pays once, arms the backoff)* |
+| 2 | 2,023 ms | **0 ms** |
+| 3 | 2,028 ms | **0 ms** |
+| 4 | — | **1 ms** |
+
+Total request time fell from 30,440 / 25,867 / 35,544 ms to 27,908 / 22,744 /
+23,431 / 21,694 ms on the same three questions plus one. **About four seconds
+per request**, for a stage that was never going to succeed.
+
+Pinned by `tests/test_resolver_backoff.py` (12 tests), including
 `test_timeout_error_really_does_stringify_to_nothing`, which asserts the premise
-rather than assuming it.
+rather than assuming it, and `test_both_resolver_calls_are_gated_by_the_backoff`,
+which fails if a third build is ever added ungated.
 
 ### Where the rest of the time is
 
@@ -93,11 +114,11 @@ than guessed at.
 | 3 | Stage trace | `pytest tests/test_stage_trace.py -q` | 0 | **19 passed** | **PASS** |
 | 4 | Answer contract | `pytest tests/test_answer_contract.py -q` | 0 | **62 passed** | **PASS** |
 | 5 | Head-to-head rubric | `pytest tests/test_head_to_head_rubric.py -q` | 0 | **70 passed** | **PASS** |
-| 6 | Resolver backoff | `pytest tests/test_resolver_backoff.py -q` | 0 | **8 passed** | **PASS** |
+| 6 | Resolver backoff | `pytest tests/test_resolver_backoff.py -q` | 0 | **12 passed** | **PASS** |
 | 7 | Query planning | `pytest tests/test_finance_query_plan.py -q` | 0 | 105 passed | **PASS** |
 | 8 | Pipeline E2E | `pytest tests/test_quick_answer_pipeline_e2e.py tests/test_search_pipeline_sec_e2e.py -q` | 0 | 25 passed | **PASS** |
 | 9 | Gate integrity | `node ~/.claude/scripts/gate-guard.mjs` | 0 | clean | **PASS** |
-| 10 | **Live benchmark** | `python -m eval.head_to_head.run_benchmark --live` | 0 | 14 cases, §3 | **PARTIAL** |
+| 10 | **Live benchmark** | `python -m eval.head_to_head.run_benchmark --live` | 1 | 14 cases; **0.7506** weighted, correctness **0.8462**, §3 | **PARTIAL** |
 | 11 | **Blind head-to-head** | same, `--reference refs.json` | — | no reference answers exist | **BLOCKED** |
 | 12 | Latency forensics | 11 live stage traces | 0 | §1 | **PASS** |
 | 13 | Browser E2E | — | — | no spec covers the SEC links | **BLOCKED** |
@@ -112,18 +133,23 @@ reference answer. Every figure carries its accession number in
 `cases.json:provenance`. If a reference answer disagrees with these, the
 reference is wrong; that is what an independent key is for.
 
-First live run, 14 cases against a locally booted API:
+Two live runs, 14 cases each, against a locally booted API. The second ran
+after the grader's own defects were fixed:
 
-```
-ALPHAGRAVITY   mean weighted 0.5433 over 62.1% of the rubric's weight
-  correctness      0.6154
-  evidence         0.3571
-  period_entity    0.9167
-  scope            1.0
-  latency          0.1551
-  reasoning        ungraded
-  clarity          ungraded
-```
+| Dimension | run 1 | run 2 |
+|---|---|---|
+| **mean weighted** | 0.5433 | **0.7506** |
+| correctness | 0.6154 | **0.8462** |
+| evidence | 0.3571 | **0.7071** |
+| period_entity | 0.9167 | 0.9167 |
+| scope | 1.0 | 1.0 |
+| latency | 0.1551 | 0.1604 |
+| reasoning | ungraded | ungraded |
+| clarity | ungraded | ungraded |
+
+Graded weight 62.1% in both. The improvement is almost entirely the grader
+being corrected, not the system changing — which is the point of recording both
+runs rather than only the better one.
 
 **Three of the five failures were my grader's fault, not the system's**, and
 finding that out is the reason the rubric has its own test suite:
@@ -141,13 +167,26 @@ target. Each is fixed and pinned by regression tests in
 
 ### Genuine system defects the benchmark found
 
-- **`cprt-fy2025-revenue` and `odfl-fy2025-revenue`: 225,767 ms and 220,047 ms
-  with zero citations**, answering "No supporting evidence found". Both are
-  registrants outside the ~30-ticker local corpus. Real coverage and latency
-  failure, unfixed in this pass.
-- **`aapl-fy2025-growth`: reported FY2024 revenue as `$391.535B`.** The filing
-  says **391,035,000,000**. A transposed digit produced 6.3% growth against a
-  true 6.4255%. Real correctness defect, unfixed.
+**Reproducible across both runs, unfixed in this pass:**
+
+- **`cprt-fy2025-revenue` and `odfl-fy2025-revenue`** answered "No supporting
+  evidence found" after **225,767 ms / 220,047 ms** (run 1) and
+  **221,401 ms / 221,645 ms** (run 2), with **zero citations**. Both are
+  registrants outside the ~30-ticker local corpus. A real coverage failure and
+  the worst latency in the suite, reproduced twice.
+
+**Non-deterministic, and corrected here rather than left overstated:**
+
+- `aapl-fy2025-growth` failed run 1, reporting FY2024 revenue as `$391.535B`
+  against a filed `391,035,000,000` — a transposed digit yielding 6.3% growth
+  against a true 6.4255%. It **passed run 2** (w=0.9359) with the same code and
+  the same question. So this is generation variance, not a systematic defect,
+  and describing it as the latter would have been wrong. Recording it anyway:
+  a figure that is right on one run and wrong on the next is still a figure a
+  user cannot rely on, and the two runs are the evidence that it varies.
+
+**Latency is the standing failure.** 0.16 on a dimension where 1.0 means
+meeting the roadmap's 5–10 s budgets. Median case ~35 s. §1 says where it goes.
 
 ---
 
@@ -210,10 +249,11 @@ suite proves nothing about the SEC work.
 **Open, unfixed, and named rather than closed:**
 
 1. CPRT/ODFL: 220 s+, zero citations, for registrants outside the local corpus.
-2. `aapl-fy2025-growth`: FY2024 revenue reported as 391.535B against a filed
-   391.035B.
+   Reproduced in both runs.
+2. Latency overall: 0.16 against the roadmap's 5-10 s budgets.
 3. `serialization`'s bimodal 12 ms / 4,069 ms — window identified, cause not.
 4. `dense` channel hitting its 12 s timeout repeatedly.
+5. Generation variance on `aapl-fy2025-growth` — right once, wrong once.
 
 ---
 

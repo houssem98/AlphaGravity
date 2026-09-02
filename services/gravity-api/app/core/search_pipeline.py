@@ -555,6 +555,12 @@ class SearchPipeline:
                     e.get("ticker") for e in _existing
                     if isinstance(e, dict) and e.get("ticker")
                 }
+                # Same backoff as the resolution above. This is a SECOND
+                # independent 2s timeout inside the same stage, which is why
+                # `entity` measured a flat 4007ms rather than 2003ms: two
+                # unguarded builds of a resolver that cannot become ready.
+                if time.time() < _resolver_backoff_until[0]:
+                    raise TimeoutError("resolver in backoff")
                 _resolver = await asyncio.wait_for(get_resolver(redis_client=_redis), timeout=2.0)
                 _cands = _extract_company_mentions(query)
                 _found = []
@@ -589,7 +595,13 @@ class SearchPipeline:
                                 tickers=[e.get("ticker") for e in _merged if isinstance(e, dict)],
                                 added=[f["ticker"] for f in _uniq])
             except Exception as _er2:
-                logger.debug("company_fallback_skipped", trace_id=trace_id, error=str(_er2))
+                # Type, not message — the same reason as above. This handler
+                # also logged `error=` for every TimeoutError, so the second of
+                # the two 2s stalls was as invisible as the first.
+                if isinstance(_er2, (asyncio.TimeoutError, TimeoutError)):
+                    _resolver_backoff_until[0] = time.time() + _RESOLVER_BACKOFF_S
+                logger.debug("company_fallback_skipped", trace_id=trace_id,
+                             error_type=type(_er2).__name__)
 
             # Explicit API scope is a contract: a caller that pins
             # filters["companies"] (grid cells, eval harness) means EXACTLY those
