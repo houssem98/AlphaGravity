@@ -107,18 +107,19 @@ than guessed at.
 
 | # | Gate | Command | Exit | Result | Verdict |
 |---|---|---|---|---|---|
-| 1 | Backend tests | `pytest tests/ -q --ignore=tests/live --ignore=tests/eval` | 0 | **2008 passed, 0 failed**, 394.90s | **PASS** |
+| 1 | Backend tests | `pytest tests/ -q --ignore=tests/live --ignore=tests/eval` | 0 | **2078 passed, 0 failed**, 401.01s | **PASS** |
 | 2 | Frontend tests | `npx vitest run src/` | 0 | **1516 passed, 87 files** | **PASS** |
 | 2b | Typecheck | `npx tsc --noEmit -p tsconfig.app.json` | 0 | no errors | **PASS** |
 | 2c | Build | `npx tsc -b && npx vite build` | 0 | `dist/` written, 74s | **PASS** |
 | 3 | Stage trace | `pytest tests/test_stage_trace.py -q` | 0 | **19 passed** | **PASS** |
 | 4 | Answer contract | `pytest tests/test_answer_contract.py -q` | 0 | **62 passed** | **PASS** |
-| 5 | Head-to-head rubric | `pytest tests/test_head_to_head_rubric.py -q` | 0 | **70 passed** | **PASS** |
+| 5 | Head-to-head rubric | `pytest tests/test_head_to_head_rubric.py -q` | 0 | **84 passed** | **PASS** |
+| 5b | Calculator guard | `pytest tests/test_calc_guard.py -q` | 0 | **52 passed** | **PASS** |
 | 6 | Resolver backoff | `pytest tests/test_resolver_backoff.py -q` | 0 | **12 passed** | **PASS** |
 | 7 | Query planning | `pytest tests/test_finance_query_plan.py -q` | 0 | 105 passed | **PASS** |
 | 8 | Pipeline E2E | `pytest tests/test_quick_answer_pipeline_e2e.py tests/test_search_pipeline_sec_e2e.py -q` | 0 | 25 passed | **PASS** |
 | 9 | Gate integrity | `node ~/.claude/scripts/gate-guard.mjs` | 0 | clean | **PASS** |
-| 10 | **Live benchmark** | `python -m eval.head_to_head.run_benchmark --live` | 1 | 14 cases; **0.7506** weighted, correctness **0.8462**, §3 | **PARTIAL** |
+| 10 | **Live benchmark** | `python -m eval.head_to_head.run_benchmark --live` | 1 | 14 cases × **5 runs**; correctness spread **0.6154–0.8462**, §3 | **PARTIAL** |
 | 11 | **Blind head-to-head** | same, `--reference refs.json` | — | no reference answers exist | **BLOCKED** |
 | 12 | Latency forensics | 11 live stage traces | 0 | §1 | **PASS** |
 | 13 | Browser E2E | — | — | no spec covers the SEC links | **BLOCKED** |
@@ -129,13 +130,15 @@ than guessed at.
 
 `eval/head_to_head/` — 14 cases, ground truth **fetched from SEC's XBRL
 `companyconcept` API on 2026-09-02**, not from any model and not from a
-reference answer. Every figure carries its accession number in
-`cases.json:provenance`. If a reference answer disagrees with these, the
-reference is wrong; that is what an independent key is for.
+reference answer. The 11 filed figures each carry their accession number and
+XBRL tag in the top-level `cases.json:provenance` list; the 2 derived values
+(`nvda-fy2026-growth`, `odfl-fy2025-decline`) are computed from two entries in
+that same list rather than filed directly. If a reference answer disagrees with
+these, the reference is wrong; that is what an independent key is for.
 
-Three live runs, 14 cases each, against a locally booted API. Run 2 followed
-the grader's own defects being fixed; run 3 followed the entity-resolver
-latency fix:
+Five live runs, 14 cases each, against a locally booted API. Run 2 followed the
+first three grader defects being fixed; run 3 followed the entity-resolver
+latency fix; run 4 followed `calc_guard`; run 5 followed grader bugs 4 and 5:
 
 | Dimension | run 1 | run 2 | run 3 | run 4 | run 5 |
 |---|---|---|---|---|---|
@@ -168,7 +171,9 @@ confidence, 4 false abstentions.** Four of the five misses are the system
 declining rather than guessing — which is the behaviour `calc_guard` was built
 to produce, and which a single "correctness 0.6154" hides completely.
 
-Per-case, the instability is concentrated in the derived (growth) questions:
+Per-case, the instability is concentrated in the derived (growth) questions.
+Runs 1–3 are the ones tabulated per case; runs 4 and 5 were recorded as the
+failure-mode split above rather than case by case:
 
 | case | run 1 | run 2 | run 3 |
 |---|---|---|---|
@@ -187,8 +192,8 @@ finding that out is the reason the rubric has its own test suite:
 | 2 | Any figure failed an abstention | An answer that correctly declined FY2031 *and then cited the newest filed quarter* scored zero — training the system toward abstentions that cannot say what **is** known | run 1 |
 | 3 | Wrong evidence vocabulary | The rubric knew `answer_contract.SourceClass` names; the pipeline emits `research.evidence` names (`SEC_EVIDENCE`), so **every real SEC citation scored as non-primary** | run 1 |
 | 4 | A complete refusal scored as an overstated scan | *"No source passage identifies which S&P 500 companies mentioned tariff risk… does not name individual companies"* scored **0.0 for "partial scan presented as complete"**. It names nobody — the strongest possible statement of limited coverage — but the hedge list only recognised *partial* answers | run 4 |
-| 6 | The refusal vocabulary missed plain negations, twice | The first fix for bug 4 did not work, because `_DECLINE_PHRASES` contained `"does not"` but not `"do not"`, and no leading `"no <noun>"` form at all — so *"The sources **do not** identify…"* and *"**No source** passage identifies…"* both still scored zero. It also scanned the whole reply, where a bulleted list of the **sources consulted** is indistinguishable from a list of member companies. Now judged on the opening sentence, with the negations added | run 5 |
 | 5 | Declining one metric while reporting another read as false confidence | *"FY2025 net sales were $416.161B. The sources do not contain FY2024, so growth cannot be computed"* was labelled `false_confidence`, punishing precisely the behaviour `calc_guard` was added to produce | run 4 |
+| 6 | The refusal vocabulary missed plain negations, twice | The first fix for bug 4 did not work, because `_DECLINE_PHRASES` contained `"does not"` but not `"do not"`, and no leading `"no <noun>"` form at all — so *"The sources **do not** identify…"* and *"**No source** passage identifies…"* both still scored zero. It also scanned the whole reply, where a bulleted list of the **sources consulted** is indistinguishable from a list of member companies. Now judged on the opening sentence, with the negations added | run 5 |
 
 **All six marked a right answer wrong.** That is the worst class of grader
 defect: it does not merely mis-score, it aims optimisation at the wrong target —
@@ -201,13 +206,14 @@ the fixes did not simply make the rubric lenient.
 
 ### Genuine system defects the benchmark found
 
-**Reproducible across both runs, unfixed in this pass:**
+**Reproducible across every run, unfixed in this pass:**
 
 - **`cprt-fy2025-revenue` and `odfl-fy2025-revenue`** answered "No supporting
   evidence found" after **225,767 ms / 220,047 ms** (run 1) and
-  **221,401 ms / 221,645 ms** (run 2), with **zero citations**. Both are
-  registrants outside the ~30-ticker local corpus. A real coverage failure and
-  the worst latency in the suite, reproduced twice.
+  **221,401 ms / 221,645 ms** (run 2), with **zero citations**, and failed the
+  same way in runs 3–5. Both are registrants outside the ~30-ticker local
+  corpus. A real coverage failure and the worst latency in the suite,
+  reproduced five times.
 
 **The most serious defect found, and fixed: a fabricated growth rate labelled
 "deterministic".** Run 3 produced:
@@ -239,7 +245,7 @@ The block's label no longer claims the result is verified.
 
 The asymmetry is deliberate and asserted in `test_the_guard_is_conservative_by_design`:
 a false refusal costs an injected convenience; a false acceptance costs a
-fabricated figure presented to a user as verified. 50 tests.
+fabricated figure presented to a user as verified. 52 tests.
 
 **A third invisibility, caught before it became a fourth bug.** After the guard
 shipped, `calculator_injected` stopped appearing in the logs entirely — which
@@ -257,10 +263,11 @@ distinguishable without attaching a debugger.
   different reason ("the sources provided do not contain Apple's FY2024 total
   net sales figure"). Calling this a single systematic defect would have been
   wrong. It is retrieval and generation variance on derived questions, and the
-  three runs are the evidence.
+  five runs are the evidence.
 
-**Latency is the standing failure.** 0.16 on a dimension where 1.0 means
-meeting the roadmap's 5–10 s budgets. Median case ~35 s. §1 says where it goes.
+**Latency is the standing failure.** 0.155–0.187 across five runs, on a
+dimension where 1.0 means meeting the roadmap's 5–10 s budgets. Median case
+~35 s. §1 says where it goes.
 
 ---
 
@@ -323,11 +330,12 @@ suite proves nothing about the SEC work.
 **Open, unfixed, and named rather than closed:**
 
 1. CPRT/ODFL: 220 s+, zero citations, for registrants outside the local corpus.
-   Reproduced in both runs.
-2. Latency overall: 0.16 against the roadmap's 5-10 s budgets.
+   Reproduced in all five runs.
+2. Latency overall: 0.155-0.187 against the roadmap's 5-10 s budgets.
 3. `serialization`'s bimodal 12 ms / 4,069 ms — window identified, cause not.
 4. `dense` channel hitting its 12 s timeout repeatedly.
-5. Generation variance on `aapl-fy2025-growth` — right once, wrong once.
+5. Generation variance on the derived cases — `aapl-fy2025-growth` passed run 2
+   and failed runs 1 and 3, for two different reasons.
 
 ---
 
@@ -336,9 +344,10 @@ suite proves nothing about the SEC work.
 Modified (4): `search_pipeline.py`, `retrieval/orchestrator.py`,
 `reasoning/prompts.py`, `tests/test_finance_query_plan.py`.
 
-Added (9): `finance/stage_trace.py`, `finance/answer_contract.py`,
+Added (11): `finance/stage_trace.py`, `finance/answer_contract.py`,
+`finance/calc_guard.py`,
 `eval/head_to_head/{__init__,cases.json,rubric.py,run_benchmark.py}`,
-`tests/{test_stage_trace,test_answer_contract,test_head_to_head_rubric,test_resolver_backoff}.py`.
+`tests/{test_stage_trace,test_answer_contract,test_head_to_head_rubric,test_resolver_backoff,test_calc_guard}.py`.
 
 One test was **rewritten, not weakened**:
 `test_a_planning_failure_cannot_take_down_a_search` scanned a fixed 700-character

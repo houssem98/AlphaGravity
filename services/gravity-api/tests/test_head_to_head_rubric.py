@@ -306,6 +306,22 @@ def test_ground_truth_records_where_it_came_from():
         assert "accn" in line
 
 
+def test_every_filed_expectation_appears_in_the_provenance_list():
+    """
+    A new case with a confident `expect_value` and no accession behind it would
+    make the key unfalsifiable — the derived cases are exempt because
+    `test_the_computed_growth_cases_agree_with_their_recorded_endpoints` already
+    ties them to two entries that ARE in this list.
+    """
+    derived = {"aapl-fy2025-growth", "nvda-fy2026-growth", "odfl-fy2025-decline"}
+    prov = "\n".join(CASES["provenance"])
+    for c in CASES["cases"]:
+        v = c.get("expect_value")
+        if v is None or c["id"] in derived:
+            continue
+        assert str(int(v)) in prov, f"{c['id']}: {v} has no accession recorded"
+
+
 def test_the_computed_growth_cases_agree_with_their_recorded_endpoints():
     """The derived expectations must follow from the fetched figures."""
     checks = [
