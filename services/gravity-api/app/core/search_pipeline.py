@@ -95,17 +95,27 @@ _resolver_backoff_until = [0.0]
 
 
 def gate_verdict_failed(prov: dict | None) -> bool:
-    """True only when a stored verdict explicitly says the gate rejected it.
+    """True unless a stored verdict explicitly says the gate PASSED it.
 
-    Absent provenance and an absent verdict are UNKNOWN, not failed. Refusing
-    those would empty the cache to buy nothing — `replay_metadata` already
-    stops unknown from reading as a pass, which is the honest handling for a
-    question nobody recorded the answer to.
+    Reversed in L3, on new information. Round 1 read an absent verdict as
+    UNKNOWN rather than FAILED and served it, reasoning that refusing would
+    "empty the cache to buy nothing". That reasoning assumed unverdicted
+    entries keep arriving. L2 closed the write path to anything but a passing
+    verdict, and this module holds the only `cache.set` in the service, so the
+    unverdicted population is now CLOSED: refusing costs one TTL window, once,
+    and buys the invariant that everything served was checked before it was
+    stored.
+
+    TTL proves expiry, not verification. An entry served today because it will
+    expire tomorrow is still an answer nothing checked.
+
+    A refused entry is a MISS, not an error — the caller falls through and
+    recomputes, so this declines to replay an answer, never to give one.
     """
     if not isinstance(prov, dict):
-        return False
+        return True
     gate = prov.get("contract_gate")
-    return isinstance(gate, dict) and gate.get("passed") is False
+    return not (isinstance(gate, dict) and gate.get("passed") is True)
 
 
 def replay_metadata(prov: dict | None, latency_ms: float, trace_id: str) -> dict:

@@ -14,11 +14,23 @@ Scope of the fix, deliberately narrow:
 
   passed is False  -> refuse, fall through and recompute
   passed is True   -> serve (the cache must keep working)
-  not recorded     -> serve, still labelled `recorded: false`
+  not recorded     -> refuse (SUPERSEDED BY L3 — was: serve)
 
-Refusing unrecorded entries would empty the cache to buy nothing: `recorded:
-false` means the verdict is unknown, not that it failed, and `replay_metadata`
-already refuses to let unknown read as a pass.
+**The third line was reversed by L3 / R3.** It originally read "serve, still
+labelled `recorded: false`", on the reasoning that refusing unrecorded entries
+"would empty the cache to buy nothing" — unknown is not failed, and
+`replay_metadata` already stops unknown reading as a pass.
+
+That reasoning assumed unverdicted entries keep arriving. L2 (`4ce93b9`) closed
+the write path to anything but a PASSING verdict, and `search_pipeline` holds
+the only `cache.set` in the service, so the unverdicted population is now
+closed. Refusing costs one TTL window, once, rather than a permanent tax on the
+hit rate — and buys the invariant that everything served was checked before it
+was stored. TTL proves expiry, not verification.
+
+The round-1 reasoning is kept above rather than deleted, because the record of
+why a decision was made is what lets the next reader tell a reversal from a
+regression.
 """
 
 from __future__ import annotations
@@ -163,14 +175,23 @@ async def test_a_passing_gate_verdict_is_still_served_from_cache():
 
 
 @pytest.mark.asyncio
-async def test_an_entry_with_no_recorded_verdict_is_still_served():
-    """`recorded: false` means unknown, not failed. Refusing it buys nothing."""
+async def test_an_entry_with_no_recorded_verdict_is_refused():
+    """Reversed by L3. Was `..._is_still_served`; see the module docstring.
+
+    An unrecorded verdict is not a passing one, and the population of such
+    entries is closed now that L2 gates the write. Refusing them is bounded by
+    one TTL window and makes "everything served was checked" true rather than
+    aspirational.
+    """
     cache = _Cache(_entry("Legacy cached answer.", gate=None))
 
     events = await _run(_pipeline_with(cache))
 
-    assert "Legacy cached answer." in _answer_text(events)
-    md = _of(events, "metadata")[-1].data
-    assert md.get("cache_hit") is True
-    # Still honest about what it does not know.
-    assert md["contract_gate"].get("passed") is not True
+    assert "Legacy cached answer." not in _answer_text(events), (
+        "an entry nothing ever checked was replayed to the client"
+    )
+    # Refused, not dropped: the query still gets a real answer.
+    assert "130,497" in _answer_text(events), (
+        "refusing the unverdicted entry also cost the caller their answer"
+    )
+    assert _of(events, "metadata")[-1].data.get("cache_hit") is not True
