@@ -365,6 +365,59 @@ def _asserts(expected: float, text: str, tol: float = 0.01) -> bool:
     return not _financial_figures(outside)
 
 
+#: Like `_CLAIM`, but it keeps the magnitude word attached to the currency
+#: form. `_CLAIM`'s first alternative matches "$416.2" out of "$416.2 billion"
+#: and stops, so `numbers_in` on that fragment yields 416.2 and never
+#: 416,200,000,000 — the answer's own scale is thrown away before the
+#: comparison. It is a separate pattern rather than a fix to `_CLAIM` because
+#: three other call sites depend on that one's exact fragments.
+_ASSERTED = re.compile(
+    r"\$\s*[\d,]+(?:\.\d+)?\s*"
+    r"(?:k|mm|m|bn|b|t|thousand|million|billion|trillion)?"
+    r"|[\d,]+(?:\.\d+)?\s*(?:k|mm|m|bn|b|t|thousand|million|billion|trillion)\b"
+    r"|[\d,]+(?:\.\d+)?\s*(?:%|percent|pp|bps)",
+    re.I,
+)
+
+
+def _asserted_values(text: str) -> set[float]:
+    """The numeric readings of the figures the answer asserts, asides excluded.
+
+    A currency mark or a magnitude word is required, so a bare year is not
+    mistaken for a claim — without that, "2025" in both the answer and the
+    excerpt would bind every answer to every citation.
+    """
+    outside = _PAREN.sub(" ", text or "")
+    out: set[float] = set()
+    for m in _ASSERTED.finditer(outside):
+        out |= numbers_in(m.group(0))
+    return out
+
+
+def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
+    """
+    Whether a figure the answer asserts appears in a cited excerpt.
+
+    `None` means the question could not be asked: no citation carried enough
+    text, or the answer asserted no figure. An unanswerable question is not a
+    failed one, and the caller leaves the score alone — six of seven grader
+    bugs in this file came from tightening past what the data supports, and a
+    citation whose excerpt happens to be a section header would be punished by
+    a stricter rule for no fault of the answer.
+
+    Deliberately lenient in two ways. It accepts a match in ANY cited excerpt
+    rather than only a primary one, and it accepts any asserted reading rather
+    than the headline alone — so it fires only when the figure is nowhere in
+    anything the answer cited, which is the case grader bug 7 left open.
+    """
+    excerpts = [str(c.get("text") or "") for c in (cites or [])]
+    excerpts = [e for e in excerpts if len(e.strip()) >= 20]
+    values = _asserted_values(text)
+    if not excerpts or not values:
+        return None
+    return any(_matches(v, e) for v in values for e in excerpts)
+
+
 def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None,
                  latency_ms: float | None = None,
                  scope_status: str = "", system: str = "") -> Scorecard:
@@ -473,9 +526,23 @@ def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None
             # So it does not invent a penalty it cannot justify; it stops paying
             # a PERFECT score for a property it never verified, and says so.
             _prim = sum(1 for c in cites if _is_primary([c]))
-            if _prim == len(cites):
+            # Where the excerpts allow it, the attribution is now checked
+            # instead of assumed. `None` means the excerpts do not permit the
+            # question, and the scores below are exactly what they were.
+            _bound = _claim_is_bound(text, cites)
+            if _bound is False:
+                card.scores["evidence"] = 0.5
+                card.notes["evidence"] = (
+                    f"{_prim} of {len(cites)} citations primary, but the figure "
+                    "the answer states appears in none of the cited excerpts"
+                )
+            elif _prim == len(cites):
                 card.scores["evidence"] = 1.0
-                card.notes["evidence"] = "every citation is a primary source"
+                card.notes["evidence"] = (
+                    "every citation is a primary source"
+                    + ("; the stated figure appears in a cited excerpt"
+                       if _bound else "")
+                )
             else:
                 card.scores["evidence"] = 0.8
                 card.notes["evidence"] = (
