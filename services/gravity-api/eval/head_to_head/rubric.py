@@ -394,6 +394,24 @@ def _asserted_values(text: str) -> set[float]:
     return out
 
 
+#: A figure stated as a RATE rather than as a level. Separated because a rate
+#: is usually computed from two levels rather than quoted from a filing, so it
+#: legitimately appears in no excerpt — see `_claim_is_bound`.
+_RATE_TAIL = re.compile(r"(?:%|percent\w*|pp|bps)\s*$", re.I)
+
+
+def _asserted_split(text: str) -> tuple[set[float], set[float]]:
+    """`_asserted_values`, split into levels and rates."""
+    outside = _PAREN.sub(" ", text or "")
+    levels: set[float] = set()
+    rates: set[float] = set()
+    for m in _ASSERTED.finditer(outside):
+        frag = m.group(0)
+        target = rates if _RATE_TAIL.search(frag) else levels
+        target |= numbers_in(frag)
+    return levels, rates
+
+
 def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
     """
     Whether a figure the answer asserts appears in a cited excerpt.
@@ -409,13 +427,52 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
     rather than only a primary one, and it accepts any asserted reading rather
     than the headline alone — so it fires only when the figure is nowhere in
     anything the answer cited, which is the case grader bug 7 left open.
+
+    **Per CLAIM, not per answer (R6).** The `any` used to range over every
+    figure in the reply at once, so one cited figure carried every uncited one
+    beside it: "Revenue was $130,497M [1]. Data centre was $115,186M. Gaming
+    was $11,350M." scored as bound on a citation supporting only the first.
+    The leniencies above are unchanged — only the SCOPE of the `any` moved.
+
+    Sentence scope is the granularity `_period_misattributed` already settled
+    on for this same question, for the reason given there.
+
+    A rate is treated as derived rather than quoted. "Revenue grew from $100B
+    to $130B [1]. That is a 30% increase." states a figure that appears in no
+    excerpt because it was computed, and penalising it would punish a correct
+    computed answer — the over-tightening this file has already had to undo six
+    times. So a rate-only claim is excused when some level claim beside it is
+    bound. Standing alone with nothing else bound it must still bind on its
+    own, exactly as before: the excuse is not a blanket exemption.
     """
     excerpts = [str(c.get("text") or "") for c in (cites or [])]
     excerpts = [e for e in excerpts if len(e.strip()) >= 20]
-    values = _asserted_values(text)
-    if not excerpts or not values:
+    if not excerpts:
         return None
-    return any(_matches(v, e) for v in values for e in excerpts)
+
+    level_claims: list[set[float]] = []
+    rate_claims: list[set[float]] = []
+    for sentence in re.split(r"(?<=[.!?])\s+|\n", text or ""):
+        levels, rates = _asserted_split(sentence)
+        if levels:
+            # A claim's own rates count toward binding it; a margin sentence
+            # that also quotes the level it came from is bound by either.
+            level_claims.append(levels | rates)
+        elif rates:
+            rate_claims.append(rates)
+
+    # A sentence asserting no figure is not an unsupported claim — it is not a
+    # claim. If none of them assert one, the question cannot be asked.
+    if not level_claims and not rate_claims:
+        return None
+
+    def _binds(values: set[float]) -> bool:
+        return any(_matches(v, e) for v in values for e in excerpts)
+
+    bound_levels = [_binds(v) for v in level_claims]
+    if not all(bound_levels):
+        return False
+    return all(_binds(r) or any(bound_levels) for r in rate_claims)
 
 
 def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None,
@@ -533,8 +590,9 @@ def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None
             if _bound is False:
                 card.scores["evidence"] = 0.5
                 card.notes["evidence"] = (
-                    f"{_prim} of {len(cites)} citations primary, but the figure "
-                    "the answer states appears in none of the cited excerpts"
+                    f"{_prim} of {len(cites)} citations primary, but at least "
+                    "one figure the answer states appears in none of the cited "
+                    "excerpts"
                 )
             elif _prim == len(cites):
                 card.scores["evidence"] = 1.0
