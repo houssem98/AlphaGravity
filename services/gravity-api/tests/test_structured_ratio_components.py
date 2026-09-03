@@ -86,7 +86,10 @@ async def test_rows_are_ordered_newest_period_first(captured):
 
     # Without this the 24-row budget was filled by whatever Postgres yielded first
     # out of 460k rows, so "the latest fiscal year" was luck.
-    assert seen["filters"].get("order") == "period.desc"
+    # `id.asc` appended by L9/R10: `period` is not unique, so it ordered without
+    # selecting, and rows tying on it were left to the query planner. Newest
+    # period first is unchanged and still comes first.
+    assert seen["filters"].get("order") == "period.desc,id.asc"
 
 
 @pytest.mark.asyncio

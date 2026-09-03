@@ -52,7 +52,10 @@ class TestAnnualQueriesStayAnnual:
     @pytest.mark.asyncio
     async def test_newest_period_still_sorts_first(self, captured):
         flt = await captured("Apple revenue in 2023")
-        assert flt["order"] == "period.desc"
+        # `id.asc` appended by L9/R10: `period` is not unique, so it ordered
+        # without selecting and ties went to the query planner. Newest period
+        # first is unchanged and still leads.
+        assert flt["order"] == "period.desc,id.asc"
 
 
 class TestQuarterIntentOptsIn:

@@ -185,7 +185,21 @@ class StructuredSearch:
         # ticker happened to sort first. `period` is text, and "FY2026" > "FY2025"
         # lexically, which is the ordering we want; the non-xbrl rows store dates
         # like "2026-05-20" and sort below every FY row because "F" > "2".
-        flt["order"] = "period.desc"
+        # `period` is not unique, so it orders but does not SELECT. Two rows for
+        # one ticker/metric/period tie — the exact XBRL row and a backfill row,
+        # or two filed labels for one concept — and the tie was left to the
+        # query planner, so the same question could select a different fact on
+        # two runs:
+        #
+        #     AMD_CostOfGoodsAndServicesSold_FY2025_xbrl
+        #     AMD_Cost_of_revenue_2026-05-20_backfill
+        #
+        # `id` is unique, so appending it makes the ordering TOTAL and the
+        # selection repeatable. This decides only that the winner is stable, not
+        # that it is the right one: WHICH label should win when a company files
+        # both is a data question needing production rows, and it stays
+        # escalated rather than guessed at here.
+        flt["order"] = "period.desc,id.asc"
         rows = await supabase_rest.sb_select("financials", flt, limit=max(top_k, 24))
         out: list[RetrievalResult] = []
         for r in rows:

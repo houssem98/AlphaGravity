@@ -49,18 +49,18 @@ that actually matters. The audit's framing is exact: this moved the defect from
 | **R5** | The no-evidence exit yields an answer with no gate | **CLOSED — L1, 2026-09-03** | Was: answer yield at 1257 (`no_evidence_exit`) reached before the contract was ever checked. **Not found by either audit — found while checking R1.** Now gated report-only; decision and the escalation it surfaced recorded in §3b. |
 | **R6** | Claim-binding is any-claim/any-excerpt, not per-claim | **CLOSED — L5, 2026-09-03** | The `any` moved from whole-answer scope to per-claim scope; every documented leniency kept. Derived rates are excused when the levels beside them bind, so a correct computed answer is not punished. |
 | **R7** | `_asserts` uses punctuation as a proxy for proposition structure | **BLOCKED — needs sentence parsing (L6, 2026-09-03)** | Real and measured: 5 of 7 probed shapes score a wrong headline as asserting the truth. But widening the punctuation list is measurably WRONG — it breaks 3 shapes this file protects, including the two-period case whose regression it 'already paid for once'. Telling a demoted truth from a legitimate second clause needs clause-level period attribution. Constraint suite left in `tests/test_asserts_proposition_scope.py`. |
-| **R8** | Period attachment does not fire when no period is named | **VERIFIED — LIVE, by design** | `_period_misattributed` returns `False` when the figure sentence names no year. An underspecified answer is unpenalised. |
-| **R9** | Entity attachment is unimplemented | **VERIFIED — OPEN** | Unchanged from round 1. Needs entity binding (cik/ticker), not string matching. |
-| **R10** | "No DB" should not block the STATIC half of duplicate-fact selection | **VERIFIED — FAIR CHALLENGE** | Round 1 marked D4 wholly BLOCKED. Determinism (`ORDER BY` + a documented precedence) is checkable without production rows; only *which concept should win* needs data. The block was drawn too wide. |
+| **R8** | Period attachment does not fire when no period is named | **CLOSED — L7, 2026-09-03** | **The stated case is FALSIFIED**: "Apple revenue was $416,161 million." already scores 0.0, because `present` requires the token at all. The real hole is one step in — a token attached to a DIFFERENT figure lent to a yearless sentence scored 1.0. Fixed narrowly; a figureless preamble still scopes the answer. |
+| **R9** | Entity attachment is unimplemented | **CLOSED — L8, 2026-09-03** | Not blocked: citations DO carry issuer identity — measured `issuer='NVIDIA CORP'`, `cik=1045810`, `document_title` set, **`ticker` EMPTY**. So the bind reads all four fields; a ticker-only rule would have called a real SEC citation unidentified. Returns None when no identity is present at all. |
+| **R10** | "No DB" should not block the STATIC half of duplicate-fact selection | **CLOSED — L9, 2026-09-03** | The challenge was right. `period.desc` ordered but did not SELECT — `period` is not unique, so ties went to the query planner. Now `period.desc,id.asc`, verified offline by capturing the PostgREST filter. *Which* label wins still needs production rows and stays escalated. |
 | **R11** | Numeric grounding should not be described as "closed" | **VERIFIED — WORDING** | It is a recorded policy decision, not a technical fix. The ledger says so; any wording that reads as "numeric correctness closed" is wrong. |
 | **R12** | Benchmark `supports` may be optional metadata | **VERIFIED — REBUTTED** | `test_every_filed_expectation_resolves_to_exactly_one_record` requires exactly one backing record per filed case AND a matching value. Measured: 11 filed cases, 11 records, 0 unbacked. The auditor's provisional CLOSED is upgraded, not downgraded. |
 | **R14** | The gate rejects every citation the pipeline actually produces | **CLOSED — L2, 2026-09-03** | **Found while writing L2's guard; in neither audit.** `FinalGate` accepted `{sec_filing, sec_xbrl}`; `citation_provenance.payload()` stamps `SEC_EVIDENCE`. Measured: a verified 10-K citation failed `primary_source`. Reconciled at the gate boundary. |
 | **R13** | "Red before green" cannot be established from the diff | **ACCEPTED — METHOD** | Correct. The claim is true but its evidence lives in this session's transcript, not in the commits. Round 2 must leave artefacts in-repo. |
 
 **Score at intake: 10 live · 1 fair challenge · 1 rebutted · 1 method.**
-**Now: 3 live · 7 closed (R1, R5 · R4, R14 · R3 · R2 · R6) · 1 BLOCKED-with-reason (R7) · 1 fair challenge · 1 rebutted · 1 method.**
+**Final: 0 live · 10 closed · 1 BLOCKED-with-reason (R7) · 1 rebutted (R12) · 2 method/wording (R11, R13).**
 **R14 was not in the intake count — it was found by the loop, like R5.**
-**Remaining LIVE: R8, R9, R10.**
+**Two roadmap claims were falsified by checking: R8's stated test case (already scored 0.0) and R10's blanket block (determinism is checkable offline).**
 
 ---
 
@@ -129,9 +129,15 @@ the loop.** The loop's fix leaves the emitted refusal text byte-identical.
 
 ## 4. Certification
 
-Not met. `NOT CERTIFIED` stands. Seven rows are closed and R7 is BLOCKED with a
-stated reason, but the blind head-to-head is still unrun, no reference set
-exists, and three rows remain LIVE. Closing the
+Not met. `NOT CERTIFIED` stands, and closing every row does not change that.
+
+Ten rows are closed and R7 is BLOCKED with a stated reason, so the loop's Target
+condition is satisfied. Certification is a different claim and remains blocked
+on a human: **the blind head-to-head is unrun because no reference set exists**,
+and **browser E2E for the SEC links is unrun**. Neither can be produced by this
+loop. The words `world class`, `certified`, `production ready` and `fixed` stay
+unavailable until those exist — a defect list reaching zero is evidence about
+the defect list, not about the product. Closing the
 P0 changes the ordering defect, not the certification status — the two were never
 the same claim. The words `world class`, `certified`, `production ready` and
 `fixed` may not be written while any row above is LIVE.

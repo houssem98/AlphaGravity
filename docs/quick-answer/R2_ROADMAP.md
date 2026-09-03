@@ -405,8 +405,8 @@ prevent.
 So: permit, and label. The real defect was that `contract_gate: null` covered
 two different facts — no contract built, and the gate itself crashed — which
 reach a client identically. They now carry distinct `no_contract` / `gate_error`
-reasons. This is the same mistake `replay_metadata` had already fixed on the
-cache path and nobody had applied here.
+reasons. This is the same mistake `replay_metadata` had already corrected on
+the cache path and nobody had applied here.
 
 ### L5 — the loop that had to be careful
 
@@ -464,4 +464,129 @@ assert the buggy outcomes — cementing them would make the defect load-bearing
 and force a future fix to delete tests to proceed. The next attempt at R7 starts
 with those green and knows immediately if it has re-broken what this file
 already paid to learn.
+
+---
+
+## Loops 7-10 — L7, L8, L9, L10
+
+| # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
+|---|---|---|---|---|---|---|---|---|
+| 7 | L7 | R8 | 2026-09-03 | **CLOSED** | 2256 passed / 0 failed | clean | `4c1dc02` | 1 failed, 8 passed |
+| 8 | L8 | R9 | 2026-09-03 | **CLOSED** | 2265 passed / 0 failed | clean | `4c1dc02` + `74f9e20` | 2 failed, 7 passed |
+| 9 | L9 | R10 | 2026-09-03 | **CLOSED** | 2270 passed / 0 failed | clean | this commit | 3 failed, 2 passed |
+| 10 | L10 | R11, R13 | 2026-09-03 | **CLOSED** | 2270 passed / 0 failed | clean | this commit | n/a — audit, asserts nothing new |
+
+### L7 — the roadmap's own test case was wrong
+
+R8 was stated as: *"Apple revenue was $416.161B" for a case asking FY2025 must
+not score full period marks.* Measured, that answer scores **0.0** —
+`score_answer` only consults `_period_misattributed` for a token that is
+`present` at all, and it names no period. The example does not reproduce.
+
+The defect is real one step in:
+
+    "FY2025 guidance was $400,000 million. Actual revenue was $130,497 million."
+
+FY2025 is attached to the GUIDANCE. The revenue sentence names no year, the walk
+stopped at "may be inheriting from a neighbour", and the answer took full
+attachment marks with nothing tying $130,497M to FY2025. Presence near a token
+is not attachment to it.
+
+A token-bearing sentence now settles the question only when it also carries the
+figure the answer was meant to assert. A FIGURELESS sentence still scopes the
+answer, because it claims no figure and competes for nothing.
+
+**This is the second roadmap claim the loop falsified by checking** — after
+round 1 falsified five. The pattern holds: verify the roadmap, not just the code.
+
+### L8 — checked, and it did not block
+
+L8 said BLOCK if citations carry no issuer id, and check rather than assume.
+Measured on a real pipeline citation:
+
+```
+issuer         'NVIDIA CORP'
+cik            1045810
+document_title 'NVIDIA 10-K FY2025'
+ticker         ''
+```
+
+`ticker` is EMPTY. A ticker-only rule would have reported a genuine SEC citation
+as unidentified — the same shape as R14, arrived at from the other direction. So
+`_ISSUER_FIELDS` reads issuer, ticker, company and document_title together.
+
+The defect itself: the period half of `period_entity` had an attachment check
+and the entity half had none — `hits += int(token.lower() in low)`. Naming the
+company earned the mark, so an answer saying "Apple" while citing only NVIDIA
+filings scored as well as one citing Apple's 10-K.
+
+The leniency that keeps this from becoming grader bug seven: no issuer identity
+anywhere returns None and the score is untouched. Unanswerable is not failed.
+
+**Bookkeeping correction, recorded not hidden.** L8's implementation landed in
+`4c1dc02` under an L7-only message: `git add` on rubric.py staged the whole file,
+which already held L8's edits. The code was correct and the tree green
+throughout; the commit boundary is wrong. `74f9e20` adds the tests and says so.
+History was not rewritten.
+
+### L9 — the fair challenge was fair
+
+Round 1 blocked D4 wholly on "no live DB". The auditor said the static half is
+checkable offline, and that is correct — `test_structured_ratio_components.py`
+already proved the technique by capturing the PostgREST filter with no database
+at all.
+
+`period.desc` ordered but did not SELECT: `period` is not unique, so two rows
+for one ticker/metric/period tie and the tie went to the query planner. The same
+question could select a different fact on two runs:
+
+```
+AMD_CostOfGoodsAndServicesSold_FY2025_xbrl
+AMD_Cost_of_revenue_2026-05-20_backfill
+```
+
+`id` is unique, so `period.desc,id.asc` makes the ordering total.
+
+**What was NOT decided.** Which label should win when a company files both needs
+production rows, and stays escalated. Shipping determinism does not settle the
+precedence — it stops the precedence being settled by the query planner. Two
+different claims, kept apart.
+
+*Caveat:* `structured_facts_enabled` defaults to False, so this channel is gated
+off in the default configuration. The query builder is correct; no live
+production improvement is claimed from it.
+
+### L10 — wording and artefacts
+
+**R11.** Audited every `docs/quick-answer/` file for phrasing that reads as
+"numeric correctness closed". Every hit is a statement OF the rule, a filename,
+or already labelled "closed **as a decision, not a code change**". No violation
+found. One banned word ("already fixed") in text THIS loop wrote at ledger L4
+was reworded — the rule is absolute, and the cheapest way to honour it is not to
+argue about intent.
+
+**R13.** Satisfied continuously rather than at the end: every fix commit in this
+round pastes its failing output into the message, and every ledger section
+carries the same verbatim. The auditor's objection was that red-before-green
+lived only in a terminal. It now lives in `git log`.
+
+### Stop conditions, all three
+
+- **Target — MET.** Every LIVE row is CLOSED or BLOCKED-with-a-reason, and both
+  evals ran every loop.
+- **Budget — 10 of 10 loops used.**
+- **Stall — never triggered.** No three consecutive loops without a verdict
+  change; the closest was L6, which changed a verdict to BLOCKED on measurement.
+
+### What this round does NOT claim
+
+`NOT CERTIFIED` stands. The blind head-to-head is unrun because no reference set
+exists, and browser E2E for the SEC links is unrun. Both need a human. A defect
+list reaching zero is evidence about the defect list, not about the product.
+
+Two of this round's eleven defects were found by the loop rather than by either
+audit (R5, R14), and two roadmap claims were falsified by checking (R8's test
+case, R10's blanket block). That ratio is the argument for re-deriving rather
+than inheriting — and the reason "the audit found everything" should not be
+believed of round 3 either.
 
