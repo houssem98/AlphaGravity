@@ -257,7 +257,8 @@ def _figures_attributed_to(text: str, case: dict) -> set[str]:
     return out
 
 
-def _period_misattributed(text: str, token: str) -> bool:
+def _period_misattributed(text: str, token: str,
+                          expected: float | None = None) -> bool:
     """
     Whether the reply hangs its figure on a period other than `token`.
 
@@ -272,6 +273,22 @@ def _period_misattributed(text: str, token: str) -> bool:
     the period from its neighbour, the text does not say otherwise, and
     guessing against it would be the over-tightening that produced most of the
     grader bugs this file has had to undo.
+
+    **Unless the neighbour is already spoken for (R8).** Given `expected`, a
+    sentence carrying the token only settles the question when it also carries
+    the figure the answer was supposed to assert. Otherwise the token belongs
+    to some OTHER figure and cannot be lent to a sentence that names none:
+
+        "FY2025 guidance was $400,000 million. Actual revenue was $130,497
+         million."
+
+    scored full attachment marks while FY2025 was attached to the guidance and
+    nothing tied the revenue to it. Presence near a token is not attachment to
+    it, and this is the dimension that exists to tell those apart.
+
+    A FIGURELESS sentence carrying the token still scopes the answer exactly as
+    before — it claims no figure, so it competes for nothing. Without
+    `expected` the behaviour is identical to before it was added.
     """
     tok = token.lower()
     claims = [s for s in re.split(r"(?<=[.!?])\s+|\n", text or "")
@@ -283,10 +300,22 @@ def _period_misattributed(text: str, token: str) -> bool:
     yearish = re.compile(r"(?<!\d)(?:19|20)\d{2}(?!\d)")
     if not claims:
         return False          # nothing asserted, so nothing to misattach
+    # Pass 1: is the token attached to a figure, and is it the right one?
+    claimed_by_another_figure = False
     for sentence in claims:
         if tok in sentence.lower():
-            return False      # attached to the expected period somewhere
+            if expected is None or _matches(expected, sentence):
+                return False  # attached to the expected period, on the figure
+            claimed_by_another_figure = True
+
+    # Pass 2: the yearless sentences. One may inherit a period from a
+    # neighbour, but not one already claimed by a different figure.
+    for sentence in claims:
+        if tok in sentence.lower():
+            continue
         if not yearish.search(sentence):
+            if claimed_by_another_figure:
+                continue      # nothing left to inherit
             return False      # names no competing period; do not guess
     return True
 
@@ -302,6 +331,37 @@ _PRIMARY_CLASS_NAMES = frozenset({
     "sec_filing", "sec_xbrl", "edgar", "edgar_text", "structured",
     "sec_evidence", "local_evidence",
 })
+
+
+#: The fields a citation may carry its issuer identity in. Read together
+#: rather than trusting one: a real pipeline citation was measured carrying
+#: `issuer='NVIDIA CORP'` and `cik=1045810` with `ticker=''`, so a
+#: ticker-only rule would have called it unidentified.
+_ISSUER_FIELDS = ("issuer", "ticker", "company", "document_title")
+
+
+def _entity_is_bound(token: str, cites: list[dict]) -> bool | None:
+    """Whether a cited filing belongs to the entity the answer names.
+
+    `None` means the question could not be asked: no citation carries any
+    issuer identity, so there is nothing to check the name against. An
+    unanswerable question is not a failed one, and the caller leaves the score
+    alone — the same discipline `_claim_is_bound` uses, and the reason this
+    file's grader-bug count did not go from six to seven.
+
+    Lenient in the same two ways as claim binding: ANY citation may carry the
+    identity, and any of the identity fields may carry it. It fires only when
+    the answer names a company that NOTHING it cited belongs to.
+    """
+    identities = [
+        str(c.get(f) or "").strip().lower()
+        for c in (cites or []) for f in _ISSUER_FIELDS
+    ]
+    identities = [i for i in identities if i]
+    if not identities:
+        return None
+    tok = token.strip().lower()
+    return any(tok in i for i in identities)
 
 
 def _is_primary(cites: list[dict]) -> bool:
@@ -619,26 +679,42 @@ def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None
     for token in case.get("expect_period_tokens", []):
         checks += 1
         present = token.lower() in low
-        if present and _period_misattributed(text, token):
+        if present and _period_misattributed(text, token, expected):
             # Named, but hung on a different year. Presence was never the
             # question this dimension was asking.
             present = False
             misattached.append(token)
         hits += int(present)
+    misbound: list[str] = []
     for token in case.get("expect_entity_tokens", []):
         checks += 1
-        hits += int(token.lower() in low)
+        present = token.lower() in low
+        # Named, but nothing cited belongs to that issuer. Presence in prose
+        # was never the question this dimension was asking — the same fix the
+        # period half already has.
+        if present and _entity_is_bound(token, cites) is False:
+            present = False
+            misbound.append(token)
+        hits += int(present)
     for token in case.get("forbid_tokens", []):
         checks += 1
         hits += int(token.lower() not in low)
     card.scores["period_entity"] = round(hits / checks, 4) if checks else None
     if not checks:
         card.notes["period_entity"] = "no period/entity tokens recorded"
-    elif misattached:
-        card.notes["period_entity"] = (
-            f"period token(s) {sorted(misattached)} appear in the reply but the "
-            "stated figure is attached to a different period"
-        )
+    elif misattached or misbound:
+        parts = []
+        if misattached:
+            parts.append(
+                f"period token(s) {sorted(misattached)} appear in the reply but "
+                "the stated figure is attached to a different period"
+            )
+        if misbound:
+            parts.append(
+                f"entity token(s) {sorted(misbound)} appear in the reply but no "
+                "citation belongs to that issuer"
+            )
+        card.notes["period_entity"] = "; ".join(parts)
 
     # scope ---------------------------------------------------------------
     if case.get("is_set_question"):
