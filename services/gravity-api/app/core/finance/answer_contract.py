@@ -67,6 +67,34 @@ class SourceClass(str, Enum):
 #: filing is evidence about the article.
 PRIMARY = frozenset({SourceClass.SEC_FILING, SourceClass.SEC_XBRL})
 
+#: The same idea, spelled the way the provenance layer spells it.
+#:
+#: `citation_provenance.payload()` stamps `source_class: "SEC_EVIDENCE"`, and
+#: the API schema, the frontend and `core/research/evidence.py` all branch on
+#: that vocabulary (SEC_EVIDENCE / LOCAL_EVIDENCE / WEB_EVIDENCE). The contract
+#: layer grew its own names independently, so a citation to a real 10-K — with
+#: an accession, a CIK and `verification_status: verified` — did not satisfy
+#: "requires a primary filing" and every SEC-cited answer failed the clause.
+#:
+#: Reconciled HERE rather than upstream: `SEC_EVIDENCE` is a wire value with
+#: consumers outside this module, and renaming it to satisfy an internal check
+#: would be a wide, outward-facing change made to close a narrow one.
+#:
+#: Only the SEC member maps in. `LOCAL_EVIDENCE` is a corpus prose chunk and
+#: `WEB_EVIDENCE` is a web page; neither is a filed figure, and admitting them
+#: would turn the clause into a rubber stamp.
+PRIMARY_ALIASES = frozenset({"SEC_EVIDENCE"})
+
+
+def is_primary_class(source_class: str) -> bool:
+    """True if `source_class` names a filed, authoritative source.
+
+    Accepts either vocabulary. Anything unrecognised is not primary — an
+    unknown class is an unproven one.
+    """
+    s = str(source_class or "")
+    return s in {c.value for c in PRIMARY} or s in PRIMARY_ALIASES
+
 
 @dataclass(frozen=True)
 class AnswerContract:
@@ -258,10 +286,11 @@ class FinalGate:
         if contract.requires_primary_source:
             checked.append("primary_source")
             classes = {str(c.get("source_class", "")) for c in cites}
-            if not (classes & {c.value for c in PRIMARY}):
+            if not any(is_primary_class(s) for s in classes):
                 violations.append(
                     "contract requires a primary filing; no citation is "
-                    f"sec_filing or sec_xbrl (saw {sorted(classes) or 'none'})"
+                    f"sec_filing, sec_xbrl or SEC_EVIDENCE "
+                    f"(saw {sorted(classes) or 'none'})"
                 )
 
         if contract.must_abstain:
