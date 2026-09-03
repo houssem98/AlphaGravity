@@ -190,3 +190,65 @@ Append one row per loop attempt. Never edit a row; supersede it.
 | # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
 |---|---|---|---|---|---|---|---|---|
 | 0 | — | — | 2026-09-03 | BASELINE | 2193 passed / 0 failed | clean | `6003631` | n/a — established, asserts nothing |
+| 1 | L1 | R1, R5 | 2026-09-03 | **CLOSED** | 2199 passed / 0 failed | clean | `68874a3` | 5 failed, 1 passed — verbatim in §Red evidence L1 |
+
+### Red evidence — L1 (R13: committed, not merely observed)
+
+Run against **unfixed** code, `tests/test_gate_runs_before_publication.py`:
+
+```
+E  AssertionError: the answer was published before the gate ran
+   (order: ['answer', 'gate']); the verdict can only be a post-mortem
+E  AssertionError: the answer event carries no contract_gate; the verdict
+   exists only on the later metadata event
+E  AssertionError: the no-evidence exit published a refusal with no gate
+   verdict at all (order: ['answer'])
+E  AssertionError: the refusal carries no contract_gate, so a reader cannot
+   tell a checked refusal from an unchecked one
+E  AssertionError: answer yield #2 publishes with no gate consultation above
+   it; nothing in ('_gate_check(', 'gate_verdict_failed(') appears between it
+   and the previous yield
+5 failed, 1 passed in 53.95s
+```
+
+`order: ['answer', 'gate']` is R1 stated as a measurement rather than as a line
+number. The sixth test passed before the change and after it: it is the
+report-only guard, and a guard that goes red on a reorder would mean the reorder
+had changed the answer.
+
+The fifth line is the source-order assertion **after** it was rewritten. The
+first version anchored on the first answer yield and was wrong about the code,
+not about the property: the cache-hit yield consults a RECORDED verdict
+(`gate_verdict_failed`) rather than recomputing one, which is correct on a
+replay — re-running the gate would grade the same text twice and could disagree
+with the verdict stored beside it. The rewrite checks all three publication
+sites in per-yield windows, so a new ungated yield cannot inherit the gate call
+belonging to the yield above it. It was re-run against unfixed code to confirm
+it was red for the right reason before being kept.
+
+### What the full suite caught that a targeted run did not
+
+Five files passed (89 tests) while two suite tests failed. Both had one cause:
+extracting `_gate_check` moved the string `FinalGate.check` out of
+`SearchPipeline.search`, so `test_the_gate_runs_before_the_answer_is_cached`
+raised `ValueError` on `src.index("FinalGate.check")`, and
+`test_verification_doc_citations` then failed because it subprocess-runs that
+file and reads its pass count (6, dropped to 5). The property never stopped
+holding; the marker moved. Re-anchored on `_gate_check(` with `index` → `rindex`
+— a strengthening, recorded in the commit message and accepted by gate-guard.
+
+The operating note earned its place a second time: **re-run the full suite, not
+the file.**
+
+### R5 surfaced an escalation the loop did not take
+
+The no-evidence exit builds an ordinary contract, so its refusal is graded as a
+failed answer rather than as an abstention — `must_abstain` is never set on that
+path, though "no supporting evidence found" is exactly the condition that clause
+describes. Measured verdict on the fixture query: `passed: false`, violating
+`min_citations` and `primary_source`. Setting `must_abstain` there would make
+these refusals pass cleanly instead of logging two violations apiece.
+
+That is contract policy, the same class of decision as D7, so it is **recorded
+for the owner and not taken by the loop** (`R2_GRAPH.md` §3b). The loop's change
+leaves the emitted refusal text byte-identical.
