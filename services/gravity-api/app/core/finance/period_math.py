@@ -46,8 +46,23 @@ from app.core.skills.period import fiscal_period_end
 
 __all__ = [
     "Basis", "Computed", "FiscalPeriod", "Quantity", "Refusal",
-    "calendar_year_overlap", "cagr", "delta", "growth", "margin", "ttm",
+    "calendar_year_overlap", "cagr", "delta", "growth", "is_finite_value",
+    "margin", "ttm",
 ]
+
+
+def is_finite_value(x: object) -> bool:
+    """The one finiteness test the finance calculators share.
+
+    Exported rather than kept private because `ratio_engine` computes over bare
+    floats and had no such check anywhere in the module. Two independent
+    answers to "is this a real number" drift apart, and the drift stays
+    invisible until a published figure is `inf` — so there is one answer, here.
+
+    `bool` is excluded deliberately: `True` is an instance of `int` and
+    `math.isfinite(True)` is `True`, which would let a flag pass for a figure.
+    """
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
 
 
 class Basis(str, Enum):
@@ -163,7 +178,7 @@ class Quantity:
     citation: int | None = None
 
     def __post_init__(self) -> None:
-        if not math.isfinite(self.value):
+        if not is_finite_value(self.value):
             raise ValueError(f"{self.metric}: value must be finite, got {self.value!r}")
 
 
@@ -218,7 +233,7 @@ def _finite(out: Outcome) -> Outcome:
     you are not, which is the same fabrication as a zero standing in for an
     absent metric. Found by the adversarial suite, not by the happy path.
     """
-    if isinstance(out, Computed) and not math.isfinite(out.value):
+    if isinstance(out, Computed) and not is_finite_value(out.value):
         return Refusal(
             "not_representable",
             f"The {out.operation.replace('_', ' ')} of these figures overflows "

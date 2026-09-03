@@ -52,6 +52,8 @@ import structlog
 from dataclasses import dataclass, field
 from typing import Callable
 
+from app.core.finance.period_math import is_finite_value
+
 logger = structlog.get_logger()
 
 
@@ -68,10 +70,17 @@ class RatioDef:
 
 
 def _safe_div(n, d, pct=False):
-    if d == 0 or d is None or n is None:
+    # `is_finite_value` is period_math's gate, imported rather than reimplemented:
+    # two answers to "is this a real number" drift, and the drift is invisible
+    # until a published ratio is inf. Guarding the operands is not sufficient on
+    # its own — 1e308 / 1e-308 overflows out of two perfectly ordinary inputs —
+    # so the result is gated too. None already means "no ratio"; a non-finite
+    # means the same thing and must not be dressed up as a number.
+    if not (is_finite_value(n) and is_finite_value(d)) or d == 0:
         return None
     result = n / d
-    return result * 100 if pct else result
+    result = result * 100 if pct else result
+    return result if is_finite_value(result) else None
 
 
 # us-gaap concept (stored in financials.caption) → the engine's internal metric name.
@@ -120,8 +129,18 @@ _CONCEPT_TO_METRIC: dict[str, str] = {
 
 def _derive_metrics(b: dict[str, float]) -> dict[str, float]:
     """Compute composite line items the ratios need from the base XBRL facts."""
+    # The incoming facts are gated too, not just the derived ones. `float(val)`
+    # on a large enough JSON number overflows to inf on the way in, and a fact
+    # that is not a real number is not a fact — carrying it forward only moves
+    # the failure to whichever ratio reads it first.
+    b = {k: v for k, v in b.items() if is_finite_value(v)}
+
     def _set(k: str, v: float | None) -> None:
-        if v is not None and k not in b:
+        # A composite is arithmetic over facts, so one poisoned fact otherwise
+        # spreads: a non-finite revenue makes gross_profit non-finite, which
+        # makes every margin built on it non-finite. Drop it here and the
+        # ratio reports missing data, which is what it actually is.
+        if v is not None and is_finite_value(v) and k not in b:
             b[k] = v
 
     rev = b.get("revenue"); cogs = b.get("cost_of_goods_sold")
@@ -1266,11 +1285,23 @@ class RatioEngine:
 
             try:
                 value = defn.formula(num_val, den_val)
+                # A formula that declined leaves value None. Without a reason
+                # that renders identically to "we looked and found nothing",
+                # and the two are not the same claim — one is absent data, the
+                # other is data that cannot produce a number.
+                if value is not None and not is_finite_value(value):
+                    value = None
+                err = None
+                if value is None:
+                    err = (
+                        f"{defn.label} is not representable from these figures "
+                        f"({num_metric}={num_val!r}, {den_metric}={den_val!r})."
+                    )
                 results.append(RatioResult(
                     ratio_key=key, label=defn.label, value=value,
                     unit=defn.unit, numerator_value=num_val, denominator_value=den_val,
                     numerator_metric=num_metric, denominator_metric=den_metric,
-                    ticker=ticker, period=period,
+                    ticker=ticker, period=period, error=err,
                 ))
             except Exception as e:
                 results.append(RatioResult(
