@@ -350,3 +350,118 @@ the contract exists to catch — then re-verified red on unfixed code.
 assert that the fixture is still doing its job. Three of round 1's stub failures
 were this same shape.
 
+---
+
+## Loops 3-6 — L3, L4, L5, L6
+
+| # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
+|---|---|---|---|---|---|---|---|---|
+| 3 | L3 | R3 | 2026-09-03 | **CLOSED** | 2220 passed / 0 failed | clean | `d36e55a` | 6 failed, 3 passed |
+| 4 | L4 | R2 | 2026-09-03 | **CLOSED** | 2226 passed / 0 failed | clean | `9161a9c` | 3 failed, 3 passed |
+| 5 | L5 | R6 | 2026-09-03 | **CLOSED** | 2236 passed / 0 failed | clean | `82b3072` | 1 failed, 9 passed |
+| 6 | L6 | R7 | 2026-09-03 | **BLOCKED — needs sentence parsing** | 2247 passed / 0 failed | clean | (tests + docs) | n/a — no fix attempted; see below |
+
+### L3 — reversing a round-1 decision, and what licensed it
+
+Round 1 served cache entries carrying no verdict, reasoning that refusing them
+"would empty the cache to buy nothing". The second auditor called that
+*operationally convenient, not logically sufficient*. Both were arguing the same
+facts.
+
+What settled it was a fact neither had: **L2 closed the write path two loops
+earlier**, and `search_pipeline` holds the only `cache.set` in the service. So
+the unverdicted population is finite and shrinking. Refusing costs one TTL
+window, once, rather than a permanent tax on the hit rate — and buys the
+invariant that everything served was checked before storage.
+
+That is the bar the standing-decisions rule sets: new information, not a
+re-argument. `test_an_entry_with_no_recorded_verdict_is_still_served` was
+inverted to `..._is_refused`, the replacement is strictly more constraining, and
+round 1's reasoning is kept in the docstring marked SUPERSEDED — the record of
+why a decision was made is what lets the next reader tell a reversal from a
+regression.
+
+### L4 — a decision settled by measurement rather than judgment
+
+R2's deliverable was a decision, and the roadmap flagged it ESCALATE. Two of the
+three options fell to evidence:
+
+*Refuse the answer* is the escalation class and stays the owner's.
+
+*Build a deterministic fallback contract* is *wrong*, not merely unchosen. When
+planning raises, `query_plan["answer_contract"]` is never set — and the prompt's
+directives are built from exactly that key:
+
+```
+contract_directives(None) == ''
+'ANSWER CONTRACT' in build_user_message('q', [], contract=None) is False
+```
+
+The model receives no contract directives on that path, so grading it against a
+contract invented afterwards fails it for rules it was never given. That is
+precisely what `test_every_gate_clause_has_a_matching_directive` exists to
+prevent.
+
+So: permit, and label. The real defect was that `contract_gate: null` covered
+two different facts — no contract built, and the gate itself crashed — which
+reach a client identically. They now carry distinct `no_contract` / `gate_error`
+reasons. This is the same mistake `replay_metadata` had already fixed on the
+cache path and nobody had applied here.
+
+### L5 — the loop that had to be careful
+
+The roadmap warned that R6 is where over-tightening lives: six of seven historic
+grader bugs came from it. So the guards were written before the fix, and the red
+proved the design — **1 failed, 9 passed**, the nine being leniencies that
+already held and had to keep holding.
+
+Only the SCOPE of the `any` moved: whole-answer to per-claim. The trap was a
+**derived rate**: "Revenue grew from $100B to $130B [1]. That is a 30%
+increase." states a figure appearing in no excerpt because it was computed. A
+naive per-sentence rule marks that correct answer unbound. `_asserted_split`
+separates rates from levels; a rate-only claim is excused when a level claim
+beside it binds, and a lone rate with nothing else bound must still bind on its
+own — unchanged from before.
+
+### L6 — BLOCKED, and the evidence for blocking
+
+R7 is real. Measured on `_asserts`, 5 of 7 shapes score a WRONG headline as
+asserting the truth:
+
+```
+True   Net sales were $416,161 million.                            (main clause)
+False  Net sales were $500,000 million ($416,161 million as filed).  (paren)
+True   Net sales were $500,000 million — the filing reports $416,161 million.
+True   Net sales were $500,000 million; the filing reports $416,161 million.
+True   Net sales, $416,161 million, rose sharply.
+True   Net sales were $500,000 million, notably $416,161 million as filed.
+True   Net sales were $500,000 million; in fact $416,161 million was filed.
+```
+
+L6 said: do not widen the punctuation list and call it solved. That warning is
+correct, and here is the measurement behind it. Treating `;`, `—` or `,` as
+aside-introducing breaks three shapes the file protects:
+
+| Protected shape | What a first-clause rule scores |
+|---|---|
+| `In FY2024 revenue was $60,922M; in FY2025 it was $130,497M.` | `$60,922` — the wrong year |
+| `Revenue rose sharply — to $130,497 million.` | no figure at all |
+| `Net sales, $416,161 million, rose sharply.` | discards the appositive, which IS the claim |
+
+The first is the regression `_asserts` says this file "already paid for once".
+
+What separates a demoted truth from a legitimate second clause is not
+punctuation — it is whether the competing figures are attributed to the SAME
+period. Deciding that requires attaching periods to clauses, which is the same
+proposition-extraction problem one level down.
+
+**BLOCKED — needs sentence parsing.**
+
+**The deliverable of a blocked loop is not nothing.** `tests/test_asserts_proposition_scope.py`
+pins the constraints any future fix must satisfy: the three protected shapes
+plus the parenthetical behaviour that already works. It deliberately does NOT
+assert the buggy outcomes — cementing them would make the defect load-bearing
+and force a future fix to delete tests to proceed. The next attempt at R7 starts
+with those green and knows immediately if it has re-broken what this file
+already paid to learn.
+

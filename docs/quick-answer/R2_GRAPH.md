@@ -43,12 +43,12 @@ that actually matters. The audit's framing is exact: this moved the defect from
 | ID | Claim | Status | How established |
 |---|---|---|---|
 | **R1** | FinalGate runs AFTER the answer is yielded | **CLOSED — L1, 2026-09-03** | Was: answer yield 2030, gate 2085, cache 2131. Gate now runs above the yield and its verdict rides on the answer event. Red-before-green recorded in the L1 ledger row (`order: ['answer', 'gate']`). |
-| **R2** | A planning failure produces an ungated answer | **VERIFIED — LIVE** | `_contract` bound in a `try` whose `except` only logs `finance_plan_failed`; gate sits behind `if _c is not None:`. Confirmed in round 1 and re-confirmed. |
-| **R3** | Legacy cache entries with no verdict are served | **VERIFIED — LIVE** | `gate_verdict_failed` returns `False` when `prov` is not a dict, so a missing verdict is not a refusal. Read the function. |
+| **R2** | A planning failure produces an ungated answer | **CLOSED — L4, 2026-09-03** | Permitted by decision, and now LABELLED: distinct `no_contract` / `gate_error` reasons replace a bare `null` that read like a silent pass. The fallback-contract option was rejected on measurement — `contract_directives(None) == ''`, so a fallback would grade the model on rules it never received. |
+| **R3** | Legacy cache entries with no verdict are served | **CLOSED — L3, 2026-09-03** | Reversed the round-1 call on NEW information: L2 closed the write path, so the unverdicted population is finite. `gate_verdict_failed` now returns True unless a stored verdict says PASSED. A refused entry recomputes, so no answer is withheld. |
 | **R4** | The cache writes on `gate_ran`, not `gate_passed` | **CLOSED — L2, 2026-09-03** | Was: `_gated = _gate_result is not None`, so a FAILED verdict was written then refused on read. Now `... and passed`; the read-path refusal is kept, not moved. Blocked on R14 until R14 closed. |
 | **R5** | The no-evidence exit yields an answer with no gate | **CLOSED — L1, 2026-09-03** | Was: answer yield at 1257 (`no_evidence_exit`) reached before the contract was ever checked. **Not found by either audit — found while checking R1.** Now gated report-only; decision and the escalation it surfaced recorded in §3b. |
-| **R6** | Claim-binding is any-claim/any-excerpt, not per-claim | **VERIFIED — LIVE, by design** | `_claim_is_bound` returns True if ANY asserted value matches ANY excerpt. The audit's three-claim/one-citation counterexample is real. |
-| **R7** | `_asserts` uses punctuation as a proxy for proposition structure | **VERIFIED — LIVE, by design** | Only parentheses are treated as asides. Em-dashes, semicolons, appositives, "notably", "in fact" all defeat it. |
+| **R6** | Claim-binding is any-claim/any-excerpt, not per-claim | **CLOSED — L5, 2026-09-03** | The `any` moved from whole-answer scope to per-claim scope; every documented leniency kept. Derived rates are excused when the levels beside them bind, so a correct computed answer is not punished. |
+| **R7** | `_asserts` uses punctuation as a proxy for proposition structure | **BLOCKED — needs sentence parsing (L6, 2026-09-03)** | Real and measured: 5 of 7 probed shapes score a wrong headline as asserting the truth. But widening the punctuation list is measurably WRONG — it breaks 3 shapes this file protects, including the two-period case whose regression it 'already paid for once'. Telling a demoted truth from a legitimate second clause needs clause-level period attribution. Constraint suite left in `tests/test_asserts_proposition_scope.py`. |
 | **R8** | Period attachment does not fire when no period is named | **VERIFIED — LIVE, by design** | `_period_misattributed` returns `False` when the figure sentence names no year. An underspecified answer is unpenalised. |
 | **R9** | Entity attachment is unimplemented | **VERIFIED — OPEN** | Unchanged from round 1. Needs entity binding (cik/ticker), not string matching. |
 | **R10** | "No DB" should not block the STATIC half of duplicate-fact selection | **VERIFIED — FAIR CHALLENGE** | Round 1 marked D4 wholly BLOCKED. Determinism (`ORDER BY` + a documented precedence) is checkable without production rows; only *which concept should win* needs data. The block was drawn too wide. |
@@ -58,8 +58,9 @@ that actually matters. The audit's framing is exact: this moved the defect from
 | **R13** | "Red before green" cannot be established from the diff | **ACCEPTED — METHOD** | Correct. The claim is true but its evidence lives in this session's transcript, not in the commits. Round 2 must leave artefacts in-repo. |
 
 **Score at intake: 10 live · 1 fair challenge · 1 rebutted · 1 method.**
-**Now: 7 live · 4 closed (R1, R5 in L1; R4, R14 in L2) · 1 fair challenge · 1 rebutted · 1 method.**
+**Now: 3 live · 7 closed (R1, R5 · R4, R14 · R3 · R2 · R6) · 1 BLOCKED-with-reason (R7) · 1 fair challenge · 1 rebutted · 1 method.**
 **R14 was not in the intake count — it was found by the loop, like R5.**
+**Remaining LIVE: R8, R9, R10.**
 
 ---
 
@@ -128,8 +129,9 @@ the loop.** The loop's fix leaves the emitted refusal text byte-identical.
 
 ## 4. Certification
 
-Not met. `NOT CERTIFIED` stands. R1, R5, R4 and R14 are closed, but the blind
-head-to-head is still unrun, no reference set exists, and seven rows remain LIVE. Closing the
+Not met. `NOT CERTIFIED` stands. Seven rows are closed and R7 is BLOCKED with a
+stated reason, but the blind head-to-head is still unrun, no reference set
+exists, and three rows remain LIVE. Closing the
 P0 changes the ordering defect, not the certification status — the two were never
 the same claim. The words `world class`, `certified`, `production ready` and
 `fixed` may not be written while any row above is LIVE.
