@@ -1,0 +1,87 @@
+# Round 2 — Execution Graph
+
+Branch `feat/web-research-sec-integration`. Baseline `6003631`.
+Built from `docs/quick-answer/refix.md` (second external audit — **input, not
+truth**). Every row below was re-checked against the code on 2026-09-03 before
+being written here. Line numbers are hints; re-grep.
+
+**Status vocabulary.** `VERIFIED` = a command was run and its output read.
+`READ` = static inspection only. `UNVERIFIED` = the auditor asserts it and this
+graph has not yet checked it. `BLOCKED` = could not be checked, with the reason.
+Nothing is `PASS` on inference.
+
+**The round-1 lesson that governs this file:** five round-1 assumptions were
+falsified by checking rather than inheriting — three dependency edges, an
+over-broad truncation constraint, and "the graph faithfully captures the
+audit". This graph therefore records *how* each row was established, and an
+`UNVERIFIED` row may not be actioned until a command has run.
+
+---
+
+## 1. What the second audit got right
+
+The headline is correct and round 1 missed it.
+
+```
+  line 2030   yield SearchEvent(type="answer", ...)      <-- answer leaves here
+     ...
+  line 2085   _gate_result = FinalGate.check(...)        <-- gate runs here
+     ...
+  line 2131   await self.cache.set(...)
+```
+
+`FinalGate.check` runs **55 lines after the answer has already been yielded to
+the consumer.** Round 1 verified that the gate *is invoked* and stopped there.
+It never asked whether the gate runs *before publication*, which is the property
+that actually matters. The audit's framing is exact: this moved the defect from
+"gate absent" to "gate post-publication", and the second is still a defect.
+
+---
+
+## 2. Defect nodes
+
+| ID | Claim | Status | How established |
+|---|---|---|---|
+| **R1** | FinalGate runs AFTER the answer is yielded | **VERIFIED — LIVE, P0** | Answer yield at 2030, `FinalGate.check` at 2085, `cache.set` at 2131. Printed line numbers, read output. |
+| **R2** | A planning failure produces an ungated answer | **VERIFIED — LIVE** | `_contract` bound in a `try` whose `except` only logs `finance_plan_failed`; gate sits behind `if _c is not None:`. Confirmed in round 1 and re-confirmed. |
+| **R3** | Legacy cache entries with no verdict are served | **VERIFIED — LIVE** | `gate_verdict_failed` returns `False` when `prov` is not a dict, so a missing verdict is not a refusal. Read the function. |
+| **R4** | The cache writes on `gate_ran`, not `gate_passed` | **VERIFIED — LIVE** | `_gated = _gate_result is not None`. A FAILED verdict is written, then refused on read. Defence is at the wrong end. |
+| **R5** | The no-evidence exit yields an answer with no gate | **VERIFIED — LIVE** | Third answer yield at line 1257 (`no_evidence_exit`), reached before the contract is ever checked. **Not found by either audit — found while checking R1.** |
+| **R6** | Claim-binding is any-claim/any-excerpt, not per-claim | **VERIFIED — LIVE, by design** | `_claim_is_bound` returns True if ANY asserted value matches ANY excerpt. The audit's three-claim/one-citation counterexample is real. |
+| **R7** | `_asserts` uses punctuation as a proxy for proposition structure | **VERIFIED — LIVE, by design** | Only parentheses are treated as asides. Em-dashes, semicolons, appositives, "notably", "in fact" all defeat it. |
+| **R8** | Period attachment does not fire when no period is named | **VERIFIED — LIVE, by design** | `_period_misattributed` returns `False` when the figure sentence names no year. An underspecified answer is unpenalised. |
+| **R9** | Entity attachment is unimplemented | **VERIFIED — OPEN** | Unchanged from round 1. Needs entity binding (cik/ticker), not string matching. |
+| **R10** | "No DB" should not block the STATIC half of duplicate-fact selection | **VERIFIED — FAIR CHALLENGE** | Round 1 marked D4 wholly BLOCKED. Determinism (`ORDER BY` + a documented precedence) is checkable without production rows; only *which concept should win* needs data. The block was drawn too wide. |
+| **R11** | Numeric grounding should not be described as "closed" | **VERIFIED — WORDING** | It is a recorded policy decision, not a technical fix. The ledger says so; any wording that reads as "numeric correctness closed" is wrong. |
+| **R12** | Benchmark `supports` may be optional metadata | **VERIFIED — REBUTTED** | `test_every_filed_expectation_resolves_to_exactly_one_record` requires exactly one backing record per filed case AND a matching value. Measured: 11 filed cases, 11 records, 0 unbacked. The auditor's provisional CLOSED is upgraded, not downgraded. |
+| **R13** | "Red before green" cannot be established from the diff | **ACCEPTED — METHOD** | Correct. The claim is true but its evidence lives in this session's transcript, not in the commits. Round 2 must leave artefacts in-repo. |
+
+**Score: 10 live · 1 fair challenge · 1 rebutted · 1 method.**
+
+---
+
+## 3. What this graph does NOT accept
+
+Recorded so the loop does not over-correct in the direction the auditor pushed.
+
+- **"Move the gate before the yield" ≠ "make the gate blocking."** They are
+  separate changes. Reordering preserves the existing report-only contract,
+  which is pinned by `test_the_gate_never_rewrites_the_answer` and is
+  deliberate: *a gate that edits an answer to satisfy itself is grading its own
+  work.* Making the gate **refuse** is a product decision of the same class as
+  D7, which the owner already decided (advisory). **R1's fix is the reorder.
+  Any refusal policy is an ESCALATION, not a loop action.**
+- **The reorder is mechanically safe, and this was checked, not assumed.**
+  `parsed_answer` is final at 1903, `citations_out` at 2017, `scope_status`
+  comes from `query_plan`; none is reassigned between 2030 and 2085. So the
+  gate can move above the yield without restructuring.
+- **R5 is not in either audit.** It is included because it was verified, and
+  excluded from any claim that "the audit found everything".
+
+---
+
+## 4. Certification
+
+Unchanged and not met. `NOT CERTIFIED` stands. The blind head-to-head is unrun,
+no reference set exists, and R1 is open. The words `world class`, `certified`,
+`production ready` and `fixed` may not be written while any row above is LIVE.
