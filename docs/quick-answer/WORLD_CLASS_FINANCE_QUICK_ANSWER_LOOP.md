@@ -265,3 +265,4 @@ Append one row per loop attempt. Never edit a row; supersede it with a new one.
 | # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Note |
 |---|---|---|---|---|---|---|---|---|
 | 0 | L0 | — | 2026-09-02 | BASELINE | 2097 passed / 0 failed | clean | `6c72822` | Established before any loop ran |
+| 1 | L1 | D2 | 2026-09-03 | D2 CLOSED | 2102 passed / 0 failed | clean | `504246f` | TESTED. Red first: a stored `contract_gate.passed:false` entry was replayed verbatim and reported `cache_hit:true`. CLASSIFY — neither pure bypass nor staleness: the gate *had* run and its FAIL verdict was recorded, read, and ignored. Fix refuses on read (falls through, recomputes). Scope held to `passed is False`; unrecorded still serves. Re-running N3–N15 per hit NOT taken — unmeasured. 2 guards green pre-fix, so they pin the cache working, not the defect. |

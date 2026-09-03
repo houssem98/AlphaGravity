@@ -48,7 +48,7 @@ returns to N17 directly**, skipping N3 through N15.
 | ID | Node | File · symbol | Upstream | Downstream | Invariant | Status | Tests | Blocking? |
 |---|---|---|---|---|---|---|---|---|
 | N1 | Query classification | `search_pipeline.py` · `SearchPipeline.search` | — | N2 | Intent/complexity decided before retrieval | READ | `test_finance_query_plan.py` | advisory |
-| N2 | Cache read | `search_pipeline.py:659` · `self.cache.get` | N1 | **N17** | A replayed answer must be at least as safe as a fresh one | **TESTED — violates** | `test_cache_gate_provenance.py` | blocking |
+| N2 | Cache read | `search_pipeline.py:673` · `self.cache.get` | N1 | N17 **or** N3 (refused) | A replayed answer must be at least as safe as a fresh one | **TESTED — holds** (`504246f`) | `test_cache_gate_provenance.py`, `test_cache_gate_enforcement.py` (5) | blocking |
 | N3 | Finance plan | `finance/query_plan.py` · `plan_finance_query` | N2 | N4 | Deterministic, no network, no model | TESTED | `test_finance_query_plan.py` (105) | advisory |
 | N4 | Answer contract | `finance/answer_contract.py:138` · `build_contract` | N3 | N13, N15 | Obligations fixed before retrieval | TESTED | `test_answer_contract.py` (62) | advisory |
 | N5 | Entity / period resolution | `search_pipeline.py` · resolver + 60s backoff | N4 | N6 | Never pays a timeout that cannot succeed | TESTED | `test_resolver_backoff.py` (12) | advisory |
@@ -76,7 +76,7 @@ below was re-derived from code on 2026-09-02, not copied from the audit.
 | ID | Audit claim | Verified status | Evidence |
 |---|---|---|---|
 | **D1** | FinalGate never invoked | **DISPROVED** | `FinalGate.check` at `search_pipeline.py:2048`; verdict ships as `contract_gate` in the metadata event. The audit looked and missed it. **Do not "fix" this.** |
-| **D2** | Cache bypasses contract + all verification | **PARTIAL** | Fixed in `6c72822`: gate moved above the cache write, verdict stored in `_provenance`, `replay_metadata` reports `recorded:false` when absent. **Still live:** a cache *hit* returns at N2 without re-running N3–N15. |
+| **D2** | Cache bypasses contract + all verification | **CLOSED** (`504246f`, L1) | `6c72822` stored the verdict; `504246f` acts on it — `gate_verdict_failed` refuses a hit whose stored `contract_gate.passed` is `false`, falling through to recompute. Observed red first: the poisoned entry replayed verbatim as `cache_hit:true`. `test_cache_gate_enforcement.py` (5). **Accepted residue:** a hit still skips N3–N15 when the stored verdict passed or was never recorded. That is replay of an answer already gated, not an ungated answer; re-running the pipeline per hit costs the cache's whole purpose and is not taken without measurement. |
 | **D3** | ratio_engine bypasses typed Quantity + provenance | **PARTIAL** | Fixed in `6c72822`: fetch gates on `id=like.*_xbrl`, selects `id`, label no longer claims "audited filings" nor forbids recomputation. **Still live:** values are bare floats, never `period_math.Quantity`; no accession carried. |
 | **D4** | Arbitrary duplicate-fact selection | **LIVE** | `ratio_engine.py:1127-1128` — `base.setdefault(mkey, float(val))` under the comment `# first non-null wins (CORE concept preferred by insert order)`. PostgREST guarantees no order without `ORDER BY`. |
 | **D5** | Non-finite values escape ratio_engine | **LIVE** | `grep -c isfinite app/core/finance/ratio_engine.py` returns **0**. `period_math` has the finiteness gate; ratio_engine never routes through it. |
@@ -88,7 +88,10 @@ below was re-derived from code on 2026-09-02, not copied from the audit.
 | **D11** | cases.json provenance is free-form | **PARTIAL** | `b777977` added `test_every_filed_expectation_appears_in_the_provenance_list`, binding all 11 filed values to an accession string. **Still live:** provenance is prose, not `{accession, concept, unit, period}` fields. |
 | **D12** | Verification doc overstates the implementation | **PARTIAL** | Corrected in `b777977` and `6c72822`. Needs one re-audit pass at the end of this roadmap, since the doc now describes code that changed underneath it. |
 
-**Score: 1 disproved · 5 partial · 5 live · 1 by-design.**
+**Score: 1 disproved · 1 closed · 4 partial · 5 live · 1 by-design.**
+
+Closure is per-defect and carries no claim about the system. Nine of the twelve
+still need work; the certification rules in the loop file remain unmet.
 
 ---
 
@@ -98,7 +101,7 @@ The real risk surface: routes around a node that is supposed to constrain the an
 
 | Bypass | From → To | Skips | Status |
 |---|---|---|---|
-| Cache hit | N2 → N17 | N3–N15 entirely | **LIVE** (D2) |
+| Cache hit | N2 → N17 | N3–N15 entirely | **NARROWED** (`504246f`) — a stored `passed:false` no longer replays; a passed or unrecorded verdict still skips N3–N15 |
 | Advisory verification | N11 → N12 | nothing blocks on mismatch | **LIVE** (D7) |
 | Report-only gate | N15 → N17 | gate never rejects | **BY DESIGN** — pinned by `test_the_gate_never_rewrites_the_answer` |
 | ratio_engine injection | N8 → N13 | `period_math` typing entirely | **LIVE** (D3/D4/D5) |
