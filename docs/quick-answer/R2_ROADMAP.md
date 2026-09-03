@@ -252,3 +252,101 @@ these refusals pass cleanly instead of logging two violations apiece.
 That is contract policy, the same class of decision as D7, so it is **recorded
 for the owner and not taken by the loop** (`R2_GRAPH.md` §3b). The loop's change
 leaves the emitted refusal text byte-identical.
+
+---
+
+## Loop 2 — L2 (R4), and R14 which blocked it
+
+| # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
+|---|---|---|---|---|---|---|---|---|
+| 2a | L2 | **R14** (new) | 2026-09-03 | **CLOSED** | 2211 passed / 0 failed | clean | `6d24502` | 2 failed, 5 passed — verbatim below |
+| 2b | L2 | R4 | 2026-09-03 | **CLOSED** | 2211 passed / 0 failed | clean | `4ce93b9` | 2 failed, 3 passed — verbatim below |
+
+### R14 — the loop found the roadmap's own blocker
+
+L2 says: cache only a verdict that passed. Writing its guard test —
+*the cache must keep working, or this empties the cache* — surfaced that the
+guard could not pass, because **no answer passed the gate at all**.
+
+`FinalGate` compares `source_class` against `{sec_filing, sec_xbrl}`.
+`citation_provenance.payload()` stamps `SEC_EVIDENCE`. Two vocabularies for one
+idea, never reconciled:
+
+```
+contract layer     sec_filing · sec_xbrl · earnings_call · analyst · news · web
+provenance layer   SEC_EVIDENCE · LOCAL_EVIDENCE · WEB_EVIDENCE
+```
+
+So a citation to a real 10-K — accession, CIK, `verification_status: verified` —
+failed *"contract requires a primary filing"*. Every SEC-cited answer failed the
+clause, which means `answer_contract_violated` has been firing on essentially
+every finance answer and carrying no signal at all.
+
+It survived because the gate's own tests supply the literal string the gate
+wants, `[{"source_class": "sec_filing"}]` — **a vocabulary the pipeline never
+produces.** The gate was tested against something that does not exist upstream
+of it. This is the round-1 lesson in a new costume: an inherited assumption
+(*"the gate's verdicts mean something"*) that nobody had checked.
+
+Red, on unfixed code:
+
+```
+E  AssertionError: a citation to a real filing was rejected as non-primary
+   because the pipeline spells the class SEC_EVIDENCE and the gate expects
+   sec_filing: ["contract requires a primary filing; no citation is
+   sec_filing or sec_xbrl (saw ['SEC_EVIDENCE'])"]
+E  AssertionError: a well-formed, correctly cited SEC answer fails its own
+   contract, so the gate's verdict carries no signal
+2 failed, 5 passed
+```
+
+Reconciled at the gate boundary, not upstream: `SEC_EVIDENCE` is a wire value
+the API schema, the frontend and `core/research/evidence.py` all branch on, and
+renaming it to satisfy an internal check would be a wide, outward-facing change
+made to close a narrow one. Only the SEC member maps in — `LOCAL_EVIDENCE` is a
+prose chunk and `WEB_EVIDENCE` is a web page, and four guard tests pin that both
+stay non-primary along with `news`, `analyst` and `earnings_call`.
+
+### R4 — the write, once the verdict meant something
+
+Red, on unfixed code:
+
+```
+E  AssertionError: an answer whose gate verdict FAILED was written to the
+   cache; the read path will now refuse it on every hit for the life of the
+   entry
+E  AssertionError: a cached entry does not carry a passing verdict:
+   {'passed': False, 'violations': ['a rate change is reported in percent
+    rather than percentage points'], 'checked': ['min_citations',
+    'primary_source', 'change_unit']}
+2 failed, 3 passed
+```
+
+`_gated = _gate_result is not None` — and a FAILED verdict is very much not
+None. The rejected answer was written, then refused by `gate_verdict_failed` on
+every subsequent hit for the life of the entry: the system recording a defect in
+order to keep re-detecting it. Now `... and passed`. The read-path refusal is
+**kept, not moved** — entries written before this are still in Redis — and a
+test pins that both defences exist.
+
+### A fixture that went green for the wrong reason, and the assertion that caught it
+
+L2's first fixture was an uncited answer. R14's fix correctly made it **pass**,
+because the pipeline attaches an `SEC_EVIDENCE` citation even when the model
+returns none. The test would have gone quietly green while asserting nothing —
+except that it opened with a premise check:
+
+```python
+assert gate is not None and gate["passed"] is False, (
+    "the fixture no longer produces a failing verdict, so this test is "
+    "not exercising the defect")
+```
+
+That fired, and the fixture was replaced with a real violation: a margin move
+reported as `25%` instead of in percentage points — the classic finance error
+the contract exists to catch — then re-verified red on unfixed code.
+
+**Worth keeping as a habit.** A test whose red depends on a fixture should
+assert that the fixture is still doing its job. Three of round 1's stub failures
+were this same shape.
+

@@ -45,7 +45,7 @@ that actually matters. The audit's framing is exact: this moved the defect from
 | **R1** | FinalGate runs AFTER the answer is yielded | **CLOSED — L1, 2026-09-03** | Was: answer yield 2030, gate 2085, cache 2131. Gate now runs above the yield and its verdict rides on the answer event. Red-before-green recorded in the L1 ledger row (`order: ['answer', 'gate']`). |
 | **R2** | A planning failure produces an ungated answer | **VERIFIED — LIVE** | `_contract` bound in a `try` whose `except` only logs `finance_plan_failed`; gate sits behind `if _c is not None:`. Confirmed in round 1 and re-confirmed. |
 | **R3** | Legacy cache entries with no verdict are served | **VERIFIED — LIVE** | `gate_verdict_failed` returns `False` when `prov` is not a dict, so a missing verdict is not a refusal. Read the function. |
-| **R4** | The cache writes on `gate_ran`, not `gate_passed` | **VERIFIED — LIVE** | `_gated = _gate_result is not None`. A FAILED verdict is written, then refused on read. Defence is at the wrong end. |
+| **R4** | The cache writes on `gate_ran`, not `gate_passed` | **CLOSED — L2, 2026-09-03** | Was: `_gated = _gate_result is not None`, so a FAILED verdict was written then refused on read. Now `... and passed`; the read-path refusal is kept, not moved. Blocked on R14 until R14 closed. |
 | **R5** | The no-evidence exit yields an answer with no gate | **CLOSED — L1, 2026-09-03** | Was: answer yield at 1257 (`no_evidence_exit`) reached before the contract was ever checked. **Not found by either audit — found while checking R1.** Now gated report-only; decision and the escalation it surfaced recorded in §3b. |
 | **R6** | Claim-binding is any-claim/any-excerpt, not per-claim | **VERIFIED — LIVE, by design** | `_claim_is_bound` returns True if ANY asserted value matches ANY excerpt. The audit's three-claim/one-citation counterexample is real. |
 | **R7** | `_asserts` uses punctuation as a proxy for proposition structure | **VERIFIED — LIVE, by design** | Only parentheses are treated as asides. Em-dashes, semicolons, appositives, "notably", "in fact" all defeat it. |
@@ -54,10 +54,12 @@ that actually matters. The audit's framing is exact: this moved the defect from
 | **R10** | "No DB" should not block the STATIC half of duplicate-fact selection | **VERIFIED — FAIR CHALLENGE** | Round 1 marked D4 wholly BLOCKED. Determinism (`ORDER BY` + a documented precedence) is checkable without production rows; only *which concept should win* needs data. The block was drawn too wide. |
 | **R11** | Numeric grounding should not be described as "closed" | **VERIFIED — WORDING** | It is a recorded policy decision, not a technical fix. The ledger says so; any wording that reads as "numeric correctness closed" is wrong. |
 | **R12** | Benchmark `supports` may be optional metadata | **VERIFIED — REBUTTED** | `test_every_filed_expectation_resolves_to_exactly_one_record` requires exactly one backing record per filed case AND a matching value. Measured: 11 filed cases, 11 records, 0 unbacked. The auditor's provisional CLOSED is upgraded, not downgraded. |
+| **R14** | The gate rejects every citation the pipeline actually produces | **CLOSED — L2, 2026-09-03** | **Found while writing L2's guard; in neither audit.** `FinalGate` accepted `{sec_filing, sec_xbrl}`; `citation_provenance.payload()` stamps `SEC_EVIDENCE`. Measured: a verified 10-K citation failed `primary_source`. Reconciled at the gate boundary. |
 | **R13** | "Red before green" cannot be established from the diff | **ACCEPTED — METHOD** | Correct. The claim is true but its evidence lives in this session's transcript, not in the commits. Round 2 must leave artefacts in-repo. |
 
 **Score at intake: 10 live · 1 fair challenge · 1 rebutted · 1 method.**
-**Now: 8 live · 2 closed (R1, R5, both in L1) · 1 fair challenge · 1 rebutted · 1 method.**
+**Now: 7 live · 4 closed (R1, R5 in L1; R4, R14 in L2) · 1 fair challenge · 1 rebutted · 1 method.**
+**R14 was not in the intake count — it was found by the loop, like R5.**
 
 ---
 
@@ -107,6 +109,11 @@ its yield and carries `contract_gate` on the answer event. Three reasons:
 
    A reader can now tell a refusal that was checked from one that was not.
 
+   *Measured before R14 closed.* The `primary_source` wording has since changed
+   to name `SEC_EVIDENCE` as well, and on this path the clause still fails
+   because the refusal carries no citations at all. The verdict's substance is
+   unchanged; only the message text moved.
+
 **What this surfaced, and did NOT decide.** The exit builds an ordinary contract,
 so its refusal is graded as a *failed answer* rather than as an *abstention* —
 `must_abstain` is never set on this path even though "we found no evidence" is
@@ -121,8 +128,8 @@ the loop.** The loop's fix leaves the emitted refusal text byte-identical.
 
 ## 4. Certification
 
-Not met. `NOT CERTIFIED` stands. R1 and R5 are closed, but the blind head-to-head
-is still unrun, no reference set exists, and eight rows remain LIVE. Closing the
+Not met. `NOT CERTIFIED` stands. R1, R5, R4 and R14 are closed, but the blind
+head-to-head is still unrun, no reference set exists, and seven rows remain LIVE. Closing the
 P0 changes the ordering defect, not the certification status — the two were never
 the same claim. The words `world class`, `certified`, `production ready` and
 `fixed` may not be written while any row above is LIVE.
