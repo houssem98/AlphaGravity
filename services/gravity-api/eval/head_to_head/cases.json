@@ -15,14 +15,165 @@
     "ODFL FY2024 revenue 5814810000 accn 0000950170-25-026661 (end 2024-12-31)",
     "AOS FY2025 revenue 3830200000 accn 0000091142-26-000008 (end 2025-12-31)"
   ],
+  "provenance_note": "provenance_records is the machine-checkable form of the list above. `supports` names the cases whose expect_value this filing states, or for a derived case the endpoints it is computed from. `concept` is null where the original fetch did not record which us-gaap tag the figure came from - it is NOT guessed, because Revenues and RevenueFromContractWithCustomerExcludingAssessedTax are different numbers for the same filer. Two records support no case: they are prior-year figures kept as evidence, pinned by a test.",
+  "provenance_records": [
+    {
+      "ticker": "AAPL",
+      "fiscal_period": "FY2025",
+      "metric": "revenue",
+      "value": 416161000000,
+      "accession": "0000320193-25-000079",
+      "concept": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "unit": "USD",
+      "period_end": "2025-09-27",
+      "supports": [
+        "aapl-fy2025-revenue",
+        "aapl-latest-revenue",
+        "aapl-fy2025-growth"
+      ]
+    },
+    {
+      "ticker": "AAPL",
+      "fiscal_period": "FY2024",
+      "metric": "revenue",
+      "value": 391035000000,
+      "accession": "0000320193-24-000123",
+      "concept": null,
+      "unit": "USD",
+      "period_end": "2024-09-28",
+      "supports": [
+        "aapl-fy2025-growth"
+      ]
+    },
+    {
+      "ticker": "NVDA",
+      "fiscal_period": "FY2026",
+      "metric": "revenue",
+      "value": 215938000000,
+      "accession": "0001045810-26-000021",
+      "concept": "Revenues",
+      "unit": "USD",
+      "period_end": "2026-01-25",
+      "supports": [
+        "nvda-fy2026-revenue",
+        "nvda-fy2026-growth"
+      ]
+    },
+    {
+      "ticker": "NVDA",
+      "fiscal_period": "FY2025",
+      "metric": "revenue",
+      "value": 130497000000,
+      "accession": "0001045810-25-000023",
+      "concept": null,
+      "unit": "USD",
+      "period_end": "2025-01-26",
+      "supports": [
+        "nvda-fy2026-growth"
+      ]
+    },
+    {
+      "ticker": "MSFT",
+      "fiscal_period": "FY2026",
+      "metric": "revenue",
+      "value": 331839000000,
+      "accession": "0001193125-26-323660",
+      "concept": null,
+      "unit": "USD",
+      "period_end": "2026-06-30",
+      "supports": [
+        "msft-fy2026-revenue"
+      ]
+    },
+    {
+      "ticker": "MSFT",
+      "fiscal_period": "FY2025",
+      "metric": "revenue",
+      "value": 281724000000,
+      "accession": "0000950170-25-100235",
+      "concept": null,
+      "unit": "USD",
+      "period_end": "2025-06-30",
+      "supports": []
+    },
+    {
+      "ticker": "CPRT",
+      "fiscal_period": "FY2025",
+      "metric": "revenue",
+      "value": 4646958000,
+      "accession": "0001628280-25-042946",
+      "concept": "RevenueFromContractWithCustomerIncludingAssessedTax",
+      "unit": "USD",
+      "period_end": "2025-07-31",
+      "supports": [
+        "cprt-fy2025-revenue",
+        "cprt-vs-odfl-revenue"
+      ]
+    },
+    {
+      "ticker": "CPRT",
+      "fiscal_period": "FY2024",
+      "metric": "revenue",
+      "value": 4236823000,
+      "accession": "0000900075-24-000024",
+      "concept": null,
+      "unit": "USD",
+      "period_end": "2024-07-31",
+      "supports": []
+    },
+    {
+      "ticker": "ODFL",
+      "fiscal_period": "FY2025",
+      "metric": "revenue",
+      "value": 5496389000,
+      "accession": "0001193125-26-067161",
+      "concept": null,
+      "unit": "USD",
+      "period_end": "2025-12-31",
+      "supports": [
+        "odfl-fy2025-revenue",
+        "odfl-fy2025-decline"
+      ]
+    },
+    {
+      "ticker": "ODFL",
+      "fiscal_period": "FY2024",
+      "metric": "revenue",
+      "value": 5814810000,
+      "accession": "0000950170-25-026661",
+      "concept": null,
+      "unit": "USD",
+      "period_end": "2024-12-31",
+      "supports": [
+        "odfl-fy2025-decline"
+      ]
+    },
+    {
+      "ticker": "AOS",
+      "fiscal_period": "FY2025",
+      "metric": "revenue",
+      "value": 3830200000,
+      "accession": "0000091142-26-000008",
+      "concept": null,
+      "unit": "USD",
+      "period_end": "2025-12-31",
+      "supports": [
+        "aos-fy2025-revenue"
+      ]
+    }
+  ],
   "cases": [
     {
       "id": "aapl-fy2025-revenue",
       "category": "exact_fact",
       "query": "What were Apple's total net sales in fiscal 2025?",
       "expect_value": 416161000000,
-      "expect_period_tokens": ["2025"],
-      "expect_entity_tokens": ["apple"],
+      "expect_period_tokens": [
+        "2025"
+      ],
+      "expect_entity_tokens": [
+        "apple"
+      ],
       "requires_primary": true,
       "latency_budget_ms": 5000
     },
@@ -31,8 +182,12 @@
       "category": "exact_fact",
       "query": "What was NVIDIA's revenue in fiscal year 2026?",
       "expect_value": 215938000000,
-      "expect_period_tokens": ["2026"],
-      "expect_entity_tokens": ["nvidia"],
+      "expect_period_tokens": [
+        "2026"
+      ],
+      "expect_entity_tokens": [
+        "nvidia"
+      ],
       "requires_primary": true,
       "latency_budget_ms": 5000
     },
@@ -41,8 +196,12 @@
       "category": "exact_fact",
       "query": "What was Microsoft's revenue in fiscal 2026?",
       "expect_value": 331839000000,
-      "expect_period_tokens": ["2026"],
-      "expect_entity_tokens": ["microsoft"],
+      "expect_period_tokens": [
+        "2026"
+      ],
+      "expect_entity_tokens": [
+        "microsoft"
+      ],
       "requires_primary": true,
       "latency_budget_ms": 5000
     },
@@ -51,8 +210,12 @@
       "category": "unseen_company",
       "query": "What was Copart's revenue in fiscal year 2025?",
       "expect_value": 4646958000,
-      "expect_period_tokens": ["2025"],
-      "expect_entity_tokens": ["copart"],
+      "expect_period_tokens": [
+        "2025"
+      ],
+      "expect_entity_tokens": [
+        "copart"
+      ],
       "requires_primary": true,
       "latency_budget_ms": 8000
     },
@@ -61,8 +224,12 @@
       "category": "unseen_company",
       "query": "What was Old Dominion Freight Line's revenue in fiscal 2025?",
       "expect_value": 5496389000,
-      "expect_period_tokens": ["2025"],
-      "expect_entity_tokens": ["old dominion"],
+      "expect_period_tokens": [
+        "2025"
+      ],
+      "expect_entity_tokens": [
+        "old dominion"
+      ],
       "requires_primary": true,
       "latency_budget_ms": 8000
     },
@@ -71,8 +238,12 @@
       "category": "unseen_company",
       "query": "What was A.O. Smith's revenue in fiscal 2025?",
       "expect_value": 3830200000,
-      "expect_period_tokens": ["2025"],
-      "expect_entity_tokens": ["smith"],
+      "expect_period_tokens": [
+        "2025"
+      ],
+      "expect_entity_tokens": [
+        "smith"
+      ],
       "requires_primary": true,
       "latency_budget_ms": 8000
     },
@@ -81,8 +252,12 @@
       "category": "growth",
       "query": "How much did Apple's revenue grow year over year in fiscal 2025?",
       "expect_value": 6.4255,
-      "expect_period_tokens": ["2025"],
-      "expect_entity_tokens": ["apple"],
+      "expect_period_tokens": [
+        "2025"
+      ],
+      "expect_entity_tokens": [
+        "apple"
+      ],
       "requires_primary": true,
       "latency_budget_ms": 8000,
       "note": "416161/391035 - 1 = 6.4255%. Both endpoints are in provenance above."
@@ -92,8 +267,12 @@
       "category": "growth",
       "query": "How much did NVIDIA's revenue grow year over year in fiscal 2026?",
       "expect_value": 65.4735,
-      "expect_period_tokens": ["2026"],
-      "expect_entity_tokens": ["nvidia"],
+      "expect_period_tokens": [
+        "2026"
+      ],
+      "expect_entity_tokens": [
+        "nvidia"
+      ],
       "requires_primary": true,
       "latency_budget_ms": 8000,
       "note": "215938/130497 - 1 = 65.4735%."
@@ -103,9 +282,16 @@
       "category": "growth",
       "query": "Did Old Dominion Freight Line's revenue grow or decline in fiscal 2025?",
       "expect_value": -5.476,
-      "expect_period_tokens": ["2025"],
-      "expect_entity_tokens": ["old dominion"],
-      "forbid_tokens": ["grew", "increased"],
+      "expect_period_tokens": [
+        "2025"
+      ],
+      "expect_entity_tokens": [
+        "old dominion"
+      ],
+      "forbid_tokens": [
+        "grew",
+        "increased"
+      ],
       "requires_primary": true,
       "latency_budget_ms": 8000,
       "note": "5496389/5814810 - 1 = -5.476%. A decline stated as growth is a correctness failure, not a wording one."
@@ -115,8 +301,13 @@
       "category": "comparison",
       "query": "Compare Copart and Old Dominion Freight Line revenue for fiscal 2025.",
       "expect_value": 4646958000,
-      "expect_period_tokens": ["2025"],
-      "expect_entity_tokens": ["copart", "old dominion"],
+      "expect_period_tokens": [
+        "2025"
+      ],
+      "expect_entity_tokens": [
+        "copart",
+        "old dominion"
+      ],
       "requires_primary": true,
       "latency_budget_ms": 10000
     },
@@ -125,7 +316,9 @@
       "category": "abstention",
       "query": "What was Apple's revenue in fiscal year 2031?",
       "expect_abstain": true,
-      "expect_entity_tokens": ["apple"],
+      "expect_entity_tokens": [
+        "apple"
+      ],
       "requires_primary": false,
       "latency_budget_ms": 5000,
       "note": "FY2031 has not ended. Any figure scores zero on correctness."
@@ -152,8 +345,12 @@
       "category": "latest",
       "query": "What is Apple's latest reported annual revenue?",
       "expect_value": 416161000000,
-      "expect_period_tokens": ["2025"],
-      "expect_entity_tokens": ["apple"],
+      "expect_period_tokens": [
+        "2025"
+      ],
+      "expect_entity_tokens": [
+        "apple"
+      ],
       "requires_primary": true,
       "latency_budget_ms": 5000,
       "note": "'latest' is a request, not an answer: the reply must name the period it resolved to."
