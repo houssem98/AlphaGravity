@@ -94,6 +94,20 @@ _RESOLVER_BACKOFF_S = 60.0
 _resolver_backoff_until = [0.0]
 
 
+def gate_verdict_failed(prov: dict | None) -> bool:
+    """True only when a stored verdict explicitly says the gate rejected it.
+
+    Absent provenance and an absent verdict are UNKNOWN, not failed. Refusing
+    those would empty the cache to buy nothing — `replay_metadata` already
+    stops unknown from reading as a pass, which is the honest handling for a
+    question nobody recorded the answer to.
+    """
+    if not isinstance(prov, dict):
+        return False
+    gate = prov.get("contract_gate")
+    return isinstance(gate, dict) and gate.get("passed") is False
+
+
 def replay_metadata(prov: dict | None, latency_ms: float, trace_id: str) -> dict:
     """Metadata for a cache hit.
 
@@ -660,8 +674,20 @@ class SearchPipeline:
                 except Exception as e:
                     logger.warning("cache_get_skip", trace_id=trace_id, error=str(e))
                     cached = None
+                prov = None
                 if cached:
                     prov = cached.pop("_provenance", None) if isinstance(cached, dict) else None
+                    # A stored verdict of False is the one thing a replay must
+                    # ACT on rather than report. The gate already judged this
+                    # answer bad; serving it again is repeating a known defect
+                    # at cache speed, for the life of the entry. Fall through
+                    # and recompute — a refusal here is a miss, not an error.
+                    if gate_verdict_failed(prov):
+                        logger.warning("cache_refused_failed_gate", trace_id=trace_id,
+                                       violations=(prov or {}).get(
+                                           "contract_gate", {}).get("violations"))
+                        cached = None
+                if cached:
                     logger.info("cache_hit", trace_id=trace_id, provenance=bool(prov))
                     yield SearchEvent(type="answer", data=cached, trace_id=trace_id)
                     yield SearchEvent(
