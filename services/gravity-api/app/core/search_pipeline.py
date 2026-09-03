@@ -191,12 +191,22 @@ def _gate_check(contract, *, answer, citations, scope_status, trace_id):
     and in the metadata so a caller can see exactly which clause was missed.
     Making the gate refuse is a separate, deliberate product decision.
 
-    Returns None when no contract was built (finance planning raised) — the
-    caller distinguishes "checked and passed" from "never checked", which a
-    default-pass verdict would hide.
+    Never returns None. An answer the gate did not check carries a LABEL saying
+    so, because `contract_gate: null` reads exactly like a gate that passed
+    silently — the same mistake `replay_metadata` already fixed on the cache
+    path ("an empty channel list presented as a measurement is worse than one
+    labelled as missing"), applied to channels but not here.
+
+    The two ways an answer goes unchecked are different facts and report
+    different reasons: a caller seeing `no_contract` has a planning problem, one
+    seeing `gate_error` has a bug in the gate. Collapsing both to `null` hides
+    which. Neither ever reports `passed: True`, and neither carries violations —
+    an unchecked answer that listed violations would be claiming it was checked.
     """
     if contract is None:
-        return None
+        return {"recorded": False, "passed": None, "violations": [],
+                "reason": "no_contract: finance planning failed, so no answer "
+                          "contract was built for this query"}
     try:
         from app.core.finance.answer_contract import FinalGate
         result = FinalGate.check(
@@ -212,7 +222,9 @@ def _gate_check(contract, *, answer, citations, scope_status, trace_id):
     except Exception as _ge:  # noqa: BLE001 — a gate must not lose an answer
         logger.warning("final_gate_failed", trace_id=trace_id,
                        error_type=type(_ge).__name__)
-        return None
+        return {"recorded": False, "passed": None, "violations": [],
+                "reason": f"gate_error: the gate could not be evaluated "
+                          f"({type(_ge).__name__})"}
 
 
 # ── Search Pipeline ─────────────────────────────────────────────────────
