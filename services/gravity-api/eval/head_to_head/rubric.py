@@ -257,6 +257,40 @@ def _figures_attributed_to(text: str, case: dict) -> set[str]:
     return out
 
 
+def _period_misattributed(text: str, token: str) -> bool:
+    """
+    Whether the reply hangs its figure on a period other than `token`.
+
+    Presence of the token somewhere in the reply is not attachment, and
+    `period_entity` scored presence — so a figure stated for the wrong year
+    scored full marks on the dimension whose whole job is catching that.
+    Sentence scope is the granularity `_figures_attributed_to` already settled
+    on for this same question, for the reason given there.
+
+    Fires only on a POSITIVE competing period. A figure sentence naming no
+    period at all returns False rather than a miss: the reply may be carrying
+    the period from its neighbour, the text does not say otherwise, and
+    guessing against it would be the over-tightening that produced most of the
+    grader bugs this file has had to undo.
+    """
+    tok = token.lower()
+    claims = [s for s in re.split(r"(?<=[.!?])\s+|\n", text or "")
+              if _financial_figures(s)]
+    # NOT `_YEAR`: its \b never matches the 2024 inside "FY2024", which is the
+    # commonest way a reply names the year it is misattributing to. A digit
+    # boundary is the right one here — it still refuses to find 2025 inside
+    # 12025, and 416,161 carries no 19xx/20xx to trip over.
+    yearish = re.compile(r"(?<!\d)(?:19|20)\d{2}(?!\d)")
+    if not claims:
+        return False          # nothing asserted, so nothing to misattach
+    for sentence in claims:
+        if tok in sentence.lower():
+            return False      # attached to the expected period somewhere
+        if not yearish.search(sentence):
+            return False      # names no competing period; do not guess
+    return True
+
+
 #: What the pipeline actually calls its evidence classes. The rubric was
 #: written against the names in `answer_contract.SourceClass` and the pipeline
 #: emits `app/core/research/evidence`'s names, so every real SEC citation was
@@ -456,9 +490,16 @@ def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None
 
     # period / entity -----------------------------------------------------
     checks, hits = 0, 0
+    misattached: list[str] = []
     for token in case.get("expect_period_tokens", []):
         checks += 1
-        hits += int(token.lower() in low)
+        present = token.lower() in low
+        if present and _period_misattributed(text, token):
+            # Named, but hung on a different year. Presence was never the
+            # question this dimension was asking.
+            present = False
+            misattached.append(token)
+        hits += int(present)
     for token in case.get("expect_entity_tokens", []):
         checks += 1
         hits += int(token.lower() in low)
@@ -468,6 +509,11 @@ def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None
     card.scores["period_entity"] = round(hits / checks, 4) if checks else None
     if not checks:
         card.notes["period_entity"] = "no period/entity tokens recorded"
+    elif misattached:
+        card.notes["period_entity"] = (
+            f"period token(s) {sorted(misattached)} appear in the reply but the "
+            "stated figure is attached to a different period"
+        )
 
     # scope ---------------------------------------------------------------
     if case.get("is_set_question"):
