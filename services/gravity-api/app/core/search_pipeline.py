@@ -168,6 +168,43 @@ class SearchEvent:
     ts: float = field(default_factory=time.time)
 
 
+def _gate_check(contract, *, answer, citations, scope_status, trace_id):
+    """Run the final gate and return its verdict, or None if it could not run.
+
+    Called on every path that publishes an answer, and called BEFORE the answer
+    is yielded. A verdict computed after the yield is a post-mortem: the reader
+    already has the answer, so `contract_gate` can describe what happened but
+    can no longer travel with the thing it describes.
+
+    Reported, never enforced by rewriting: a gate that edits an answer to
+    satisfy itself is grading its own work. Violations ride on the answer event
+    and in the metadata so a caller can see exactly which clause was missed.
+    Making the gate refuse is a separate, deliberate product decision.
+
+    Returns None when no contract was built (finance planning raised) — the
+    caller distinguishes "checked and passed" from "never checked", which a
+    default-pass verdict would hide.
+    """
+    if contract is None:
+        return None
+    try:
+        from app.core.finance.answer_contract import FinalGate
+        result = FinalGate.check(
+            contract,
+            answer=str(answer or ""),
+            citations=citations or [],
+            scope_status=str(scope_status or ""),
+        ).as_dict()
+        if not result["passed"]:
+            logger.warning("answer_contract_violated", trace_id=trace_id,
+                           violations=result["violations"])
+        return result
+    except Exception as _ge:  # noqa: BLE001 — a gate must not lose an answer
+        logger.warning("final_gate_failed", trace_id=trace_id,
+                       error_type=type(_ge).__name__)
+        return None
+
+
 # ── Search Pipeline ─────────────────────────────────────────────────────
 class SearchPipeline:
     """
@@ -1253,6 +1290,18 @@ class SearchPipeline:
                     data={"sources": []},
                     trace_id=trace_id,
                 )
+                # An early return is still a publication. The contract is bound
+                # far upstream, so there is nothing to stop the gate running
+                # here — and this is the exit its `must_abstain` clause is
+                # actually about. A refusal that carries no verdict is
+                # indistinguishable from one nothing checked.
+                _exit_gate = _gate_check(
+                    locals().get("_contract"),
+                    answer=_reason,
+                    citations=[],
+                    scope_status=query_plan.get("scope_status", ""),
+                    trace_id=trace_id,
+                )
                 yield SearchEvent(
                     type="answer",
                     data={
@@ -1262,6 +1311,7 @@ class SearchPipeline:
                         "answer_state": _state,
                         "follow_up_queries": [],
                         "structured_data": [],
+                        "contract_gate": _exit_gate,
                     },
                     trace_id=trace_id,
                 )
@@ -2025,11 +2075,30 @@ class SearchPipeline:
             # next event, and that wait is the client's, not the pipeline's.
             _st.add("serialization", (time.perf_counter() - _t_ser) * 1000)
 
+            # ── Final gate: did the answer honour its contract? ─────────
+            # ABOVE the yield, deliberately. It used to run 55 lines below it,
+            # which made every verdict a post-mortem — the consumer had already
+            # rendered the answer by the time the gate had an opinion about it.
+            # `parsed_answer` and `citations_out` are both final here, so the
+            # check has everything it needs and the verdict can travel with the
+            # answer it grades.
+            _gate_result = _gate_check(
+                locals().get("_contract"),
+                answer=parsed_answer,
+                citations=citations_out,
+                scope_status=query_plan.get("scope_status", ""),
+                trace_id=trace_id,
+            )
+
             _t_yield = time.perf_counter()
             yield SearchEvent(
                 type="answer",
                 data={
                     "answer": parsed_answer,
+                    # The verdict rides on the answer, not only on the later
+                    # metadata event: a client that renders on `answer` would
+                    # otherwise always render ungraded.
+                    "contract_gate": _gate_result,
                     "citations": citations_out,
                     "follow_up_queries": follow_up_queries,
                     "caveats": caveats,
@@ -2073,29 +2142,8 @@ class SearchPipeline:
             # cache used to store every answer, so an intermittent failure (a channel
             # timeout → empty retrieval → "not found") got cached and then served on
             # ~25% of identical re-queries (the 3s "fail" = a cache hit of the poison).
-            # ── Final gate: did the answer honour its contract? ─────────
-            # Reported, never enforced by rewriting: a gate that edits an answer
-            # to satisfy itself is grading its own work. Violations ride in the
-            # metadata so a caller can see exactly which clause was missed.
-            _gate_result = None
-            try:
-                _c = locals().get("_contract")
-                if _c is not None:
-                    from app.core.finance.answer_contract import FinalGate
-                    _gate_result = FinalGate.check(
-                        _c,
-                        answer=str(parsed_answer or ""),
-                        citations=citations_out or [],
-                        scope_status=str(query_plan.get("scope_status", "")),
-                    ).as_dict()
-                    if not _gate_result["passed"]:
-                        logger.warning("answer_contract_violated",
-                                       trace_id=trace_id,
-                                       violations=_gate_result["violations"])
-            except Exception as _ge:  # noqa: BLE001 — a gate must not lose an answer
-                logger.warning("final_gate_failed", trace_id=trace_id,
-                               error_type=type(_ge).__name__)
-
+            # The gate ran above, before the answer was published. Its verdict
+            # is `_gate_result` and it gates the cache write below.
             _ans_l = (parsed_answer or "").lower()
             _is_refusal = (not parsed_answer or not source_data
                            or str(confidence_out).upper() in ("NONE", "")

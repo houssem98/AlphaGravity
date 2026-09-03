@@ -70,9 +70,15 @@ def test_the_gate_runs_before_the_answer_is_cached():
     """
     Storing first and checking second means the stored entry can never carry a
     verdict, no matter what the replay code does.
+
+    `rindex`, not `index`: the gate is called at every site that publishes an
+    answer, so the FIRST call is the no-evidence exit, which returns long before
+    any cache write. Anchoring on it would let the answer-path gate drift back
+    below the cache write with this test still green. The LAST gate call is the
+    one that has to beat the write.
     """
     src = inspect.getsource(SearchPipeline.search)
-    gate = src.index("FinalGate.check")
+    gate = src.rindex("_gate_check(")
     write = src.index("await self.cache.set(")
     assert gate < write, (
         "the cache is written before the gate runs, so the verdict cannot be stored"
