@@ -2171,9 +2171,17 @@ class SearchPipeline:
             # the source, leaves the read path's pass/fail logic alone, and
             # does not require refusing the legacy entries that carry no
             # verdict simply because they predate it — those age out on TTL.
-            _gated = _gate_result is not None
+            #
+            # `passed`, not merely `is not None`: a FAILED verdict is also "not
+            # None", so the answer the gate had just rejected was written and
+            # then refused by `gate_verdict_failed` on every subsequent hit —
+            # the system recording a defect in order to keep re-detecting it.
+            # The read-path refusal stays, because entries written before this
+            # are still out there. Two defences, not one moved.
+            _gated = _gate_result is not None and bool(_gate_result.get("passed"))
             if self.cache and not _is_refusal and not _gated:
-                logger.warning("cache_skip_ungated", trace_id=trace_id)
+                logger.warning("cache_skip_ungated", trace_id=trace_id,
+                               verdict=(_gate_result or {}).get("passed"))
             if self.cache and not _is_refusal and _gated:
                 try:
                     await self.cache.set(query, {
