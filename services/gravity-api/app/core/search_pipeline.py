@@ -2020,6 +2020,12 @@ class SearchPipeline:
             if not follow_up_queries:
                 follow_up_queries = _default_follow_ups(query, query_plan, top_passages)
             chart_specs_out = _auto_chart_specs(structured_data_out)
+            # The serialisation span closes HERE, before the yield. Past this
+            # point the generator is suspended until the consumer asks for the
+            # next event, and that wait is the client's, not the pipeline's.
+            _st.add("serialization", (time.perf_counter() - _t_ser) * 1000)
+
+            _t_yield = time.perf_counter()
             yield SearchEvent(
                 type="answer",
                 data={
@@ -2042,6 +2048,11 @@ class SearchPipeline:
                 },
                 trace_id=trace_id,
             )
+            # How long the consumer took to come back for more. A slow
+            # WebSocket drain shows up here now instead of inflating a stage
+            # named for CPU work.
+            _st.add("answer_yield", (time.perf_counter() - _t_yield) * 1000)
+            _t_ser = time.perf_counter()
 
             # Emit structured table event for frontend DataPanel rendering
             if structured_data_out:
@@ -2095,6 +2106,12 @@ class SearchPipeline:
                                "cannot determine", "insufficient", "cannot be answered",
                                "cannot answer", "contain no", "no revenue data", "no data for",
                                "do not include", "does not include", "not present in")))
+            # Timed separately because it is a network write that ONE BRANCH
+            # SKIPS: a refusal is never cached, so this cost is present or
+            # absent depending on the answer, and folding it into a CPU stage
+            # made that stage bimodal rather than slow.
+            _st.add("serialization", (time.perf_counter() - _t_ser) * 1000)
+            _t_cache = time.perf_counter()
             if self.cache and not _is_refusal:
                 try:
                     await self.cache.set(query, {
@@ -2123,6 +2140,12 @@ class SearchPipeline:
                     logger.warning("cache_set_skip", trace_id=trace_id, error=str(e))
             elif _is_refusal:
                 logger.info("cache_skip_refusal", trace_id=trace_id)
+            # Recorded on BOTH branches, so a skipped write reads as ~0ms
+            # rather than as an absent stage. "We did not write" and "we did
+            # not measure the write" must not look the same.
+            _st.add("cache_write", (time.perf_counter() - _t_cache) * 1000,
+                    wrote=bool(self.cache and not _is_refusal))
+            _t_ser = time.perf_counter()
 
             # Store in memory palace (fire-and-forget, non-blocking)
             try:

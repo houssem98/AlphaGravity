@@ -64,6 +64,18 @@ STAGES = (
     "verification",
     "provenance",
     "serialization",
+    # Split out of `serialization`, which was bimodal at 12ms / 4069ms because
+    # it enclosed both of these and neither is serialisation.
+    #
+    # `answer_yield` is the async generator suspended at `yield` while the
+    # consumer drains the answer event — the CLIENT's time, charged to the
+    # producer's wall clock by the language, not by anything the pipeline does.
+    #
+    # `cache_write` is a Redis round-trip that one branch of an `if` skips
+    # entirely (refusals are not cached). One branch doing no I/O and the other
+    # doing a network write, reported under one name, is the bimodality.
+    "answer_yield",
+    "cache_write",
 )
 
 
