@@ -201,6 +201,19 @@ class SearchMetadata(BaseModel):
     source_accession: str = ""
     source_filing_url: str = ""
     verification_status: str = ""
+    # What the checks actually found. All three reached the WebSocket metadata
+    # event and were dropped by this model — the same way the routing fields
+    # above were, which is why that comment exists. The consequence was worse
+    # here: FinalGate runs and stores its verdict, and a REST caller still could
+    # not tell an answer that PASSED the gate from one that FAILED it, or an
+    # answer with a dozen ungrounded figures from one with none.
+    #
+    # `contract_gate` defaults to None, never to a passing verdict. Absent and
+    # passed must not be the same value to a caller — the distinction
+    # `replay_metadata` already protects on the cache path.
+    contract_gate: dict | None = None
+    numeric_mismatches: int = 0
+    temporal_mismatches: int = 0
     # ── Source routing and web research (spec §25, §28) ──────────────────
     # `sec_*` above answers "was the filer asked". These answer the same
     # question for the other two source classes, and the counts are of what
