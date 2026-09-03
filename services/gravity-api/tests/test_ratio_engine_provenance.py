@@ -169,6 +169,19 @@ def test_the_docstring_promise_and_the_query_agree():
     """
     import inspect
 
-    src = inspect.getsource(RatioEngine._fetch_metrics)
-    assert "XBRL" in inspect.getdoc(RatioEngine._fetch_metrics)
+    # The query moved into `_fetch_facts` when operands became typed;
+    # `_fetch_metrics` is now the bare-value wrapper over it. The property is
+    # unchanged — whichever method issues the query must filter for XBRL rows
+    # and must say so — and is now checked on the method that issues it.
+    src = inspect.getsource(RatioEngine._fetch_facts)
+    assert "XBRL" in inspect.getdoc(RatioEngine._fetch_facts)
     assert '"like.*_xbrl"' in src or "'like.*_xbrl'" in src
+
+    # And the wrapper cannot quietly grow a second, unfiltered path around it.
+    wrapper = inspect.getsource(RatioEngine._fetch_metrics)
+    assert "_fetch_facts" in wrapper, (
+        "_fetch_metrics no longer routes through the filtered fetch"
+    )
+    assert "sb_select" not in wrapper, (
+        "_fetch_metrics issues its own query, bypassing the XBRL filter"
+    )

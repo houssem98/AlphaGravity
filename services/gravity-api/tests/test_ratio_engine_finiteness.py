@@ -36,7 +36,9 @@ import math
 import pytest
 
 from app.core.finance import ratio_engine as re_mod
-from app.core.finance.ratio_engine import RatioEngine, _derive_metrics, _safe_div
+from app.core.finance.ratio_engine import (
+    Fact, RatioEngine, _derive_metrics, _period_year, _safe_div,
+)
 
 INF = float("inf")
 NAN = float("nan")
@@ -102,14 +104,25 @@ def test_a_non_finite_input_fact_does_not_survive_derivation():
 
 
 class _Engine(RatioEngine):
-    """Real compute path, stubbed store. The DB is the only boundary replaced."""
+    """Real compute path, stubbed store. The DB is the only boundary replaced.
+
+    The seam is `_fetch_facts`, not `_fetch_metrics`. When operands became
+    typed, `compute` moved to the former and `_fetch_metrics` became a wrapper
+    nothing on this path calls — a stub on it silently stopped being used, and
+    these tests then reached the REAL fetch and passed against another test
+    file's leaked `sb_select` patch instead of against their own fixtures.
+    Stubbing a seam the code under test no longer calls is indistinguishable
+    from stubbing nothing.
+    """
 
     def __init__(self, facts):
         super().__init__(db_pool=None)
         self._facts = facts
 
-    async def _fetch_metrics(self, ticker, period, metric_names):
-        return dict(self._facts)
+    async def _fetch_facts(self, ticker, period, metric_names):
+        year = _period_year(period) or 0
+        return {k: Fact(value=v, metric=k, fiscal_year=year)
+                for k, v in self._facts.items()}
 
 
 @pytest.mark.asyncio

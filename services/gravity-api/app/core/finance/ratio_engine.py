@@ -49,10 +49,41 @@ import asyncio
 import re
 
 import structlog
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Callable
 
 from app.core.finance.period_math import is_finite_value
+
+
+@dataclass(frozen=True)
+class Fact:
+    """One fetched figure and the context needed to know what it may combine with.
+
+    The lightweight sibling of `period_math.Quantity`. It is deliberately NOT
+    that class: `Quantity` refuses to hold a non-finite value, and the engine
+    needs to carry a bad figure far enough to report it as a refusal with a
+    reason rather than raise at the fetch boundary. What it borrows is the
+    principle — a number that has forgotten its period cannot be checked
+    against another.
+
+    `fiscal_year` of 0 means unknown, which is not the same as a mismatch and
+    is not treated as one.
+
+    There is no accession field. `supabase/migrations/0002_financials.sql`
+    stores none; `document_id` is the nearest handle the table actually has,
+    and inventing an accession would be worse than lacking one.
+    """
+
+    value: float
+    metric: str
+    fiscal_year: int = 0
+    unit: str = "USD"
+    document_id: str = ""
+    concept: str = ""
+
+    @property
+    def period_label(self) -> str:
+        return f"FY{self.fiscal_year}" if self.fiscal_year else ""
 
 logger = structlog.get_logger()
 
@@ -125,6 +156,36 @@ _CONCEPT_TO_METRIC: dict[str, str] = {
     "PaymentsForRepurchaseOfCommonStock": "buybacks",
     "IncomeTaxExpenseBenefit": "income_tax",
 }
+
+
+def _period_mismatch(num: Fact, den: Fact, den_metric: str) -> str | None:
+    """Why these two operands do not belong in one ratio, or None if they do.
+
+    The engine has two kinds of ratio and they need opposite checks. A margin
+    over two periods is the error `period_math` was written for — FY2018
+    revenue beside FY2025 operating income, a collapse that never happened. A
+    growth rate is *supposed* to span periods, but exactly one year: three
+    years apart labelled year-over-year is a real number answering a question
+    nobody asked.
+
+    An unknown year (0) is not a mismatch. The question cannot be asked of a
+    fact that never recorded its period, and refusing on that would turn
+    missing provenance into a missing answer.
+    """
+    if not (num.fiscal_year and den.fiscal_year):
+        return None
+    if den_metric.endswith("_prior"):
+        gap = num.fiscal_year - den.fiscal_year
+        if gap != 1:
+            return (f"a year-over-year ratio needs consecutive periods; "
+                    f"{num.period_label} and {den.period_label} are {gap} "
+                    f"years apart")
+        return None
+    if num.fiscal_year != den.fiscal_year:
+        return (f"{num.metric} is from period {num.period_label} and "
+                f"{den.metric} is from period {den.period_label}; a ratio "
+                f"across two periods is not a margin")
+    return None
 
 
 def _derive_metrics(b: dict[str, float]) -> dict[str, float]:
@@ -979,6 +1040,11 @@ class RatioResult:
     period: str
     computed: bool = True   # Always True — differentiates from LLM-stated values
     error: str | None = None
+    # Which period each operand actually came from, rather than the period that
+    # was ASKED for. Those are the same thing only if nothing went wrong, and
+    # the point of recording them is that a caller no longer has to assume it.
+    numerator_period: str = ""
+    denominator_period: str = ""
 
 
 @dataclass
@@ -1106,11 +1172,25 @@ class RatioEngine:
                 keys.append(ALIAS_MAP[m_lower])
         return list(dict.fromkeys(keys))  # deduplicate, preserve order
 
-    async def _fetch_metrics(self, ticker: str, period: str, metric_names: list[str]) -> dict[str, float]:
+    async def _fetch_metrics(self, ticker: str, period: str,
+                             metric_names: list[str]) -> dict[str, float]:
+        """The bare values, for callers that do not need the provenance."""
+        facts = await self._fetch_facts(ticker, period, metric_names)
+        return {k: f.value for k, f in facts.items()}
+
+    async def _fetch_facts(self, ticker: str, period: str,
+                           metric_names: list[str]) -> dict[str, "Fact"]:
         """Fetch raw metric values from the Supabase XBRL `financials` table (the
         TimescaleDB pool is a permanent None-stub here). Maps us-gaap concepts →
         the engine's internal metric names, derives composites (working_capital,
-        free_cash_flow, ebitda, etc.), and resolves `*_prior` from the prior year."""
+        free_cash_flow, ebitda, etc.), and resolves `*_prior` from the prior year.
+
+        Returns typed facts rather than bare floats. The period was always known
+        here — the PostgREST filter pins it — and was then thrown away, so
+        nothing downstream could check that two operands belonged together.
+        `unit` and `document_id` are columns the table already had and this
+        query was simply not selecting.
+        """
         if not metric_names:
             return {}
         try:
@@ -1121,7 +1201,7 @@ class RatioEngine:
             if year is None:
                 return {}
 
-            async def _facts_for(yr: int) -> dict[str, float]:
+            async def _facts_for(yr: int) -> dict[str, Fact]:
                 rows = await supabase_rest.sb_select(
                     "financials",
                     # `id` restricted to the exactly-tagged population. The table
@@ -1135,25 +1215,42 @@ class RatioEngine:
                     # number is wrong rather than missing.
                     {"ticker": f"eq.{ticker.upper()}", "period": f"eq.FY{yr}",
                      "id": "like.*_xbrl"},
-                    select="id,caption,value_float", limit=200,
+                    select="id,caption,value_float,unit,document_id", limit=200,
                 )
                 base: dict[str, float] = {}
+                meta: dict[str, dict] = {}
                 for r in rows:
                     concept = r.get("caption")
                     val = r.get("value_float")
                     if concept in _CONCEPT_TO_METRIC and val is not None:
                         mkey = _CONCEPT_TO_METRIC[concept]
                         # first non-null wins (CORE concept preferred by insert order)
-                        base.setdefault(mkey, float(val))
-                return _derive_metrics(base)
+                        if mkey not in base:
+                            base[mkey] = float(val)
+                            meta[mkey] = {"unit": r.get("unit") or "USD",
+                                          "document_id": r.get("document_id") or "",
+                                          "concept": concept}
+                # `_derive_metrics` adds composites, which have no row of their
+                # own — they carry the year they were computed from and no
+                # document, which is the honest record for a derived figure.
+                return {
+                    k: Fact(value=v, metric=k, fiscal_year=yr,
+                            unit=meta.get(k, {}).get("unit", "USD"),
+                            document_id=meta.get(k, {}).get("document_id", ""),
+                            concept=meta.get(k, {}).get("concept", ""))
+                    for k, v in _derive_metrics(base).items()
+                }
 
             out = await _facts_for(year)
-            # prior-year metrics (CAGR / YoY / "_prior")
+            # prior-year metrics (CAGR / YoY / "_prior"). These come from a
+            # DIFFERENT fiscal year and land in the same dict — the merge that
+            # made a cross-period ratio expressible in the first place. They
+            # keep their own `fiscal_year`, so `compute` can now check it.
             if any(n.endswith("_prior") for n in metric_names):
                 prior = await _facts_for(year - 1)
-                for k, v in prior.items():
-                    out[f"{k}_prior"] = v
-            return {k: v for k, v in out.items() if k in metric_names or True}
+                for k, f in prior.items():
+                    out[f"{k}_prior"] = replace(f, metric=f"{k}_prior")
+            return out
         except Exception as e:
             logger.warning("ratio_engine_fetch_failed", ticker=ticker, error=str(e)[:120])
             return {}
@@ -1263,15 +1360,19 @@ class RatioEngine:
             needed_metrics.update(defn.numerator)
             needed_metrics.update(defn.denominator)
 
-        raw = await self._fetch_metrics(ticker, period, list(needed_metrics))
+        facts = await self._fetch_facts(ticker, period, list(needed_metrics))
 
         results: list[RatioResult] = []
         for key in ratio_keys:
             defn = RATIO_DEFINITIONS[key]
             num_metric = defn.numerator[0]
             den_metric = defn.denominator[0]
-            num_val = raw.get(num_metric)
-            den_val = raw.get(den_metric)
+            num_fact = facts.get(num_metric)
+            den_fact = facts.get(den_metric)
+            num_val = num_fact.value if num_fact else None
+            den_val = den_fact.value if den_fact else None
+            num_period = num_fact.period_label if num_fact else ""
+            den_period = den_fact.period_label if den_fact else ""
 
             if num_val is None or den_val is None:
                 results.append(RatioResult(
@@ -1279,7 +1380,24 @@ class RatioEngine:
                     unit=defn.unit, numerator_value=num_val, denominator_value=den_val,
                     numerator_metric=num_metric, denominator_metric=den_metric,
                     ticker=ticker, period=period,
+                    numerator_period=num_period, denominator_period=den_period,
                     error=f"Missing data: {num_metric if num_val is None else den_metric}",
+                ))
+                continue
+
+            _mismatch = (_period_mismatch(num_fact, den_fact, den_metric)
+                         if num_fact and den_fact else None)
+            if _mismatch:
+                logger.warning("ratio_engine_period_mismatch", ticker=ticker,
+                               ratio=key, numerator_period=num_period,
+                               denominator_period=den_period)
+                results.append(RatioResult(
+                    ratio_key=key, label=defn.label, value=None,
+                    unit=defn.unit, numerator_value=num_val, denominator_value=den_val,
+                    numerator_metric=num_metric, denominator_metric=den_metric,
+                    ticker=ticker, period=period,
+                    numerator_period=num_period, denominator_period=den_period,
+                    error=f"{defn.label} was not computed: {_mismatch}.",
                 ))
                 continue
 
@@ -1301,14 +1419,16 @@ class RatioEngine:
                     ratio_key=key, label=defn.label, value=value,
                     unit=defn.unit, numerator_value=num_val, denominator_value=den_val,
                     numerator_metric=num_metric, denominator_metric=den_metric,
-                    ticker=ticker, period=period, error=err,
+                    ticker=ticker, period=period,
+                    numerator_period=num_period, denominator_period=den_period, error=err,
                 ))
             except Exception as e:
                 results.append(RatioResult(
                     ratio_key=key, label=defn.label, value=None,
                     unit=defn.unit, numerator_value=num_val, denominator_value=den_val,
                     numerator_metric=num_metric, denominator_metric=den_metric,
-                    ticker=ticker, period=period, error=str(e),
+                    ticker=ticker, period=period,
+                    numerator_period=num_period, denominator_period=den_period, error=str(e),
                 ))
 
         logger.info(

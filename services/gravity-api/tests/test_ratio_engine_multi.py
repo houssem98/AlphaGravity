@@ -36,6 +36,22 @@ EXPECTED_MARGIN = {
 FAANG = ["META", "AAPL", "AMZN", "NFLX", "GOOGL"]
 
 
+def _facts(period: str, **values: float) -> dict:
+    """Stub facts for one period.
+
+    The stubbed seam is `_fetch_facts` rather than `_fetch_metrics`: operands
+    became typed so the engine could check that two of them share a period, and
+    `_fetch_metrics` is now the bare-value wrapper that `compute` no longer
+    calls. Every figure here belongs to the period being asked for, which is
+    what these tests were always assuming.
+    """
+    from app.core.finance.ratio_engine import Fact, _period_year
+
+    year = _period_year(period) or 0
+    return {k: Fact(value=v, metric=k, fiscal_year=year)
+            for k, v in values.items()}
+
+
 def _engine(data: dict[str, tuple[float, float]] | None = None) -> RatioEngine:
     """RatioEngine with the metrics store stubbed — no DB, no network."""
     table = FAANG_FY2024 if data is None else data
@@ -46,9 +62,9 @@ def _engine(data: dict[str, tuple[float, float]] | None = None) -> RatioEngine:
         if row is None:
             return {}
         revenue, operating_income = row
-        return {"revenue": revenue, "operating_income": operating_income}
+        return _facts(period, revenue=revenue, operating_income=operating_income)
 
-    eng._fetch_metrics = _fake_fetch  # type: ignore[method-assign]
+    eng._fetch_facts = _fake_fetch  # type: ignore[method-assign]
     return eng
 
 
@@ -118,9 +134,9 @@ class TestAMissingCompanyIsNamedNotDropped:
             if ticker.upper() == "AMZN":
                 raise RuntimeError("metrics store unavailable")
             revenue, operating_income = FAANG_FY2024[ticker.upper()]
-            return {"revenue": revenue, "operating_income": operating_income}
+            return _facts(period, revenue=revenue, operating_income=operating_income)
 
-        eng._fetch_metrics = _explode  # type: ignore[method-assign]
+        eng._fetch_facts = _explode  # type: ignore[method-assign]
         out = await eng.compute_many(FAANG, ["operating_margin"], "FY2024")
         assert out.tickers == FAANG
         assert "AMZN" in out.missing
