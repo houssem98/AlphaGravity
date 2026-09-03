@@ -154,6 +154,47 @@ async def test_a_fact_carries_its_unit_and_document():
     assert (f.unit, f.document_id, f.concept) == ("USD", "doc-1", "Revenues")
 
 
+def test_every_provenance_column_the_audit_named_is_selected():
+    """
+    The external audit listed five fields the fetch discarded: document_id,
+    filing_date, unit, source_section and accession. Four are columns that
+    exist and are now selected. `accession` is not a column at all — see
+    `0002_financials.sql` — so it is absent by schema, and this asserts the
+    four that were merely being left behind.
+    """
+    import inspect
+
+    from app.core.finance.ratio_engine import RatioEngine
+
+    src = inspect.getsource(RatioEngine._fetch_facts)
+    for column in ("unit", "document_id", "filing_date", "source_section"):
+        assert column in src, (
+            f"`{column}` exists in the financials table and the ratio fetch "
+            "does not select it, so the calculation cannot carry it"
+        )
+
+
+def test_a_fact_carries_the_two_columns_that_were_left_behind():
+    f = _f("revenue", 1000.0, 2025, filing_date="2025-02-26",
+           source_section="Consolidated Statements of Operations")
+    assert f.filing_date == "2025-02-26"
+    assert f.source_section == "Consolidated Statements of Operations"
+
+
+def test_no_fact_claims_an_accession_it_cannot_have():
+    """
+    The audit asked for an accession. The table stores none, so the honest
+    record is that the field does not exist rather than an empty string
+    implying one was looked for and not found.
+    """
+    from app.core.finance.ratio_engine import Fact
+
+    assert not hasattr(Fact(1.0, "revenue"), "accession"), (
+        "Fact carries an `accession` field, but `financials` has no accession "
+        "column — the value could only be invented"
+    )
+
+
 @pytest.mark.asyncio
 async def test_a_missing_period_does_not_invent_a_refusal():
     """

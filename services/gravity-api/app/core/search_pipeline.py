@@ -2112,7 +2112,21 @@ class SearchPipeline:
             # made that stage bimodal rather than slow.
             _st.add("serialization", (time.perf_counter() - _t_ser) * 1000)
             _t_cache = time.perf_counter()
-            if self.cache and not _is_refusal:
+            # An answer the gate never ran on does not enter the cache. The
+            # gate is skipped when `_contract` was never bound — finance
+            # planning raised and its `except` only logged — and such an answer
+            # was previously stored anyway, carrying `contract_gate: null`, to
+            # be replayed for the life of the entry.
+            #
+            # Enforced at the WRITE rather than the read. It satisfies "no
+            # answer may escape through a path that bypasses the final gate" at
+            # the source, leaves the read path's pass/fail logic alone, and
+            # does not require refusing the legacy entries that carry no
+            # verdict simply because they predate it — those age out on TTL.
+            _gated = _gate_result is not None
+            if self.cache and not _is_refusal and not _gated:
+                logger.warning("cache_skip_ungated", trace_id=trace_id)
+            if self.cache and not _is_refusal and _gated:
                 try:
                     await self.cache.set(query, {
                         "answer": parsed_answer,

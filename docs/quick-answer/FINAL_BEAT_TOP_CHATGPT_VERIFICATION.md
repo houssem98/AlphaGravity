@@ -332,9 +332,23 @@ The read path popped `_provenance`, yielded the answer and returned without
 ever looking at `contract_gate.passed`, so an entry the gate had REJECTED was
 replayed verbatim — observed serving `$999,999,999 million` as
 `cache_hit: true`. A failing stored verdict now falls through and recomputes.
-Scope stops there: a passing or unrecorded verdict still serves, because
-`recorded: false` means unknown rather than failed. 5 tests in
-`tests/test_cache_gate_enforcement.py`.
+5 tests in `tests/test_cache_gate_enforcement.py`.
+
+**Completed 2026-09-03.** That fix stopped at refusing a FAILED verdict, on the
+reasoning that an unrecorded one means unknown rather than failed. The audit
+had asked for more — reject entries that *lack a valid verification state* —
+and the reasoning was wrong, because it assumed unrecorded meant *legacy*. It
+no longer does: the gate runs inside `if _c is not None:`, `_contract` is bound
+in a `try` whose `except` only logs `finance_plan_failed`, so a planning
+failure produces a NEW answer that was never gated — and it was being cached,
+carrying `contract_gate: null`, to replay for the life of the entry.
+
+Enforced at the write instead: an answer with no gate verdict is not cached at
+all. That holds the invariant at its source, leaves the read path's pass/fail
+logic alone, and does not require rejecting genuinely legacy entries, which age
+out on their own TTL. The answer is still returned to the caller — declining to
+persist an unverified answer is a different decision from declining to give
+one. 4 tests in `tests/test_cache_requires_a_gate_verdict.py`.
 
 
 **The most serious defect found, and fixed: a fabricated growth rate labelled
@@ -368,6 +382,22 @@ The block's label no longer claims the result is verified.
 The asymmetry is deliberate and asserted in `test_the_guard_is_conservative_by_design`:
 a false refusal costs an injected convenience; a false acceptance costs a
 fabricated figure presented to a user as verified. 52 tests.
+
+**What the pre-pass is, named plainly (audit item 13, 2026-09-03).** The
+external audit's closing objection to this section was that the surrounding
+narrative still reads the pre-pass as part of the correctness machinery. It is
+not. It is **deterministic arithmetic over heuristically selected operands** —
+not a deterministic financial calculation. The arithmetic is exact; the choice
+of *which two numbers* to feed it is a regex over passage text, filtered only
+by pairs that are provably impossible. `calc_guard` is a plausibility filter,
+not a correctness gate, and it cannot become one without typed operands.
+
+The distinction matters because the two phrases license different things. A
+deterministic calculation may be cited. Deterministic arithmetic over guessed
+operands may only be offered, and only while its label says so. The pipeline
+still picks `uniq[0]` and `uniq[1]` — the first two surviving numbers — and
+that remains true rather than fixed, because with untyped floats there is
+nothing better to pick by.
 
 **A third invisibility, caught before it became a fourth bug.** After the guard
 shipped, `calculator_injected` stopped appearing in the logs entirely — which

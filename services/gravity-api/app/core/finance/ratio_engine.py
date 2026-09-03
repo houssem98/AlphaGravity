@@ -80,6 +80,12 @@ class Fact:
     unit: str = "USD"
     document_id: str = ""
     concept: str = ""
+    # The external audit itemised five fields the fetch was discarding:
+    # document_id, filing_date, unit, source_section and accession. Four are
+    # carried. `accession` is not, because the table has no such column — see
+    # the class docstring. These two were simply not being selected.
+    filing_date: str = ""
+    source_section: str = ""
 
     @property
     def period_label(self) -> str:
@@ -1215,7 +1221,8 @@ class RatioEngine:
                     # number is wrong rather than missing.
                     {"ticker": f"eq.{ticker.upper()}", "period": f"eq.FY{yr}",
                      "id": "like.*_xbrl"},
-                    select="id,caption,value_float,unit,document_id", limit=200,
+                    select="id,caption,value_float,unit,document_id,"
+                           "filing_date,source_section", limit=200,
                 )
                 base: dict[str, float] = {}
                 meta: dict[str, dict] = {}
@@ -1229,7 +1236,9 @@ class RatioEngine:
                             base[mkey] = float(val)
                             meta[mkey] = {"unit": r.get("unit") or "USD",
                                           "document_id": r.get("document_id") or "",
-                                          "concept": concept}
+                                          "concept": concept,
+                                          "filing_date": r.get("filing_date") or "",
+                                          "source_section": r.get("source_section") or ""}
                 # `_derive_metrics` adds composites, which have no row of their
                 # own — they carry the year they were computed from and no
                 # document, which is the honest record for a derived figure.
@@ -1237,7 +1246,9 @@ class RatioEngine:
                     k: Fact(value=v, metric=k, fiscal_year=yr,
                             unit=meta.get(k, {}).get("unit", "USD"),
                             document_id=meta.get(k, {}).get("document_id", ""),
-                            concept=meta.get(k, {}).get("concept", ""))
+                            concept=meta.get(k, {}).get("concept", ""),
+                            filing_date=meta.get(k, {}).get("filing_date", ""),
+                            source_section=meta.get(k, {}).get("source_section", ""))
                     for k, v in _derive_metrics(base).items()
                 }
 
