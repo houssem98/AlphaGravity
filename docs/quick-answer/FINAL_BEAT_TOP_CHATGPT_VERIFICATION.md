@@ -237,9 +237,22 @@ the fixes did not simply make the rubric lenient.
 
 An external ChatGPT audit was run against this branch, scoped to the Quick
 Answer path. It made four claims. **Its headline P0 was wrong** — it reported
-that `FinalGate` is never called, and `FinalGate.check()` runs at
-`search_pipeline.py:2074` (re-grepped 2026-09-03; this doc said 2087, which had
-drifted) with its verdict shipped as `contract_gate` in the metadata event.
+that `FinalGate` is never called, and `FinalGate.check()` runs in
+`SearchPipeline.search`, immediately before the cache write, with its verdict
+shipped as `contract_gate` in the metadata event.
+
+*No line number is given deliberately.* This doc cited 2087, the 2026-09-03
+re-audit corrected it to 2074, and a later commit in the same session moved it
+to 2085. Three numbers for one unmoved call. The symbol and its neighbour are
+stable; the offset is not, and citing it only manufactures a future correction.
+
+**Two conditions the audit did not identify, both narrower than its claim but
+real.** The gate runs inside `if _c is not None:`, where `_c` is
+`locals().get("_contract")` — and `_contract` is bound inside a `try` whose
+`except` only logs `finance_plan_failed`. So when finance planning raises, the
+gate does not run. When it does not run, `_gate_result` stays `None` and ships
+as `contract_gate: null`, which a caller can tell apart from a pass; it does
+not, however, say why it is null.
 
 **Qualified 2026-09-03 (`d4ca94a`):** that disproof held only on the WebSocket
 path. The REST route filters metadata to the fields `SearchMetadata` declares,
