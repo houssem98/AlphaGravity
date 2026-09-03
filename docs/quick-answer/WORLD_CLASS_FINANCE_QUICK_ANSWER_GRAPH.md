@@ -83,23 +83,33 @@ below was re-derived from code on 2026-09-02, not copied from the audit.
 | **D6** | calc_guard is only a negative heuristic | **LIVE BY DESIGN** | Asserted in `test_the_guard_is_conservative_by_design`. Cannot be "fixed" without typed operands — this is D3's tail, not a separate defect. |
 | **D7** | Numeric grounding is advisory, not a gate | **LIVE** | `search_pipeline.py:1689` — mismatches produce `logger.warning("deterministic_verification_warnings")` and nothing else. Compounding: the fast path also skips the NLI and LLM citation validators, so this warning is Quick Answer's only numeric check. |
 | **D8** | Evidence grader not claim-level | **PARTIAL** | Fixed in `6c72822`: all-primary keeps 1.0, mixed drops to 0.8 with the reason noted. **Still live:** no claim-to-citation binding; 0.8 is a haircut, not a verification. |
-| **D9** | Correctness accepts the number anywhere | **LIVE — demonstrated** | `rubric.py:286` `_matches` iterates `numbers_in(text)` over the entire reply. Executed 2026-09-02: an answer stating the wrong headline (`$500,000 million`) with the right figure in a parenthetical scored **correctness 1.0**. Whether any of the 5 recorded benchmark runs actually hit this is **UNVERIFIABLE** — their per-case outputs were never persisted, so the mechanism is proven and the historical impact is not. |
-| **D10** | Period/entity is token presence | **LIVE** | `rubric.py:426-434` — `token.lower() in low` over the whole reply, unattached to the asserted figure. |
+| **D9** | Correctness accepts the number anywhere | **CLOSED** (`f2477d6`, L7) | Reproduced red before the change at `eval/head_to_head/rubric.py` (the audit's `rubric.py:286` was right): `$500,000 million` asserted with the truth in a parenthetical scored **1.0**. `_asserts` now replaces `_matches` at the grading call site — a parenthetical is an aside unless nothing outside it makes a competing claim. `test_rubric_asserted_number.py` (9), 89 existing rubric assertions unchanged. Historical impact stays **UNVERIFIABLE**: the 5 recorded runs never persisted per-case outputs, and closing the mechanism does not retroactively tell us whether it fired. |
+| **D10** | Period/entity is token presence | **PARTIAL** (`3ab9bc6`, L8) | **Period half closed.** Was `token.lower() in low` over the whole reply; a figure stated for FY2024 with "fiscal 2025" mentioned elsewhere scored `period_entity` **1.0** (reproduced red). A period token now misses when every asserted-figure sentence names a different year and never the expected one — sentence scope, the granularity `_figures_attributed_to` already uses. Fires only on a positive competing period. `test_rubric_period_attachment.py` (7). **Still live: the entity half.** Deciding that a figure sentence names the wrong *company* needs a company vocabulary the grader does not have; `forbid_tokens` remains the only mechanism. Not invented, per L6's constraint against penalties the data cannot support. |
 | **D11** | cases.json provenance is free-form | **PARTIAL** | `b777977` added `test_every_filed_expectation_appears_in_the_provenance_list`, binding all 11 filed values to an accession string. **Still live:** provenance is prose, not `{accession, concept, unit, period}` fields. |
 | **D12** | Verification doc overstates the implementation | **PARTIAL** | Corrected in `b777977` and `6c72822`. Needs one re-audit pass at the end of this roadmap, since the doc now describes code that changed underneath it. |
 
-**Score: 1 disproved · 2 closed · 4 partial · 4 live · 1 by-design.**
+**Score: 1 disproved · 3 closed · 1 blocked · 4 partial · 2 live · 1 by-design.**
 
-Closure is per-defect and carries no claim about the system. Eight of the twelve
-still need work; the certification rules in the loop file remain unmet.
+Closure is per-defect and carries no claim about the system. The certification
+rules in the loop file remain unmet: D3 and D4 are both named there and neither
+is closed, and the blind benchmark (L9) is still unrun. Open: D3, D4 (blocked),
+D7, D8, D10 (entity half), D11, D12.
 
-**One graph edge did not hold.** The loop dependency graph places L5 downstream
+**Three graph edges did not hold.** The dependency graph places L5 downstream
 of L3, on the reasoning that typed operands make non-finite protection
 tractable. L5's own stated fix — "route through the existing gate rather than
-writing a second one" — turned out to need no typing at all: a shared
-`is_finite_value` over bare floats closed D5 completely, before L3 ran. The
-edge was a plausible assumption, not a measured dependency. L4's edge to L3 is
-the same shape and should be re-checked rather than assumed when L4 runs.
+writing a second one" — needed no typing at all: a shared `is_finite_value`
+over bare floats closed D5 before L3 ran.
+
+L7 and L8 sit below L2 for the same kind of reason, and the edge is likewise
+not real. L2 decides whether the *pipeline* blocks on a numeric mismatch; L7
+and L8 change how the *benchmark grader* scores a stated figure. Different
+subsystems, different files, no shared state — `eval/head_to_head/rubric.py`
+does not import the pipeline. Both closed with L2 untouched.
+
+The pattern: these edges encode "seemed related", not a measured dependency.
+Re-check each before inheriting it. L4's edge to L3 was never tested either —
+L4 blocked on a live-DB gap that has nothing to do with L3.
 
 ---
 
