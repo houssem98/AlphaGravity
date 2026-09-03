@@ -298,6 +298,39 @@ def _matches(expected: float, text: str, tol: float = 0.01) -> bool:
     return False
 
 
+#: A parenthetical aside. Non-nesting on purpose: a nested pair in a financial
+#: answer is vanishingly rare, and a recursive strip would be more machinery
+#: than the distinction needs.
+_PAREN = re.compile(r"\([^()]*\)")
+
+
+def _asserts(expected: float, text: str, tol: float = 0.01) -> bool:
+    """
+    Whether the reply ASSERTS `expected`, as opposed to merely containing it.
+
+    `_matches` answers "is this number present anywhere", which is not the same
+    question and is the one the rubric was asking. An answer stating a wrong
+    headline with the true figure in a parenthetical scored 1.0 under it.
+
+    A figure inside parentheses is an aside, not the claim — with one
+    exception, which is why this is not a one-line strip: when nothing outside
+    the parentheses makes a competing financial claim, the parenthetical is the
+    only thing the answer could be asserting. "Net sales ($416,161 million)"
+    states the figure; "net sales were $500,000 million (the filing reports
+    $416,161 million)" demotes the truth to a footnote behind a wrong headline.
+
+    Deliberately NOT a first-figure rule. "In FY2024 revenue was X; in FY2025 it
+    was Y" asserts Y, and scoring the first figure would mark it wrong — the
+    over-tightening that this file's history already paid for once.
+    """
+    outside = _PAREN.sub(" ", text or "")
+    if _matches(expected, outside, tol):
+        return True
+    if not _matches(expected, text, tol):
+        return False
+    return not _financial_figures(outside)
+
+
 def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None,
                  latency_ms: float | None = None,
                  scope_status: str = "", system: str = "") -> Scorecard:
@@ -339,7 +372,7 @@ def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None
         else:
             card.notes["correctness"] = "abstention case: declined, no figure for that period"
     elif expected is not None:
-        hit = _matches(float(expected), text)
+        hit = _asserts(float(expected), text)
         if hit:
             card.scores["correctness"] = 1.0
             card.notes["correctness"] = f"expected {expected}"
