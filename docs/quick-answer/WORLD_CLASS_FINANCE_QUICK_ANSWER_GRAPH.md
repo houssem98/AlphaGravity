@@ -79,7 +79,7 @@ below was re-derived from code on 2026-09-02, not copied from the audit.
 | **D2** | Cache bypasses contract + all verification | **CLOSED** (`504246f`, L1) | `6c72822` stored the verdict; `504246f` acts on it — `gate_verdict_failed` refuses a hit whose stored `contract_gate.passed` is `false`, falling through to recompute. Observed red first: the poisoned entry replayed verbatim as `cache_hit:true`. `test_cache_gate_enforcement.py` (5). **Accepted residue:** a hit still skips N3–N15 when the stored verdict passed or was never recorded. That is replay of an answer already gated, not an ungated answer; re-running the pipeline per hit costs the cache's whole purpose and is not taken without measurement. |
 | **D3** | ratio_engine bypasses typed Quantity + provenance | **PARTIAL** | Fixed in `6c72822`: fetch gates on `id=like.*_xbrl`, selects `id`, label no longer claims "audited filings" nor forbids recomputation. **Still live:** values are bare floats, never `period_math.Quantity`; no accession carried. |
 | **D4** | Arbitrary duplicate-fact selection | **LIVE** | `ratio_engine.py:1127-1128` — `base.setdefault(mkey, float(val))` under the comment `# first non-null wins (CORE concept preferred by insert order)`. PostgREST guarantees no order without `ORDER BY`. |
-| **D5** | Non-finite values escape ratio_engine | **LIVE** | `grep -c isfinite app/core/finance/ratio_engine.py` returns **0**. `period_math` has the finiteness gate; ratio_engine never routes through it. |
+| **D5** | Non-finite values escape ratio_engine | **CLOSED** (`ad2fd7a`, L5) | Was: `grep -c isfinite ratio_engine.py` = **0**. Now routes through `period_math.is_finite_value` — one shared gate, imported, with a structural test forbidding a local copy. Operands and results both gated (`1e308/1e-308` overflows out of two finite inputs), `_derive_metrics` sanitised on the way in and out, `compute` states a reason instead of returning a silent `None`. `test_ratio_engine_finiteness.py` (15). The demonstrated case was `_safe_div(1, inf) -> 0.0`: not an obvious `inf` but a plausible-looking zero. |
 | **D6** | calc_guard is only a negative heuristic | **LIVE BY DESIGN** | Asserted in `test_the_guard_is_conservative_by_design`. Cannot be "fixed" without typed operands — this is D3's tail, not a separate defect. |
 | **D7** | Numeric grounding is advisory, not a gate | **LIVE** | `search_pipeline.py:1689` — mismatches produce `logger.warning("deterministic_verification_warnings")` and nothing else. Compounding: the fast path also skips the NLI and LLM citation validators, so this warning is Quick Answer's only numeric check. |
 | **D8** | Evidence grader not claim-level | **PARTIAL** | Fixed in `6c72822`: all-primary keeps 1.0, mixed drops to 0.8 with the reason noted. **Still live:** no claim-to-citation binding; 0.8 is a haircut, not a verification. |
@@ -88,10 +88,18 @@ below was re-derived from code on 2026-09-02, not copied from the audit.
 | **D11** | cases.json provenance is free-form | **PARTIAL** | `b777977` added `test_every_filed_expectation_appears_in_the_provenance_list`, binding all 11 filed values to an accession string. **Still live:** provenance is prose, not `{accession, concept, unit, period}` fields. |
 | **D12** | Verification doc overstates the implementation | **PARTIAL** | Corrected in `b777977` and `6c72822`. Needs one re-audit pass at the end of this roadmap, since the doc now describes code that changed underneath it. |
 
-**Score: 1 disproved · 1 closed · 4 partial · 5 live · 1 by-design.**
+**Score: 1 disproved · 2 closed · 4 partial · 4 live · 1 by-design.**
 
-Closure is per-defect and carries no claim about the system. Nine of the twelve
+Closure is per-defect and carries no claim about the system. Eight of the twelve
 still need work; the certification rules in the loop file remain unmet.
+
+**One graph edge did not hold.** The loop dependency graph places L5 downstream
+of L3, on the reasoning that typed operands make non-finite protection
+tractable. L5's own stated fix — "route through the existing gate rather than
+writing a second one" — turned out to need no typing at all: a shared
+`is_finite_value` over bare floats closed D5 completely, before L3 ran. The
+edge was a plausible assumption, not a measured dependency. L4's edge to L3 is
+the same shape and should be re-checked rather than assumed when L4 runs.
 
 ---
 
@@ -104,7 +112,7 @@ The real risk surface: routes around a node that is supposed to constrain the an
 | Cache hit | N2 → N17 | N3–N15 entirely | **NARROWED** (`504246f`) — a stored `passed:false` no longer replays; a passed or unrecorded verdict still skips N3–N15 |
 | Advisory verification | N11 → N12 | nothing blocks on mismatch | **LIVE** (D7) |
 | Report-only gate | N15 → N17 | gate never rejects | **BY DESIGN** — pinned by `test_the_gate_never_rewrites_the_answer` |
-| ratio_engine injection | N8 → N13 | `period_math` typing entirely | **LIVE** (D3/D4/D5) |
+| ratio_engine injection | N8 → N13 | `period_math` typing entirely | **NARROWED** (`ad2fd7a`) — the finiteness gate is now shared with `period_math`; operand *typing* (company/metric/period/unit) is still bypassed (D3), and row selection is still order-dependent (D4) |
 | Fast-path validator skip | N11 | NLI + LLM CitationValidator | **BY DESIGN** — latency; documented in source |
 
 ---
