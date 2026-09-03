@@ -107,8 +107,8 @@ than guessed at.
 
 | # | Gate | Command | Exit | Result | Verdict |
 |---|---|---|---|---|---|
-| 1 | Backend tests | `pytest tests/ -q --ignore=tests/live --ignore=tests/eval` | 0 | **2097 passed, 0 failed**, 288.51s | **PASS** |
-| 2 | Frontend tests | `npx vitest run src/` | 0 | **1516 passed, 87 files** | **PASS** |
+| 1 | Backend tests | `pytest tests/ -q --ignore=tests/live --ignore=tests/eval` | 0 | **2167 passed, 0 failed**, 259.12s (re-measured 2026-09-03; was 2097 when this doc was written, +70 from the quick-answer loop) | **PASS** |
+| 2 | Frontend tests | `npx vitest run src/` | 0 | **1516 passed, 87 files** — *as recorded; not re-run in the 2026-09-03 re-audit, which changed no frontend code* | **PASS** |
 | 2b | Typecheck | `npx tsc --noEmit -p tsconfig.app.json` | 0 | no errors | **PASS** |
 | 2c | Build | `npx tsc -b && npx vite build` | 0 | `dist/` written, 74s | **PASS** |
 | 3 | Stage trace | `pytest tests/test_stage_trace.py -q` | 0 | **19 passed** | **PASS** |
@@ -200,7 +200,7 @@ finding that out is the reason the rubric has its own test suite:
 | 4 | A complete refusal scored as an overstated scan | *"No source passage identifies which S&P 500 companies mentioned tariff risk… does not name individual companies"* scored **0.0 for "partial scan presented as complete"**. It names nobody — the strongest possible statement of limited coverage — but the hedge list only recognised *partial* answers | run 4 |
 | 5 | Declining one metric while reporting another read as false confidence | *"FY2025 net sales were $416.161B. The sources do not contain FY2024, so growth cannot be computed"* was labelled `false_confidence`, punishing precisely the behaviour `calc_guard` was added to produce | run 4 |
 | 6 | The refusal vocabulary missed plain negations, twice | The first fix for bug 4 did not work, because `_DECLINE_PHRASES` contained `"does not"` but not `"do not"`, and no leading `"no <noun>"` form at all — so *"The sources **do not** identify…"* and *"**No source** passage identifies…"* both still scored zero. It also scanned the whole reply, where a bulleted list of the **sources consulted** is indistinguishable from a list of member companies. Now judged on the opening sentence, with the negations added | run 5 |
-| 7 | A perfect evidence score for an unverified property | `_is_primary` is an ANY over the citation list, so `elif cites and primary: 1.0` paid the **full 20 points** when one SEC filing sat among four news articles, with nothing checking that the stated figure came from the filing. The rubric cannot prove claim-level attribution (excerpts truncate at 220 chars), so it no longer invents a penalty — it stops paying a PERFECT score for something it never verified: all-primary keeps 1.0, mixed scores 0.8 with the reason in the note | external audit |
+| 7 | A perfect evidence score for an unverified property | `_is_primary` is an ANY over the citation list, so `elif cites and primary: 1.0` paid the **full 20 points** when one SEC filing sat among four news articles, with nothing checking that the stated figure came from the filing. The rubric stopped paying a PERFECT score for something it never verified: all-primary kept 1.0, mixed scored 0.8 with the reason in the note. **Superseded 2026-09-03 (`5460fbb`):** this row claimed the rubric *cannot* prove claim-level attribution because excerpts truncate at 220 chars. That was wrong — the truncation is on `run_benchmark.py`'s persisted `answer_excerpt`, while `score_answer` receives the untruncated answer and each citation carries its own `text`. It blocks re-scoring from saved results, not scoring at run time. The attribution is now checked where excerpts allow it: a figure absent from every cited excerpt scores 0.5 and names why. The 0.8 haircut remains only where the excerpts cannot answer the question | external audit |
 
 **Six of the seven marked a right answer wrong; the seventh marked a
 possibly-wrong answer right.** The first six are the worst class of grader
@@ -238,8 +238,18 @@ the fixes did not simply make the rubric lenient.
 An external ChatGPT audit was run against this branch, scoped to the Quick
 Answer path. It made four claims. **Its headline P0 was wrong** — it reported
 that `FinalGate` is never called, and `FinalGate.check()` runs at
-`search_pipeline.py:2087` with its verdict shipped as `contract_gate` in the
-metadata event. The other three held, and two were real correctness defects:
+`search_pipeline.py:2074` (re-grepped 2026-09-03; this doc said 2087, which had
+drifted) with its verdict shipped as `contract_gate` in the metadata event.
+
+**Qualified 2026-09-03 (`d4ca94a`):** that disproof held only on the WebSocket
+path. The REST route filters metadata to the fields `SearchMetadata` declares,
+and `contract_gate`, `numeric_mismatches` and `temporal_mismatches` were none
+of them — measured, all three came back dropped. So the gate ran and a REST
+caller still could not tell a passed verdict from a failed one. All three are
+now declared, `contract_gate` defaulting to `None` rather than to a pass. The
+audit's claim was wrong about the cause and pointing at something real.
+
+The other three held, and two were real correctness defects:
 
 **`ratio_engine.py` computed ratios from rows it could not vouch for, then
 labelled the result audited.** `_fetch_metrics` selected `caption,value_float`
@@ -267,6 +277,27 @@ filing, and with the instruction not to recompute removed. 8 tests in
 `tests/test_ratio_engine_provenance.py`, verified to fail against the unfixed
 file before the fix landed.
 
+**Extended 2026-09-03.** Two further defects in the same file, both observed
+failing first:
+
+- `grep -c isfinite ratio_engine.py` returned **0** (`ad2fd7a`). `_safe_div`
+  guarded a zero denominator and a `None` operand and passed `inf` and `nan`
+  straight through — and `_safe_div(1, inf)` returned `0.0`, a finite
+  fabrication that reads as a business fact where an `inf` would have read as a
+  bug. It now routes through `period_math.is_finite_value`, one shared gate,
+  with a structural test forbidding a local copy.
+- Operands were bare floats carrying no period (`54f730e`), while `*_prior`
+  facts from a different fiscal year were merged into the same flat dict —
+  the shape of the FY2018-beside-FY2025 incident `period_math` was written for.
+  `_fetch_facts` now returns typed `Fact`s; same-period ratios must agree and
+  `*_prior` ratios must be exactly one year apart. `unit` and `document_id`
+  were columns the table already had and the query was not selecting.
+
+The accession this doc calls for remains **absent by schema**, not by
+oversight: `supabase/migrations/0002_financials.sql` defines no accession
+column, so `document_id` is carried as the nearest real handle rather than an
+invented accession.
+
 **A replayed answer reported no gate verdict at all.** The audit framed this as
 cached answers bypassing verification, which overstates it — the answer was
 gated before being cached. The real defect sat underneath: the cache was written
@@ -282,6 +313,15 @@ Fixed: the gate now runs before the cache write, the verdict travels in
 `_provenance`, and an entry that carries none reports
 `{"recorded": false, "passed": null}` rather than nothing. 6 tests in
 `tests/test_cache_gate_provenance.py`.
+
+**Extended 2026-09-03 (`504246f`):** reporting the verdict is not acting on it.
+The read path popped `_provenance`, yielded the answer and returned without
+ever looking at `contract_gate.passed`, so an entry the gate had REJECTED was
+replayed verbatim — observed serving `$999,999,999 million` as
+`cache_hit: true`. A failing stored verdict now falls through and recomputes.
+Scope stops there: a passing or unrecorded verdict still serves, because
+`recorded: false` means unknown rather than failed. 5 tests in
+`tests/test_cache_gate_enforcement.py`.
 
 
 **The most serious defect found, and fixed: a fabricated growth rate labelled
