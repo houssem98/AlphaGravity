@@ -74,7 +74,7 @@ def test_each_sentence_carries_its_own_markers():
     assert _claim_is_bound(answer, cites) is False
 
 
-# ── Fails open: the three ways the rule declines to fire ──────────────────
+# ── Fails open: the two ways the rule declines to fire ────────────────────
 
 
 def test_a_sentence_with_no_marker_searches_everything():
@@ -84,11 +84,45 @@ def test_a_sentence_with_no_marker_searches_everything():
         [{"text": ABSENT}, {"text": FOUND}]) is True
 
 
-def test_a_marker_past_the_end_of_the_list_searches_everything():
-    """An out-of-range marker is a broken answer, not evidence of a bad claim."""
+# ── V22: the third fail-open path, withdrawn ──────────────────────────────
+#
+# This file used to assert
+# `test_a_marker_past_the_end_of_the_list_searches_everything`, on the reading
+# that "an out-of-range marker is a broken answer, not evidence of a bad
+# claim". The differential rig withdrew it: production grades that citation
+# UNSUPPORTED — `citation_index_out_of_range`, the invented-citation case
+# `citation_verdict` opens its module docstring with — while the grader bound
+# the claim by searching every excerpt. That is the benchmark being more
+# permissive than the system it grades, on the one dimension production treats
+# as fatal.
+#
+# One assertion left; three replace it, so the rule is pinned tighter than the
+# behaviour it superseded, not looser.
+
+
+def test_a_marker_past_the_end_of_the_list_does_not_bind():
     assert _claim_is_bound(
         "NVIDIA revenue was $130 billion [9].",
+        [{"text": ABSENT}, {"text": FOUND}]) is False
+
+
+def test_one_real_marker_beside_an_out_of_range_one_still_binds():
+    """The refusal is narrow: a real citation is still a real citation."""
+    assert _claim_is_bound(
+        "NVIDIA revenue was $130 billion [2][9].",
         [{"text": ABSENT}, {"text": FOUND}]) is True
+
+
+def test_an_out_of_range_marker_does_not_reach_across_sentences():
+    """
+    Per-sentence scope is unchanged. The first sentence names a citation that
+    does not exist and must not be rescued by the second sentence's evidence.
+    """
+    answer = ("NVIDIA revenue was $130 billion [9]. "
+              "Operating margin was 62 percent [2].")
+    cites = [{"text": ABSENT},
+             {"text": "NVIDIA operating margin was 62 percent for the year."}]
+    assert _claim_is_bound(answer, cites) is False
 
 
 def test_a_marker_pointing_at_an_unusable_excerpt_searches_everything():

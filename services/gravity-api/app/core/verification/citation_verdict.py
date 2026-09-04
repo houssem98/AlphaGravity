@@ -147,6 +147,38 @@ def _text_of(p) -> str:
 # allowance applies only to numbers that carry no unit of their own.
 _IMPLIED_SCALES = (1.0, 1e3, 1e6, 1e9)
 
+#: A table stating the scale of every bare figure under it (V19).
+#:
+#: `(in millions)`, `($ in thousands)`, `amounts in thousands`. Real filings
+#: declare the unit once in a header and print bare numbers underneath, and
+#: `_IMPLIED_SCALES` above is switched off for any claim that states its own
+#: unit — so a correct answer written the way a good answer writes it,
+#: `$59,070 million` against `(in millions) ... Operating revenue $ 59,070`,
+#: was graded `conflicting` — the identical verdict the claim wrong by a
+#: factor of a thousand received. The header is a fact the passage states;
+#: reading it is not a new allowance.
+#:
+#: Exported because `eval/head_to_head/rubric.py` needs the identical
+#: reading. Two copies of this rule would drift, and the grader importing
+#: production's is the direction that keeps them honest.
+_DECLARED_SCALE = re.compile(
+    r"\(\s*(?:(?:\$|US\$|usd|dollars?|amounts?)\s*)?in\s+"
+    r"(thousands|millions|billions)\b"
+    r"|\bamounts?\s+(?:are\s+)?in\s+(thousands|millions|billions)\b"
+    r"|\bexpressed\s+in\s+(thousands|millions|billions)\b",
+    re.I,
+)
+
+_SCALE_WORD = {"thousands": 1e3, "millions": 1e6, "billions": 1e9}
+
+
+def declared_scale(text: str) -> float | None:
+    """The scale a table declares for its bare figures, if it declares one."""
+    m = _DECLARED_SCALE.search(text or "")
+    if not m:
+        return None
+    return _SCALE_WORD.get(next((g for g in m.groups() if g), "").lower())
+
 _NUM_WITH_UNIT = re.compile(
     r"([\d,]+(?:\.\d+)?)\s*(trillion|billion|million|thousand|[TBMK](?![a-zA-Z]))",
     re.IGNORECASE,
@@ -164,9 +196,18 @@ _FORM_TOKEN = re.compile(r"\b\d{1,2}-[A-Z]{1,2}\b")
 _ITEM_REF = re.compile(r"\bItem\s+\d{1,2}[A-Z]?\b", re.IGNORECASE)
 
 
+# Citation markers are provenance, not quantities (V20). `[3]` left a bare 3
+# among the claim's figures, which is in no source, so a fully grounded
+# sentence was demoted from `verified` to `partially_supported` for the sole
+# crime of citing something. The identical sentence without its marker
+# verified.
+_CITE_MARKER = re.compile(r"\[\s*\d{1,3}\s*\]")
+
+
 def _scrub(text: str) -> str:
     """Remove tokens that look numeric but state no quantity."""
     t = _FORM_TOKEN.sub(" ", text or "")
+    t = _CITE_MARKER.sub(" ", t)
     return _ITEM_REF.sub(" ", t)
 
 
@@ -196,10 +237,20 @@ def _explicitly_scaled(text: str) -> set[float]:
     return out
 
 
-def _found_in_source(value: float, sources: list, implied_ok: bool) -> bool:
+def _found_in_source(value: float, sources: list, implied_ok: bool,
+                     declared: float | None = None) -> bool:
     """Is `value` present among the source numbers, allowing implied scale?"""
     if any(close_enough(value, s) for s in sources):
         return True
+    # V19. The passage declared what its bare figures mean, so reading them
+    # at that scale is reading the passage rather than guessing at it. Tried
+    # in both directions because this function is also called with the roles
+    # reversed, to ask which source figures a claim left unaccounted for.
+    if declared:
+        if any(close_enough(value * declared, s) for s in sources):
+            return True
+        if any(close_enough(value, s * declared) for s in sources):
+            return True
     if not implied_ok:
         return False
     for factor in _IMPLIED_SCALES[1:]:
@@ -295,6 +346,9 @@ def verdict_for_citation(
     # the rest may take their scale from a table header the passage does not
     # repeat.
     claim_explicit = _explicitly_scaled(claim)
+    # V19. Read from the whole passage: a table declares its scale in a
+    # header that sits well away from the row it governs.
+    src_declared = declared_scale(source_text)
     numeric_checked = percent_checked
     partial = False
     if claim_nums:
@@ -306,7 +360,8 @@ def verdict_for_citation(
                     close_enough(n, e * f)
                     for e in claim_explicit for f in _IMPLIED_SCALES
                 )
-                (grounded if _found_in_source(n, src_nums, implied_ok)
+                (grounded if _found_in_source(n, src_nums, implied_ok,
+                                             src_declared)
                  else ungrounded).append(n)
 
             if not grounded:
@@ -338,7 +393,7 @@ def verdict_for_citation(
                 # partially grounded citation came out as a contradiction.
                 source_leftover = [
                     s for s in src_nums
-                    if not _found_in_source(s, grounded, True)
+                    if not _found_in_source(s, grounded, True, src_declared)
                 ]
                 if source_leftover:
                     conflicts.append("numeric_contradicts_source")

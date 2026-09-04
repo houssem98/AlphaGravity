@@ -52,6 +52,7 @@ from dataclasses import dataclass, field
 #: as evidence), while a metric lexicon is a shared vocabulary that both sides
 #: must read identically or the grader cannot see what the system saw.
 from app.core.finance.query_plan import _METRIC_RES
+from app.core.verification.citation_verdict import declared_scale
 
 __all__ = [
     "DIMENSIONS", "Dimension", "Scorecard", "blind_pairs", "score_answer",
@@ -196,36 +197,20 @@ def numbers_in(text: str, *, signed: bool = True) -> set[float]:
 
 #: A table stating the scale of every bare figure under it (V14).
 #:
-#: `(in millions)`, `($ in thousands)`, `(dollars in millions, except per share
-#: amounts)`, `amounts in thousands`. Real filings declare the unit once in a
-#: header and then print bare numbers, which is why the multiplier search in
-#: `_matches` exists at all — and why leaving it unconstrained let a claim of
-#: `$59.07 million` bind against a millions table reading `59,070`, whose real
-#: value is a thousand times larger.
-_DECLARED_SCALE = re.compile(
-    r"\(\s*(?:(?:\$|US\$|usd|dollars?|amounts?)\s*)?in\s+"
-    r"(thousands|millions|billions)\b"
-    r"|\bamounts?\s+(?:are\s+)?in\s+(thousands|millions|billions)\b"
-    r"|\bexpressed\s+in\s+(thousands|millions|billions)\b",
-    re.I,
-)
-
-_SCALE_WORD = {"thousands": 1e3, "millions": 1e6, "billions": 1e9}
-
-
-def _declared_scale(excerpt: str) -> float | None:
-    """The scale a table declares for its bare figures, if it declares one.
-
-    Returned separately from the text because the declaration sits in the
-    header while a metric's span begins at the metric's own name, so by the
-    time a span is matched the declaration is no longer inside it. That gap is
-    the whole of V14: the grader was throwing away a fact the filing states.
-    """
-    m = _DECLARED_SCALE.search(excerpt or "")
-    if not m:
-        return None
-    word = next((g for g in m.groups() if g), "").lower()
-    return _SCALE_WORD.get(word)
+#: `(in millions)`, `($ in thousands)`, `amounts in thousands`. Real filings
+#: declare the unit once in a header and then print bare numbers, which is
+#: why the multiplier search in `_matches` exists at all — and why leaving it
+#: unconstrained let a claim of `$59.07 million` bind against a millions
+#: table reading `59,070`, whose real value is a thousand times larger.
+#:
+#: Imported rather than redefined. Production needs the identical reading —
+#: V19 is this same defect one layer down — and a grader carrying its own
+#: copy of a production rule is the parallel-vocabulary mistake R14, T1 and
+#: T2 were each an instance of. The declaration sits in a table header while
+#: a metric's span begins at the metric's own name, so by the time a span is
+#: matched the declaration is no longer inside it. That gap is the whole of
+#: V14, and both layers now close it from one function.
+_declared_scale = declared_scale
 
 
 def _asserted_numbers(text: str, *, signed: bool = True) -> set[float]:
@@ -722,7 +707,8 @@ _ROW_LABEL = re.compile(
 )
 
 
-def _cited_excerpts(sentence: str, usable: list[tuple[int, str]]) -> list[str]:
+def _cited_excerpts(sentence: str, usable: list[tuple[int, str]],
+                    n_cites: int) -> list[str]:
     """
     The excerpts a sentence's `[n]` markers name, or all of them (V2).
 
@@ -732,18 +718,35 @@ def _cited_excerpts(sentence: str, usable: list[tuple[int, str]]) -> list[str]:
     never pointed at. That is a relationship rather than a field, which is why
     no amount of mutating citation properties would have surfaced it.
 
-    **Fails open in three ways, deliberately.** A sentence naming no marker, a
-    marker past the end of the list, and a marker pointing at an excerpt too
-    short to use all fall back to searching everything. The strict reading —
-    no marker, no bind — would rescore every answer on its formatting rather
-    than its correctness, which is the over-tightening this file has undone six
-    times.
+    **Fails open in two ways, deliberately.** A sentence naming no marker, and
+    a marker pointing at an excerpt too short to use, both fall back to
+    searching everything. The strict reading — no marker, no bind — would
+    rescore every answer on its formatting rather than its correctness, which
+    is the over-tightening this file has undone six times.
+
+    **It does NOT fail open on a marker past the end of the list (V22).** That
+    was the third fail-open path, and the differential rig found it: production
+    calls such a citation UNSUPPORTED — `citation_index_out_of_range`, the
+    invented-citation case `citation_verdict` opens its module docstring with —
+    while the grader fell back to every excerpt and bound the claim anyway. A
+    benchmark that binds where the system it grades refuses outright cannot
+    certify it, and a marker naming a citation the answer does not carry is a
+    fabrication rather than a formatting quirk.
+
+    The refusal is narrow on purpose: it fires only when EVERY marker in the
+    sentence is out of range. `[1][7]` still binds on `[1]`, because one real
+    citation is still a real citation.
     """
     named = {int(n) - 1 for n in _CITE_MARKER.findall(sentence or "")}
     if not named:
         return [e for _, e in usable]
     hit = [e for i, e in usable if i in named]
-    return hit or [e for _, e in usable]
+    if hit:
+        return hit
+    if all(not 0 <= i < n_cites for i in named):
+        # V22. Every marker names a citation the answer does not have.
+        return []
+    return [e for _, e in usable]
 
 
 def _metric_keys(text: str) -> set[str]:
@@ -852,7 +855,7 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
     for sentence in re.split(r"(?<=[.!?])\s+|\n", text or ""):
         levels, rates = _asserted_split(sentence)
         keys = _metric_keys(sentence)
-        cited = _cited_excerpts(sentence, usable)
+        cited = _cited_excerpts(sentence, usable, len(cites or []))
         if levels:
             # A claim's own rates count toward binding it; a margin sentence
             # that also quotes the level it came from is bound by either.
