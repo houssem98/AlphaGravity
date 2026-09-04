@@ -348,6 +348,38 @@ _PRIMARY_CLASS_NAMES = frozenset({
 #: proposed, would blind the rubric to the most authoritative rows in the table.
 _XBRL_ID_SUFFIX = "_xbrl"
 
+#: An accession, in either form this repo circulates: `0000320193-25-000079`
+#: and the bare 18-digit `000032019325000079` that `sec_filing_resolver.nodash()`
+#: and `ingestion/sources/earnings.py` both produce for archive paths.
+#:
+#: WIDER THAN `sec_filing_resolver.valid_accession` ON PURPOSE, and declared
+#: here rather than imported for the same reason that module gives for
+#: redeclaring it: the two answer different questions. The resolver decides what
+#: may enter a URL path, where the dashed form is the only safe one. This
+#: decides whether a value is evidence that the citation came from a filing,
+#: and both forms are.
+#:
+#: What this does NOT establish is that the accession EXISTS. A well-formed
+#: invention still passes. Closing that needs a lookup against EDGAR, which is
+#: a network call the rubric will not make — the bar this raises is from "any
+#: truthy string" to "the shape EDGAR issues", and the honest claim is that and
+#: no more.
+_ACCESSION_RE = re.compile(r"\A(?:\d{10}-\d{2}-\d{6}|\d{18})\Z")
+
+
+def _has_real_accession(cite: dict) -> bool:
+    """Whether the citation carries something actually shaped like an accession.
+
+    The rule this guards is deliberate: a citation carrying a REAL accession came
+    from a filing whatever anyone labelled it, so a sloppy `source_class` cannot
+    demote a genuine 10-K. Nothing checked the value, so `WEB_EVIDENCE` plus
+    `accession="invented"` outranked the class system entirely.
+    """
+    for field in ("accession", "accession_number"):
+        if _ACCESSION_RE.match(str(cite.get(field) or "").strip()):
+            return True
+    return False
+
 
 #: The fields a citation may carry its issuer identity in. Read together
 #: rather than trusting one: a real pipeline citation was measured carrying
@@ -388,7 +420,7 @@ def _is_primary(cites: list[dict]) -> bool:
         if cls == "structured" and \
                 str(c.get("id") or "").strip().lower().endswith(_XBRL_ID_SUFFIX):
             return True
-        if c.get("accession") or c.get("accession_number"):
+        if _has_real_accession(c):
             return True
         url = str(c.get("view_filing_url") or c.get("url") or "")
         if "sec.gov/Archives" in url:
