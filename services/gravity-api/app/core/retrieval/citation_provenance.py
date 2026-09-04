@@ -282,6 +282,44 @@ def payload(prov: dict | None) -> dict:
         "view_filing_url": links["view_filing_url"],
         "filing_details_url": links["filing_details_url"],
         "primary_unresolved_reason": links["unresolved_reason"],
+        # ── The financial half of the object (E1) ──────────────────────
+        #
+        # This function used to stop above, and that omission is the single
+        # sentence underneath most of the defects rounds 1-6 numbered. It
+        # emitted identity and URLs, so the citation reaching
+        # `verdict_for_citation` carried an accession, a link and some prose —
+        # and both that verifier and `eval/head_to_head/rubric.py` had no way
+        # to know what the figure MEANT except to run regexes over the passage
+        # and hope. Measured on an Apple FY2025 revenue fact, ten of ten
+        # financial fields were dropped here; only `fiscal_period` survived,
+        # and only as the rendered label "FY2025".
+        #
+        # Copied, never computed. Every value below is the one `provenance()`
+        # read from the filing or the stored row, which is the entire point: a
+        # field that arrived re-derived would be the same defect wearing the
+        # fix's clothes. Absent stays absent — a consolidated fact names no
+        # segment, and an empty `dimension` is the truth about it.
+        #
+        # `scale` is deliberately not here. XBRL values are absolute, so there
+        # is no declared multiplier to carry, and inventing a 1 for facts that
+        # never needed one would put a field on the citation that means
+        # something different from the `(in millions)` header V14 and V19 read
+        # off prose.
+        #
+        # The keys are always present, with `None` where `provenance()` omitted
+        # the field — it drops empties, and a citation whose SHAPE changed with
+        # its content would make every consumer probe for keys instead of
+        # reading them.
+        "value": prov.get("value"),
+        "unit": prov.get("unit"),
+        "xbrl_concept": prov.get("xbrl_concept"),
+        "scope": prov.get("scope"),
+        "dimension": prov.get("dimension"),
+        "dimension_value": prov.get("dimension_value"),
+        "period_start": prov.get("period_start"),
+        "period_end": prov.get("period_end"),
+        "fiscal_year": prov.get("fiscal_year"),
+        "fiscal_quarter": prov.get("fiscal_quarter"),
     }
 
 
