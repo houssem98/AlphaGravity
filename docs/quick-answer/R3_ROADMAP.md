@@ -279,3 +279,75 @@ later from the docs alone.
 
 **Six guard assertions were written before the fix and passed before it**, so
 that a later loop cannot delete the accession rule outright and stay green.
+
+| # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
+|---|---|---|---|---|---|---|---|---|
+| 3 | M3 | T5 | 2026-09-04 | **CLOSED** | 2299 passed / 0 failed (578.04s) | clean | `f3b3b63` | Docstring claim executed for the first time: `_entity_is_bound('apple', [{'cik': 320193}])` → `None`, and `'cik' not in _ISSUER_FIELDS`. The false statement had never been run. |
+| 4 | M3 | T4 | 2026-09-04 | **CLOSED** · policy agreed before implementation | 2310 passed / 0 failed (790.50s) | clean | `64f4b8d` | `5 failed, 6 passed in 0.72s` on unfixed code — `test_unknown_identity_leaves_the_entity_mark_ungraded`, `test_no_citations_at_all_leaves_the_entity_mark_ungraded`, `test_an_ungraded_entity_mark_says_why`, `test_an_ungraded_dimension_does_not_count_toward_the_weighted_total`, `test_a_wrong_period_still_fails_when_the_entity_is_unknown` (scored `0.5`: the uncheckable entity was credited while the wrong period failed). |
+
+### L3 notes
+
+**T5 — the docstring was wrong, the code was right.** `test_entity_attachment.py`
+said the bind reads `issuer, cik, ticker and document_title`. It reads
+`issuer, ticker, company, document_title` — the sentence named a field that is
+absent and omitted one that is present. The code is correct to exclude `cik`:
+the bind asks whether a name token occurs inside an identity string, and
+`'apple' in '320193'` is false for every filer that exists, so including it
+would add a field that cannot match while implying identity had been checked.
+Fixed the sentence and pinned the reason, so the next reader who notices `cik`
+is missing does not "correct" it in the wrong direction.
+
+**T4 — escalated, then implemented.** The roadmap requires a change to what the
+benchmark counts as correct be agreed rather than decided by the loop. Three
+options were put — credit and document, ungraded, or fail. **UNGRADED was
+chosen.** Failure was rejected on the file's own precedent: the rubric does not
+punish an unanswerable question, and that refusal is why six grader bugs did not
+become seven.
+
+**Three boundaries the M3 spec left open, drawn in L3:**
+
+- **Presence stays graded.** Whether the reply names the entity needs no
+  citation, so a token never mentioned is still `0.0`. Only the *binding* half
+  is ungraded — otherwise T4 would have swallowed the presence check.
+- **The period half stays graded.** `period_entity` is one dimension over two
+  questions; an unanswerable entity must not drag an answerable period with it.
+- **The ungraded case says so.** An unexplained `None` is an unexplained `1.0`
+  one step quieter, so the note carries `UNGRADED: no citation carries any
+  issuer identity`.
+
+**Two tests were superseded, and the distinction matters.** Both asserted
+`period_entity == 1.0` for identity-less citations, which *is* the defect. Each
+now asserts `is None`, asserts absence from `graded_keys`, **and asserts the
+score is not `0.0`** — so the leniency they were written to protect is still
+pinned and the option that was not chosen cannot drift in later. gate-guard read
+the change as a rewrite at equal strength.
+
+**The cost, stated rather than buried.** Coverage drops. Cases whose citations
+carry no issuer identity no longer contribute to the entity score.
+`Scorecard.weighted` already renormalises to graded weight, so the aggregate
+stays correct — the denominator is simply the true one now, and smaller. A
+benchmark that grades less but grades honestly is the trade this round asked
+for.
+
+---
+
+## Status after L4
+
+Every row the third audit marked `LIVE` (T1–T5) is closed, plus T13 which the
+loop found in its own L1 closure. Backend went 2270 → 2310 across four loops,
+each delta exactly the tests added, gate-guard clean at every commit.
+
+**This is not certification and the banned words remain banned.** What is left
+is what was always going to be left:
+
+- **T6 / T11 / T12** — the vocabulary problem that generated T1–T3. M4 owes a
+  staged plan, and T11 (a fifth `PRIMARY_CLASSES` in `scope.py`) and T12 (M1's
+  self-contradicting certification) both land in its scope. T12 in particular is
+  unresolved: the rubric's primary set is still not a subset of the gate's, and
+  the round chose to record that rather than fake it.
+- **T7** — expected to close `BLOCKED — no mutation path`.
+- **T8** — a countable test over `yield SearchEvent(type="answer")`.
+- **T9 / T10** — wording, and an artefact an outsider can reproduce. T10 cannot
+  be satisfied while the branch is unpushed and no CI status check exists.
+- **Unchanged and not producible by this loop:** the blind head-to-head has no
+  reference set, and browser E2E for SEC links is unrun.
