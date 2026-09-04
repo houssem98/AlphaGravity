@@ -235,3 +235,47 @@ already paid for once. Validating the accession is T3 / M2.
 
 Recorded as nodes before moving on, which is the one thing round 2's L8 did not
 do when it saw T1 six weeks early.
+
+| # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
+|---|---|---|---|---|---|---|---|---|
+| 2 | M2 | T3 | 2026-09-04 | **CLOSED** · T13 opened and closed | 2298 passed / 0 failed (572.22s) | clean | `79660a6` | `11 failed, 6 passed in 0.70s` on unfixed code — nine `test_a_fabricated_accession_does_not_confer_primary_status` cases (`invented`, `totally-invented-value`, `x`, `true`, `0000320193`, `0000320193-25`, `0000320193-25-00007`, `000032019-25-000079`, `0000320193/25/000079`), plus `test_a_bogus_accession_number_does_not_confer_primary_status` and `test_a_bogus_accession_cannot_rescue_a_class_the_gate_refuses`. |
+
+### L2 notes
+
+**What closed.** `_is_primary` now validates the accession's shape instead of
+its truthiness. The rule itself is kept, deliberately: a real accession still
+outranks a wrong or missing `source_class`, because that is the case it exists
+to rescue.
+
+**L1 had not actually shut T1.** This is the loop's own error and is recorded as
+**T13**. After `4ce49b0`, `LOCAL_EVIDENCE` plus any junk accession still scored
+primary — the unvalidated accession rule sits directly below the class check and
+readmitted precisely what the class check had just refused. L1's test passed
+because its fixture carried no accession. A fixture exercising one field cannot
+close a defect in a function that reads several, and red-then-green does not
+prove the hole is shut. `test_a_bogus_accession_cannot_rescue_a_class_the_gate_refuses`
+now pins the interaction.
+
+**Two departures from M2's text, both deliberate and both the anti-over-tightening
+direction.**
+
+- **Both accession forms are accepted**, not only the dashed 10-2-6 M2 names.
+  `sec_filing_resolver.nodash()` and `ingestion/sources/earnings.py` both strip
+  the dashes, so either form can reach a citation legitimately. A dashed-only
+  rule would refuse genuine filings. The validator is declared in the rubric
+  rather than imported from `sec_filing_resolver`, following that module's own
+  stated reason for redeclaring: it governs what may enter a URL path, where
+  strictness is right; this governs what counts as evidence.
+- **The "co-occur with SEC provenance" condition is not added.** The
+  `sec.gov/Archives` URL rule already admits any citation carrying such a link,
+  so requiring it would make the accession rule redundant and destroy the case
+  it rescues — real accession, sloppy class, no URL.
+
+**What this does NOT establish.** Shape, not existence. A well-formed invention
+passes. Closing that needs an EDGAR lookup the rubric will not make. The claim
+is "the bar moved from any truthy string to the shape EDGAR issues" and nothing
+larger; the code comment carries the same caveat so it cannot be overstated
+later from the docs alone.
+
+**Six guard assertions were written before the fix and passed before it**, so
+that a later loop cannot delete the accession rule outright and stay green.
