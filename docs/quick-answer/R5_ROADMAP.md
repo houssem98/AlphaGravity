@@ -154,3 +154,41 @@ P5  report V5/V6/V7 honestly          (V5, V6, V7, V8)
 | # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
 |---|---|---|---|---|---|---|---|---|
 | 0 | — | — | 2026-09-04 | BASELINE | 2394 passed / 0 failed | clean | `5c4a1a5` | n/a — established, asserts nothing |
+| 1 | P1 | V1 | 2026-09-04 | **CLOSED** · V9, V10 opened | 2409 passed / 0 failed (790.87s) | clean | `2483e7d` | `8 failed, 7 passed in 1.59s` on unfixed code — `test_a_smaller_stated_magnitude_does_not_match_a_larger_expected[$130 million, $130 thousand, $130 k, $130m]`, `test_a_larger_stated_magnitude_does_not_match_a_smaller_expected[$130 billion, $130 trillion]`, `test_the_audits_exact_thousandfold_case`, `test_a_thousandfold_wrong_answer_no_longer_scores_correct`. |
+
+### P1 notes
+
+**What closed.** A figure that declares its magnitude keeps it. `"$130 million"`
+matches at `130e6` and at its bare `130`, and is never multiplied further. A bare
+`"416,161"` still scales, because a number carrying no unit has no magnitude to
+contradict — that is reading it rather than inventing it.
+
+**Nothing regressed.** `_matches` is upstream of `correctness`, `evidence` and
+every claim bind, and 2409 tests pass with the only delta being the fifteen
+added here. That is worth stating: no existing test depended on the scale
+invention, which means the defect was never load-bearing — only wrong.
+
+**No escalation, and the distinction matters.** Rounds 3 and 4 escalated every
+change that made the rubric stricter, because those move scores. V1 does not
+move where the instrument points; it stops it reporting a number that was
+false. A grader that cannot separate millions from billions is not a strict
+grader or a lenient one — it is a broken one, and repairing it needs no
+permission.
+
+**V9 — the system already had the answer.** `citation_verdict.py:144` documents
+exactly this rule and explains it, in production, before V1 was found: the
+implied-scale allowance applies only to numbers carrying no unit of their own,
+because an explicitly-wrong unit "is a real error and must still fail". **The
+grader never got it.** Same shape as R14 and T1, and pointing the same way as
+round 3's thesis — the benchmark weaker than the system it grades. The fix
+aligns the two; it did not invent a rule.
+
+**V10 — V3 is worse than the audit framed it.** `citation_verdict.VERDICTS` is
+five values, not two: `verified`, `partially_supported`, `unsupported`,
+`conflicting`, `not_verifiable`. The audit and this roadmap's first draft both
+said "unverified grades like verified". The real defect is that the pipeline can
+return `conflicting` — its own conclusion that the citation contradicts the
+claim — and the rubric credits it exactly as if it read `verified`. **The system
+already knows, and the grader never asks.**
+
+**Count reconciled.** 2394 → 2409 is +15, the whole of the new file.
