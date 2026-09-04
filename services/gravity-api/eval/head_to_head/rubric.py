@@ -409,6 +409,24 @@ def _has_real_accession(cite: dict) -> bool:
 _ISSUER_FIELDS = ("issuer", "ticker", "company", "document_title")
 
 
+def _names_the_entity(tok: str, identity: str) -> bool:
+    """Whether `identity` NAMES `tok`, rather than merely containing it (U2).
+
+    This was `tok in identity`, which is containment. `apple` bound
+    `PINEAPPLE HOLDINGS`, `cat` bound `CATERPILLAR INC` and `intel` bound
+    `INTELSAT SA` — a grader whose job is catching an answer that names one
+    company while citing another, matching one company inside another's name.
+
+    Lookarounds rather than `\\b` because company names end in characters that
+    are not word characters: `\\bat&t\\b` requires a word character after the
+    final `t`, and `AT&T INC` has a space. `(?!\\w)` does not.
+
+    The token is escaped. `AT&T`, `3M` and `J.P. Morgan` are company names, and
+    an unescaped token would either raise or match the wrong thing.
+    """
+    return re.search(rf"(?<!\w){re.escape(tok)}(?!\w)", identity) is not None
+
+
 def _entity_is_bound(token: str, cites: list[dict]) -> bool | None:
     """Whether a cited filing belongs to the entity the answer names.
 
@@ -430,7 +448,7 @@ def _entity_is_bound(token: str, cites: list[dict]) -> bool | None:
     if not identities:
         return None
     tok = token.strip().lower()
-    return any(tok in i for i in identities)
+    return any(_names_the_entity(tok, i) for i in identities)
 
 
 def _is_primary(cites: list[dict]) -> bool:
