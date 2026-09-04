@@ -194,6 +194,43 @@ def numbers_in(text: str, *, signed: bool = True) -> set[float]:
     return {v for v, _ in _readings(text, signed=signed)}
 
 
+def _asserted_numbers(text: str, *, signed: bool = True) -> set[float]:
+    """
+    The values a text CLAIMS, which is narrower than every reading of it.
+
+    A figure that stated its magnitude claims that magnitude and nothing else.
+    `"$130 billion"` asserts `130e9`; it does not also assert a bare `130`.
+
+    V1's residual, and P1 did not catch it. Repairing `_matches` stopped a
+    claimed `130e9` from being multiplied into an excerpt's `$130 million`, but
+    both figures also produce a bare reading of `130`, and those matched each
+    other directly. Keeping the bare reading is right when READING a source —
+    an expected value may be recorded in millions — and wrong when stating what
+    an answer claimed.
+
+    Found by V2's test, which is the third time in this project that one
+    closure's hole has been caught by the next loop's fixture rather than by an
+    audit (T13, U1, and now this).
+    """
+    out: set[float] = set()
+    t = text or ""
+    for m in _NUM.finditer(t):
+        raw, suffix = m.group(1), m.group(2)
+        try:
+            v = float(raw.replace(",", ""))
+        except ValueError:
+            continue
+        scaled = v * _SCALE.get((suffix or "").lower(), 1.0)
+        out.add(scaled)
+        if not signed:
+            continue
+        lead = t[max(0, m.start() - 2):m.start()]
+        window = t[max(0, m.start() - 60):m.start()]
+        if any(c in lead for c in "-−–") or _NEGATIVE_CUE.search(window):
+            out.add(-scaled)
+    return out
+
+
 #: A figure that makes a financial CLAIM, as opposed to a year or an ordinal.
 #: Requires a currency mark, a magnitude word, or a percent — the things a
 #: number needs in order to assert how much something was.
@@ -594,8 +631,58 @@ def _asserted_split(text: str) -> tuple[set[float], set[float]]:
     for m in _ASSERTED.finditer(outside):
         frag = m.group(0)
         target = rates if _RATE_TAIL.search(frag) else levels
-        target |= numbers_in(frag)
+        # What the sentence CLAIMS, not every way of reading it — see
+        # `_asserted_numbers`. A claim of "$130 billion" must not carry a bare
+        # 130 that an excerpt reading "$130 million" also produces.
+        target |= _asserted_numbers(frag)
     return levels, rates
+
+
+#: A citation marker as answers write them: `[1]`, `[2][3]`.
+_CITE_MARKER = re.compile(r"\[(\d{1,3})\]")
+
+#: Nouns that start a new line item in a financial table (V12).
+#:
+#: A BOUNDARY DETECTOR, not a vocabulary. It names no metric, maps to no key,
+#: and nothing is ever classified by it — it only marks where one row's figures
+#: stop belonging to the row above. That distinction is why this is not the
+#: parallel-vocabulary mistake of R14, T1 and T2.
+#:
+#: It exists because real filings flatten to prose like
+#: `"Operating revenue $ 59,070 $ 57,063 Operating expense 54,356 51,967"`, and
+#: `operating expense` is not in the metric lexicon, so revenue's span ran on
+#: and swallowed the expense row. Invented fixtures hid this by putting the
+#: competing label BEFORE the claimed metric, where ordering happened to save
+#: it. A real United Airlines table put it after.
+_ROW_LABEL = re.compile(
+    r"\b(?:expenses?|costs?|margins?|incomes?|losses|loss|assets|"
+    r"liabilities|equity|cash|taxes|tax|earnings|shares)\b",
+    re.I,
+)
+
+
+def _cited_excerpts(sentence: str, usable: list[tuple[int, str]]) -> list[str]:
+    """
+    The excerpts a sentence's `[n]` markers name, or all of them (V2).
+
+    The provenance edge `claim ──[1]──> citation[0]` can be wrong while every
+    citation in the list is perfectly valid, and `_claim_is_bound` used to
+    search all of them, so a claim could be "proved" by a source the answer
+    never pointed at. That is a relationship rather than a field, which is why
+    no amount of mutating citation properties would have surfaced it.
+
+    **Fails open in three ways, deliberately.** A sentence naming no marker, a
+    marker past the end of the list, and a marker pointing at an excerpt too
+    short to use all fall back to searching everything. The strict reading —
+    no marker, no bind — would rescore every answer on its formatting rather
+    than its correctness, which is the over-tightening this file has undone six
+    times.
+    """
+    named = {int(n) - 1 for n in _CITE_MARKER.findall(sentence or "")}
+    if not named:
+        return [e for _, e in usable]
+    hit = [e for i, e in usable if i in named]
+    return hit or [e for _, e in usable]
 
 
 def _metric_keys(text: str) -> set[str]:
@@ -635,9 +722,10 @@ def _metric_spans(excerpt: str, key: str) -> list[str] | None:
     hits = list(rx.finditer(excerpt))
     if not hits:
         return None
-    starts = sorted({
-        m.start() for _k, _l, _b, r in _METRIC_RES for m in r.finditer(excerpt)
-    })
+    starts = sorted(
+        {m.start() for _k, _l, _b, r in _METRIC_RES for m in r.finditer(excerpt)}
+        | {m.start() for m in _ROW_LABEL.finditer(excerpt)}
+    )
     spans = []
     for h in hits:
         nxt = next((s for s in starts if s > h.start()), len(excerpt))
@@ -690,30 +778,35 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
     bound. Standing alone with nothing else bound it must still bind on its
     own, exactly as before: the excuse is not a blanket exemption.
     """
-    excerpts = [str(c.get("text") or "") for c in (cites or [])]
-    excerpts = [e for e in excerpts if len(e.strip()) >= 20]
-    if not excerpts:
+    # Index-preserving, because V2 needs to resolve a `[n]` marker back to the
+    # citation it names.
+    usable = [(i, str(c.get("text") or ""))
+              for i, c in enumerate(cites or [])]
+    usable = [(i, e) for i, e in usable if len(e.strip()) >= 20]
+    if not usable:
         return None
 
-    level_claims: list[tuple[set[float], set[str]]] = []
-    rate_claims: list[tuple[set[float], set[str]]] = []
+    level_claims: list[tuple[set[float], set[str], list[str]]] = []
+    rate_claims: list[tuple[set[float], set[str], list[str]]] = []
     for sentence in re.split(r"(?<=[.!?])\s+|\n", text or ""):
         levels, rates = _asserted_split(sentence)
         keys = _metric_keys(sentence)
+        cited = _cited_excerpts(sentence, usable)
         if levels:
             # A claim's own rates count toward binding it; a margin sentence
             # that also quotes the level it came from is bound by either.
-            level_claims.append((levels | rates, keys))
+            level_claims.append((levels | rates, keys, cited))
         elif rates:
-            rate_claims.append((rates, keys))
+            rate_claims.append((rates, keys, cited))
 
     # A sentence asserting no figure is not an unsupported claim — it is not a
     # claim. If none of them assert one, the question cannot be asked.
     if not level_claims and not rate_claims:
         return None
 
-    def _binds(values: set[float], keys: set[str]) -> bool:
-        for e in excerpts:
+    def _binds(values: set[float], keys: set[str],
+               candidates: list[str]) -> bool:
+        for e in candidates:
             # U3. When the excerpt speaks about the metric this claim names,
             # it binds only if it associates the claimed VALUE with that
             # metric. An excerpt saying revenue was $120 billion is evidence
@@ -730,10 +823,11 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
                 return True
         return False
 
-    bound_levels = [_binds(v, k) for v, k in level_claims]
+    bound_levels = [_binds(v, k, c) for v, k, c in level_claims]
     if not all(bound_levels):
         return False
-    return all(_binds(r, k) or any(bound_levels) for r, k in rate_claims)
+    return all(_binds(r, k, c) or any(bound_levels)
+               for r, k, c in rate_claims)
 
 
 def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None,
