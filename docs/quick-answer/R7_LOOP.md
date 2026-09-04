@@ -26,7 +26,12 @@ EvidenceFact
 
 **It already exists.** `app/core/retrieval/citation_provenance.py:68` opens
 with the words *"The canonical evidence object for one passage"*, and it is
-populated with 21 fields including every financial one the audit lists.
+populated with 21 fields including every financial one the audit lists but
+`scale`.
+
+*(The first draft of this file counted nine dropped fields. It is ten —
+`scope` is in the object as well, and was dropped with the rest. Corrected
+here rather than quietly, because the count is the round's headline number.)*
 
 **Then one function throws the financial half away.** `payload()` — line 241,
 what `search_pipeline` attaches to a citation with
@@ -38,14 +43,15 @@ provenance()                              payload() → the citation
   value            416161000000             DROPPED
   unit             'USD'                    DROPPED
   xbrl_concept     'RevenueFrom…Tax'        DROPPED      ← the metric
-  dimension        ['srt:ProductOr…Axis']   DROPPED      ← the scope
+  scope            'segment'                DROPPED
+  dimension        ['srt:ProductOr…Axis']   DROPPED
   dimension_value  ['us-gaap:ProductMember']DROPPED      ← the segment
   period_start     '2024-09-29'             DROPPED
   period_end       '2025-09-27'             DROPPED
   fiscal_year      '2025'                   DROPPED
   fiscal_quarter   None                     DROPPED
 
-  9 of 9 financial fields dropped. `fiscal_period` survives as the
+  10 of 10 financial fields dropped. `fiscal_period` survives as the
   rendered label "FY2025"; nothing else does.
 ```
 
@@ -126,10 +132,14 @@ harness report completion — never a `sleep` loop.
 - `tests/test_structured_fact_round_trip.py` — the `fields → text → regex`
   round trip, measured on the channel fusion weights treat as ground truth.
 - `tests/test_provenance_mutation_rig.py` and
-  `tests/test_gate_accepts_real_pipeline_citations.py` — both already pin what
-  `payload()` writes, so **row E1 will move them**. That is a gate change and
-  gets the R6 row-8 treatment: name the assertion, replace it with one at least
-  as strong.
+  `tests/test_gate_accepts_real_pipeline_citations.py` — both pin what
+  `payload()` writes, and this file predicted **row E1 will move them**. It
+  did not: both pin a hardcoded literal citation rather than asserting
+  `payload()`'s exact key set, so an additive change is invisible to them.
+  Recorded because a prediction that misses is worth as much as one that
+  lands — the gate-shrink escalation E1 was braced for was not needed.
+  `tests/test_filing_links_contract.py` and `tests/test_source_click_url.py`
+  assert named keys for the same reason and were likewise unmoved.
 
 **A row is not closed by a passing test it also wrote.** State which existing
 assertion changed verdict, or which pinned gap was removed.
@@ -274,3 +284,6 @@ R7 moves exactly one line of that table.
 | 0 | — | — | — | BASELINE | 2497 passed / 0 failed | clean | `de74147` | n/a |
 | 1 | 1 | §3 | V23 — the exact-fact channel stated a negative it does not hold. `_fmt_value` wrote the restatement as `($416.16B)`; parentheses mean NEGATIVE in a filing, so every fact ≥ $1M injected a spurious negative twin, which landed in `citation_verdict`'s `source_leftover` and promoted partly-covered claims to `conflicting` — the harshest verdict, against a correct claim on the ground-truth channel | CLOSED | 2503 passed / 0 failed | clean | `a38ec8b` | 2 of 6 assertions in `tests/test_structured_fact_round_trip.py` failed on the unfixed renderer: the passage parsed to `{416161000000.0, -416160000000.0, 2025.0}`, and `"Apple revenue grew to $416,161 million from $391,035 million [1]."` graded `conflicting` where the control passage without the restatement graded `partially_supported` |
 | 2 | 1 | §1 | The canonical object exists and `payload()` drops its financial half | MEASURED — E1 opens against it | n/a | clean | `a38ec8b` | n/a — measurement, not a fix. `provenance()` holds value, unit, `xbrl_concept`, dimension, dimension_value, `period_start`, `period_end`, `fiscal_year`, `fiscal_quarter`; `payload()` emits none of the nine |
+| 3 | 1 | §1 | Superseded row 2 — the count is TEN, not nine. `scope` (`"segment"` / `"consolidated"`) is held by `provenance()` and was dropped by `payload()` with the rest. Row 2 undercounted its own finding | SUPERSEDES ROW 2 | n/a | clean | `bd1146e` | n/a — correction to a measurement |
+| 4 | 1 | E1 | `payload()` dropped the financial half of the canonical object, so every reader below re-derived metric, magnitude and period from prose | CLOSED | 2518 passed / 0 failed | clean | `bd1146e` | 12 of 15 assertions in `tests/test_evidence_fields_reach_the_citation.py` failed against the unfixed `payload()`. The 3 that passed are the guardrails that already held — a prose passage carries `{}`, and the identity/link keys are present — which is what makes the other twelve mean something |
+| 5 | 1 | §4 | The round predicted E1 would move `test_provenance_mutation_rig.py` and `test_gate_accepts_real_pipeline_citations.py`, and braced for a gate-shrink escalation | PREDICTION MISSED — recorded | 2518 passed / 0 failed | clean | `bd1146e` | n/a. Both pin a hardcoded literal citation rather than `payload()`'s key set, so an additive change is invisible to them. No escalation was needed |
