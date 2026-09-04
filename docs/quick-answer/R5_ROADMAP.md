@@ -192,3 +192,58 @@ claim — and the rubric credits it exactly as if it read `verified`. **The syst
 already knows, and the grader never asks.**
 
 **Count reconciled.** 2394 → 2409 is +15, the whole of the new file.
+
+| # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
+|---|---|---|---|---|---|---|---|---|
+| 2 | P2 | V2 | 2026-09-04 | **CLOSED** · V11, V12, V13 opened and closed | 2443 passed / 0 failed (567.93s) | clean | `6714f2a` | `3 failed, 9 passed in 1.55s` — `test_the_audits_exact_case`, `test_each_sentence_carries_its_own_markers`, `test_scale_invention_stays_fixed_under_the_cited_excerpt` (the last being V11). Then, once real fixtures landed, `1 failed, 21 passed in 1.90s` — `test_a_figure_belonging_to_another_metric_does_not_bind` (V12). |
+
+### P2 notes
+
+**What closed.** A sentence binds against the citations it names. Fails open
+three ways, all asserted: no marker, an out-of-range marker, and a marker naming
+an excerpt too short to use all search everything. The strict reading would
+rescore answers on formatting rather than correctness.
+
+**V11 — P1 had not fully closed V1.** Repairing `_matches` stopped the
+*multiplication* path, but `_asserted_split` called `numbers_in`, so a claim of
+`"$130 billion"` still carried a bare `130` that `"$130 million"` also produces.
+They matched directly and the 1000× error survived. A claim that stated its
+magnitude now asserts that magnitude only — keeping the bare reading is right
+when *reading a source*, whose expected value may be recorded in millions, and
+wrong when stating what an answer *claimed*.
+
+**Found by V2's fixture, not by P1's.** That is the third instance: T13, U1, and
+now this. **A fix verified by the test that motivated it is verified against the
+author's own idea of the defect.** The pattern is consistent enough that it
+should be treated as a rule rather than a recurring surprise.
+
+**V13 — real SEC fixtures, and they earned their keep immediately.** Every rubric
+test before this validated the grader against prose the person fixing the bug had
+written. `tests/real_sec_fixtures.py` carries three verbatim excerpts from this
+repository's own corpus — United Airlines results, Live Nation deferred revenue
+*in thousands*, FedEx capex — with real issuer, ticker, date and section, plus
+real accessions from 10-K filenames on disk. No network call: the data was
+already here.
+
+**V12 — the real fixtures found a defect on their first run.** U3's span stopped
+at the next lexicon metric, and `operating expense` is not in the lexicon, so in
+`revenue $ 59,070 $ 57,063 $ 53,717 Operating expense 54,356 51,967` the expense
+row fell inside revenue's span. **The invented fixture had hidden it by accident
+of word order** — competing label before the claimed metric, so the span began
+after it. A real table puts revenue first. That test had been passing for a
+reason nobody chose.
+
+`_ROW_LABEL` bounds a span at financial line-item nouns as well as lexicon
+metrics. **A boundary detector, not a vocabulary** — it names no metric, maps to
+no key, classifies nothing — which is what keeps it from being R14's mistake
+again.
+
+**Real filings corrected an assumption behind V1.** Scale is declared once in a
+table header — `(in millions) 2025 2024 Operating revenue $ 59,070` — and the
+figures are bare. Every V1 test used `"$130 million"`, a unit welded to its
+number. So the case V1 must **not** break is the common one and the case it does
+break is rarer. V1 drew the line correctly, and there is now evidence for that
+rather than an assumption.
+
+**Count reconciled.** 2409 → 2443 is +34: twelve from V2's tests, twenty-two
+from the real-filing tests.
