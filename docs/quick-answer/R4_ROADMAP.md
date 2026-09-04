@@ -181,3 +181,46 @@ Append one row per loop attempt. Never edit a row; supersede it.
 | # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
 |---|---|---|---|---|---|---|---|---|
 | 0 | — | — | 2026-09-04 | BASELINE | 2315 passed / 0 failed | clean | `ad75be6` | n/a — established, asserts nothing |
+| 1 | N1 | U1 | 2026-09-04 | **CLOSED** · U9 opened and closed | 2345 passed / 0 failed (679.21s) | clean | `0947849` | `21 failed, 9 passed in 1.90s` on unfixed code — `test_an_accession_cannot_make_a_declared_non_filing_primary` across ten declared-media classes × two accession fields, plus `test_the_audits_exact_case`. |
+
+### N1 notes
+
+**What closed.** The accession rule now rescues a class that makes no claim and
+does not overrule one that denies filing provenance. `''`, `'unknown'` and any
+unrecognised label still bind on a real accession — that is the rule working.
+`WEB_EVIDENCE`, `LOCAL_EVIDENCE`, `news`, `web`, `blog`, `analyst`,
+`earnings_call` and `transcript` no longer do.
+
+**The distinction is the fix, and the audit did not draw it.** `refix-r3.md`
+argued the accession rule is unverifiable provenance needing a canonical
+provenance object. That is the right long-run architecture and the wrong next
+commit — it would have left a P1 open behind an architecture project. The
+measured defect was narrower: an accession outranking a producer that told us
+what the source is.
+
+**`_DENIES_FILING_PROVENANCE` is a set of declared media, deliberately.** Not
+"everything not primary". An unrecognised class must stay outside it or the fix
+inverts the rule it protects and the rescue case dies — the over-tightening this
+file has undone six times.
+
+**Scope held.** N1 bounds the accession rule only. The `sec.gov/Archives` URL
+rule is untouched, because a web fetch of an SEC archive page is the filing
+rather than a page about it, and a test pins that so a later change is visible
+rather than silent.
+
+**Three round-3 tests superseded, not weakened.** They used `news` as the "wrong
+class" an accession should outrank — precisely the behaviour removed here. They
+now use an unrecognised class, which is the rule's real subject, and the denial
+half is asserted in the new file. The undashed-accession test also moved off
+`news`: it exists to test the regex and should not have depended on the class
+rule at all. gate-guard read the change as a rewrite at equal strength.
+
+**U9 — a bug the loop shipped in round 3 and found here.** An unescaped `\s`
+sat in a non-raw docstring at `rubric.py:573`, introduced by round 3's own T9
+wording fix, emitting a `SyntaxWarning` through two full-suite runs without
+anyone reading it. Fixed; warning count 25 → 24. Recorded rather than quietly
+repaired, because a warning nobody reads is how a real one gets missed.
+
+**Count reconciled.** 2315 → 2345 is +30: twenty from ten declared-media classes
+× two accession fields, one audit case, five rescue cases, four scope pins. The
+superseded tests changed fixtures without changing count.
