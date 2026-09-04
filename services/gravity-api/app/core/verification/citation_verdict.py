@@ -237,6 +237,58 @@ def _explicitly_scaled(text: str) -> set[float]:
     return out
 
 
+def fact_value(citation: dict) -> float | None:
+    """The exact figure the cited fact states, when the citation carries one.
+
+    `citation_provenance.payload()` puts the canonical evidence object's fields
+    on the citation (E1), so for a filing fact this is the number as XBRL holds
+    it — absolute, unrounded, and not recovered from any rendering of it.
+
+    That difference is not cosmetic. `structured_search._fmt_value` prints a
+    fact as `${v/1e6:,.0f} million`, so the rounding error is up to half a
+    million dollars: negligible against $416B, and 33% against $1.5M. Measured
+    against claims quoting the filing's own exact figure, every fact between
+    roughly $1M and $120M was graded `conflicting / numeric_not_in_source`
+    because the only number the verifier could see was the rounded one:
+
+        fact 12,499,000  rendered "$12 million"  ->  conflicting
+        fact  2,500,000  rendered  "$2 million"  ->  conflicting
+        fact  1,499,999  rendered  "$1 million"  ->  conflicting
+
+    Reading the field is the fix. Rendering more decimals would be the symptom.
+    """
+    v = citation.get("value")
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def fact_periods(citation: dict) -> set:
+    """The periods the cited fact declares, as `_periods` shapes them.
+
+    Taken from the fact's own `fiscal_year` / `fiscal_quarter` / `period_end`
+    rather than from regexes over the passage. It can only ADD periods the
+    source is known to be about, so it makes the period check less likely to
+    fire, never more — a fact stating its year cannot be argued out of it by
+    prose that failed to mention one.
+    """
+    out: set = set()
+    fy, fq = citation.get("fiscal_year"), citation.get("fiscal_quarter")
+    try:
+        if fy:
+            out.add((int(fy), int(fq) if fq else None))
+    except (TypeError, ValueError):
+        pass
+    for key in ("period_end", "period_start"):
+        d = str(citation.get(key) or "")
+        if len(d) >= 4 and d[:4].isdigit():
+            out.add((int(d[:4]), None))
+    return out
+
+
 def _found_in_source(value: float, sources: list, implied_ok: bool,
                      declared: float | None = None) -> bool:
     """Is `value` present among the source numbers, allowing implied scale?"""
@@ -305,7 +357,10 @@ def verdict_for_citation(
     # widen what counts as agreement, never narrow it.
     src_periods = _periods(source_text) | _periods(
         getattr(passage, "filing_date", "") or ""
-    )
+    # E3. When the citation carries the fact, the fact says which period it is
+    # about and no regex has to guess. Widening only: this can silence a false
+    # period conflict, never manufacture one.
+    ) | fact_periods(citation)
     if _periods_disagree(claim_periods, src_periods):
         conflicts.append("period_mismatch")
 
@@ -349,17 +404,26 @@ def verdict_for_citation(
     # V19. Read from the whole passage: a table declares its scale in a
     # header that sits well away from the row it governs.
     src_declared = declared_scale(source_text)
+    # E3. The exact figure the fact states, when the citation carries one.
+    fv = fact_value(citation)
     numeric_checked = percent_checked
     partial = False
     if claim_nums:
         numeric_checked = True
-        if src_nums:
+        if src_nums or fv is not None:
             grounded, ungrounded = [], []
             for n in claim_nums:
                 implied_ok = not any(
                     close_enough(n, e * f)
                     for e in claim_explicit for f in _IMPLIED_SCALES
                 )
+                # E3. A claim figure equal to the fact's own value is grounded,
+                # and no reading of the passage can argue with that — the fact
+                # IS what the filing says, and the prose is a lossy rendering
+                # of it.
+                if fv is not None and close_enough(n, fv):
+                    grounded.append(n)
+                    continue
                 (grounded if _found_in_source(n, src_nums, implied_ok,
                                              src_declared)
                  else ungrounded).append(n)
@@ -391,14 +455,26 @@ def verdict_for_citation(
                 # source number looking unconsumed — 416,161 grounded the claim
                 # but 416,161,000,000 stayed in the leftovers — and every
                 # partially grounded citation came out as a contradiction.
-                source_leftover = [
-                    s for s in src_nums
-                    if not _found_in_source(s, grounded, True, src_declared)
-                ]
-                if source_leftover:
-                    conflicts.append("numeric_contradicts_source")
-                else:
+                #
+                # E3. When the citation carries the fact, the leftover question
+                # is already answered and asking the prose again can only get it
+                # wrong. An exact fact states ONE figure for one metric in one
+                # period; a claim naming more is uncovered, not contradicted.
+                # The prose leftovers here are the fact's own value re-rendered
+                # at a coarser precision, so scanning them turns "the source
+                # does not cover the other year" into "the source contradicts
+                # the claim" on the strength of a rounding artefact.
+                if fv is not None:
                     partial = True
+                else:
+                    source_leftover = [
+                        s for s in src_nums
+                        if not _found_in_source(s, grounded, True, src_declared)
+                    ]
+                    if source_leftover:
+                        conflicts.append("numeric_contradicts_source")
+                    else:
+                        partial = True
         else:
             conflicts.append("numeric_not_in_source")
 

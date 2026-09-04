@@ -172,3 +172,55 @@ def test_the_persisted_local_row_carries_the_same_fields():
     assert p["xbrl_concept"] == CONCEPT
     assert p["period_start"] == "2024-09-29"
     assert p["period_end"] == "2025-09-27"
+
+
+# ── E2: the scale question, answered by not adding a field ────────────────
+#
+# The audit's object lists `scale`, and it is the one field `provenance()` does
+# not hold. The round's own row E2 proposed adding it as an explicit 1.
+#
+# It is not added, and these tests are why. A citation carries fields only when
+# `provenance()` returns an object, and that requires a valid accession — which
+# only the XBRL evidence gate produces. XBRL values are absolute: 416161000000,
+# never 416161 under an `(in millions)` header. So `scale` on this path is the
+# constant 1, and a constant field is a field every reader must check and no
+# reader can learn anything from.
+#
+# The header-declared scale that V14 and V19 read is a property of PROSE, and
+# prose carries no fields at all. Putting both under one name would make
+# `scale` mean "the multiplier for a bare figure" in one place and "nothing,
+# ignore me" in another, which is how the six vocabularies round 3 counted got
+# started.
+#
+# If a producer of non-absolute values ever reaches a citation, the first test
+# below fails and the decision is reopened with a case to look at.
+
+
+@pytest.mark.parametrize("name,row", [
+    # A table scrape: a real number, no accession, no gate contract.
+    ("table scrape", {"value_float": 59_070.0, "unit": "USD",
+                      "metric_name": "Operating revenue",
+                      "source_section": "Results of Operations"}),
+    # The legacy companyfacts backfill, which predates the gate.
+    ("legacy backfill", {"value_float": 416_161.0, "unit": "USD",
+                         "source_section": ""}),
+    # Prose, including prose that declares a scale in a header.
+    ("declared-scale prose",
+     {"text": "(in millions) 2025 Operating revenue $ 59,070"}),
+])
+def test_no_producer_of_non_absolute_values_reaches_a_citation(name, row):
+    """
+    The accession is the gate, and it is what makes `scale` unnecessary. Every
+    producer whose figures might carry an implied multiplier is stopped here,
+    before it can put one on a citation.
+    """
+    assert payload(provenance(row, ticker="UAL")) == {}, name
+
+
+def test_the_citation_carries_no_scale_field():
+    """
+    The decision, pinned so that adding one is a deliberate act rather than a
+    reflex. If a fact whose value is NOT in base units ever reaches here, add
+    `scale` — and delete this test in the same change, naming the fact.
+    """
+    assert "scale" not in _payload()
