@@ -331,7 +331,98 @@ for.
 
 ---
 
-## Status after L4
+| # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
+|---|---|---|---|---|---|---|---|---|
+| 5 | M5 | T7 | 2026-09-04 | **BLOCKED — no mutation path** | 2315 passed / 0 failed (643.61s) | clean | `4566d06` | n/a — a block asserts no defect exists. The premise is pinned instead: `SemanticCache` exposes only `get`/`set`, there is exactly one `self.cache.set` call site, and the verdict sits inside the same payload literal as the answer. |
+| 6 | M6 | T8 | 2026-09-04 | **CLOSED** | 2315 passed / 0 failed (643.61s) | clean | `4566d06` | Detector proven by construction: a fourth `SearchEvent(type="answer")` was appended to `search_pipeline.py`, both assertions failed — `expected exactly one`/`published from outside SearchPipeline.search at line(s) [3022]` — then the file was reverted and `git diff --quiet` confirmed clean. |
+| 7 | M7 | T9, T10 | 2026-09-04 | T9 **CLOSED** · T10 **PARTIAL, CI escalated** | 2315 passed / 0 failed (643.61s) | clean | `4566d06` | T9 is a wording defect with no runtime behaviour: the docstring said "Per CLAIM" directly above a `(?<=[.!?])\s+\|\n` split. T10 produced `R3_REPRODUCE.md`; the remainder is an escalation. |
+
+### L5–L7 notes
+
+**T7 — one iteration, as budgeted, and the answer was no.** The write is atomic:
+answer, citations and `_provenance.contract_gate` go into one dict, serialised
+whole into a `setex`. The class has no partial update. So the two cannot
+diverge, and the defect has nowhere to occur.
+
+**No content hash was built.** The instruction not to close a defect nobody has
+shown exists was followed. What was built is a test of the *premise*, because a
+block is only as good as the assumption under it and this assumption is a
+property of today's cache API rather than a law. If a `set`-adjacent method, a
+second writer, or a verdict written separately appears later, `test_cache_has_
+no_mutation_path.py` fails and T7 reopens on evidence rather than memory. That
+is the difference between a block and a dismissal.
+
+**T8 — the detector was proven, which is the part that mattered.** It passed the
+moment it was written, and a detector never observed to fire is not evidence of
+anything. A fourth publication path was appended temporarily; both assertions
+failed with messages naming the offending line; the tree was reverted and
+verified clean. Three paths are pinned — cache hit, no-evidence exit, generated
+answer — and the test also asserts all three publish from inside
+`SearchPipeline.search`, so a publisher moved into a helper is caught even if
+the count is unchanged.
+
+**T9 — the docstring contradicted itself.** It said "Per CLAIM, not per answer"
+immediately above a sentence split. Corrected to per SENTENCE, with an explicit
+statement of what genuine claim-level grounding would require and does not do
+here. Three deliberate non-edits: audit inputs (`refix.md`, `chatgpt answer.md`)
+are evidence and rewriting them is not a wording fix; round-1 ledgers are
+append-only; and `app/api/schemas/search.py`'s "claim-level grounding" comment
+describes `proposition_extractor`, which genuinely does decompose into atomic
+claims. The function name `_claim_is_bound` is also left alone — renaming
+reaches four test modules for no behavioural gain, so the docstring names itself
+as the overstating artefact instead.
+
+**T10 — the loop falsified the graph's own assumption.** The graph treated the
+absence of status checks as an absence of CI. In fact
+`.github/workflows/ci.yml.disabled` runs `pytest tests/` for the API. CI is
+switched **off**, not missing — and its trigger is `push: [main, develop]` /
+`pull_request: [main]`, so it would not fire on this branch even if enabled.
+
+`R3_REPRODUCE.md` now carries the exact command, the environment, and every
+count reconciled against the tests that explain its delta — because comparing
+totals hides both a count that rose too much (something duplicated) and one that
+rose too little (something stopped running).
+
+**T10 is PARTIAL, not closed.** Closing it needs the branch pushed, the workflow
+enabled and its trigger widened. Enabling CI starts automation on `main`, which
+is outward-facing, so it is the named next step rather than a loop decision.
+
+---
+
+## Status after L7 — supersedes the section below
+
+Seven loops of eight. Backend 2270 → 2315, every delta reconciled against the
+tests that explain it, gate-guard clean at every commit that claimed a fix.
+
+| Row | Verdict |
+|---|---|
+| T1, T2, T3, T4, T5 | CLOSED — every row the audit marked LIVE |
+| T13 | CLOSED — a hole the loop found in its own L1 closure |
+| T8, T9 | CLOSED |
+| T7 | BLOCKED — no mutation path, premise pinned |
+| T10 | PARTIAL — artefact written, CI enablement escalated |
+| T6, T11, T12 | OPEN — M4, the one loop not run |
+
+**The stop condition was met at L4** and four further loops were run against
+non-LIVE rows because budget remained. **M4 is deliberately not executed**: it
+requires an escalated staged plan, and a half-done type unification is worse
+than none because it adds a fifth vocabulary to the four that caused this — and
+T11 has already shown there are five, not four.
+
+**Certification is unchanged and the banned words remain banned.** Closing every
+LIVE row is not certification. The blind head-to-head still has no reference
+set, browser E2E for SEC links is still unrun, neither is producible by this
+loop, and T10 means no count here has been executed by anyone outside the
+session that produced it.
+
+**T12 is the honest scar of this round.** M1's certification asked for a subset
+relation that contradicts M1's own guard, and the rubric's primary set is still
+not a subset of the gate's. The round recorded that rather than satisfying it by
+dropping `edgar` and calling the rubric compliant.
+
+---
+
+## Status after L4 — superseded by the section above
 
 Every row the third audit marked `LIVE` (T1–T5) is closed, plus T13 which the
 loop found in its own L1 closure. Backend went 2270 → 2310 across four loops,
