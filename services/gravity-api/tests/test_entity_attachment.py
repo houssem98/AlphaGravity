@@ -20,8 +20,16 @@ They do — measured on a real pipeline citation:
     document_title 'NVIDIA 10-K FY2025'
     ticker         ''            <- empty here, so ticker alone is not enough
 
-So the binding reads issuer, cik, ticker and document_title together rather
+So the binding reads issuer, ticker, company and document_title together rather
 than trusting any one of them.
+
+**`cik` is deliberately NOT one of them**, and this sentence used to say it was.
+The bind asks whether a name token appears inside an identity string, and a CIK
+is an integer: `'apple' in '320193'` is false for every company that ever
+filed, so including it would add a field that cannot match while implying the
+identity had been checked. `test_a_cik_alone_cannot_bind_an_entity` pins both
+the behaviour and the reason. Corrected in round 3 (T5) — the previous wording
+was evidence pointing the wrong way, which is worse than no evidence.
 
 **The leniency this file's history demands.** When no citation carries any
 issuer identity, the question cannot be asked, and an unanswerable question is
@@ -120,3 +128,21 @@ def test_a_multi_entity_case_needs_both_issuers():
         f"only Copart is cited, so exactly one of two entity tokens should "
         f"bind; got {both}"
     )
+
+
+def test_a_cik_alone_cannot_bind_an_entity():
+    """
+    T5. This file's opening notes once said the bind reads `cik`. It does not,
+    and it is right not to: the bind asks whether a name token occurs inside an
+    identity string, and `'apple' in '320193'` is false for every filer that
+    exists. A citation carrying only a CIK is therefore unidentified, not
+    misidentified — the helper cannot ask the question at all.
+
+    Pinned so that a later reader who notices `cik` is absent "fixes" it by
+    adding a field that can never match while implying identity was checked.
+    """
+    from eval.head_to_head.rubric import _ISSUER_FIELDS, _entity_is_bound
+
+    assert "cik" not in _ISSUER_FIELDS
+    assert _entity_is_bound("apple", [{"cik": 320193}]) is None
+    assert _entity_is_bound("apple", [{"cik": 320193, "issuer": "APPLE INC"}]) is True
