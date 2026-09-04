@@ -224,3 +224,48 @@ repaired, because a warning nobody reads is how a real one gets missed.
 **Count reconciled.** 2315 → 2345 is +30: twenty from ten declared-media classes
 × two accession fields, one audit case, five rescue cases, four scope pins. The
 superseded tests changed fixtures without changing count.
+
+| # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
+|---|---|---|---|---|---|---|---|---|
+| 2 | N2 | U2 | 2026-09-04 | **CLOSED** · U10 opened and pinned | 2368 passed / 0 failed (591.69s) | clean | `8a71979` | `8 failed, 13 passed in 1.01s` on unfixed code — `test_a_token_embedded_inside_another_word_does_not_bind` for `apple`/`PINEAPPLE HOLDINGS`, `cat`/`CATERPILLAR INC`, `am`/`AMAZON COM INC`, `intel`/`INTELSAT SA`, `visa`/`VISANT CORP`, `target`/`TARGETED MEDICAL PHARMA INC`, `oracle`/`CORACLE BIOSCIENCES`, plus `test_the_audits_exact_case`. |
+
+### N2 notes
+
+**What closed.** The bind now asks whether an identity NAMES the token rather
+than contains it. Intel/Intelsat and Visa/Visant are real collisions, and the
+dimension whose job is catching a wrong-company answer was matching one company
+inside another company's name.
+
+**Lookarounds, not `\b`.** `\b` requires a word character on the far side, and
+`\bat&t\b` fails against `AT&T INC` because the character after the final `t` is
+a space. `(?<!\w)…(?!\w)` does not care. The token is `re.escape`d: `AT&T`, `3M`
+and `J.P. Morgan` are company names, and an unescaped token would raise or match
+wrongly. Both are asserted.
+
+**Word boundaries, not entity resolution.** The audit argued for canonical
+CIK-keyed identity. Right architecture, wrong next commit — it would have kept a
+P1 open behind a registry project.
+
+**The leniency survives and is pinned.** ANY identity field may carry the name
+and ANY citation may be the one that does, because a real citation was measured
+with `issuer='NVIDIA CORP'`, `ticker=''`. `AAPL` via ticker, `Apple 10-K FY2025`
+via document_title, the multi-word `old dominion`, and a possessive all still
+bind. **Those 13 guards passed before the fix as well as after** — a test
+asserting only the new refusal would let a later loop tighten this into
+uselessness and stay green.
+
+**U10 — a side effect, surfaced rather than smuggled.** Under containment an
+empty token sat inside every string, so a case carrying a blank
+`expect_entity_tokens` silently earned the mark against any citation. Under the
+lookaround it binds nothing. The change is an improvement, but `False` is not
+obviously right either — `None` (ungraded, T4's discipline) is arguably better,
+since a blank token means the *case* is malformed rather than the citation being
+wrong. Left as `False` deliberately, because it is louder than the silent credit
+it replaces, and pinned by a test so it is a decision on record. Changing it
+further is a scoring decision and belongs to its own loop, not to a side effect
+of this one.
+
+**Count reconciled.** 2345 → 2368 is +23, the whole of the new file: seven
+collisions, one audit case, six leniency cases, one possessive, three
+regex-metacharacter cases, and one each for any-citation, no-identity,
+wrong-issuer, plus two empty-token pins.
