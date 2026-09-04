@@ -33,9 +33,19 @@ def test_a_real_accession_still_outranks_a_missing_class(field):
 
 
 @pytest.mark.parametrize("field", ["accession", "accession_number"])
-def test_a_real_accession_still_outranks_a_wrong_class(field):
-    """A genuine filing mislabelled `news` is still a filing."""
-    assert _is_primary([{"source_class": "news",
+def test_a_real_accession_still_outranks_an_unrecognised_class(field):
+    """
+    A genuine filing whose class nobody recognises is still a filing.
+
+    **Superseded in round 4 (U1).** This used `news` as the "wrong class" and
+    asserted the accession won. It no longer does, and should not: `news` is
+    not an unrecognised label, it is a statement that the source is an article,
+    and an accession must not overrule a producer that told us what the thing
+    is. The rule's real subject — a class that makes NO claim — is unchanged
+    and is what this now tests. The denial half lives in
+    `test_rubric_accession_cannot_overrule_denial.py`.
+    """
+    assert _is_primary([{"source_class": "misc-unrecognised",
                          field: "0001045810-25-000023"}]) is True
 
 
@@ -46,8 +56,12 @@ def test_the_undashed_eighteen_digit_accession_is_also_real():
     paths, so a citation can carry either. Validating only the dashed form
     would refuse genuine filings — the blindness this rubric already paid for
     once with the class names.
+
+    Uses an unrecognised class rather than `news` (U1): this test is about the
+    REGEX accepting both shapes, and it should not also depend on the class
+    rule, which is a separate question tested separately.
     """
-    assert _is_primary([{"source_class": "news",
+    assert _is_primary([{"source_class": "misc-unrecognised",
                          "accession": "000032019325000079"}]) is True
 
 

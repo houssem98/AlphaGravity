@@ -367,6 +367,27 @@ _XBRL_ID_SUFFIX = "_xbrl"
 _ACCESSION_RE = re.compile(r"\A(?:\d{10}-\d{2}-\d{6}|\d{18})\Z")
 
 
+#: Classes that positively assert the source is NOT a filing, as opposed to
+#: saying nothing about it (U1).
+#:
+#: The accession rule exists to rescue a citation whose class is sloppy or
+#: missing — `""`, `"unknown"`, a name nobody recognises. Those make no claim
+#: about provenance, and an accession is better evidence than an empty field.
+#: `WEB_EVIDENCE` and `news` are not empty fields. They are statements that
+#: this is a web page or an article, which CONTRADICT filing provenance, and a
+#: string of the right shape should not overrule a producer that told us what
+#: the thing is.
+#:
+#: This set is deliberately of *declared media*, not "everything not primary".
+#: An unrecognised class must stay outside it, or the fix inverts the rule it
+#: is protecting and the rescue case stops working — which is the failure this
+#: file has undone six times.
+_DENIES_FILING_PROVENANCE = frozenset({
+    "web_evidence", "local_evidence", "web", "news",
+    "blog", "analyst", "earnings_call", "transcript",
+})
+
+
 def _has_real_accession(cite: dict) -> bool:
     """Whether the citation carries something actually shaped like an accession.
 
@@ -420,7 +441,7 @@ def _is_primary(cites: list[dict]) -> bool:
         if cls == "structured" and \
                 str(c.get("id") or "").strip().lower().endswith(_XBRL_ID_SUFFIX):
             return True
-        if _has_real_accession(c):
+        if cls not in _DENIES_FILING_PROVENANCE and _has_real_accession(c):
             return True
         url = str(c.get("view_filing_url") or c.get("url") or "")
         if "sec.gov/Archives" in url:
@@ -549,7 +570,7 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
     on for this same question, for the reason given there.
 
     **The word is "sentence" and not "claim", and the difference is real (T9).**
-    The split below is `(?<=[.!?])\s+|\n`, so a sentence carrying three
+    The split below is on sentence punctuation and newlines, so three
     propositions is ONE object here: "Revenue was $130,497M [1], data centre
     was $115,186M and gaming was $11,350M" binds if any one of those figures
     appears in a cited excerpt. Genuine claim-level grounding would decompose
