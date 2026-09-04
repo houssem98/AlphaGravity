@@ -155,15 +155,19 @@ _NEGATIVE_CUE = re.compile(
     r"loss|negative|shrank|shrunk)\b", re.I)
 
 
-def numbers_in(text: str, *, signed: bool = True) -> set[float]:
+def _readings(text: str, *, signed: bool = True) -> set[tuple[float, bool]]:
     """
-    Every number in the text, normalised to base units.
+    Every number in the text as `(value, stated_its_own_magnitude)`.
+
+    The flag is what V1 turned on. A figure written `$130 million` has declared
+    its magnitude; one written `130` has not. Both produce a scaled and a bare
+    reading, but only the second may later be multiplied — see `_matches`.
 
     When `signed`, a leading minus and nearby decline vocabulary both produce
     the negative reading — alongside the positive one, never instead of it, so
     a genuinely positive figure elsewhere in the same sentence is not flipped.
     """
-    out: set[float] = set()
+    out: set[tuple[float, bool]] = set()
     t = text or ""
     for m in _NUM.finditer(t):
         raw, suffix = m.group(1), m.group(2)
@@ -171,17 +175,23 @@ def numbers_in(text: str, *, signed: bool = True) -> set[float]:
             v = float(raw.replace(",", ""))
         except ValueError:
             continue
+        explicit = bool(suffix)
         scaled = v * _SCALE.get((suffix or "").lower(), 1.0)
-        out.add(scaled)
-        out.add(v)          # keep the bare reading: "416,161" in millions
+        out.add((scaled, explicit))
+        out.add((v, explicit))   # keep the bare reading: "416,161" in millions
         if not signed:
             continue
         lead = t[max(0, m.start() - 2):m.start()]
         window = t[max(0, m.start() - 60):m.start()]
         if any(c in lead for c in "-−–") or _NEGATIVE_CUE.search(window):
-            out.add(-scaled)
-            out.add(-v)
+            out.add((-scaled, explicit))
+            out.add((-v, explicit))
     return out
+
+
+def numbers_in(text: str, *, signed: bool = True) -> set[float]:
+    """Every number in the text, normalised to base units."""
+    return {v for v, _ in _readings(text, signed=signed)}
 
 
 #: A figure that makes a financial CLAIM, as opposed to a year or an ordinal.
@@ -484,14 +494,24 @@ def _is_primary(cites: list[dict]) -> bool:
 
 
 def _matches(expected: float, text: str, tol: float = 0.01) -> bool:
-    for got in numbers_in(text):
+    for got, explicit in _readings(text):
         if expected == 0:
             if got == 0:
                 return True
             continue
         if abs(got - expected) / abs(expected) <= tol:
             return True
-        # A figure quoted in millions against an expected in base units.
+        if explicit:
+            # V1. The figure stated its own magnitude, so reading it at a
+            # different one is inventing data rather than interpreting it.
+            # Without this, `numbers_in("$130 million")` yields a bare 130,
+            # the loop below multiplied it by 1e9, and an answer wrong by a
+            # factor of a thousand scored correctness 1.0 — the grader
+            # returning the wrong answer about the dimension carrying the most
+            # weight.
+            continue
+        # A figure quoted in millions against an expected in base units. A bare
+        # number carries no magnitude of its own, so scaling it is reading it.
         for scale in (1e3, 1e6, 1e9):
             if abs(got * scale - expected) / abs(expected) <= tol:
                 return True
