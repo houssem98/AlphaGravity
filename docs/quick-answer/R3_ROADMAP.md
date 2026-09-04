@@ -199,3 +199,39 @@ Append one row per loop attempt. Never edit a row; supersede it.
 | # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
 |---|---|---|---|---|---|---|---|---|
 | 0 | — | — | 2026-09-04 | BASELINE | 2270 passed / 0 failed | clean | `82a7d3d` | n/a — established, asserts nothing |
+| 1 | M1 | T1, T2 | 2026-09-04 | **CLOSED** · T11, T12 opened | 2280 passed / 0 failed (939.46s) | clean | `4ce49b0` | `4 failed, 5 passed in 1.73s` on unfixed code — `test_local_evidence_is_not_a_primary_filing[LOCAL_EVIDENCE]`, `[local_evidence]`, `test_a_structured_backfill_row_is_not_a_primary_filing`, `test_a_structured_row_with_no_id_is_not_a_primary_filing`. All four `AssertionError: assert True is False`. |
+
+### L1 notes
+
+**What closed.** `local_evidence` is out of `_PRIMARY_CLASS_NAMES` (T1).
+`structured` stayed in, keyed on the `_xbrl` id suffix rather than dropped
+wholesale as the audit proposed (T2) — dropping it would have blinded the rubric
+to the most authoritative rows in `financials`. Both directions pinned: an
+`_xbrl` row still scores primary, a `_backfill` row no longer does.
+
+**Count arithmetic.** 2270 → 2280 is +10, and +10 is exactly the tests added:
+nine in `test_rubric_not_wider_than_gate.py`, net +1 in
+`test_head_to_head_rubric.py` where two parametrize cases moved out and two
+functions carrying three assertions moved in. No test was deleted, skipped or
+loosened, and gate-guard judged the supersede a rewrite at equal strength.
+
+**Deliberately not done.** The accession rule stays reachable for a `structured`
+citation. Gating it behind the class check would stop a row with a genuine
+accession from qualifying, which is the over-tightening this file's history
+already paid for once. Validating the accession is T3 / M2.
+
+**Two findings opened, neither in any audit.**
+
+- **T11** — `app/core/skills/scope.py:192` holds a fifth `PRIMARY_CLASSES` set
+  that T6 does not count, and it spells XBRL a sixth way (`xbrl`). M4 is scoped
+  one call site short before it starts.
+- **T12** — M1's CERTIFICATION contradicts M1's GUARD. The subset relation it
+  asks for cannot hold while `edgar`/`edgar_text` must keep passing, because the
+  gate does not know those names. **The certification is not met**, and L1 says
+  so rather than satisfying it by quietly dropping `edgar` from the rubric. The
+  safe half is implemented and tested: every class the gate credits still scores
+  primary, asserted against `answer_contract`'s own sets rather than by
+  restating a list.
+
+Recorded as nodes before moving on, which is the one thing round 2's L8 did not
+do when it saw T1 six weeks early.
