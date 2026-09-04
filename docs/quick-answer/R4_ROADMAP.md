@@ -318,3 +318,84 @@ a metric lexicon is a shared vocabulary both sides must read identically.
 **Count reconciled.** 2368 → 2380 is +12, the whole of the new file. All 141
 pre-existing claim-binding tests pass unchanged, including the six
 over-tightening guards.
+
+| # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
+|---|---|---|---|---|---|---|---|---|
+| 4 | N4 | U7 | 2026-09-04 | **CLOSED** · U11 opened | 2394 passed / 0 failed (642.41s) | clean | `7e44123` | Rig run against the rubric at baseline `ad75be6`: `5 failed, 9 passed in 0.77s` — `class -> web page`, `class -> corpus chunk`, `class -> news article`, `issuer -> a name containing the token`, `the number belongs to another metric`. |
+| 5 | N5 | U5, U6 | 2026-09-04 | **CLOSED** — wording, no code | 2394 passed / 0 failed | clean | (docs) | n/a — attribution and score-caveat corrections assert nothing executable. |
+
+### N4 notes
+
+**The rig found U1, U2 and U3 unaided.** Run against the round-4 baseline it
+fails on exactly the three P1s the fourth audit reported. That is the whole
+point: individual tests cannot catch a fixture-narrower-than-function defect,
+because whoever writes one has already decided which branch matters. A rig that
+breaks one dimension at a time does not have that prior.
+
+**Proven before trusted**, the T8 technique. It passed the moment it was
+written, which is worthless on its own — a detector never observed to fire
+measures nothing. The rubric was reverted to `ad75be6`, the rig run, five
+failures observed, and the file restored and verified byte-clean against HEAD.
+
+**The three mutations that passed at baseline are the correct result, not a
+gap:** a fabricated accession, a plainly different issuer and a plainly
+different value were all already caught by round 3's work.
+
+**The base citation is real.** `PIPELINE_SEC_CITATION` is what
+`citation_provenance.payload()` actually writes. A rig built from invented
+shapes reproduces the blind spot it exists to find — the R14 lesson exactly.
+
+**Negative controls carry as much weight as the positive ones.** Mutating `cik`
+must change nothing, because T5 established `_ISSUER_FIELDS` omits it
+deliberately. If that ever starts moving a verdict, code and documentation have
+diverged again, which is the defect T5 recorded rather than the one it fixed.
+
+**U11 — found by the rig, not fixed here.** `verification_status` is never read,
+so a citation the pipeline itself flagged unverified grades identically to a
+verified one. Asserted as current behaviour with a comment naming it the next
+dimension, rather than widening N4's scope. **No audit found this.**
+
+### N5 notes
+
+**U5 — attribution.** The behavioural gate-ordering test
+(`test_gate_runs_before_publication.py`) is round 2's work. The fourth audit
+presents it as new, and the graph records the correction so round 4's documents
+do not inherit credit a fifth audit would take back.
+
+**U6 — the score.** 8.0 → 8.2 covers round 3, in which exactly one non-test file
+changed and no answer improved. The audit's stated reason — narrower, harder-to-
+find failure modes — is a reasonable basis for re-scoring *confidence*, and is
+not evidence the system improved. Recorded so no later document cites the
+movement as progress.
+
+Neither is executable, so neither carries red-before-fix evidence. That is the
+honest shape of a wording loop and is why it is last.
+
+---
+
+## Status after N5 — round 4 complete
+
+Five loops of six. Backend 2315 → 2394, every delta reconciled against the tests
+that explain it, gate-guard clean at every commit claiming a fix.
+
+| Row | Verdict |
+|---|---|
+| U1, U2, U3 | CLOSED — all three P1s the audit raised |
+| U7 | CLOSED — rig proven against baseline |
+| U9 | CLOSED — a warning round 3 shipped |
+| U10 | PINNED — a side effect, decided on record |
+| U5, U6 | CLOSED — attribution and score caveat |
+| U4, U8 | recorded; framing and architecture, no action |
+| **U11** | **OPEN — found by the rig, deliberately not fixed** |
+
+**Not one of round 4's defects was a production defect.** `FinalGate.check`
+reads `source_class` alone and had none of them. Round 4, like round 3, changed
+only the grader — no answer this pipeline produces is better than at `82a7d3d`.
+What changed is that the benchmark now refuses three kinds of evidence it used
+to credit, and owns a rig that finds a fourth.
+
+**Certification is unchanged and the banned words remain banned.** The blind
+head-to-head still has no reference set, browser E2E is still unrun, CI is still
+disabled behind a lint debt, and U11 means the grader still credits evidence the
+pipeline itself marked unverified. The score this benchmark produces is closer
+to a measurement than it was, and is still an upper bound.
