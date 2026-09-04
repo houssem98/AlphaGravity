@@ -124,6 +124,38 @@ restatement is not one.
 
 ---
 
+## 3b. The eight certification requirements, measured
+
+The fifth audit lists eight things it wants before certification. They were
+measured against the repository rather than assumed, and the result corrected
+two entries in this document's first draft — **one too generous, one too
+harsh.**
+
+| # | Requirement | Status | Evidence |
+|---|---|---|---|
+| 1 | Unit tests | ✅ **Strong** | 118 files, 2457 passing, every delta reconciled to the tests that explain it |
+| 2 | Integration tests | ✅ **Strong** | 4 pipeline e2e files exercising the real `SearchPipeline` with stubbed boundaries |
+| 3 | Real SEC fixtures | ✅ **Strong** — R5 | `tests/real_sec_fixtures.py`: three verbatim corpus excerpts, real issuer/ticker/date/section, real accessions from 10-K filenames. **Found V12 on their first run** |
+| 4 | Mutation tests | ✅ **Strong** | `test_provenance_mutation_rig.py`, proven to fire against pre-fix code |
+| 5 | Browser / **API** E2E | 🟡 **API strong, browser absent** | `test_search_stream_contract.py` drives real `TestClient` WebSocket sessions against the actual FastAPI app. **Browser** E2E does not exist: `apps/gravity-ui` — the only WebSocket client of this path — has no test directory. **Unwritten, not blocked** |
+| 6 | Live database | ❌ **Absent** | Genuinely blocked; no environment. Blocks *which concept wins*, not determinism |
+| 7 | Performance measurements | ✅ **Strong** — R5 | Was worse than absent: `eval/*/perf.py` existed and was never collected, so the file listing implied latency was measured while nothing measured it. Now four guards in the suite |
+| 8 | Failure injection | ✅ **Strong** — R5 | Was one channel-isolation file. Now six injected boundaries — model raises, `content=None`, malformed output, total retrieval failure, cache read, cache write — plus a control proving the healthy path publishes |
+
+**Two corrections to this document's first draft, both worth stating.**
+
+Item 5 was called absent. That was wrong: API-level E2E is real and good. Only
+the *browser* half is missing.
+
+Item 7 was called "blocked on a human". That was too generous. Nothing blocked
+it — the harnesses were simply never wired into the suite, which is worse than
+absent because the file listing implied coverage that did not exist.
+
+**Six of eight are now strong. Item 5's browser half and item 6 remain**, and
+only item 6 is genuinely blocked.
+
+---
+
 ## 4. R7 — certification, and what actually blocks it
 
 Every item here is **blocked on a human**, and has been for five rounds. Stating
@@ -132,7 +164,7 @@ the unblock condition precisely, because "blocked" without one is an excuse.
 | Blocker | Unblock condition | Who |
 |---|---|---|
 | Blind head-to-head unrun | **A reference set must be authored** — recorded answers with ground-truth figures, written before the run. Nobody has made one. This is not a coding task | Human |
-| Browser E2E for SEC links | A driver plus a live environment | Human |
+| Browser E2E for SEC links | **Not blocked — unwritten.** `apps/gravity-ui` has no test directory at all, and it is the only WebSocket client of this path. Needs a Playwright harness against a running app; `apps/market-ui` already has one to copy the shape from | Loop, once an app instance is runnable |
 | No independently executed count | **CI enable + lint debt.** `ruff check app/` = 1347 errors, `ruff format --check` = 211 files, neither enforced. Enabling `ci.yml.disabled` turns `main` red on lint while tests pass | Human decision, then a lint round |
 | Live DB unavailable | Blocks *which concept wins*, not determinism | Human/infra |
 | Performance + failure injection | Needs the above | Human |
