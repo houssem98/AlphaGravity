@@ -37,6 +37,22 @@ import random
 import re
 from dataclasses import dataclass, field
 
+#: Production's metric vocabulary, imported rather than restated (U3).
+#:
+#: This module otherwise imports nothing from `app`, and that independence is
+#: deliberate — a grader coupled to the thing it grades can be tuned by
+#: changing the thing. A metric LEXICON is the exception, and the reason is
+#: R14, T1 and T2: every one of those was a second vocabulary invented beside
+#: the first and left to drift. Twenty-five metric patterns restated here would
+#: be the same mistake with a new name.
+#:
+#: Note this is the opposite call from `_ACCESSION_RE`, which is deliberately
+#: redeclared rather than imported. The distinction is what the thing is: an
+#: accession format is a per-purpose rule (what may enter a URL vs what counts
+#: as evidence), while a metric lexicon is a shared vocabulary that both sides
+#: must read identically or the grader cannot see what the system saw.
+from app.core.finance.query_plan import _METRIC_RES
+
 __all__ = [
     "DIMENSIONS", "Dimension", "Scorecard", "blind_pairs", "score_answer",
 ]
@@ -562,6 +578,55 @@ def _asserted_split(text: str) -> tuple[set[float], set[float]]:
     return levels, rates
 
 
+def _metric_keys(text: str) -> set[str]:
+    """Metric keys `text` names, using production's vocabulary (U3).
+
+    Consumes each matched span the way `query_plan._metrics_in` does, so the
+    `margin` inside `gross margin` cannot also register as a second metric.
+    """
+    keys: set[str] = set()
+    t = text or ""
+    for key, _label, _basis, rx in _METRIC_RES:
+        m = rx.search(t)
+        if m:
+            keys.add(key)
+            t = t[:m.start()] + " " * (m.end() - m.start()) + t[m.end():]
+    return keys
+
+
+def _metric_spans(excerpt: str, key: str) -> list[str] | None:
+    """
+    The parts of `excerpt` that speak about `key`, or `None` if it does not.
+
+    A metric owns the text from its own mention up to the next metric mention.
+    That is what lets "operating expenses were $130 billion while revenue was
+    $120 billion" answer the question "what does this say REVENUE was?" with
+    `$120 billion` and not `$130 billion` — without needing to know which
+    metric owns the 130, or even having `operating expenses` in the vocabulary.
+
+    Spans carrying no figure are dropped, and a metric with no numbered span
+    returns `None`. That is the fail-open path: "its highest revenue ever"
+    names the metric and states nothing about its value, so it must not be read
+    as a contradiction.
+    """
+    rx = next((r for k, _l, _b, r in _METRIC_RES if k == key), None)
+    if rx is None:
+        return None
+    hits = list(rx.finditer(excerpt))
+    if not hits:
+        return None
+    starts = sorted({
+        m.start() for _k, _l, _b, r in _METRIC_RES for m in r.finditer(excerpt)
+    })
+    spans = []
+    for h in hits:
+        nxt = next((s for s in starts if s > h.start()), len(excerpt))
+        span = excerpt[h.start():nxt]
+        if numbers_in(span):
+            spans.append(span)
+    return spans or None
+
+
 def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
     """
     Whether a figure the answer asserts appears in a cited excerpt.
@@ -610,29 +675,45 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
     if not excerpts:
         return None
 
-    level_claims: list[set[float]] = []
-    rate_claims: list[set[float]] = []
+    level_claims: list[tuple[set[float], set[str]]] = []
+    rate_claims: list[tuple[set[float], set[str]]] = []
     for sentence in re.split(r"(?<=[.!?])\s+|\n", text or ""):
         levels, rates = _asserted_split(sentence)
+        keys = _metric_keys(sentence)
         if levels:
             # A claim's own rates count toward binding it; a margin sentence
             # that also quotes the level it came from is bound by either.
-            level_claims.append(levels | rates)
+            level_claims.append((levels | rates, keys))
         elif rates:
-            rate_claims.append(rates)
+            rate_claims.append((rates, keys))
 
     # A sentence asserting no figure is not an unsupported claim — it is not a
     # claim. If none of them assert one, the question cannot be asked.
     if not level_claims and not rate_claims:
         return None
 
-    def _binds(values: set[float]) -> bool:
-        return any(_matches(v, e) for v in values for e in excerpts)
+    def _binds(values: set[float], keys: set[str]) -> bool:
+        for e in excerpts:
+            # U3. When the excerpt speaks about the metric this claim names,
+            # it binds only if it associates the claimed VALUE with that
+            # metric. An excerpt saying revenue was $120 billion is evidence
+            # against a claim of $130 billion, and counting it as evidence for
+            # the claim is what the audit found.
+            spans = [s for k in keys for s in (_metric_spans(e, k) or [])]
+            if spans:
+                if any(_matches(v, s) for v in values for s in spans):
+                    return True
+                # It states a different value for this metric. Another excerpt
+                # may still bind the claim — the refusal is per-excerpt.
+                continue
+            if any(_matches(v, e) for v in values):
+                return True
+        return False
 
-    bound_levels = [_binds(v) for v in level_claims]
+    bound_levels = [_binds(v, k) for v, k in level_claims]
     if not all(bound_levels):
         return False
-    return all(_binds(r) or any(bound_levels) for r in rate_claims)
+    return all(_binds(r, k) or any(bound_levels) for r, k in rate_claims)
 
 
 def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None,
