@@ -194,6 +194,40 @@ def numbers_in(text: str, *, signed: bool = True) -> set[float]:
     return {v for v, _ in _readings(text, signed=signed)}
 
 
+#: A table stating the scale of every bare figure under it (V14).
+#:
+#: `(in millions)`, `($ in thousands)`, `(dollars in millions, except per share
+#: amounts)`, `amounts in thousands`. Real filings declare the unit once in a
+#: header and then print bare numbers, which is why the multiplier search in
+#: `_matches` exists at all — and why leaving it unconstrained let a claim of
+#: `$59.07 million` bind against a millions table reading `59,070`, whose real
+#: value is a thousand times larger.
+_DECLARED_SCALE = re.compile(
+    r"\(\s*(?:(?:\$|US\$|usd|dollars?|amounts?)\s*)?in\s+"
+    r"(thousands|millions|billions)\b"
+    r"|\bamounts?\s+(?:are\s+)?in\s+(thousands|millions|billions)\b"
+    r"|\bexpressed\s+in\s+(thousands|millions|billions)\b",
+    re.I,
+)
+
+_SCALE_WORD = {"thousands": 1e3, "millions": 1e6, "billions": 1e9}
+
+
+def _declared_scale(excerpt: str) -> float | None:
+    """The scale a table declares for its bare figures, if it declares one.
+
+    Returned separately from the text because the declaration sits in the
+    header while a metric's span begins at the metric's own name, so by the
+    time a span is matched the declaration is no longer inside it. That gap is
+    the whole of V14: the grader was throwing away a fact the filing states.
+    """
+    m = _DECLARED_SCALE.search(excerpt or "")
+    if not m:
+        return None
+    word = next((g for g in m.groups() if g), "").lower()
+    return _SCALE_WORD.get(word)
+
+
 def _asserted_numbers(text: str, *, signed: bool = True) -> set[float]:
     """
     The values a text CLAIMS, which is narrower than every reading of it.
@@ -530,10 +564,19 @@ def _is_primary(cites: list[dict]) -> bool:
     return False
 
 
-def _matches(expected: float, text: str, tol: float = 0.01) -> bool:
+def _matches(expected: float, text: str, tol: float = 0.01,
+             declared: float | None = None) -> bool:
     for got, explicit in _readings(text):
         if expected == 0:
             if got == 0:
+                return True
+            continue
+        if declared and not explicit:
+            # V14. The source said what its bare figures mean, so they mean
+            # that and nothing else — not their face value either. A millions
+            # table reading `59,070` does not support a claim of $59,070, and
+            # allowing the face match let `$59.07 thousand` bind against it.
+            if abs(got * declared - expected) / abs(expected) <= tol:
                 return True
             continue
         if abs(got - expected) / abs(expected) <= tol:
@@ -549,7 +592,13 @@ def _matches(expected: float, text: str, tol: float = 0.01) -> bool:
             continue
         # A figure quoted in millions against an expected in base units. A bare
         # number carries no magnitude of its own, so scaling it is reading it.
-        for scale in (1e3, 1e6, 1e9):
+        #
+        # V14. When the source DECLARED a scale — `(in millions)` — the bare
+        # figures under it are not ambiguous and the search is a single value,
+        # not three. Leaving it open let `59,070` in a millions table satisfy a
+        # claim of `$59.07 million`, so the benchmark reported a
+        # thousand-fold-wrong answer as fully supported by the filing.
+        for scale in ((declared,) if declared else (1e3, 1e6, 1e9)):
             if abs(got * scale - expected) / abs(expected) <= tol:
                 return True
     return False
@@ -594,10 +643,22 @@ def _asserts(expected: float, text: str, tol: float = 0.01) -> bool:
 #: 416,200,000,000 — the answer's own scale is thrown away before the
 #: comparison. It is a separate pattern rather than a fix to `_CLAIM` because
 #: three other call sites depend on that one's exact fragments.
+#: Magnitude words, LONGEST FIRST, with a letter guard (V15).
+#:
+#: Ordering is load-bearing. Written `k|mm|m|bn|b|t|thousand|…`, the currency
+#: branch below had no boundary assertion, so `"$3,582,835 thousand"` matched
+#: the `t` and stopped — and the dangling `t` was then read as TRILLIONS by
+#: `_NUM`. A claim of $3.58 billion parsed as $3.58 quintillion, a factor of
+#: 10^9, and the answer scored against that.
+#:
+#: The non-currency branch had `\b` and was correct, which is why a bare
+#: `"5 thousand"` always parsed while `"$5,000 thousand"` did not. One branch
+#: guarded, one not, in the same pattern.
+_MAGNITUDE = (r"(?:trillion|thousand|million|billion|mm|bn|k|m|b|t)(?![a-z])")
+
 _ASSERTED = re.compile(
-    r"\$\s*[\d,]+(?:\.\d+)?\s*"
-    r"(?:k|mm|m|bn|b|t|thousand|million|billion|trillion)?"
-    r"|[\d,]+(?:\.\d+)?\s*(?:k|mm|m|bn|b|t|thousand|million|billion|trillion)\b"
+    rf"\$\s*[\d,]+(?:\.\d+)?\s*{_MAGNITUDE}?"
+    rf"|[\d,]+(?:\.\d+)?\s*{_MAGNITUDE}"
     r"|[\d,]+(?:\.\d+)?\s*(?:%|percent|pp|bps)",
     re.I,
 )
@@ -807,6 +868,10 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
     def _binds(values: set[float], keys: set[str],
                candidates: list[str]) -> bool:
         for e in candidates:
+            # V14. Read from the whole excerpt, because a table declares its
+            # scale in the header while a metric's span starts at the metric's
+            # own name — so the declaration is not inside the span it governs.
+            declared = _declared_scale(e)
             # U3. When the excerpt speaks about the metric this claim names,
             # it binds only if it associates the claimed VALUE with that
             # metric. An excerpt saying revenue was $120 billion is evidence
@@ -814,12 +879,13 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
             # the claim is what the audit found.
             spans = [s for k in keys for s in (_metric_spans(e, k) or [])]
             if spans:
-                if any(_matches(v, s) for v in values for s in spans):
+                if any(_matches(v, s, declared=declared)
+                       for v in values for s in spans):
                     return True
                 # It states a different value for this metric. Another excerpt
                 # may still bind the claim — the refusal is per-excerpt.
                 continue
-            if any(_matches(v, e) for v in values):
+            if any(_matches(v, e, declared=declared) for v in values):
                 return True
         return False
 
