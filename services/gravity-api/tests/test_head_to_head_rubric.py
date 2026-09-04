@@ -448,8 +448,8 @@ def test_an_answer_that_never_declines_fails_even_with_no_figure():
 
 
 @pytest.mark.parametrize("cls", [
-    "SEC_EVIDENCE", "sec_evidence", "LOCAL_EVIDENCE", "sec_filing",
-    "sec_xbrl", "edgar", "edgar_text", "structured",
+    "SEC_EVIDENCE", "sec_evidence", "sec_filing",
+    "sec_xbrl", "edgar", "edgar_text",
 ])
 def test_the_pipelines_real_evidence_class_names_count_as_primary(cls):
     """
@@ -460,6 +460,36 @@ def test_the_pipelines_real_evidence_class_names_count_as_primary(cls):
     c = score_answer(BY_ID["aapl-fy2025-revenue"], "$416,161 million [1].",
                      citations=[{"source_class": cls}])
     assert c.scores["evidence"] == 1.0, c.notes.get("evidence")
+
+
+@pytest.mark.parametrize("cls", ["LOCAL_EVIDENCE", "local_evidence"])
+def test_local_evidence_does_not_count_as_primary(cls):
+    """
+    Superseded the row above, which asserted the opposite.
+
+    `FinalGate` excludes `LOCAL_EVIDENCE` — a corpus prose chunk is not a filed
+    figure — so a rubric crediting it graded the system against a weaker
+    standard than the system holds itself to. Behavioural counterpart to
+    `tests/test_rubric_not_wider_than_gate.py`.
+    """
+    c = score_answer(BY_ID["aapl-fy2025-revenue"], "$416,161 million [1].",
+                     citations=[{"source_class": cls}])
+    assert c.scores["evidence"] < 1.0
+
+
+def test_a_structured_row_counts_as_primary_only_when_it_is_an_xbrl_row():
+    """`_xbrl` ids are exactly-tagged filing facts; backfill rows are scrapes."""
+    xbrl = score_answer(
+        BY_ID["aapl-fy2025-revenue"], "$416,161 million [1].",
+        citations=[{"source_class": "structured",
+                    "id": "AAPL_RevenueFromContract_FY2025_xbrl"}])
+    assert xbrl.scores["evidence"] == 1.0, xbrl.notes.get("evidence")
+
+    backfill = score_answer(
+        BY_ID["aapl-fy2025-revenue"], "$416,161 million [1].",
+        citations=[{"source_class": "structured",
+                    "id": "AAPL_Revenue_2026-05-20_backfill"}])
+    assert backfill.scores["evidence"] < 1.0
 
 
 def test_an_accession_makes_a_citation_primary_whatever_it_is_labelled():

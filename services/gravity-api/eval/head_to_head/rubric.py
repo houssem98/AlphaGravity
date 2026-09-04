@@ -327,10 +327,26 @@ def _period_misattributed(text: str, token: str,
 #: that was a fault in the grader. Both vocabularies are accepted, and the
 #: accession is honoured as the last word: a citation carrying a real accession
 #: number came from a filing whatever anyone labelled it.
+#:
+#: `local_evidence` is NOT here, and its absence is the point. Round 2 excluded
+#: it from `FinalGate` — a corpus prose chunk is not a filed figure — and left
+#: this set asserting the opposite, so the benchmark handed out primary credit
+#: for evidence the system itself refuses. A grader more permissive than the
+#: thing it grades cannot certify it.
 _PRIMARY_CLASS_NAMES = frozenset({
-    "sec_filing", "sec_xbrl", "edgar", "edgar_text", "structured",
-    "sec_evidence", "local_evidence",
+    "sec_filing", "sec_xbrl", "edgar", "edgar_text", "sec_evidence",
 })
+
+#: `structured` is conditional, which is why it is not in the set above.
+#:
+#: `structured_search` reads the `financials` table, where an id ending `_xbrl`
+#: is an exactly-tagged filing fact and everything else is a scrape backfill —
+#: `AMD_CostOfGoodsAndServicesSold_FY2025_xbrl` against
+#: `AMD_Cost_of_revenue_2026-05-20_backfill`, the same concept at different
+#: authority. The retrieval layer already splits on exactly this with
+#: `flt["id"] = "like.*_xbrl"`. Excluding `structured` wholesale, as the audit
+#: proposed, would blind the rubric to the most authoritative rows in the table.
+_XBRL_ID_SUFFIX = "_xbrl"
 
 
 #: The fields a citation may carry its issuer identity in. Read together
@@ -368,6 +384,9 @@ def _is_primary(cites: list[dict]) -> bool:
     for c in cites:
         cls = str(c.get("source_class", "")).strip().lower()
         if cls in _PRIMARY_CLASS_NAMES:
+            return True
+        if cls == "structured" and \
+                str(c.get("id") or "").strip().lower().endswith(_XBRL_ID_SUFFIX):
             return True
         if c.get("accession") or c.get("accession_number"):
             return True
