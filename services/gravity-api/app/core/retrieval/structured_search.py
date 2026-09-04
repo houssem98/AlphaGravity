@@ -42,7 +42,30 @@ class StructuredSearch:
 
     @staticmethod
     def _fmt_value(s: dict) -> str:
-        """Human-readable value: 211915000000 USD -> '$211,915 million ($211.9B)'."""
+        """Human-readable value: 211915000000 USD -> '$211,915 million = $211.9B'.
+
+        **The restatement is not parenthesised, and that is load-bearing (V23).**
+        In filings, parentheses around a figure mean NEGATIVE — `(408)` in a
+        United Airlines table is minus 408 million — and every downstream number
+        reader implements that convention correctly. This renderer used the same
+        brackets to mean "also expressed as", so each exact fact injected a
+        spurious negative twin of itself into the passage:
+
+            "$416,161 million ($416.16B)"  ->  {416161000000.0, -416160000000.0}
+
+        The twin is a source figure no claim can account for, so it lands in
+        `citation_verdict`'s `source_leftover` and turns "the source does not
+        cover the other year" into "the source contradicts the claim". Measured,
+        with the restatement removed as the control:
+
+            "Apple revenue grew to $416,161 million from $391,035 million [1]."
+              with parentheses  ->  conflicting / numeric_contradicts_source
+              without           ->  partially_supported
+
+        `conflicting` is the harshest verdict the layer issues, and it was being
+        issued against a correct claim citing the exact-fact channel — the one
+        channel fusion weights treat as ground truth.
+        """
         vf = s.get("value_float")
         unit = (s.get("unit", "") or "").upper()
         if vf is None:
@@ -52,7 +75,7 @@ class StructuredSearch:
         except (TypeError, ValueError):
             return f"{s.get('value_raw', '')} {unit}".strip()
         if unit in ("USD", "") and abs(vf) >= 1e6:
-            return f"${vf/1e6:,.0f} million (${vf/1e9:.2f}B)"
+            return f"${vf/1e6:,.0f} million = ${vf/1e9:.2f}B"
         if unit == "USD/SHARES" or "PERSHARE" in (s.get("caption", "") or "").upper():
             return f"${vf:,.2f} per share"
         if unit in ("SHARES",):
