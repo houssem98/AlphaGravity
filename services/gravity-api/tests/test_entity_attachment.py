@@ -84,16 +84,37 @@ def test_one_correct_citation_among_others_is_enough():
 
 
 def test_no_issuer_identity_anywhere_is_unanswerable_not_failed():
-    """The leniency that keeps this from becoming grader bug seven."""
+    """
+    The leniency that keeps this from becoming grader bug seven — an
+    unanswerable question is still not a failed one.
+
+    **Superseded in round 3 (T4).** This asserted `== 1.0`. Unanswerable is now
+    UNGRADED rather than credited: the old value meant the helper reported
+    "cannot check" and the scorer recorded "passed", so an answer citing
+    identity-less sources scored as well as one citing the company's own 10-K.
+    The half this test was written to protect is unchanged and is still
+    asserted below — the score does not go to zero.
+    """
     bare = [{"source_class": "web", "text": "A sufficiently long excerpt here."}]
-    assert _score(ANSWER, bare) == 1.0, (
-        "citations carrying no issuer identity were treated as proof of the "
-        "wrong issuer; an unanswerable question is not a failed one"
+    card = score_answer(CASE, ANSWER, citations=bare)
+    assert card.scores["period_entity"] is None, (
+        "citations carrying no issuer identity leave the binding uncheckable, "
+        "so the dimension is ungraded"
     )
+    assert card.scores["period_entity"] != 0.0, (
+        "an unanswerable question is not a failed one; T4 chose ungraded over "
+        "failure precisely to avoid this"
+    )
+    assert "period_entity" not in card.graded_keys
+    assert "UNGRADED" in card.notes["period_entity"]
 
 
 def test_no_citations_at_all_is_unanswerable_not_failed():
-    assert _score(ANSWER, []) == 1.0
+    """Superseded with the test above, and for the same reason (T4)."""
+    card = score_answer(CASE, ANSWER, citations=[])
+    assert card.scores["period_entity"] is None
+    assert card.scores["period_entity"] != 0.0
+    assert "period_entity" not in card.graded_keys
 
 
 def test_the_ticker_alone_can_carry_it():

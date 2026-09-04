@@ -737,35 +737,61 @@ def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None
             misattached.append(token)
         hits += int(present)
     misbound: list[str] = []
+    unbindable: list[str] = []
     for token in case.get("expect_entity_tokens", []):
-        checks += 1
         present = token.lower() in low
-        # Named, but nothing cited belongs to that issuer. Presence in prose
-        # was never the question this dimension was asking — the same fix the
-        # period half already has.
-        if present and _entity_is_bound(token, cites) is False:
-            present = False
-            misbound.append(token)
+        if present:
+            bound = _entity_is_bound(token, cites)
+            if bound is None:
+                # T4. Nothing cited carries any issuer identity, so the binding
+                # cannot be checked. This branch used to fall through to the
+                # credit below: the helper said "cannot check" and the scorer
+                # recorded "passed", which is how an answer citing identity-less
+                # sources scored as well as one citing the company's own 10-K.
+                #
+                # Ungraded rather than failed. Punishing an unanswerable
+                # question is the shape this file avoided six times over, and
+                # ungraded is the discipline the module docstring already
+                # states. It costs coverage, and that is the honest price.
+                unbindable.append(token)
+                continue
+            if bound is False:
+                # Named, but nothing cited belongs to that issuer. Presence in
+                # prose was never the question this dimension was asking — the
+                # same fix the period half already has.
+                present = False
+                misbound.append(token)
+        # A token the reply never NAMES is a presence failure, and presence is
+        # answerable without any citation, so it stays graded whatever the
+        # citations carry.
+        checks += 1
         hits += int(present)
     for token in case.get("forbid_tokens", []):
         checks += 1
         hits += int(token.lower() not in low)
     card.scores["period_entity"] = round(hits / checks, 4) if checks else None
-    if not checks:
-        card.notes["period_entity"] = "no period/entity tokens recorded"
-    elif misattached or misbound:
-        parts = []
-        if misattached:
-            parts.append(
-                f"period token(s) {sorted(misattached)} appear in the reply but "
-                "the stated figure is attached to a different period"
-            )
-        if misbound:
-            parts.append(
-                f"entity token(s) {sorted(misbound)} appear in the reply but no "
-                "citation belongs to that issuer"
-            )
+    parts = []
+    if misattached:
+        parts.append(
+            f"period token(s) {sorted(misattached)} appear in the reply but "
+            "the stated figure is attached to a different period"
+        )
+    if misbound:
+        parts.append(
+            f"entity token(s) {sorted(misbound)} appear in the reply but no "
+            "citation belongs to that issuer"
+        )
+    if unbindable:
+        # An unexplained `None` is the same failure as an unexplained 1.0, one
+        # step quieter, so the ungraded case has to say it was ungraded.
+        parts.append(
+            f"entity token(s) {sorted(unbindable)} left UNGRADED: no citation "
+            "carries any issuer identity, so the binding could not be checked"
+        )
+    if parts:
         card.notes["period_entity"] = "; ".join(parts)
+    elif not checks:
+        card.notes["period_entity"] = "no period/entity tokens recorded"
 
     # scope ---------------------------------------------------------------
     if case.get("is_set_question"):
