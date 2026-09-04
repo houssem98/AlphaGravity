@@ -1,9 +1,89 @@
-# M4 — one canonical evidence class · STAGED PLAN, awaiting approval
+# M4 — one canonical evidence class · STAGE 0 RUN, STAGES 1–5 NOT RECOMMENDED
 
-**Status: NOT EXECUTED.** M4's deliverable is this plan, and the roadmap requires
-it be escalated before any of it runs. A half-done type unification is worse
-than none, because it adds one more vocabulary to the pile that caused the
-problem.
+**Stage 0 was approved and executed. It falsified the premise for the rest.**
+Findings are at the top; the original plan follows unchanged below, so the
+reasoning that led here stays readable.
+
+---
+
+## Stage 0 result — the vocabularies do not meet
+
+Instrumented all three `is_primary` predicates, ran the full suite (2315 passed,
+unchanged — the probe was inert), recorded every value each predicate was asked
+about, then reverted the instrumentation. Raw counts:
+`m4-stage0-observed-vocabulary.json`.
+
+| Predicate | Observed | Never observed |
+|---|---|---|
+| `answer_contract.is_primary_class` | `SEC_EVIDENCE` 76 · `sec_filing` 9 · `sec_xbrl` 1 · `LOCAL_EVIDENCE`/`WEB_EVIDENCE`/`news`/`analyst`/`earnings_call`/`''`/`SOMETHING_NEW` | **`edgar`, `edgar_text`, `xbrl`** |
+| `scope.PRIMARY_CLASSES` | `news` 1016 · `sec_filing` 678 · `edgar` 1 · `edgar_text` 1 · `xbrl` 1 · `blog`/`analyst`/`transcript`/`web`/`''` | **`sec_xbrl`, `SEC_EVIDENCE`** |
+| `rubric._is_primary` | `sec_filing` 136 · `SEC_EVIDENCE` 42 · `web` 14 · `WEB_EVIDENCE` 11 · `news` 10 · `structured` 6 · `sec_xbrl` 4 · `LOCAL_EVIDENCE` 3 · `edgar`/`edgar_text`/`local_evidence`/`sec_evidence`/`unknown` 2 each | — |
+
+**The `xbrl` vs `sec_xbrl` bug does not occur.** It was the concrete defect
+justifying stages 2–5. The two spellings live in disjoint populations: predicate
+1 never sees `xbrl`, predicate 2 never sees `sec_xbrl`. Nothing crosses, so
+nothing is silently downgraded.
+
+**`edgar`, `edgar_text` and `xbrl` are produced by nothing.** They appear
+exactly once each, against `news` at 1016 and `sec_filing` at 678. Traced: no
+production code assigns a `source_class` of `edgar`, `edgar_text` or `xbrl`
+anywhere, and the single hits come from `test_skill_scope.py:76`, a
+parametrisation that restates `PRIMARY_CLASSES` back at itself.
+
+**`scope.py` is not on the production request path.** Nothing under `app/`
+imports `app.core.skills.scope`. Its importers are `tests/` and the eval
+harnesses `eval/finance_quick_answer/run_eval.py` and `perf.py`. So the third
+`is_primary` predicate — the one T11 found and T6 missed — never executes when
+the system answers a question. (Stated precisely: *not on the request path*, not
+"dead code". It is exercised, just never in production.)
+
+### What this does to T12
+
+**T12 dissolves rather than being fixed.** M1's certification asked the rubric's
+primary set to be a subset of the gate's, and it fails only on `edgar` and
+`edgar_text` — spellings nothing produces, checked by a predicate that never runs
+in production. The subset relation was measuring a disagreement between two dead
+entries. Recorded as resolved-by-measurement, not by code.
+
+### Revised recommendation
+
+**Do not run stages 1–5.** There is no observed defect to justify a
+cross-layer type unification, and the roadmap's own instruction covers this
+case: if stage 0 shows the vocabularies never meet, M4 shrinks to documentation
+and should be re-scoped. It does, so it does.
+
+What is worth doing instead, in rough order of value, each small enough to be
+its own change:
+
+1. **Delete `edgar`, `edgar_text`, `xbrl` from `scope.PRIMARY_CLASSES`**, or
+   prove something produces them. A frozenset whose only exerciser is a test
+   restating it is a vocabulary with no speakers.
+2. **Decide what `app/core/skills/scope.py` is for.** It is a well-built module
+   answering a real question that the pipeline never asks. Either wire it in or
+   mark it eval-only, but do not leave a third primary-source predicate looking
+   live.
+3. **Rename `answer_contract._PRIMARY_CLASSES`.** It holds QUESTION classes
+   (`EXACT_FINANCIAL_FACT`, …), not source classes, and shares its name with
+   `scope.PRIMARY_CLASSES`, which holds source classes. Two different things,
+   one name, one file apart.
+
+### The honest limit of this measurement
+
+**These are the counts the TEST SUITE produced, not production traffic.** They
+show what 2315 tests exercise. A crossing that no test covers would not appear
+here, and the `news` 1016 / `sec_filing` 678 volumes are test loops, not user
+queries. The claim is "no crossing observed under the suite", which is weaker
+than "no crossing exists" and is the only claim the method supports.
+
+Stage 0 was still worth running: it cost one instrumented suite run and replaced
+a plausible assumption with a measurement that points the other way.
+
+---
+
+## The original plan, as escalated
+
+**Status of stages 1–5: NOT EXECUTED and no longer recommended.** Retained
+because the reasoning below is what stage 0 was designed to test.
 
 ## What is actually there
 

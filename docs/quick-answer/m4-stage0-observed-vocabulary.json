@@ -1,0 +1,42 @@
+{
+  "1_answer_contract.is_primary_class": {
+    "''": 3,
+    "'LOCAL_EVIDENCE'": 1,
+    "'SEC_EVIDENCE'": 76,
+    "'SOMETHING_NEW'": 1,
+    "'WEB_EVIDENCE'": 1,
+    "'analyst'": 1,
+    "'earnings_call'": 1,
+    "'news'": 2,
+    "'sec_filing'": 9,
+    "'sec_xbrl'": 1
+  },
+  "2_scope.PRIMARY_CLASSES": {
+    "''": 2,
+    "'analyst'": 1,
+    "'blog'": 2,
+    "'edgar'": 1,
+    "'edgar_text'": 1,
+    "'news'": 1016,
+    "'sec_filing'": 678,
+    "'transcript'": 1,
+    "'web'": 1,
+    "'xbrl'": 1
+  },
+  "3_rubric._is_primary": {
+    "''": 4,
+    "'LOCAL_EVIDENCE'": 3,
+    "'SEC_EVIDENCE'": 42,
+    "'WEB_EVIDENCE'": 11,
+    "'edgar'": 2,
+    "'edgar_text'": 2,
+    "'local_evidence'": 2,
+    "'news'": 10,
+    "'sec_evidence'": 2,
+    "'sec_filing'": 136,
+    "'sec_xbrl'": 4,
+    "'structured'": 6,
+    "'unknown'": 2,
+    "'web'": 14
+  }
+}
