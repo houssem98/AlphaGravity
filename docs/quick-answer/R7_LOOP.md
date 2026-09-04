@@ -187,13 +187,19 @@ object is compared field to field — value, unit, scale, period, metric — and
 the text path is skipped. The text path stays unchanged for every citation that
 carries no fields.
 
-Deliverable: the branch, plus the differential rig showing a
-`KNOWN_SHARED_GAP` closing on the structured path. **V16 and V17 are the two
-that should fall here** — "the lexicon does not know this metric" and "nobody
-checked the period" both stop being questions when the fact carries its own
-`xbrl_concept` and `period_start`/`period_end`.
+Deliverable: the branch, plus a demonstrated verdict change on the
+structured path.
+
+~~**V16 and V17 are the two that should fall here.**~~ **They do not** — see
+ledger row 8. V16 needs a concept-to-English map to compare an XBRL tag
+against a claim written in prose, which is the vocabulary §7 forbids; it
+needs the CLAIM to carry a metric, so it is E5. V17 is the grader not
+looking at periods at all, so it is E4. E3 makes production's period
+evidence authoritative and stops there.
 
 **Escalate before landing.** This changes what production calls verified.
+Done: the metric question and the fields-vs-text scope were both owner
+decisions before the row landed.
 
 ### E4 — the grader stops re-parsing too
 
@@ -287,3 +293,6 @@ R7 moves exactly one line of that table.
 | 3 | 1 | §1 | Superseded row 2 — the count is TEN, not nine. `scope` (`"segment"` / `"consolidated"`) is held by `provenance()` and was dropped by `payload()` with the rest. Row 2 undercounted its own finding | SUPERSEDES ROW 2 | n/a | clean | `bd1146e` | n/a — correction to a measurement |
 | 4 | 1 | E1 | `payload()` dropped the financial half of the canonical object, so every reader below re-derived metric, magnitude and period from prose | CLOSED | 2518 passed / 0 failed | clean | `bd1146e` | 12 of 15 assertions in `tests/test_evidence_fields_reach_the_citation.py` failed against the unfixed `payload()`. The 3 that passed are the guardrails that already held — a prose passage carries `{}`, and the identity/link keys are present — which is what makes the other twelve mean something |
 | 5 | 1 | §4 | The round predicted E1 would move `test_provenance_mutation_rig.py` and `test_gate_accepts_real_pipeline_citations.py`, and braced for a gate-shrink escalation | PREDICTION MISSED — recorded | 2518 passed / 0 failed | clean | `bd1146e` | n/a. Both pin a hardcoded literal citation rather than `payload()`'s key set, so an additive change is invisible to them. No escalation was needed |
+| 6 | 1 | E2 | `scale` — the one field of the audit's twelve that `provenance()` does not hold | CLOSED BY DECISION — no field added | 2532 passed / 0 failed | clean | `c48e264` | n/a — no fix, so no red. The 4 tests pin an existing invariant E3 depends on. Measured: a table scrape, the legacy companyfacts backfill and declared-scale prose all yield `payload() == {}`, because the accession is the gate. Only the XBRL path reaches a citation and XBRL values are absolute, so `scale` would be a constant 1. The first test reopens the decision if a non-absolute producer ever arrives |
+| 7 | 1 | E3 | V24 — `_fmt_value` prints `${v/1e6:,.0f} million`, so below ~$120M the rendered passage no longer holds the figure the filing states, and a claim quoting the filing's EXACT value was graded `conflicting / numeric_not_in_source` | CLOSED | 2532 passed / 0 failed | clean | `c48e264` | 6 of 10 assertions in `tests/test_verdict_reads_the_fact.py` fail with the field reads disabled. Measured on the unfixed path: fact 12,499,000 rendered `$12 million` → conflicting; 2,500,000 → `$2 million` → conflicting; 1,499,999 → `$1 million` → conflicting; 416,161,000,000 → verified throughout. The 4 passing assertions are the guards — wrong figure still caught, wrong period still conflicts, large facts unchanged, fieldless citations unchanged |
+| 8 | 1 | E3 | The round's §5 claimed **V16 and V17 fall to E3**. Neither does | CLAIM WITHDRAWN — both stay OPEN | 2532 passed / 0 failed | clean | `c48e264` | n/a — correction. V16 needs a concept↔English map to compare the fact's `xbrl_concept` against a claim written in prose, which is the vocabulary §7 forbids; it needs the CLAIM to carry a metric, which is E5. V17 is the grader not checking period at all — E3 only makes production's period evidence authoritative, so it is E4. Owner-escalated before landing; the decision was to leave V16 open and say so |
