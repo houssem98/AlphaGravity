@@ -269,3 +269,52 @@ of this one.
 collisions, one audit case, six leniency cases, one possessive, three
 regex-metacharacter cases, and one each for any-citation, no-identity,
 wrong-issuer, plus two empty-token pins.
+
+| # | Loop | Defect | Started | Verdict | Backend count | gate-guard | Commit | Red-before-fix evidence |
+|---|---|---|---|---|---|---|---|---|
+| 3 | N3 | U3 | 2026-09-04 | **CLOSED for contradiction** · general case remains a stated ceiling | 2380 passed / 0 failed (578.04s) | clean | `8b5e623` | `1 failed, 11 passed in 0.73s` on unfixed code — `test_the_audits_exact_case`: `assert True is False`, `_claim_is_bound('NVIDIA revenue was $130 billion.', [{'text': "NVIDIA's operating expenses were $130 billion while revenue was $120 billion in the period."}])`. |
+
+### N3 notes
+
+**What closed, stated precisely.** A citation that states a *different value for
+the metric the answer named* no longer binds the claim. That is the audit's
+demonstrated defect and it is shut. **What did not close** is the general
+proposition-binding bar the audit describes — metric × entity × period × value ×
+verified source. That remains a ceiling, and the graph row says so.
+
+**The rule refuses to guess which metric owns each number.** It asks what the
+excerpt says about the metric the *answer* named. A metric owns text from its own
+mention to the next metric mention, so revenue's span in the audit's excerpt
+yields `$120 billion` and the `$130 billion` is simply not revenue's. **This works
+even though `operating expenses` is not in the vocabulary at all** — the rule
+never needs to attribute the 130, only to read what the excerpt says about
+revenue. That is what makes it robust rather than clever.
+
+**Three fail-open paths, pinned.** No metric in the answer; no metric in the
+excerpt; a metric named with no figure beside it (`"its highest revenue ever"`).
+Under-firing is the deliberate direction in a function carrying six historical
+over-tightening bugs. The refusal is also per-excerpt, so a correct citation
+elsewhere still binds.
+
+**The two cases a naive rule would have broken, both asserted:** an excerpt
+carrying two periods of the same metric still binds, and a segment figure beside
+the total still binds. A rule reading "some revenue figure differs, therefore
+refuse" would have failed correct answers against ordinary filing prose.
+
+**One red, and that is the honest count.** The second contradiction test already
+returned `False` before the fix, because `130` is absent from that excerpt — it
+tests absence, not contradiction. The defect requires both numbers present, and
+exactly one test reproduces it.
+
+**A coupling decision, made explicitly.** `_METRIC_RES` is imported from
+production rather than restated. This module otherwise imports nothing from
+`app`, and that independence is deliberate — but R14, T1 and T2 were each a
+second vocabulary invented beside the first and left to drift, and twenty-five
+restated metric patterns would be that mistake with a new name. **This is the
+opposite call from `_ACCESSION_RE`, which is deliberately redeclared**, and the
+distinction is written into the code: an accession format is a per-purpose rule,
+a metric lexicon is a shared vocabulary both sides must read identically.
+
+**Count reconciled.** 2368 → 2380 is +12, the whole of the new file. All 141
+pre-existing claim-binding tests pass unchanged, including the six
+over-tightening guards.
