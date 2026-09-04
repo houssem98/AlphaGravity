@@ -539,7 +539,7 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
     than the headline alone — so it fires only when the figure is nowhere in
     anything the answer cited, which is the case grader bug 7 left open.
 
-    **Per CLAIM, not per answer (R6).** The `any` used to range over every
+    **Per SENTENCE, not per answer (R6).** The `any` used to range over every
     figure in the reply at once, so one cited figure carried every uncited one
     beside it: "Revenue was $130,497M [1]. Data centre was $115,186M. Gaming
     was $11,350M." scored as bound on a citation supporting only the first.
@@ -547,6 +547,16 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
 
     Sentence scope is the granularity `_period_misattributed` already settled
     on for this same question, for the reason given there.
+
+    **The word is "sentence" and not "claim", and the difference is real (T9).**
+    The split below is `(?<=[.!?])\s+|\n`, so a sentence carrying three
+    propositions is ONE object here: "Revenue was $130,497M [1], data centre
+    was $115,186M and gaming was $11,350M" binds if any one of those figures
+    appears in a cited excerpt. Genuine claim-level grounding would decompose
+    that into three and require each — this does not, and the R6 improvement is
+    real without being that. The function name still says `claim` because
+    renaming it reaches four test modules for no behavioural gain; the name is
+    the artefact that overstates, and this paragraph is the correction.
 
     A rate is treated as derived rather than quoted. "Revenue grew from $100B
     to $130B [1]. That is a 30% increase." states a figure that appears in no
