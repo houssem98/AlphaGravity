@@ -87,6 +87,26 @@ def provenance(metadata: dict | None, *, ticker: str = "") -> dict | None:
     accn = str(m.get("accn") or "")
     if not valid_accession(accn):
         return None
+    # V33. The accession is the discriminator, but a REGEX MATCH is a claim
+    # about a string, not about a document. `9999999999-99-999999` is
+    # well-formed and names nothing that was ever filed, and a news article
+    # that quotes Aflac's real accession is still a news article.
+    #
+    # The test is COHERENT FILING IDENTITY, not the declared source class. A
+    # filing is filed by someone, on a date, in a form; a passage that cannot
+    # say who filed it names a document nobody can be shown to have filed.
+    #
+    # Deliberately NOT a veto on `source_class`. A passage carrying real EOG
+    # identity AND web fields is still that filing -- an accession names a
+    # document that can be opened and audited, and a URL beside it does not
+    # weaken that. `test_sec_wins_when_a_passage_somehow_carries_both` has
+    # asserted exactly this since round 2, and a class veto would have broken
+    # it while catching nothing the identity check does not already catch:
+    # every negative case here fails for want of a filer, not for its label.
+    if not _clean(m.get("cik")):
+        return None
+    if not (_clean(m.get("form")) or _clean(m.get("filed"))):
+        return None
 
     dims = [d for d in (m.get("dimensions") or []) if isinstance(d, dict)]
     out = {

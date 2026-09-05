@@ -318,9 +318,19 @@ def test_the_pipeline_reapplies_the_verdict_after_the_provenance_update():
 
 
 def test_a_verified_filing_does_not_make_an_unsupported_claim_verified():
-    """`is_verified` is the claim verdict and nothing else."""
+    """`is_verified` is the claim verdict and nothing else.
+
+    R8 QA-4 added `"form"` to this metadata. The stub carried an accession and
+    a CIK only, and `provenance()` now also requires a form or a filing date --
+    a passage that cannot say what was filed, or when, is not shown to name a
+    real filing. Nothing about this test's subject changed: it is about
+    `is_verified` never leaking out of a payload, and both assertions below are
+    untouched. The sibling test twelve lines above already passed `"form"` for
+    the same accession, which is the realistic shape.
+    """
     p = payload(provenance({
-        "accn": ACCN, "cik": CIK, "verification_status": "verified",
+        "accn": ACCN, "cik": CIK, "form": "10-K",
+        "verification_status": "verified",
     }, ticker="NVDA"))
     # The payload states the FILING's status under its own name, and carries no
     # `is_verified` of its own to leak into the citation.
