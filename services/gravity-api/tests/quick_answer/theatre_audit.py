@@ -114,10 +114,23 @@ CASES = [
      "            if False:\n                continue",
      "tests/quick_answer/test_r8_unit_scale.py"),
 
-    ("V27 significant-digit guard", "R8",
+    ("V27 significant-digit guard (open-scale path)", "R8",
      "eval/head_to_head/rubric.py",
      "        if _sigdigits(got) < _sigdigits(expected):",
      "        if False:",
+     "tests/quick_answer/test_r8_unit_scale.py"),
+
+    # QA-13's first pass reverted only the open-scale guard, and the test it
+    # ran exercised only the DECLARED one, so V27 reported as theatre while
+    # both guards were in fact real. Two guards, two cases.
+    ("V27 significant-digit guard (declared-scale path)", "R8",
+     "eval/head_to_head/rubric.py",
+     "            if (_sigdigits(got) >= _sigdigits(expected)
+"
+     "                    and abs(got * declared - expected) / abs(expected) <= tol):",
+     "            if (True
+"
+     "                    and abs(got * declared - expected) / abs(expected) <= tol):",
      "tests/quick_answer/test_r8_unit_scale.py"),
 
     ("V17 period column gate", "R8",

@@ -293,7 +293,16 @@ def test_v27_the_guard_itself_refuses_a_coarse_reading():
     The rule is still real, so it gets an assertion that exercises it directly:
     a one-digit source reading scaled up cannot satisfy a four-digit claim,
     even though `1 x 1e9` sits 0.89% from `1.009e9` and inside the tolerance.
+
+    There are TWO sig-digit guards, and QA-13's first pass only caught one of
+    them: the declared-scale path checks it inside its own condition, the
+    open-scale path checks it before the scale loop. Reverting either alone
+    left this test green, so both are exercised here and the audit reverts both.
     """
     from eval.head_to_head.rubric import _matches
+    # open-scale path: no declared header, the loop tries 1e3/1e6/1e9
+    assert _matches(1.009e9, "1") is False
+    assert _matches(1.009e9, "1,009") is True
+    # declared-scale path: the header says billions
     assert _matches(1.009e9, "1", declared=1e9) is False
     assert _matches(1.009e9, "1,009", declared=1e6) is True
