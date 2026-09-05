@@ -173,11 +173,95 @@ _SCALE_WORD = {"thousands": 1e3, "millions": 1e6, "billions": 1e9}
 
 
 def declared_scale(text: str) -> float | None:
-    """The scale a table declares for its bare figures, if it declares one."""
+    """The scale a table declares for its bare figures, if it declares one.
+
+    The single-scale reading, kept because most tables declare one scale and
+    every caller that cannot know a figure's currency needs an answer. For a
+    header that declares several, this returns the FIRST — see
+    `declared_scales`, and V25 for why that is not good enough on its own.
+    """
     m = _DECLARED_SCALE.search(text or "")
     if not m:
         return None
     return _SCALE_WORD.get(next((g for g in m.groups() if g), "").lower())
+
+
+#: Currency words as filing headers write them, and the ISO code each means.
+_CURRENCY_WORD = {
+    "dollar": "USD", "dollars": "USD", "usd": "USD",
+    "yen": "JPY", "jpy": "JPY",
+    "euro": "EUR", "euros": "EUR", "eur": "EUR",
+    "pound": "GBP", "pounds": "GBP", "sterling": "GBP", "gbp": "GBP",
+    "yuan": "CNY", "renminbi": "CNY", "rmb": "CNY", "cny": "CNY",
+    "franc": "CHF", "francs": "CHF", "chf": "CHF",
+}
+
+#: The symbols an answer actually writes. `$` is deliberately USD here: a
+#: financial answer citing a US filing writes `$`, and treating it as ambiguous
+#: would refuse almost everything. Where a filing means something else by `$`
+#: it says so in words, and the word wins below.
+_CURRENCY_SYMBOL = {"$": "USD", "¥": "JPY", "€": "EUR", "£": "GBP"}
+
+#: `(In millions of dollars and billions of yen)` — a scale bound to a currency.
+_SCALE_OF_CURRENCY = re.compile(
+    r"\b(thousands|millions|billions)\s+of\s+([A-Za-z]+)", re.I)
+
+_SYMBOLS_RE = re.compile("[" + "".join(_CURRENCY_SYMBOL) + "]")
+_CODES_RE = re.compile(r"\b(USD|JPY|EUR|GBP|CNY|CHF)\b")
+
+
+def declared_scales(text: str) -> dict[str, float]:
+    """Every scale a header declares, keyed by the currency it declares it for.
+
+    V25. `declared_scale` returns one float, so a header binding two scales to
+    two columns could only answer for one of them — and it answered for the
+    first. Aflac's Japan segment table declares
+
+        (In millions of dollars and billions of yen)
+
+    and its yen column is a thousand times larger than the dollar reading of
+    the same header. Measured before this existed, `¥1,009 billion` — the
+    filing's own figure — was refused, and `¥1,009 million` was accepted.
+
+    The empty-string key means "declared, but for no particular currency",
+    which is what an ordinary `(in millions)` header says. A caller that knows
+    its figure's currency should prefer the specific entry and fall back to it.
+    """
+    out: dict[str, float] = {}
+    for m in _SCALE_OF_CURRENCY.finditer(text or ""):
+        ccy = _CURRENCY_WORD.get(m.group(2).lower())
+        if ccy:
+            out[ccy] = _SCALE_WORD[m.group(1).lower()]
+    if not out:
+        one = declared_scale(text)
+        if one:
+            out[""] = one
+    return out
+
+
+def currencies_in(text: str) -> set[str]:
+    """The currencies a piece of text names, by symbol, code or word."""
+    found = {_CURRENCY_SYMBOL[s] for s in _SYMBOLS_RE.findall(text or "")}
+    found |= {c.upper() for c in _CODES_RE.findall(text or "")}
+    for w in re.findall(r"[A-Za-z]+", text or ""):
+        c = _CURRENCY_WORD.get(w.lower())
+        if c:
+            found.add(c)
+    return found
+
+
+def currency_of(text: str) -> str:
+    """The single currency a claim states, or `""` when it states none or several.
+
+    V26. Nothing in the binding path compared currency, so a claim of
+    `€6,744 million` bound against a source reading `$ 6,744` — the digits
+    agreed and no one looked at the symbol. Returning `""` for a mixed or silent
+    sentence keeps the check one-directional: it can refuse a claim that names
+    the wrong currency, and never manufactures a currency for one that names
+    none.
+    """
+    found = currencies_in(text)
+    return next(iter(found)) if len(found) == 1 else ""
 
 _NUM_WITH_UNIT = re.compile(
     r"([\d,]+(?:\.\d+)?)\s*(trillion|billion|million|thousand|[TBMK](?![a-zA-Z]))",

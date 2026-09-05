@@ -52,7 +52,9 @@ from dataclasses import dataclass, field
 #: as evidence), while a metric lexicon is a shared vocabulary that both sides
 #: must read identically or the grader cannot see what the system saw.
 from app.core.finance.query_plan import _METRIC_RES
-from app.core.verification.citation_verdict import declared_scale
+from app.core.verification.citation_verdict import (
+    currencies_in, currency_of, declared_scale, declared_scales,
+)
 
 __all__ = [
     "DIMENSIONS", "Dimension", "Scorecard", "blind_pairs", "score_answer",
@@ -850,18 +852,22 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
     if not usable:
         return None
 
-    level_claims: list[tuple[set[float], set[str], list[str]]] = []
-    rate_claims: list[tuple[set[float], set[str], list[str]]] = []
+    level_claims: list[tuple[set[float], set[str], list[str], str]] = []
+    rate_claims: list[tuple[set[float], set[str], list[str], str]] = []
     for sentence in re.split(r"(?<=[.!?])\s+|\n", text or ""):
         levels, rates = _asserted_split(sentence)
         keys = _metric_keys(sentence)
         cited = _cited_excerpts(sentence, usable, len(cites or []))
+        # V26. The currency the SENTENCE states, empty when it states none or
+        # more than one. Carried per sentence rather than per figure because
+        # that is the granularity `_asserted_split` already works at.
+        ccy = currency_of(sentence)
         if levels:
             # A claim's own rates count toward binding it; a margin sentence
             # that also quotes the level it came from is bound by either.
-            level_claims.append((levels | rates, keys, cited))
+            level_claims.append((levels | rates, keys, cited, ccy))
         elif rates:
-            rate_claims.append((rates, keys, cited))
+            rate_claims.append((rates, keys, cited, ccy))
 
     # A sentence asserting no figure is not an unsupported claim — it is not a
     # claim. If none of them assert one, the question cannot be asked.
@@ -869,12 +875,26 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
         return None
 
     def _binds(values: set[float], keys: set[str],
-               candidates: list[str]) -> bool:
+               candidates: list[str], ccy: str = "") -> bool:
         for e in candidates:
             # V14. Read from the whole excerpt, because a table declares its
             # scale in the header while a metric's span starts at the metric's
             # own name — so the declaration is not inside the span it governs.
-            declared = _declared_scale(e)
+            #
+            # V25. A header may bind a different scale to each currency —
+            # `(In millions of dollars and billions of yen)` — so the claim's
+            # own currency picks which one applies. The unkeyed entry is the
+            # ordinary `(in millions)` case and remains the fallback.
+            scales = declared_scales(e)
+            declared = scales.get(ccy) or scales.get("")
+            # V26. A figure quoted in a currency the source does not deal in is
+            # not that source's figure, however well the digits agree. Both
+            # sides must actually name a currency for this to fire: a claim
+            # that names none is not thereby wrong, which is the same
+            # one-directional discipline the period and metric checks use.
+            src_ccy = currencies_in(e)
+            if ccy and src_ccy and ccy not in src_ccy:
+                continue
             # U3. When the excerpt speaks about the metric this claim names,
             # it binds only if it associates the claimed VALUE with that
             # metric. An excerpt saying revenue was $120 billion is evidence
@@ -892,11 +912,11 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
                 return True
         return False
 
-    bound_levels = [_binds(v, k, c) for v, k, c in level_claims]
+    bound_levels = [_binds(v, k, c, cy) for v, k, c, cy in level_claims]
     if not all(bound_levels):
         return False
-    return all(_binds(r, k, c) or any(bound_levels)
-               for r, k, c in rate_claims)
+    return all(_binds(r, k, c, cy) or any(bound_levels)
+               for r, k, c, cy in rate_claims)
 
 
 def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None,
