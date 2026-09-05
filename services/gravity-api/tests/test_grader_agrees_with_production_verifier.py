@@ -170,7 +170,11 @@ def test_the_grader_is_never_laxer_than_production(name):
 #: figure quoted against the wrong fiscal year still binds as evidence. That
 #: split is arguably deliberate, but the consequence is not obvious from either
 #: side alone, which is exactly what a differential test is for.
-KNOWN_SHARED_GAPS = {"metric-wrong", "period-wrong"}
+#: `period-wrong` was removed in R8 QA-8: the evaluator now refuses a claim
+#: whose period disagrees with every period the excerpt names, using
+#: production's own `_periods_disagree`. It was recorded here from round 6
+#: to R8, and the rig reported its closure rather than an audit finding it.
+KNOWN_SHARED_GAPS = {"metric-wrong"}
 
 
 @pytest.mark.parametrize("name", sorted(_MUTATIONS))

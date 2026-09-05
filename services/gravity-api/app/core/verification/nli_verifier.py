@@ -64,7 +64,14 @@ def _parse_financial_number(tok: str) -> Optional[float]:
     m = _NUM_RE.fullmatch(tok)
     if not m:
         return None
-    negative = "(" in (m.group(1) or "")
+    # V30. A filing writes an accounting negative with the currency symbol
+    # OUTSIDE the parens -- `(408)`, `$(408)`. Prose writes a restatement
+    # with it inside -- `($416,161 million)`. Negating the second turned a
+    # correct positive answer into a wrong one, in the layer
+    # `citation_verdict` calls to decide whether a citation supports a
+    # claim. The evaluator has read it this way since V28; this is the
+    # side that was wrong.
+    negative = "(" in (m.group(1) or "") and not m.group(2)
     digits   = _COMMA.sub("", m.group(3))
     scale_s  = (m.group(4) or "").lower()
     unit_s   = (m.group(5) or "").lower().replace(" ", "")

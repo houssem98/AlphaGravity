@@ -53,8 +53,8 @@ from dataclasses import dataclass, field
 #: must read identically or the grader cannot see what the system saw.
 from app.core.finance.query_plan import _METRIC_RES
 from app.core.verification.citation_verdict import (
-    _periods, column_years, currencies_in, currency_of, declared_scale,
-    declared_scales,
+    _periods, _periods_disagree, column_years, currencies_in, currency_of,
+    declared_scale, declared_scales,
 )
 
 __all__ = [
@@ -918,13 +918,13 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
         # `2025` is deliberately not one: it is far more often a quantity or a
         # citation than a period, and treating it as a claim about a year would
         # make the check fire on sentences that assert nothing about time.
-        years = {y for y, _ in _periods(sentence)}
+        periods = _periods(sentence)
         if levels:
             # A claim's own rates count toward binding it; a margin sentence
             # that also quotes the level it came from is bound by either.
-            level_claims.append((levels | rates, keys, cited, ccy, years))
+            level_claims.append((levels | rates, keys, cited, ccy, periods))
         elif rates:
-            rate_claims.append((rates, keys, cited, ccy, years))
+            rate_claims.append((rates, keys, cited, ccy, periods))
 
     # A sentence asserting no figure is not an unsupported claim — it is not a
     # claim. If none of them assert one, the question cannot be asked.
@@ -956,8 +956,9 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
 
     def _binds(values: set[float], keys: set[str],
                candidates: list[str], ccy: str = "",
-               years: set | None = None) -> bool:
-        years = years or set()
+               periods: set | None = None) -> bool:
+        periods = periods or set()
+        years = {y for y, _ in periods}
         for e in candidates:
             # V14. Read from the whole excerpt, because a table declares its
             # scale in the header while a metric's span starts at the metric's
@@ -986,8 +987,15 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
             # the most reachable way to be wrong about a filing while quoting
             # it accurately.
             cols = column_years(e)
-            if years and len(cols) >= 2 and not (years & set(cols)):
-                # The table says which years it covers, and this is not one.
+            # V17, set level. Before asking WHICH column, ask whether the
+            # excerpt is about the claimed period at all. `_periods_disagree`
+            # is production's own function and decides only when both sides
+            # name a period and none line up, so a coarser claim is not a
+            # conflict with a finer source and a claim naming no period is
+            # never penalised. This is what the differential rig's
+            # `period-wrong` mutation needed: its evidence is a single-column
+            # table, where the column check below correctly abstains.
+            if periods and _periods_disagree(periods, _periods(e)):
                 continue
             # U3. When the excerpt speaks about the metric this claim names,
             # it binds only if it associates the claimed VALUE with that
@@ -1015,12 +1023,12 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
                 return True
         return False
 
-    bound_levels = [_binds(v, k, c, cy, yr)
-                    for v, k, c, cy, yr in level_claims]
+    bound_levels = [_binds(v, k, c, cy, pr)
+                    for v, k, c, cy, pr in level_claims]
     if not all(bound_levels):
         return False
-    return all(_binds(r, k, c, cy, yr) or any(bound_levels)
-               for r, k, c, cy, yr in rate_claims)
+    return all(_binds(r, k, c, cy, pr) or any(bound_levels)
+               for r, k, c, cy, pr in rate_claims)
 
 
 def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None,

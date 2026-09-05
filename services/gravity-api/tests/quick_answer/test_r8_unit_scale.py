@@ -243,33 +243,30 @@ def test_v29_a_filing_footnote_marker_still_parses_as_a_number():
 # ── V30 — production reads a prose parenthetical as negative. PINNED ──────
 
 
-def test_v30_production_reads_a_positive_aside_as_negative():
+def test_v30_a_prose_aside_is_positive_in_both_layers():
     """
-    PINNED PRODUCTION DEFECT, found by V28 rather than by inspection.
+    V30, found by V28 rather than by inspection, and CLOSED.
 
-    `nli_verifier._parse_financial_number` makes a figure negative whenever an
-    opening paren precedes it, and does not check whether the currency symbol
-    is inside the parens. A filing writes an accounting negative as `(408)`;
-    prose writes a restatement as `($416,161 million)`. Production reads the
-    second as -416,161 million — a correct, positive answer turned into a
-    wrong one, in the layer `citation_verdict` calls to decide support.
+    `nli_verifier._parse_financial_number` made a figure negative whenever an
+    opening paren preceded it, without checking whether the currency symbol was
+    inside the parens. A filing writes an accounting negative as `(408)` or
+    `$(408)`, symbol outside; prose writes a restatement as
+    `($416,161 million)`, symbol inside. Production read the second as
+    -416,161 million -- a correct, positive answer turned into a wrong one, in
+    the layer `citation_verdict` calls to decide support. Measured before the
+    fix:
 
-    Two prior-round grader tests already encode the right reading:
-    `test_a_lone_parenthetical_is_still_the_claim` and
-    `test_a_parenthetical_that_is_the_only_claim_still_counts`. V28 adopted
-    production's rule verbatim, both went red, and that is how this surfaced.
+        _extract_numbers("Net sales ($416,161 million) for the year.")
+          ->  [-416161000000.0]
 
-    The grader now uses the narrower rule. Production is unchanged pending
-    escalation, because it changes what production calls verified.
+    It surfaced because V28 adopted production's rule verbatim and two
+    prior-round grader tests went red -- `test_a_lone_parenthetical_is_still_
+    the_claim` and `test_a_parenthetical_that_is_the_only_claim_still_counts`.
+    Both were right; production was not.
     """
     aside = "Net sales ($416,161 million) for the year."
-    assert -416161e6 in set(_extract_numbers(aside)), (
-        "V30 moved: production no longer reads a prose parenthetical as "
-        "negative. Delete this pin and assert agreement with the grader."
-    )
-    assert 416161e6 not in set(_extract_numbers(aside))
-
-    # The grader reads it correctly, which is the divergence this pin records.
+    assert 416161e6 in set(_extract_numbers(aside))
+    assert -416161e6 not in set(_extract_numbers(aside))
     assert 416161.0 in {v for v, _ in _readings(aside)}
     assert -416161.0 not in {v for v, _ in _readings(aside)}
 
