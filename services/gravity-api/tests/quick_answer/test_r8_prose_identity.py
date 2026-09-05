@@ -128,3 +128,36 @@ def test_absent_fields_are_dropped_rather_than_emptied():
     assert out["ticker"] == "AAPL"
     assert "section" not in out
     assert "page" not in out
+
+
+# ── V35 — a placeholder is not a form ─────────────────────────────────────
+
+
+@pytest.mark.parametrize("placeholder", ["document", "Document", "unknown",
+                                         "other", "file"])
+def test_v35_a_placeholder_form_is_dropped_not_stated(placeholder):
+    """
+    QA-9's corpus pass measured what `filing_type` actually holds:
+
+        454,503 / 478,433  (95%)  'document'
+         23,930 / 478,433   (5%)  a real SEC form
+
+    `document` is what the ingestion writes when it does not know the form.
+    Emitting it would have put a filing-shaped value on 95% of prose citations
+    that names no filing — §2.2's "make the fields non-empty" failure, one
+    field over, in code this round had already shipped.
+    """
+    out = local_payload({**CHUNK, "filing_type": placeholder})
+    assert "form" not in out
+    assert out["ticker"] == "AAPL", "the rest of the identity survives"
+
+
+def test_v35_a_real_form_is_still_stated():
+    """The control. Dropping every form would be the opposite error."""
+    assert local_payload({**CHUNK, "filing_type": "10-Q"})["form"] == "10-Q"
+
+
+def test_v35_a_placeholder_alone_is_not_identity():
+    """A row whose only identity was the placeholder says nothing, so it gets
+    nothing rather than a bare `source_class`."""
+    assert local_payload({"filing_type": "document", "text": "prose"}) == {}

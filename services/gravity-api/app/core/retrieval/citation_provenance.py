@@ -65,6 +65,59 @@ def _clean(value):
     return value if value not in (None, "", [], {}) else None
 
 
+#: R8 QA-9 / roadmap SS9. Which SCOPE a fact has is decided by its XBRL
+#: dimensions, and the taxonomy names the axes, so this is knowable from the
+#: fact itself rather than guessed. It was `"segment" if dims else
+#: "consolidated"` -- two states where SS9 names five -- so a geographic figure
+#: and a DISCONTINUED-OPERATIONS figure both came back `segment`. A discontinued
+#: operation is not a business segment, and an answer citing one for the other
+#: was invisible to everything downstream.
+_GEOGRAPHIC_AXES = ("statementgeographicalaxis", "geographicalaxis",
+                    "geographicareaaxis")
+_DISCONTINUED_MEMBERS = ("discontinuedoperations",)
+_CONTINUING_MEMBERS = ("continuingoperations",)
+
+
+def _scope_of(dims: list) -> str:
+    """The scope a dimensioned fact belongs to, from its axes and members."""
+    if not dims:
+        return "consolidated"
+    axes = " ".join(str(d.get("axis") or "") for d in dims).lower()
+    members = " ".join(str(d.get("member") or "") for d in dims).lower()
+    if any(m in members for m in _DISCONTINUED_MEMBERS):
+        return "discontinued"
+    if any(m in members for m in _CONTINUING_MEMBERS):
+        return "continuing"
+    if any(a in axes for a in _GEOGRAPHIC_AXES):
+        return "geographic"
+    # A dimensioned fact whose axis this does not recognise is still narrower
+    # than consolidated. `segment` claims less than inventing a state for it.
+    return "segment"
+
+
+def _restatement_status(metadata: dict) -> str:
+    """ORIGINAL / RESTATED / AMENDED / UNKNOWN for one fact.
+
+    UNKNOWN is the state this exists for. `provenance` stored
+    `bool(m.get("restated"))`, which made an ABSENT flag indistinguishable from
+    a positive statement that the figure was never restated -- absence of
+    evidence recorded as evidence -- and `payload()` then dropped the field
+    entirely, so an original fact and a restated one produced byte-identical
+    citations.
+
+    AMENDED is read from the FORM, which is a fact about the filing rather than
+    an assertion about the figure. A `restated: False` beside a 10-K/A is a
+    claim about one line item and does not make the filing an original.
+    """
+    form = str(metadata.get("form") or "").strip().upper()
+    if form.endswith("/A"):
+        return "AMENDED"
+    flag = metadata.get("restated")
+    if flag is None:
+        return "UNKNOWN"
+    return "RESTATED" if flag else "ORIGINAL"
+
+
 def provenance(metadata: dict | None, *, ticker: str = "") -> dict | None:
     """
     The canonical evidence object for one passage, or `None` when the passage is
@@ -148,8 +201,9 @@ def provenance(metadata: dict | None, *, ticker: str = "") -> dict | None:
         "evidence_location": _clean(evidence_location(m)),
         "extraction_method": _clean(m.get("extraction_method")),
         "parser_version": _clean(m.get("parser_version")),
-        "scope": "segment" if dims else "consolidated",
+        "scope": _scope_of(dims),
         "restated": bool(m.get("restated")),
+        "restatement_status": _restatement_status(m),
         "is_amendment": bool(m.get("is_amendment")),
         "superseded": _clean(m.get("superseded")),
     }
@@ -334,6 +388,9 @@ def payload(prov: dict | None) -> dict:
         "unit": prov.get("unit"),
         "xbrl_concept": prov.get("xbrl_concept"),
         "scope": prov.get("scope"),
+        # R8 QA-9. Dropped before this, so a restated figure and an
+        # original one reached the citation byte-identical.
+        "restatement_status": prov.get("restatement_status"),
         "dimension": prov.get("dimension"),
         "dimension_value": prov.get("dimension_value"),
         "period_start": prov.get("period_start"),
@@ -556,6 +613,12 @@ def web_payload(prov: dict | None) -> dict:
     return {k: v for k, v in out.items() if v not in ("", None)}
 
 
+#: Values the ingestion writes when it does not know a filing form. They are
+#: not forms, and a citation that states one is claiming to know something
+#: it does not.
+_PLACEHOLDER_FORMS = frozenset({"document", "unknown", "other", "file"})
+
+
 def local_payload(metadata: dict | None) -> dict:
     """
     Where a local corpus passage came from, and nothing more.
@@ -575,11 +638,20 @@ def local_payload(metadata: dict | None) -> dict:
     where it came from; it does not let it claim a filing's authority.
     """
     m = metadata or {}
+    form = str(m.get("filing_type") or m.get("form") or "").strip()
+    if form.lower() in _PLACEHOLDER_FORMS:
+        # R8 QA-9 measured the corpus: 454,503 of 478,433 chunks carry
+        # `filing_type: "document"`, a placeholder the ingestion writes when it
+        # does not know the form. Emitting it as `form` would put a
+        # filing-shaped value on 95% of prose citations that names no filing --
+        # the same "make the fields non-empty" failure SS2.2 warns about, one
+        # field over. Absent is absent.
+        form = ""
     out = {
         "source_class": "LOCAL_EVIDENCE",
         "issuer": _clean(m.get("company") or m.get("issuer")),
         "ticker": _clean((m.get("ticker") or "").upper() or None),
-        "form": _clean(m.get("filing_type") or m.get("form")),
+        "form": _clean(form),
         "filing_date": _clean(m.get("filing_date") or m.get("filed")),
         "document_title": _clean(m.get("document_title")),
         "section": _clean(m.get("section")),
