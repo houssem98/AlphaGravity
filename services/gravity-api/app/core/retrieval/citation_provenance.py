@@ -556,6 +556,43 @@ def web_payload(prov: dict | None) -> dict:
     return {k: v for k, v in out.items() if v not in ("", None)}
 
 
+def local_payload(metadata: dict | None) -> dict:
+    """
+    Where a local corpus passage came from, and nothing more.
+
+    R8 QA-6 measured the corpus this serves: 478,433 prose chunks, of which
+    ZERO carry an accession in any identity field and which have no `metadata`
+    field at all. `provenance()` therefore returned `None` for every one of
+    them and `source_payload()` returned `{}`, so a prose citation reached the
+    UI and the grader with no idea what document it was read from -- though the
+    row itself knows the company, the form, the date, the section and the page.
+
+    Roadmap SS2.2 draws the line this function must not cross: source identity,
+    financial fact identity and verification strength are three separate
+    things. So this carries identity ONLY. No accession, no CIK, no
+    `xbrl_concept`, no value, no filing URL, and the class stays
+    `LOCAL_EVIDENCE`, which `is_primary_class` refuses. It lets a citation say
+    where it came from; it does not let it claim a filing's authority.
+    """
+    m = metadata or {}
+    out = {
+        "source_class": "LOCAL_EVIDENCE",
+        "issuer": _clean(m.get("company") or m.get("issuer")),
+        "ticker": _clean((m.get("ticker") or "").upper() or None),
+        "form": _clean(m.get("filing_type") or m.get("form")),
+        "filing_date": _clean(m.get("filing_date") or m.get("filed")),
+        "document_title": _clean(m.get("document_title")),
+        "section": _clean(m.get("section")),
+        "page": m.get("page") if m.get("page") is not None else None,
+    }
+    out = {k: v for k, v in out.items() if v is not None}
+    # A row that says nothing about its source must not produce an object
+    # asserting that it does. `source_class` alone is not identity.
+    if len(out) == 1:
+        return {}
+    return out
+
+
 def source_payload(metadata: dict | None, *, ticker: str = "") -> dict:
     """
     The provenance payload for one passage, whichever kind of source it is.
@@ -571,7 +608,10 @@ def source_payload(metadata: dict | None, *, ticker: str = "") -> dict:
         return sec
     if m.get("web_evidence") or m.get("source_class") == "WEB_EVIDENCE":
         return web_payload(m)
-    return {}
+    # R8 QA-6. A local corpus passage still knows which document it was read
+    # from, and said nothing at all before this. Last, so an accession or a
+    # web URL always wins: this is the weakest claim, not a default.
+    return local_payload(m)
 
 
 def click_url(metadata: dict | None, *, ticker: str = "", fallback: str = "") -> str:
