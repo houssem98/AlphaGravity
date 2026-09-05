@@ -125,11 +125,9 @@ CASES = [
     # both guards were in fact real. Two guards, two cases.
     ("V27 significant-digit guard (declared-scale path)", "R8",
      "eval/head_to_head/rubric.py",
-     "            if (_sigdigits(got) >= _sigdigits(expected)
-"
+     "            if (_sigdigits(got) >= _sigdigits(expected)\n"
      "                    and abs(got * declared - expected) / abs(expected) <= tol):",
-     "            if (True
-"
+     "            if (True\n"
      "                    and abs(got * declared - expected) / abs(expected) <= tol):",
      "tests/quick_answer/test_r8_unit_scale.py"),
 
