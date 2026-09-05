@@ -107,4 +107,43 @@ FDX_CAPEX = {
     ),
 }
 
-ALL_EXCERPTS = (UAL_RESULTS, LYV_DEFERRED, FDX_CAPEX)
+#: Aflac. The **Aflac Japan Summary of Operating Results** table, verbatim from
+#: the 2026 10-K held at
+#: `data/filings_afl/AFL/2026/AFL_10-K_2026-02-25_0001628280-26-011402.html`,
+#: accession `0001628280-26-011402`.
+#:
+#: This is the only genuinely multi-currency table in the repository's filings,
+#: and it closes three R8 fixture dimensions at once on real data:
+#:
+#: - **currency** — the same metric in USD and JPY, side by side.
+#: - **scale** — the header declares TWO scales in one line, *"(In millions of
+#:   dollars and billions of yen)"*. Every other fixture declares one.
+#: - **scope/segment** — these are Aflac Japan's figures, not consolidated
+#:   Aflac, so a claim about "Aflac" is a scope error even when the number is
+#:   right.
+#:
+#: Net earned premiums 2025 are `$6,744` million **and** `¥1,009` billion. Those
+#: are the same quantity at a 149.32 yen/dollar rate, which the table also
+#: states — so the fixture carries its own arithmetic check.
+AFL_JAPAN_OPERATIONS = {
+    "ticker": "AFL",
+    "issuer": "Aflac Incorporated",
+    "company": "Aflac Incorporated",
+    "document_title": "AFL 10-K 2026-02-25",
+    "filing_date": "2026-02-25",
+    "accession": "0001628280-26-011402",
+    "section": "Aflac Japan Segment — Summary of Operating Results",
+    "source_class": "SEC_EVIDENCE",
+    "text": (
+        "Aflac Japan Summary of Operating Results In Dollars In Yen (In "
+        "millions of dollars and billions of yen) 2025 2024 2025 2024 Net "
+        "earned premiums (1) $ 6,744 $ 6,930 ¥ 1,009 ¥ 1,050 Net investment "
+        "income: (2) Yen-denominated investment income 894 879 134 133 U.S. "
+        "dollar-denominated investment income 1,732 1,849 259 281 Net "
+        "investment income 2,626 2,727 393 414"
+    ),
+}
+
+
+ALL_EXCERPTS = (UAL_RESULTS, LYV_DEFERRED, FDX_CAPEX,
+                AFL_JAPAN_OPERATIONS)

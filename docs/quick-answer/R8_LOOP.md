@@ -232,8 +232,15 @@ Roadmap §9, §10. Consolidated vs segment vs geographic vs continuing vs
 discontinued. `ORIGINAL` / `RESTATED` / `AMENDED` / `UNKNOWN`, and two
 conflicting facts stay `CONFLICTING` rather than collapsing to `VERIFIED`.
 
-**Fails as:** no restated filing in the corpus, in which case QA-2 already said
-so and this half is `BLOCKED` rather than silently untested.
+**Owner decision, QA-1:** there is no amended or restated filing in this
+repository — zero `/A` forms across 1408 manifest rows, and only 20 filing
+files on disk at all. The semantics are built and tested against constructed
+evidence, and the §26 criterion is recorded **`UNPROVEN` on real filing
+data**. One real `10-K/A` in `data/filings*/` upgrades it to `PROVEN` without
+touching the implementation.
+
+**Fails as:** the synthetic evidence quietly becoming the claim, with the
+`UNPROVEN` label dropped from the final report.
 
 ### QA-10 — the atomic claim
 
@@ -309,6 +316,13 @@ mock's self-portrait.
 
 Roadmap §22. Retrieval, generation, provenance construction, FinalGate,
 serialization, cache hit, cache miss, end to end. p50, p95, p99.
+
+**Owner decision, QA-1:** bring up local infrastructure (`make infra`) and
+populate the stores, rather than reporting only the pure stages. That makes
+retrieval, generation and true end-to-end measurable — **locally**. The word
+`local` is required in every number this row publishes, and
+`R8_FINAL_AUDIT.md` must say it too: local hardware with a locally seeded
+store is not the production environment.
 
 **Fails as:** a number from a grader microbenchmark presented as Quick Answer
 latency, or a local number presented as a production one.
@@ -408,3 +422,8 @@ harness report completion — never a `sleep` loop.
 |---|---|---|---|---|---|---|---|---|
 | 0 | — | — | — | BASELINE | 2532 passed / 0 failed | clean | `aa2440c` | n/a |
 | 1 | 0 | §3 | `graph-lint.mjs` could not see `.py` paths or snake_case symbols, so a graph over `services/gravity-api` passed on its section numbers alone | CLOSED | n/a | clean | `15fc5ac` | n/a — checker capability, not a defect fix. Self-check 9/9 still passes and all 8 existing graphs still pass; two gained refs (12→13, 20→24), so the change strictly increased what is checked |
+| 2 | 1 | QA-1 | The real Quick Answer path traced end to end into `docs/quick-answer/R8_DATAFLOW.md`, no code changed | CLOSED | pending | clean | pending | n/a — a trace, not a fix. 19 publication sites in `SearchPipeline.search`, of which **3** are `type="answer"` (751 cache hit, 1327 refusal, 2116 generated) and each has a gate immediately before it (744, 1320, 2107). Recorded **READ, not PROVEN** — QA-13 must execute each path |
+| 3 | 1 | QA-1 | A **fourth** publication path exists: line 794 is a bare `yield event` delegating to `app/core/agents/orchestrator.py`, with no `_gate_check` around it in `search_pipeline.py` | OPEN — outside the scope fence | pending | clean | pending | n/a — measurement. Agentic is not `reasoning_depth="fast"`, so it is out of R8's fence, but the roadmap §15 warning "do not assume there are only three paths" was correct and is recorded rather than absorbed |
+| 4 | 1 | QA-1 | Decider 3 — the fixture corpus is far smaller than the manifests imply | BLOCKED, decided | pending | clean | pending | n/a — measurement. 1408 manifest rows / 218 tickers, but **20 files on disk / 3 tickers** (ZTS, AFL, PNW); 1388 rows point at files not kept. Zero `/A` forms and zero 20-F/40-F/6-K anywhere. Owner decision: restatement semantics built on synthetic evidence and labelled `UNPROVEN` on real data |
+| 5 | 1 | QA-1 | Decider 1 — the real route and the real pipeline are each tested, and never together | OPEN — QA-15 owns it | pending | clean | pending | n/a — measurement. `test_search_stream_contract.py` drives the real WebSocket route but injects `FakePipeline`; `test_quick_answer_pipeline_e2e.py` drives the real `SearchPipeline` with only external boundaries stubbed. §21 forbids replacing the component under test, and `FakePipeline` replaces exactly it |
+| 6 | 1 | QA-1 | Decider 2 — end-to-end latency is not measurable without live stores and a live LLM | RESOLVED by decision | pending | clean | pending | n/a — measurement. Pure stages (provenance, FinalGate, serialization, cache hit/miss) are measurable now; retrieval, generation and true end-to-end are not. Owner decision: bring up local infrastructure and populate it, and label every resulting number `local` |
