@@ -33,12 +33,23 @@ Both sides must now name a currency for the check to fire, which keeps it
 one-directional: it refuses a claim naming the wrong currency and never invents
 one for a claim that names none.
 
-**V27 — filing footnote markers are read as figures, and is NOT fixed here.**
+**V27 — a scaled reading cannot add precision the source never wrote.**
 `(1)` in `Net earned premiums (1)` parses to the number 1.0. Under a billions
-header, `1.0 x 1e9` sits inside the 1% tolerance of `¥1,009 billion`, so the
-thousandfold-wrong yen claim still binds — through a different door than V25.
-It is pinned below with its own reasoning rather than left inside V25's story,
-because a pin that names the wrong cause is worse than no pin.
+header, `1.0 x 1e9` sat inside the 1% tolerance of `¥1,009 billion`, so the
+thousandfold-wrong yen claim bound through a different door than V25 — a
+spurious FIGURE rather than a wrong multiplier, which is why V25's fix could
+not reach it. Measured before the fix:
+
+    ¥1,009 million  (wrong by a factor of 1000)  ->  bound
+
+`_matches` now refuses to apply a scale when the source reading carries fewer
+significant digits than the claim: `1` is not a measurement of `1,009`, however
+close a multiplication brings it.
+
+**V28 — the parse itself is unchanged, and is NOT fixed here.** Footnote
+markers still read as figures, and `(408)` still reads as POSITIVE 408 while
+production's `_extract_numbers` returns -408 for the same text. V27 closed the
+harm those cause on this fixture; it did not close them. Pinned below.
 """
 
 from __future__ import annotations
@@ -48,7 +59,7 @@ import pytest
 from app.core.verification.citation_verdict import (
     currency_of, declared_scale, declared_scales,
 )
-from eval.head_to_head.rubric import _claim_is_bound, _readings
+from eval.head_to_head.rubric import _claim_is_bound, _readings, _sigdigits
 from tests.real_sec_fixtures import (
     AFL_JAPAN_OPERATIONS, LYV_DEFERRED, UAL_RESULTS,
 )
@@ -125,43 +136,58 @@ def test_v26_a_sentence_naming_two_currencies_does_not_guess():
     assert currency_of("revenue rose from $1 million to ¥200 million") == ""
 
 
-# ── V27 — footnote markers are read as figures. PINNED, NOT FIXED ─────────
+# ── V27 — a scaled reading may not invent precision ───────────────────────
 
 
-def test_v27_a_filing_footnote_marker_parses_as_a_number():
+def test_v27_the_thousandfold_wrong_yen_claim_is_refused():
     """
-    PINNED DEFECT. `(1)` and `(2)` are footnote references in a filing table,
-    not quantities. They are read as 1.0 and 2.0.
-
-    Note the second assertion: `(408)` is read as POSITIVE 408 here, so this
-    layer does not apply the accounting-negative convention at all — unlike
-    `citation_verdict._extract_numbers`, which returns -408 for the same text.
-    That divergence is recorded, not fixed, in this row.
-    """
-    assert 1.0 in {v for v, _ in _readings("Net earned premiums (1) $ 6,744")}, (
-        "V27 moved: footnote markers no longer parse as figures. Delete this "
-        "pin and assert the real behaviour."
-    )
-    assert 408.0 in {v for v, _ in _readings("net (408) (928)")}
-
-
-def test_v27_the_thousandfold_wrong_yen_claim_still_binds():
-    """
-    PINNED DEFECT, and the one that costs a user something.
-
-    `¥1,009 million` is wrong by a factor of a thousand. It binds because the
-    footnote marker `(1)` yields the reading 1.0, and under the yen column's
-    billions scale `1.0 x 1e9` is 0.9% away from the claimed `1.009e9` — inside
-    the 1% tolerance. V25's fix corrected the SCALE and could not close this,
-    because the defect is a spurious figure rather than a wrong multiplier.
-
-    Two things would close it, and QA-7 chooses: stop reading footnote markers
-    as figures, or stop letting a one-significant-digit source reading satisfy a
-    four-significant-digit claim.
+    `¥1,009 million` is wrong by a factor of a thousand and bound before the
+    fix, because the footnote marker `(1)` yields the reading 1.0 and under the
+    yen column's billions scale `1.0 x 1e9` is 0.9% from the claimed `1.009e9`
+    — inside the 1% tolerance.
     """
     assert _claim_is_bound(
         "Aflac Japan net earned premiums were ¥1,009 million in 2025 [1].",
-        CITE) is True, (
-        "V27 moved: the thousandfold-wrong yen claim is now refused. Delete "
-        "this pin and assert False."
+        CITE) is False
+
+
+def test_v27_a_precise_source_still_satisfies_a_rounded_claim():
+    """One-directional. The guard refuses a COARSE source against a PRECISE
+    claim, never the reverse — `$6.7 billion` is a fair reading of `6,744` in a
+    millions table, and must stay bound."""
+    assert _claim_is_bound(
+        "Aflac Japan net earned premiums were $6.7 billion in 2025 [1].",
+        CITE) is True
+
+
+@pytest.mark.parametrize("value,want", [
+    (1.0, 1), (1.009e9, 4), (59070.0, 4), (5.907e10, 4), (3582835.0, 7),
+])
+def test_v27_significant_digits_are_counted_from_the_magnitude(value, want):
+    assert _sigdigits(value) == want
+
+
+# ── V28 — the parse is still wrong. PINNED, NOT FIXED ─────────────────────
+
+
+def test_v28_a_filing_footnote_marker_still_parses_as_a_number():
+    """
+    PINNED DEFECT. `(1)` and `(2)` are footnote references in a filing table,
+    not quantities, and are still read as 1.0 and 2.0. V27 stopped the bind
+    they caused here; it did not stop the parse, so a coincidence of the right
+    magnitude could still produce one.
+
+    Second assertion: `(408)` is read as POSITIVE 408, so this layer applies no
+    accounting-negative convention at all — unlike
+    `citation_verdict._extract_numbers`, which returns -408 for the same text.
+    That divergence is recorded, not fixed.
+    """
+    assert 1.0 in {v for v, _ in _readings("Net earned premiums (1) $ 6,744")}, (
+        "V28 moved: footnote markers no longer parse as figures. Delete this "
+        "pin and assert the real behaviour."
+    )
+    assert 408.0 in {v for v, _ in _readings("net (408) (928)")}
+    assert -408.0 not in {v for v, _ in _readings("net (408) (928)")}, (
+        "V28 moved: the grader now reads accounting parentheses as negative. "
+        "Delete this pin and reconcile it with `_extract_numbers`."
     )

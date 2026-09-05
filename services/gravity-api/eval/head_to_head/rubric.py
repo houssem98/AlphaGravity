@@ -551,6 +551,19 @@ def _is_primary(cites: list[dict]) -> bool:
     return False
 
 
+def _sigdigits(v: float) -> int:
+    """How many significant digits a magnitude actually carries.
+
+    V27. `1` and `1,009` are not the same measurement at four digits of
+    precision, however close a scale multiplication brings them.
+    """
+    s = f"{abs(v):.10g}"
+    if "e" in s:
+        s = s.split("e")[0]
+    s = s.replace(".", "").lstrip("0").rstrip("0")
+    return len(s) or 1
+
+
 def _matches(expected: float, text: str, tol: float = 0.01,
              declared: float | None = None) -> bool:
     for got, explicit in _readings(text):
@@ -563,7 +576,8 @@ def _matches(expected: float, text: str, tol: float = 0.01,
             # that and nothing else — not their face value either. A millions
             # table reading `59,070` does not support a claim of $59,070, and
             # allowing the face match let `$59.07 thousand` bind against it.
-            if abs(got * declared - expected) / abs(expected) <= tol:
+            if (_sigdigits(got) >= _sigdigits(expected)
+                    and abs(got * declared - expected) / abs(expected) <= tol):
                 return True
             continue
         if abs(got - expected) / abs(expected) <= tol:
@@ -585,6 +599,14 @@ def _matches(expected: float, text: str, tol: float = 0.01,
         # not three. Leaving it open let `59,070` in a millions table satisfy a
         # claim of `$59.07 million`, so the benchmark reported a
         # thousand-fold-wrong answer as fully supported by the filing.
+        if _sigdigits(got) < _sigdigits(expected):
+            # V27. Scaling a bare reading is reading it, but it cannot ADD
+            # precision the source never wrote. A table's footnote marker `(1)`
+            # parses as 1.0, and multiplying it by a billions header put it
+            # 0.9% from a claimed `1,009 billion` — inside the tolerance, so a
+            # thousandfold-wrong claim bound against a number that was never a
+            # quantity at all.
+            continue
         for scale in ((declared,) if declared else (1e3, 1e6, 1e9)):
             if abs(got * scale - expected) / abs(expected) <= tol:
                 return True
