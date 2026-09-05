@@ -37,9 +37,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
+from app.core.finance.answer_contract import (
+    PRIMARY_ALIASES, SourceClass, is_primary_class,
+)
+
 __all__ = [
     "CoverageStatus", "MemberFinding", "ScopeStatus", "ScopeReport",
-    "Universe", "assess",
+    "Universe", "assess", "is_primary_source_class",
 ]
 
 
@@ -189,7 +193,24 @@ class ScopeReport:
 
 
 #: Source classes that may CONFIRM a claim about a filing's contents.
-PRIMARY_CLASSES = frozenset({"sec_filing", "edgar_text", "edgar", "xbrl"})
+#:
+#: R8 QA-3. This was a frozenset of its own — `{sec_filing, edgar_text, edgar,
+#: xbrl}` — and it did not contain `SEC_EVIDENCE`, which is the string
+#: `citation_provenance.payload()` actually stamps on every SEC citation. A
+#: citation carrying an accession, a CIK and `verification_status: verified`
+#: was therefore classified `SECONDARY_CANDIDATE`, noted as "the filing itself
+#: was not read, so this is a lead rather than a confirmed match".
+#:
+#: It stayed green because `classify_member` is never called from `app/` — only
+#: from tests, which passed the literal `"sec_filing"` they chose themselves.
+#: The consumer had never seen a string a producer emits.
+is_primary_source_class = is_primary_class
+
+#: Kept as a name so callers reading the module see what the predicate covers.
+#: Derived, not declared: there is one definition and this is a view of it.
+PRIMARY_CLASSES = frozenset(
+    c.value for c in SourceClass if is_primary_class(c.value)
+) | PRIMARY_ALIASES
 
 
 def classify_member(
@@ -218,10 +239,10 @@ def classify_member(
         return MemberFinding(company_id, ticker, CoverageStatus.PRIMARY_REFUTED,
                              citations, source_class,
                              note="The filing was read and does not support this.")
-    if supported is True and source_class in PRIMARY_CLASSES:
+    if supported is True and is_primary_source_class(source_class):
         return MemberFinding(company_id, ticker, CoverageStatus.PRIMARY_CONFIRMED,
                              citations, source_class)
-    if source_class and source_class not in PRIMARY_CLASSES:
+    if source_class and not is_primary_source_class(source_class):
         note = ("Reported by a secondary source; the filing itself was not "
                 "read, so this is a lead rather than a confirmed match.")
         if not primary_available:

@@ -56,6 +56,7 @@ from app.core.verification.citation_verdict import (
     _periods, _periods_disagree, column_years, currencies_in, currency_of,
     declared_scale, declared_scales,
 )
+from app.core.finance.answer_contract import is_primary_class
 
 __all__ = [
     "DIMENSIONS", "Dimension", "Scorecard", "blind_pairs", "score_answer",
@@ -446,9 +447,12 @@ def _period_misattributed(text: str, token: str,
 #: this set asserting the opposite, so the benchmark handed out primary credit
 #: for evidence the system itself refuses. A grader more permissive than the
 #: thing it grades cannot certify it.
-_PRIMARY_CLASS_NAMES = frozenset({
-    "sec_filing", "sec_xbrl", "edgar", "edgar_text", "sec_evidence",
-})
+#: R8 QA-3. `edgar` and `edgar_text` were here too. They are CHANNEL names —
+#: `ChannelReport("edgar_text", ...)` — and no producer stamps them as a
+#: `source_class`, so the grader was granting primary credit on a category
+#: error. There is now one predicate, in production, and this delegates to it:
+#: a grader that decides primacy by its own rules cannot certify the system.
+_is_primary_class_name = is_primary_class
 
 #: `structured` is conditional, which is why it is not in the set above.
 #:
@@ -567,7 +571,7 @@ def _entity_is_bound(token: str, cites: list[dict]) -> bool | None:
 def _is_primary(cites: list[dict]) -> bool:
     for c in cites:
         cls = str(c.get("source_class", "")).strip().lower()
-        if cls in _PRIMARY_CLASS_NAMES:
+        if _is_primary_class_name(cls):
             return True
         if cls == "structured" and \
                 str(c.get("id") or "").strip().lower().endswith(_XBRL_ID_SUFFIX):

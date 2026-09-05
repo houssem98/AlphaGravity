@@ -448,18 +448,34 @@ def test_an_answer_that_never_declines_fails_even_with_no_figure():
 
 
 @pytest.mark.parametrize("cls", [
-    "SEC_EVIDENCE", "sec_evidence", "sec_filing",
-    "sec_xbrl", "edgar", "edgar_text",
+    "SEC_EVIDENCE", "sec_evidence", "sec_filing", "sec_xbrl",
 ])
 def test_the_pipelines_real_evidence_class_names_count_as_primary(cls):
     """
     Bug 3: the rubric knew `answer_contract.SourceClass` names and the pipeline
     emits `research.evidence` names, so every real SEC citation scored as
     non-primary — the grader reporting its own vocabulary gap as a system fault.
+
+    R8 QA-3 removed `edgar` and `edgar_text` from this list. This docstring
+    names `research.evidence` as the pipeline's vocabulary, and that module
+    defines exactly three names — `SEC_EVIDENCE`, `LOCAL_EVIDENCE`,
+    `WEB_EVIDENCE`. Neither `edgar` nor `edgar_text` is among them; both are
+    channel names. The test asserted as "the pipeline's real evidence class
+    names" two strings its own cited source does not contain. They are asserted
+    below instead, in the direction that is true.
     """
     c = score_answer(BY_ID["aapl-fy2025-revenue"], "$416,161 million [1].",
                      citations=[{"source_class": cls}])
     assert c.scores["evidence"] == 1.0, c.notes.get("evidence")
+
+
+@pytest.mark.parametrize("cls", ["edgar", "edgar_text"])
+def test_a_channel_name_does_not_earn_primary_credit(cls):
+    """R8 QA-3. A grader that hands out primary credit for a channel name is
+    more permissive than the system it grades."""
+    c = score_answer(BY_ID["aapl-fy2025-revenue"], "$416,161 million [1].",
+                     citations=[{"source_class": cls}])
+    assert c.scores["evidence"] != 1.0
 
 
 @pytest.mark.parametrize("cls", ["LOCAL_EVIDENCE", "local_evidence"])

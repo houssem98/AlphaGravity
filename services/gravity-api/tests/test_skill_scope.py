@@ -73,10 +73,38 @@ def test_a_secondary_only_claim_stays_a_candidate_even_with_no_primary():
     assert "no primary filing was available" in f.note
 
 
-@pytest.mark.parametrize("cls", ["sec_filing", "edgar_text", "edgar", "xbrl"])
+@pytest.mark.parametrize("cls", [
+    "sec_filing", "sec_xbrl", "SEC_EVIDENCE", "sec_evidence",
+])
 def test_every_primary_class_can_confirm(cls):
+    """
+    R8 QA-3. `SEC_EVIDENCE` is new here and is the important one: it is what
+    `citation_provenance.payload()` actually stamps on every SEC citation, and
+    this module did not recognise it, so a real 10-K was classified
+    SECONDARY_CANDIDATE. `sec_xbrl` is the enum's own member, also absent
+    before.
+    """
     f = classify_member("cik:7", source_class=cls, supported=True)
     assert f.status is CoverageStatus.PRIMARY_CONFIRMED
+
+
+@pytest.mark.parametrize("cls", ["edgar", "edgar_text", "xbrl"])
+def test_a_channel_name_is_not_an_evidence_class(cls):
+    """
+    R8 QA-3, and the inverse of what this file asserted before.
+
+    `edgar` and `edgar_text` are CHANNEL names — `ChannelReport("edgar_text",
+    ...)` in `skills/sentiment_skill.py` — and no producer in this repository
+    stamps either as a `source_class`. `xbrl` is a `source_type` from
+    `core/source_tier.py`; the evidence class is `sec_xbrl`.
+
+    They were in this module's primary set, so a channel name conferred
+    PRIMARY_CONFIRMED while the string the provenance layer really stamps did
+    not. The assertion is inverted rather than deleted: these names must now be
+    positively refused, which is a stronger claim than the one it replaces.
+    """
+    f = classify_member("cik:7", source_class=cls, supported=True)
+    assert f.status is not CoverageStatus.PRIMARY_CONFIRMED
 
 
 @pytest.mark.parametrize("cls", ["news", "blog", "analyst", "web", "transcript"])

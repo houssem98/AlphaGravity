@@ -86,14 +86,33 @@ PRIMARY = frozenset({SourceClass.SEC_FILING, SourceClass.SEC_XBRL})
 PRIMARY_ALIASES = frozenset({"SEC_EVIDENCE"})
 
 
+#: Every spelling of "this came from a filing", folded to lowercase once.
+#:
+#: R8 QA-3. Five lists described this one idea: the enum above, the wire
+#: vocabulary, `skills/scope.PRIMARY_CLASSES`, `eval/head_to_head/rubric.
+#: _PRIMARY_CLASS_NAMES`, and `source_tier._TIER`. The middle two each carried
+#: `edgar` and `edgar_text` — which are CHANNEL names, not evidence classes,
+#: and which no producer in this repository stamps as a `source_class` — and
+#: `xbrl`, which is a `source_type`; the class is `sec_xbrl`. Those are dropped
+#: rather than blessed, because a canonical mapping that lists channel names as
+#: evidence classes has recorded the confusion instead of resolving it.
+#:
+#: This function is now the ONLY definition. `scope` and `rubric` delegate to
+#: it, so no consumer can interpret another producer's string its own way.
+_PRIMARY_LOWER = frozenset(
+    {c.value.lower() for c in PRIMARY} | {a.lower() for a in PRIMARY_ALIASES}
+)
+
+
 def is_primary_class(source_class: str) -> bool:
     """True if `source_class` names a filed, authoritative source.
 
-    Accepts either vocabulary. Anything unrecognised is not primary — an
+    Accepts either vocabulary, in either case: the wire stamps `SEC_EVIDENCE`
+    and the grader lowercases before it compares, so both spellings reach this
+    predicate and both must resolve. Anything unrecognised is not primary — an
     unknown class is an unproven one.
     """
-    s = str(source_class or "")
-    return s in {c.value for c in PRIMARY} or s in PRIMARY_ALIASES
+    return str(source_class or "").strip().lower() in _PRIMARY_LOWER
 
 
 @dataclass(frozen=True)
