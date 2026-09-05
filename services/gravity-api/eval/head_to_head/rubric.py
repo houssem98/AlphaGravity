@@ -53,7 +53,8 @@ from dataclasses import dataclass, field
 #: must read identically or the grader cannot see what the system saw.
 from app.core.finance.query_plan import _METRIC_RES
 from app.core.verification.citation_verdict import (
-    currencies_in, currency_of, declared_scale, declared_scales,
+    _periods, column_years, currencies_in, currency_of, declared_scale,
+    declared_scales,
 )
 
 __all__ = [
@@ -902,8 +903,8 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
     if not usable:
         return None
 
-    level_claims: list[tuple[set[float], set[str], list[str], str]] = []
-    rate_claims: list[tuple[set[float], set[str], list[str], str]] = []
+    level_claims: list[tuple[set[float], set[str], list[str], str, set]] = []
+    rate_claims: list[tuple[set[float], set[str], list[str], str, set]] = []
     for sentence in re.split(r"(?<=[.!?])\s+|\n", text or ""):
         levels, rates = _asserted_split(sentence)
         keys = _metric_keys(sentence)
@@ -912,20 +913,51 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
         # more than one. Carried per sentence rather than per figure because
         # that is the granularity `_asserted_split` already works at.
         ccy = currency_of(sentence)
+        # V17. The fiscal years the SENTENCE names, read with production's own
+        # parser so both layers agree on what counts as naming a period. Bare
+        # `2025` is deliberately not one: it is far more often a quantity or a
+        # citation than a period, and treating it as a claim about a year would
+        # make the check fire on sentences that assert nothing about time.
+        years = {y for y, _ in _periods(sentence)}
         if levels:
             # A claim's own rates count toward binding it; a margin sentence
             # that also quotes the level it came from is bound by either.
-            level_claims.append((levels | rates, keys, cited, ccy))
+            level_claims.append((levels | rates, keys, cited, ccy, years))
         elif rates:
-            rate_claims.append((rates, keys, cited, ccy))
+            rate_claims.append((rates, keys, cited, ccy, years))
 
     # A sentence asserting no figure is not an unsupported claim — it is not a
     # claim. If none of them assert one, the question cannot be asked.
     if not level_claims and not rate_claims:
         return None
 
+    def _column_verdict(span: str, cols: list[int], values: set[float],
+                        years: set, declared: float | None):
+        """Whether the claimed figure sits in the claimed year's column.
+
+        `None` means no opinion — the row does not line up with the header, or
+        the header covers no year the claim names — and the caller falls back
+        to the period-blind match. Only a positive misalignment returns False,
+        which keeps the check one-directional in the same way the currency and
+        metric checks are.
+
+        Every index whose header year matches is tried, not just the first: a
+        table may print the same year twice, as Aflac's does for its dollar and
+        yen pairs, and the figure may legitimately sit in either.
+        """
+        figs = [m.group(0) for m in _NUM.finditer(span)]
+        if len(figs) != len(cols):
+            return None
+        idxs = [i for i, y in enumerate(cols) if y in years]
+        if not idxs:
+            return None
+        return any(_matches(v, figs[i], declared=declared)
+                   for v in values for i in idxs)
+
     def _binds(values: set[float], keys: set[str],
-               candidates: list[str], ccy: str = "") -> bool:
+               candidates: list[str], ccy: str = "",
+               years: set | None = None) -> bool:
+        years = years or set()
         for e in candidates:
             # V14. Read from the whole excerpt, because a table declares its
             # scale in the header while a metric's span starts at the metric's
@@ -945,6 +977,18 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
             src_ccy = currencies_in(e)
             if ccy and src_ccy and ccy not in src_ccy:
                 continue
+            # V17. A filing prints its years across a header and its figures
+            # under them, so which year a number belongs to is carried by
+            # column position and by nothing else. The binding path ignored
+            # periods entirely — the machinery in this file fed the
+            # `period_entity` SCORE and was never consulted here — so a real
+            # figure from the 2024 column bound to an FY2025 claim, which is
+            # the most reachable way to be wrong about a filing while quoting
+            # it accurately.
+            cols = column_years(e)
+            if years and len(cols) >= 2 and not (years & set(cols)):
+                # The table says which years it covers, and this is not one.
+                continue
             # U3. When the excerpt speaks about the metric this claim names,
             # it binds only if it associates the claimed VALUE with that
             # metric. An excerpt saying revenue was $120 billion is evidence
@@ -952,6 +996,15 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
             # the claim is what the audit found.
             spans = [s for k in keys for s in (_metric_spans(e, k) or [])]
             if spans:
+                if years and len(cols) >= 2:
+                    opinions = [_column_verdict(s, cols, values, years, declared)
+                                for s in spans]
+                    if any(o is True for o in opinions):
+                        return True
+                    if any(o is False for o in opinions):
+                        # Positively in the wrong column. Falling through to
+                        # the period-blind match here would undo the check.
+                        continue
                 if any(_matches(v, s, declared=declared)
                        for v in values for s in spans):
                     return True
@@ -962,11 +1015,12 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
                 return True
         return False
 
-    bound_levels = [_binds(v, k, c, cy) for v, k, c, cy in level_claims]
+    bound_levels = [_binds(v, k, c, cy, yr)
+                    for v, k, c, cy, yr in level_claims]
     if not all(bound_levels):
         return False
-    return all(_binds(r, k, c, cy) or any(bound_levels)
-               for r, k, c, cy in rate_claims)
+    return all(_binds(r, k, c, cy, yr) or any(bound_levels)
+               for r, k, c, cy, yr in rate_claims)
 
 
 def score_answer(case: dict, answer: str, *, citations: list[dict] | None = None,

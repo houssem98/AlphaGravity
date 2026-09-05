@@ -55,9 +55,37 @@ _PROSE_QUARTER = re.compile(
 _PROSE_FY = re.compile(r"\bfiscal\s+(?:year\s+)?(\d{4})\b", re.IGNORECASE)
 
 
+# A filing table prints the years it covers as a bare run across the header —
+# `(in millions) 2025 2024 2023` — and no FY / quarter / "fiscal" token appears
+# anywhere in it. `_periods` recognised only the token forms, so a comparative
+# table named NO periods at all, the source set came back empty, and the filing
+# date below became the only entry in it. That turned Layer C from "one side
+# names none, no decision" into "none line up, mismatch", and reported a
+# correct FY2025 answer as a period conflict (V31).
+#
+# A run, not a lone year, because a single 4-digit number in prose is far more
+# often a quantity or a citation than a period.
+_YEAR_RUN = re.compile(r"(?:\b(?:19|20)\d{2}\b\s*){2,}")
+_YEAR_TOK = re.compile(r"\b((?:19|20)\d{2})\b")
+
+
+def column_years(text: str) -> list[int]:
+    """The years a table header prints across its columns, left to right.
+
+    Ordered and duplicate-preserving: Aflac's Japan table prints
+    `2025 2024 2025 2024` for its dollar and yen pairs, and the position of
+    each is what says which column a figure belongs to. The evaluator reads
+    the same list for the same reason, so there is one definition of what a
+    table's columns mean.
+    """
+    m = _YEAR_RUN.search(text or "")
+    return [int(y) for y in _YEAR_TOK.findall(m.group())] if m else []
+
+
 def _periods(text):
     """Every period a piece of text names, as (year, quarter or None)."""
     out = set(_extract_year_quarter(text or ""))
+    out.update((y, None) for y in column_years(text))
     for m in _PROSE_QUARTER.finditer(text or ""):
         out.add((int(m.group(2)), _ORDINAL_Q[m.group(1).lower()]))
     for m in _PROSE_FY.finditer(text or ""):
