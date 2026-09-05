@@ -849,7 +849,16 @@ def _metric_spans(excerpt: str, key: str) -> list[str] | None:
     )
     spans = []
     for h in hits:
-        nxt = next((s for s in starts if s > h.start()), len(excerpt))
+        # V39. The next metric begins after this metric's NAME ends, not
+        # anywhere after its start. `Operating income` contains `income`, which
+        # is itself a metric, so a boundary landed at offset 10 INSIDE the name
+        # and the span collapsed to `'Operating '` -- no figures, dropped, and
+        # `_metric_spans` returned None for a metric plainly present in the
+        # table. `_binds` then fell to its no-span path and searched the WHOLE
+        # excerpt, so a claim about operating income bound against the
+        # income-before-taxes row sitting beside it. Every metric whose name
+        # contains another metric's name was silently unconstrained.
+        nxt = next((s for s in starts if s >= h.end()), len(excerpt))
         span = excerpt[h.start():nxt]
         if numbers_in(span):
             spans.append(span)
