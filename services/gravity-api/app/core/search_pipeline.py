@@ -2086,7 +2086,16 @@ class SearchPipeline:
             # Enrich citations to the frontend shape (document_title/chunk_id/
             # ticker) by joining to the retrieved passages, so the source panel
             # has real content to display.
-            citations_out = _normalize_citations(citations_out, top_passages)
+            # V34. What the question resolved to, so a citation can be
+            # checked against the company the ANSWER is about rather than
+            # against the passage it came from.
+            _scope_tickers = frozenset(
+                str(_c.get("ticker") or "").strip().upper()
+                for _c in (query_plan.get("entities", {}).get("companies") or [])
+                if isinstance(_c, dict) and _c.get("ticker")
+            ) - {""}
+            citations_out = _normalize_citations(
+                citations_out, top_passages, _scope_tickers)
             # Resilience: model drops follow_up_queries under rate-limit → "no next
             # question" in the UI. Fall back to deterministic suggestions.
             if not follow_up_queries:
@@ -2759,7 +2768,9 @@ def audit_answer_state(citations: list) -> str:
     return "ANSWERED"
 
 
-def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
+def _normalize_citations(raw_citations: list, passages: list,
+                         scope_tickers: frozenset[str] = frozenset(),
+                         ) -> list[dict]:
     """
     Enrich citations into the shape the frontend expects
     ({citation_number, chunk_id, text, document_title, ticker, section,
@@ -2805,6 +2816,23 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
         seen.add(key)
 
         _tk = c.get("ticker") or _pf("ticker")
+        # V34. The entity layer in `citation_verdict` compares the citation's
+        # ticker with the passage's, and `_tk` above FALLS BACK to the
+        # passage's own — so when the model's citation carries no ticker, which
+        # is the normal case, the comparison was `x != x` and could never fire.
+        # A claim about Microsoft cited to Apple's filing returned `verified`.
+        #
+        # `scope_tickers` is what the QUESTION resolved to, which is the third
+        # party the comparison was missing. A set rather than one ticker
+        # because a comparison query is legitimately about several companies,
+        # and a passage belonging to any of them is in scope.
+        _ptk = (_pf("ticker") or "").strip().upper()
+        _verdict_tk = _tk
+        if scope_tickers and _ptk and _ptk not in scope_tickers:
+            # This passage belongs to a company the question is not about.
+            # Any in-scope ticker makes the mismatch visible to the layer;
+            # sorted for determinism rather than for meaning.
+            _verdict_tk = sorted(scope_tickers)[0]
         _sec = c.get("section") or _pf("section")
         _ftype = c.get("document_type") or _pf("document_type") or _pf("filing_type")
         # The filing identity the SEC channel already resolved. It lives on the
@@ -2846,7 +2874,8 @@ def _normalize_citations(raw_citations: list, passages: list) -> list[dict]:
         # its passage.
         _model_entailed = c.get("entailed", c.get("is_verified"))
         _verdict = citation_verdict.verdict_for_citation(
-            {"citation_number": num, "chunk_id": chunk_id, "text": text, "ticker": _tk},
+            {"citation_number": num, "chunk_id": chunk_id, "text": text,
+             "ticker": _verdict_tk},
             passages or [],
             model_entailed=(bool(_model_entailed) if _model_entailed is not None else None),
         )
