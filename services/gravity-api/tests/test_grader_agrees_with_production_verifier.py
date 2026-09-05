@@ -340,7 +340,13 @@ def test_the_grader_is_never_laxer_than_production_on_edges(name):
 #: figure binds the whole sentence. Production does return `conflicting`, but
 #: for V19's reason and not for this one: it rejects the true wiring in exactly
 #: the same way, so it is not evidence that this error was noticed.
-KNOWN_SHARED_EDGE_GAPS = {"edge-metric-figure-transposed"}
+#: EMPTY since R8 QA-10. `edge-metric-figure-transposed` was recorded here
+#: for exactly the reason V38 removed: the comment above names the T9
+#: caveat — a true figure beside a transposed one bound the whole sentence
+#: because `_binds` asked for ANY match. Every asserted figure must now be
+#: grounded, so the transposed edge is caught. The rig predicted the cause
+#: and then reported its own closure.
+KNOWN_SHARED_EDGE_GAPS: set[str] = set()
 
 
 @pytest.mark.parametrize("name", sorted(_EDGE_MUTATIONS))

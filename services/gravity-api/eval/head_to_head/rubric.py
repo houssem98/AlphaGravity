@@ -926,7 +926,15 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
         if levels:
             # A claim's own rates count toward binding it; a margin sentence
             # that also quotes the level it came from is bound by either.
-            level_claims.append((levels | rates, keys, cited, ccy, periods))
+            # V38. LEVELS only. The rates were merged in here because
+            # `_binds` asked for ANY match, so adding them could only help a
+            # sentence bind. Now that every asserted figure must be grounded,
+            # merging them would REQUIRE a growth rate to appear literally in
+            # the filing — "$59,070 million, up 4%" would need a bare 4 in the
+            # table — and a rate is a statement about two figures rather than a
+            # figure the source states. Rates keep their own, weaker treatment
+            # below.
+            level_claims.append((levels, keys, cited, ccy, periods))
         elif rates:
             rate_claims.append((rates, keys, cited, ccy, periods))
 
@@ -934,6 +942,33 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
     # claim. If none of them assert one, the question cannot be asked.
     if not level_claims and not rate_claims:
         return None
+
+    def _all_grounded(values: set[float], texts: list[str],
+                      declared: float | None) -> bool:
+        """Every figure the sentence asserts is found, not merely one of them.
+
+        V38, and the T9 caveat this file has carried since round 4. `_binds`
+        asked whether ANY asserted value appeared, so a sentence stating one
+        real figure and one fabricated one bound on the strength of the real
+        one — including when the fabricated figure was the headline and the
+        true one was the comparative:
+
+            "operating revenue was $99,999 million in FY2025 and
+             $57,063 million in FY2024"          -> bound
+
+        A sentence asserting N figures asserts all N. That is a rule about what
+        a sentence MEANS, which is what roadmap §5 asks for; a fix made of
+        punctuation would be the wrong shape for it.
+
+        `_asserted_split` already does the work that makes this safe: years are
+        not levels, percentages are rates and graded separately, and a
+        restatement of one quantity at two scales — `$59.07 billion ($59,070
+        million)` — collapses to a single value rather than two.
+        """
+        return all(
+            any(_matches(v, t, declared=declared) for t in texts)
+            for v in values
+        )
 
     def _column_verdict(span: str, cols: list[int], values: set[float],
                         years: set, declared: float | None):
@@ -955,8 +990,15 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
         idxs = [i for i, y in enumerate(cols) if y in years]
         if not idxs:
             return None
-        return any(_matches(v, figs[i], declared=declared)
-                   for v in values for i in idxs)
+        # V38. EVERY figure the sentence asserts must sit in one of the columns
+        # it names, not merely one of them. With `any` here, a sentence pairing
+        # a real figure with a fabricated one bound on the strength of the real
+        # one, and this path returned True before the same check downstream
+        # could refuse it.
+        return all(
+            any(_matches(v, figs[i], declared=declared) for i in idxs)
+            for v in values
+        )
 
     def _binds(values: set[float], keys: set[str],
                candidates: list[str], ccy: str = "",
@@ -1017,13 +1059,12 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
                         # Positively in the wrong column. Falling through to
                         # the period-blind match here would undo the check.
                         continue
-                if any(_matches(v, s, declared=declared)
-                       for v in values for s in spans):
+                if _all_grounded(values, spans, declared):
                     return True
                 # It states a different value for this metric. Another excerpt
                 # may still bind the claim — the refusal is per-excerpt.
                 continue
-            if any(_matches(v, e, declared=declared) for v in values):
+            if _all_grounded(values, [e], declared):
                 return True
         return False
 
