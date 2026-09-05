@@ -126,6 +126,17 @@ def _scalars(pat: re.Pattern, text: str) -> set[float]:
 class CitationVerdict:
     status: str
     reasons: list[str] = field(default_factory=list)
+    #: R8 QA-17 / roadmap SS23. WHAT MATCHED, not only what failed.
+    #:
+    #: `reasons` names a conflict when there is one, so a rejected citation
+    #: could always be explained. A VERIFIED one could not: nothing said which
+    #: period was checked, which entity was compared, or which metric span
+    #: grounded the figure, so "why was this verified" had no answer beyond
+    #: `numeric_grounded_in_source`. That is the half SS23 asks for.
+    #:
+    #: Telemetry only. Nothing reads it to decide a verdict, and adding a key
+    #: here can never change one.
+    matched: dict = field(default_factory=dict)
 
     @property
     def is_verified(self) -> bool:
@@ -457,10 +468,17 @@ def verdict_for_citation(
     conflicts: list[str] = []
 
     # ── Layer C: entity ─────────────────────────────────────────────────
+    matched: dict = {}
     cited_ticker = (citation.get("ticker") or "").strip().upper()
     passage_ticker = (getattr(passage, "ticker", "") or "").strip().upper()
     if cited_ticker and passage_ticker and cited_ticker != passage_ticker:
         conflicts.append("entity_mismatch")
+    elif cited_ticker and passage_ticker:
+        matched["entity"] = passage_ticker
+    elif not (cited_ticker and passage_ticker):
+        # Recorded as the third state rather than left blank: the check did not
+        # run, which is not the same as having passed.
+        matched["entity"] = "UNKNOWN"
 
     # ── Layer C: period ─────────────────────────────────────────────────
     # Only a decision when both sides actually name a period. A claim that names
@@ -476,6 +494,12 @@ def verdict_for_citation(
     ) | fact_periods(citation)
     if _periods_disagree(claim_periods, src_periods):
         conflicts.append("period_mismatch")
+    elif claim_periods and src_periods:
+        matched["period"] = sorted(
+            f"{y}" + (f"Q{q}" if q else "") for y, q in claim_periods & src_periods
+        ) or sorted(f"{y}" + (f"Q{q}" if q else "") for y, q in claim_periods)
+    else:
+        matched["period"] = "UNKNOWN"
 
     # ── Layer D: units — percent vs percentage points ───────────────────
     claim_pp, claim_pct = _scalars(_PCT_POINT, claim), _scalars(_PCT, claim)
@@ -521,6 +545,12 @@ def verdict_for_citation(
     # rather than an empty list for "its highest revenue ever", so naming a
     # metric without stating its value cannot narrow the search to nothing.
     _claim_metrics = metric_keys(claim)
+    if _claim_metrics:
+        matched["metric"] = sorted(_claim_metrics)
+    else:
+        # V16's class: the claim names no metric this vocabulary knows, so the
+        # search was not narrowed. Saying so is the point of this field.
+        matched["metric"] = "UNKNOWN"
     _metric_text = " ".join(
         sp for k in _claim_metrics for sp in (metric_spans(source_text, k) or [])
     )
@@ -611,13 +641,14 @@ def verdict_for_citation(
             conflicts.append("numeric_not_in_source")
 
     if conflicts:
-        return CitationVerdict(CONFLICTING, sorted(set(conflicts)))
+        return CitationVerdict(CONFLICTING, sorted(set(conflicts)), matched)
 
     # ── Resolution ──────────────────────────────────────────────────────
     if numeric_checked and partial:
         return CitationVerdict(
             PARTIALLY_SUPPORTED,
             ["some_claim_figures_not_in_cited_source"],
+            matched,
         )
 
     if numeric_checked:
@@ -626,11 +657,15 @@ def verdict_for_citation(
         if model_entailed is False:
             # Deterministic layers agree, the model does not. Say so rather than
             # picking a winner.
-            return CitationVerdict(PARTIALLY_SUPPORTED, reasons + ["model_reported_not_entailed"])
-        return CitationVerdict(VERIFIED, reasons)
+            return CitationVerdict(
+                PARTIALLY_SUPPORTED,
+                reasons + ["model_reported_not_entailed"], matched)
+        return CitationVerdict(VERIFIED, reasons, matched)
 
     # No numeric claim to check deterministically. The model's entailment call is
     # then the only evidence, and it is not enough on its own to say "verified".
     if model_entailed:
-        return CitationVerdict(PARTIALLY_SUPPORTED, ["model_entailed_only"])
-    return CitationVerdict(PARTIALLY_SUPPORTED, ["resolved_but_uncorroborated"])
+        return CitationVerdict(PARTIALLY_SUPPORTED, ["model_entailed_only"],
+                               matched)
+    return CitationVerdict(PARTIALLY_SUPPORTED,
+                           ["resolved_but_uncorroborated"], matched)

@@ -2891,6 +2891,9 @@ def _normalize_citations(raw_citations: list, passages: list,
             "is_verified": _verdict.is_verified,
             "verification_status": _verdict.status,
             "verification_reasons": _verdict.reasons,
+            # R8 QA-17. What MATCHED, so a verified citation can be
+            # explained and not only a rejected one.
+            "verification_matched": _verdict.matched,
             # … plus REST SearchResponse.Citation required fields (id, source).
             "id": num,
             "source": doc_title,
