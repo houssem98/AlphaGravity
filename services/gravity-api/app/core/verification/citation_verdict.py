@@ -18,6 +18,7 @@ import re
 from dataclasses import dataclass, field
 
 from app.core.reasoning.temporal_verifier import _extract_year_quarter
+from app.core.verification.metric_spans import metric_keys, metric_spans
 from app.core.verification.nli_verifier import _extract_numbers, close_enough
 
 # Verdicts, ordered from strongest to weakest claim of support.
@@ -506,8 +507,27 @@ def verdict_for_citation(
         n for n in _extract_numbers(_scrub(claim))
         if n not in (claim_pp | claim_pct) and not _is_bare_year(n)
     ]
+    # V41. Ground against the part of the passage that speaks about the metric
+    # the CLAIM names, not against every number in it. Grounding by set
+    # membership certified a claim of "operating revenue was $54,356 million"
+    # against a passage reading "Operating revenue $ 59,070  Operating expense
+    # 54,356" -- the figure is real and belongs to the expense row -- because
+    # the contradiction scan below only runs when a claim is PARTIALLY
+    # grounded, and a fully grounded but misattributed claim never reached it.
+    #
+    # Fail-open, deliberately and in two ways: a claim naming no metric this
+    # vocabulary knows, and a passage with no numbered span for that metric,
+    # both fall back to the whole passage. `metric_spans` already returns None
+    # rather than an empty list for "its highest revenue ever", so naming a
+    # metric without stating its value cannot narrow the search to nothing.
+    _claim_metrics = metric_keys(claim)
+    _metric_text = " ".join(
+        sp for k in _claim_metrics for sp in (metric_spans(source_text, k) or [])
+    )
+    _numeric_source = _metric_text or source_text
     src_nums = [
-        n for n in _extract_numbers(_scrub(source_text)) if not _is_bare_year(n)
+        n for n in _extract_numbers(_scrub(_numeric_source))
+        if not _is_bare_year(n)
     ]
     # Numbers the claim states a unit for. Those are held to the literal value;
     # the rest may take their scale from a table header the passage does not

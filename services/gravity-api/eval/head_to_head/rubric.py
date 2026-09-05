@@ -52,6 +52,15 @@ from dataclasses import dataclass, field
 #: as evidence), while a metric lexicon is a shared vocabulary that both sides
 #: must read identically or the grader cannot see what the system saw.
 from app.core.finance.query_plan import _METRIC_RES
+# R8 QA-12. Both layers need the same answer about which part of a passage
+# speaks about which metric, and only this one had it. Production owns the
+# definition now, as it already does for `declared_scale`, `column_years`
+# and `_periods`, so the two cannot drift into disagreeing about a passage.
+from app.core.verification.metric_spans import (
+    ROW_LABEL as _ROW_LABEL,
+    metric_keys as _metric_keys,
+    metric_spans as _metric_spans,
+)
 from app.core.verification.citation_verdict import (
     _periods, _periods_disagree, column_years, currencies_in, currency_of,
     declared_scale, declared_scales,
@@ -744,26 +753,6 @@ def _asserted_split(text: str) -> tuple[set[float], set[float]]:
 #: A citation marker as answers write them: `[1]`, `[2][3]`.
 _CITE_MARKER = re.compile(r"\[(\d{1,3})\]")
 
-#: Nouns that start a new line item in a financial table (V12).
-#:
-#: A BOUNDARY DETECTOR, not a vocabulary. It names no metric, maps to no key,
-#: and nothing is ever classified by it — it only marks where one row's figures
-#: stop belonging to the row above. That distinction is why this is not the
-#: parallel-vocabulary mistake of R14, T1 and T2.
-#:
-#: It exists because real filings flatten to prose like
-#: `"Operating revenue $ 59,070 $ 57,063 Operating expense 54,356 51,967"`, and
-#: `operating expense` is not in the metric lexicon, so revenue's span ran on
-#: and swallowed the expense row. Invented fixtures hid this by putting the
-#: competing label BEFORE the claimed metric, where ordering happened to save
-#: it. A real United Airlines table put it after.
-_ROW_LABEL = re.compile(
-    r"\b(?:expenses?|costs?|margins?|incomes?|losses|loss|assets|"
-    r"liabilities|equity|cash|taxes|tax|earnings|shares)\b",
-    re.I,
-)
-
-
 def _cited_excerpts(sentence: str, usable: list[tuple[int, str]],
                     n_cites: int) -> list[str]:
     """
@@ -804,65 +793,6 @@ def _cited_excerpts(sentence: str, usable: list[tuple[int, str]],
         # V22. Every marker names a citation the answer does not have.
         return []
     return [e for _, e in usable]
-
-
-def _metric_keys(text: str) -> set[str]:
-    """Metric keys `text` names, using production's vocabulary (U3).
-
-    Consumes each matched span the way `query_plan._metrics_in` does, so the
-    `margin` inside `gross margin` cannot also register as a second metric.
-    """
-    keys: set[str] = set()
-    t = text or ""
-    for key, _label, _basis, rx in _METRIC_RES:
-        m = rx.search(t)
-        if m:
-            keys.add(key)
-            t = t[:m.start()] + " " * (m.end() - m.start()) + t[m.end():]
-    return keys
-
-
-def _metric_spans(excerpt: str, key: str) -> list[str] | None:
-    """
-    The parts of `excerpt` that speak about `key`, or `None` if it does not.
-
-    A metric owns the text from its own mention up to the next metric mention.
-    That is what lets "operating expenses were $130 billion while revenue was
-    $120 billion" answer the question "what does this say REVENUE was?" with
-    `$120 billion` and not `$130 billion` — without needing to know which
-    metric owns the 130, or even having `operating expenses` in the vocabulary.
-
-    Spans carrying no figure are dropped, and a metric with no numbered span
-    returns `None`. That is the fail-open path: "its highest revenue ever"
-    names the metric and states nothing about its value, so it must not be read
-    as a contradiction.
-    """
-    rx = next((r for k, _l, _b, r in _METRIC_RES if k == key), None)
-    if rx is None:
-        return None
-    hits = list(rx.finditer(excerpt))
-    if not hits:
-        return None
-    starts = sorted(
-        {m.start() for _k, _l, _b, r in _METRIC_RES for m in r.finditer(excerpt)}
-        | {m.start() for m in _ROW_LABEL.finditer(excerpt)}
-    )
-    spans = []
-    for h in hits:
-        # V39. The next metric begins after this metric's NAME ends, not
-        # anywhere after its start. `Operating income` contains `income`, which
-        # is itself a metric, so a boundary landed at offset 10 INSIDE the name
-        # and the span collapsed to `'Operating '` -- no figures, dropped, and
-        # `_metric_spans` returned None for a metric plainly present in the
-        # table. `_binds` then fell to its no-span path and searched the WHOLE
-        # excerpt, so a claim about operating income bound against the
-        # income-before-taxes row sitting beside it. Every metric whose name
-        # contains another metric's name was silently unconstrained.
-        nxt = next((s for s in starts if s >= h.end()), len(excerpt))
-        span = excerpt[h.start():nxt]
-        if numbers_in(span):
-            spans.append(span)
-    return spans or None
 
 
 def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
