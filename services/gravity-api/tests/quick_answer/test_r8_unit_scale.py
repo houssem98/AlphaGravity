@@ -46,10 +46,20 @@ not reach it. Measured before the fix:
 significant digits than the claim: `1` is not a measurement of `1,009`, however
 close a multiplication brings it.
 
-**V28 — the parse itself is unchanged, and is NOT fixed here.** Footnote
-markers still read as figures, and `(408)` still reads as POSITIVE 408 while
-production's `_extract_numbers` returns -408 for the same text. V27 closed the
-harm those cause on this fixture; it did not close them. Pinned below.
+**V28 — the grader read accounting parentheses as positive.** `(408)` is
+negative 408 in a filing, and `nli_verifier._parse_financial_number` has always
+read it that way on the production side, but `_readings` returned +408 for the
+same text. Two layers, one text, opposite signs. `_readings` now applies
+production's own rule — an opening paren before the figure and a closing one
+after make it negative — and emits the negative reading INSTEAD of the positive
+rather than alongside it, because the notation is attached to that token and is
+not a cue about the sentence.
+
+**V29 — the footnote marker is still parsed as a figure, and is NOT fixed
+here.** `(1)` now reads as -1.0 rather than 1.0. It is still not a quantity.
+V27 blocked the harm it caused on this fixture and V28 changed its sign;
+neither stopped the parse. Pinned below, with no demonstrated harm attached to
+it, which is why it is recorded rather than fixed.
 """
 
 from __future__ import annotations
@@ -59,6 +69,7 @@ import pytest
 from app.core.verification.citation_verdict import (
     currency_of, declared_scale, declared_scales,
 )
+from app.core.verification.nli_verifier import _extract_numbers
 from eval.head_to_head.rubric import _claim_is_bound, _readings, _sigdigits
 from tests.real_sec_fixtures import (
     AFL_JAPAN_OPERATIONS, LYV_DEFERRED, UAL_RESULTS,
@@ -167,27 +178,106 @@ def test_v27_significant_digits_are_counted_from_the_magnitude(value, want):
     assert _sigdigits(value) == want
 
 
-# ── V28 — the parse is still wrong. PINNED, NOT FIXED ─────────────────────
+# ── V28 — accounting parentheses are negative, as production reads them ───
 
 
-def test_v28_a_filing_footnote_marker_still_parses_as_a_number():
+@pytest.mark.parametrize("text", [
+    "net (408) (928)",
+    "Net earned premiums (1) $ 6,744",
+    "loss of (1,234) million",
+    "revenue 5,000",
+])
+def test_v28_the_grader_and_production_read_the_same_signs(text):
+    """
+    The real assertion of this row: not that some rule was written, but that
+    the two implementations now return the same numbers for the same text.
+    Comparing against `_extract_numbers` itself means the grader cannot drift
+    away from production without this failing.
+
+    Scoped to accounting notation on purpose. The two layers do NOT agree on a
+    prose parenthetical — see V30 below, where production is the wrong one.
+    """
+    assert ({v for v, _ in _readings(text)} & {408.0, -408.0, 1.0, -1.0,
+                                               1234.0, -1234.0, 928.0, -928.0}
+            == set(_extract_numbers(text)) & {408.0, -408.0, 1.0, -1.0,
+                                              1234.0, -1234.0, 928.0, -928.0})
+
+
+def test_v28_a_parenthesised_figure_is_negative_and_not_also_positive():
+    """Replaces rather than adds. A figure the filing wrote as `(408)` is not
+    evidence for a claim of positive 408, and leaving both readings in would
+    have let it be."""
+    got = {v for v, _ in _readings("Nonoperating expense, net (408) (928)")}
+    assert -408.0 in got
+    assert 408.0 not in got
+
+
+def test_v28_an_ordinary_figure_is_untouched():
+    got = {v for v, _ in _readings("revenue was 5,000")}
+    assert 5000.0 in got
+    assert -5000.0 not in got
+
+
+# ── V29 — the footnote marker is still a figure. PINNED, NOT FIXED ────────
+
+
+def test_v29_a_filing_footnote_marker_still_parses_as_a_number():
     """
     PINNED DEFECT. `(1)` and `(2)` are footnote references in a filing table,
-    not quantities, and are still read as 1.0 and 2.0. V27 stopped the bind
-    they caused here; it did not stop the parse, so a coincidence of the right
-    magnitude could still produce one.
+    not quantities, and are still read as numbers — now -1.0 and -2.0, since
+    V28 gave parenthesised figures their accounting sign.
 
-    Second assertion: `(408)` is read as POSITIVE 408, so this layer applies no
-    accounting-negative convention at all — unlike
-    `citation_verdict._extract_numbers`, which returns -408 for the same text.
-    That divergence is recorded, not fixed.
+    Nothing here demonstrates harm from it: V27's guard stops a one-digit
+    reading from satisfying a precise claim, and the negative sign stops it
+    matching a positive one. It is recorded because a spurious figure that has
+    twice been caught by something else is still a spurious figure.
     """
-    assert 1.0 in {v for v, _ in _readings("Net earned premiums (1) $ 6,744")}, (
-        "V28 moved: footnote markers no longer parse as figures. Delete this "
+    got = {v for v, _ in _readings("Net earned premiums (1) $ 6,744")}
+    assert -1.0 in got, (
+        "V29 moved: footnote markers no longer parse as figures. Delete this "
         "pin and assert the real behaviour."
     )
-    assert 408.0 in {v for v, _ in _readings("net (408) (928)")}
-    assert -408.0 not in {v for v, _ in _readings("net (408) (928)")}, (
-        "V28 moved: the grader now reads accounting parentheses as negative. "
-        "Delete this pin and reconcile it with `_extract_numbers`."
+    assert 6744.0 in got
+
+
+# ── V30 — production reads a prose parenthetical as negative. PINNED ──────
+
+
+def test_v30_production_reads_a_positive_aside_as_negative():
+    """
+    PINNED PRODUCTION DEFECT, found by V28 rather than by inspection.
+
+    `nli_verifier._parse_financial_number` makes a figure negative whenever an
+    opening paren precedes it, and does not check whether the currency symbol
+    is inside the parens. A filing writes an accounting negative as `(408)`;
+    prose writes a restatement as `($416,161 million)`. Production reads the
+    second as -416,161 million — a correct, positive answer turned into a
+    wrong one, in the layer `citation_verdict` calls to decide support.
+
+    Two prior-round grader tests already encode the right reading:
+    `test_a_lone_parenthetical_is_still_the_claim` and
+    `test_a_parenthetical_that_is_the_only_claim_still_counts`. V28 adopted
+    production's rule verbatim, both went red, and that is how this surfaced.
+
+    The grader now uses the narrower rule. Production is unchanged pending
+    escalation, because it changes what production calls verified.
+    """
+    aside = "Net sales ($416,161 million) for the year."
+    assert -416161e6 in set(_extract_numbers(aside)), (
+        "V30 moved: production no longer reads a prose parenthetical as "
+        "negative. Delete this pin and assert agreement with the grader."
     )
+    assert 416161e6 not in set(_extract_numbers(aside))
+
+    # The grader reads it correctly, which is the divergence this pin records.
+    assert 416161.0 in {v for v, _ in _readings(aside)}
+    assert -416161.0 not in {v for v, _ in _readings(aside)}
+
+
+def test_v30_the_accounting_form_is_negative_in_both_layers():
+    """The half that does agree, so the pin cannot be read as `parens are
+    always positive`."""
+    for text in ("net (408) (928)", "loss of (1,234) million"):
+        g = {v for v, _ in _readings(text)}
+        p = set(_extract_numbers(text))
+        assert g & {-408.0, -928.0, -1234.0} == p & {-408.0, -928.0, -1234.0}

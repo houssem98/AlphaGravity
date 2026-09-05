@@ -169,6 +169,14 @@ def _readings(text: str, *, signed: bool = True) -> set[tuple[float, bool]]:
     When `signed`, a leading minus and nearby decline vocabulary both produce
     the negative reading — alongside the positive one, never instead of it, so
     a genuinely positive figure elsewhere in the same sentence is not flipped.
+
+    V28. Accounting parentheses are the exception, and replace rather than add.
+    `(408)` in a filing is negative 408 and is not also positive 408 — the
+    notation is attached to that token and is not a cue about the sentence, so
+    there is nothing to hedge against. This is the convention
+    `nli_verifier._parse_financial_number` already applies on the production
+    side (`negative = "(" in ...`), adopted here so the two layers read one
+    text the same way instead of disagreeing about its sign.
     """
     out: set[tuple[float, bool]] = set()
     t = text or ""
@@ -180,6 +188,26 @@ def _readings(text: str, *, signed: bool = True) -> set[tuple[float, bool]]:
             continue
         explicit = bool(suffix)
         scaled = v * _SCALE.get((suffix or "").lower(), 1.0)
+        # V28. `(408)` — an opening paren immediately before the figure and a
+        # closing one immediately after. Production reads that as -408; so does
+        # this now, and the positive reading is not emitted alongside it.
+        #
+        # The currency symbol decides. A filing writes an accounting negative
+        # as `(408)` or `$(408)` — symbol outside — while prose writes an aside
+        # as `($416,161 million)`, symbol inside. Reading the second as
+        # negative turns a correct answer into a wrong one, which is what
+        # production still does (V30).
+        parenthesised = (
+            signed
+            and m.start() > 0
+            and t[m.start() - 1] == "("
+            and not m.group(0).startswith("$")
+            and t[m.end():m.end() + 2].lstrip().startswith(")")
+        )
+        if parenthesised:
+            out.add((-scaled, explicit))
+            out.add((-v, explicit))
+            continue
         out.add((scaled, explicit))
         out.add((v, explicit))   # keep the bare reading: "416,161" in millions
         if not signed:
