@@ -407,4 +407,4 @@ harness report completion — never a `sleep` loop.
 | # | Loop | Row | What | Verdict | Backend | gate-guard | Commit | Red-before-fix |
 |---|---|---|---|---|---|---|---|---|
 | 0 | — | — | — | BASELINE | 2532 passed / 0 failed | clean | `aa2440c` | n/a |
-| 1 | 0 | §3 | `graph-lint.mjs` could not see `.py` paths or snake_case symbols, so a graph over `services/gravity-api` passed on its section numbers alone | CLOSED | n/a | clean | pending | n/a — checker capability, not a defect fix. Self-check 9/9 still passes and all 8 existing graphs still pass; two gained refs (12→13, 20→24), so the change strictly increased what is checked |
+| 1 | 0 | §3 | `graph-lint.mjs` could not see `.py` paths or snake_case symbols, so a graph over `services/gravity-api` passed on its section numbers alone | CLOSED | n/a | clean | `15fc5ac` | n/a — checker capability, not a defect fix. Self-check 9/9 still passes and all 8 existing graphs still pass; two gained refs (12→13, 20→24), so the change strictly increased what is checked |
