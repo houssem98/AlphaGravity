@@ -26,11 +26,20 @@ const tracked = new Set(
     execFileSync('git', ['ls-files'], { encoding: 'utf8', maxBuffer: 64e6 }).split('\n').filter(Boolean));
 const basenames = new Set([...tracked].map(p => p.split('/').pop()));
 
-const PATH_RE = /\b[\w./-]*[\w-]\.(?:ts|tsx|mjs|js|json|md|sh|sql|yml)\b/g;
+// `py` was missing, and half this repository is Python. A graph over
+// services/gravity-api named files this could not see, so it reported the mix
+// as "0 path" and the graph passed on its §sections alone — the scope opt-out
+// in LOOP_STANDARD §7, where a checker's extension list becomes an accidental
+// exemption and the files that escape are the ones nobody notices escaping.
+const PATH_RE = /\b[\w./-]*[\w-]\.(?:ts|tsx|mjs|js|json|md|sh|sql|yml|py)\b/g;
 const SECTION_RE = /§\s?(\d+)/g;
 const TASK_RE = /\b([A-Z]{2,3})-(\d+)\b/g;
-// A camelCase identifier long enough not to be an English word in disguise.
-const SYMBOL_RE = /\b[a-z][a-z0-9]{2,}[A-Z][A-Za-z0-9]{3,}\b/g;
+// A camelCase identifier long enough not to be an English word in disguise,
+// OR a snake_case one — the same opt-out as the extension list above, since a
+// Python codebase names almost nothing in camelCase. Both forms are still
+// confirmed by `git grep`, so a name that resolves is a name that exists and a
+// coincidental match costs nothing.
+const SYMBOL_RE = /\b(?:[a-z][a-z0-9]{2,}[A-Z][A-Za-z0-9]{3,}|_?[a-z][a-z0-9]*(?:_[a-z0-9]+)+)\b/g;
 
 const symbolCache = new Map();
 const symbolExists = (s) => {
