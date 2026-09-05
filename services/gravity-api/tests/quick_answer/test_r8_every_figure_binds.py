@@ -129,3 +129,24 @@ def test_a_rate_cannot_rescue_a_fabricated_level():
 ])
 def test_the_rounds_earlier_fixtures_are_unaffected(claim, cite):
     assert _claim_is_bound(claim, [cite]) is True
+
+
+# ── QA-13: the `_all_grounded` half, isolated ─────────────────────────────
+
+
+def test_v38_all_grounded_decides_when_the_column_path_abstains():
+    """
+    R8 QA-13. The theatre audit reverted `_all_grounded` to ANY and this file
+    still passed, because V38's other half — the column verdict — also requires
+    every value and was carrying the fixture cases on its own. A guard that
+    only fails when BOTH halves are reverted isolates neither.
+
+    This claim names no period, so `years` is empty, the column path is skipped
+    entirely, and `_all_grounded` is the only thing that can refuse it.
+    """
+    assert _claim_is_bound(
+        "Live Nation deferred revenue was $3,582,835 thousand and "
+        "$9,999,999 thousand [1].", [LYV_DEFERRED]) is False
+    assert _claim_is_bound(
+        "Live Nation deferred revenue was $3,582,835 thousand [1].",
+        [LYV_DEFERRED]) is True

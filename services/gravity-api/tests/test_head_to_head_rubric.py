@@ -809,3 +809,20 @@ def test_an_abstention_is_untouched_by_the_change():
     card = score_answer(case, "The sources do not contain that figure.",
                         citations=[], latency_ms=1000, system="alphagravity")
     assert card.scores["evidence"] == 1.0
+
+
+def test_v12_a_row_label_stops_a_metric_span():
+    """
+    R8 QA-13. The theatre audit removed `ROW_LABEL` from the span boundaries
+    and this file still passed, so the V12 fix had no isolating test.
+
+    `operating expense` is not in the metric lexicon, so without the row-label
+    boundary revenue's span runs on and swallows the expense row — which is how
+    a real United Airlines table defeated fixtures that had put the competing
+    label BEFORE the claimed metric.
+    """
+    from app.core.verification.metric_spans import metric_spans
+    from tests.real_sec_fixtures import UAL_RESULTS
+    span = metric_spans(UAL_RESULTS["text"], "revenue")[0]
+    assert "59,070" in span, "revenue's own figure must be inside its span"
+    assert "54,356" not in span, "the expense row leaked into revenue's span"

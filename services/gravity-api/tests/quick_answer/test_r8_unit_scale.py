@@ -278,3 +278,22 @@ def test_v30_the_accounting_form_is_negative_in_both_layers():
         g = {v for v, _ in _readings(text)}
         p = set(_extract_numbers(text))
         assert g & {-408.0, -928.0, -1234.0} == p & {-408.0, -928.0, -1234.0}
+
+
+# ── QA-13: V27's guard, isolated ──────────────────────────────────────────
+
+
+def test_v27_the_guard_itself_refuses_a_coarse_reading():
+    """
+    R8 QA-13. The theatre audit reverted V27's guard and this FILE still
+    passed, because V28 had since made `(1)` read as -1.0 — the spurious +1.0
+    the guard was written against no longer exists in that fixture, so the
+    fixture-level test had stopped isolating the guard.
+
+    The rule is still real, so it gets an assertion that exercises it directly:
+    a one-digit source reading scaled up cannot satisfy a four-digit claim,
+    even though `1 x 1e9` sits 0.89% from `1.009e9` and inside the tolerance.
+    """
+    from eval.head_to_head.rubric import _matches
+    assert _matches(1.009e9, "1", declared=1e9) is False
+    assert _matches(1.009e9, "1,009", declared=1e6) is True

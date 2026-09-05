@@ -125,3 +125,18 @@ def test_the_plain_wrong_answer_is_unaffected():
 def test_a_scaled_restatement_of_the_truth_still_scores_one():
     """`$416.2 billion` and `$416,161 million` are the same claim."""
     assert _score("Roughly $416.2 billion [1].") == 1.0
+
+
+def test_v1_an_explicit_magnitude_is_never_rescaled():
+    """
+    R8 QA-13. The theatre audit reverted V1's guard and this file still passed,
+    so the fix had no isolating test of its own for five rounds.
+
+    V1 is the rule that a figure stating its own magnitude is read at that
+    magnitude and no other. Without it the scale loop multiplies `$130 million`
+    by 1e3 and matches a claim of $130 billion — an answer wrong by a factor of
+    a thousand scoring full marks on correctness.
+    """
+    from eval.head_to_head.rubric import _matches
+    assert _matches(1.3e11, "$130 million") is False
+    assert _matches(1.3e8, "$130 million") is True
