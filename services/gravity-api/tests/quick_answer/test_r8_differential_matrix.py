@@ -27,6 +27,30 @@ metadata, which these excerpts do not carry — the scope semantics live in
 `provenance()` and are tested in `test_r8_scope_and_restatement.py`.
 `CONFLICTING` and `UNSUPPORTED` are production verdict statuses rather than
 grader booleans, and are asserted in `test_r8_status_matrix.py`.
+
+**First run: 33 of 36 predictions correct, 3 wrong.** The three are recorded
+rather than quietly corrected, because which of them was a code defect and
+which was a bad prediction is the only thing this row measures:
+
+  LYV/WRONG_METRIC   my prediction was wrong; the fail-open is correct
+  AFL/WRONG_METRIC   my prediction was wrong; V16's vocabulary gap
+  AFL/WRONG_UNIT     A REAL DEFECT — V42, and a regression V25 introduced
+
+V42: `declared_scales` returns `{USD: 1e6, JPY: 1e9}` for the Aflac header with
+no unkeyed entry, so a claim naming NO currency got `declared = None` and the
+scale search fell through to the unconstrained 1e3/1e6/1e9 loop — exactly the
+freedom V14 exists to remove. Measured:
+
+    "6,744 thousand"  -> bound
+    "6,744 million"   -> bound      three readings, a thousand apart
+    "6,744 billion"   -> bound
+
+It survived V25's own tests, V27's, V28's and the theatre audit, because none
+of them tested a currency-free claim against a multi-currency header. Every
+scale the header declares is now a candidate, and `6,744 thousand` is refused.
+`6,744 billion` still binds and is pinned below: the header really does declare
+billions, and separating that from the dollar column needs per-column currency
+association rather than a per-header scale set.
 """
 
 from __future__ import annotations
@@ -93,7 +117,13 @@ MATRIX: dict = {
             REFUSE, "V17: the columns are 2025/2024"),
         "WRONG_METRIC": (
             "Live Nation operating income was $3,582,835 thousand [1].",
-            REFUSE, "the figure belongs to deferred revenue"),
+            BIND,
+            "PREDICTED REFUSE, AND THE PREDICTION WAS WRONG. `operating_income` "
+            "has no span in a deferred-revenue table, so the documented "
+            "fail-open applies: an excerpt that says nothing about a metric "
+            "cannot contradict a claim about it, and `_claim_is_bound` answers "
+            "only whether the figure is in the cited excerpt — which it is. "
+            "The original prediction is kept here rather than deleted"),
         "WRONG_CITATION": (
             "Live Nation deferred revenue was $3,582,835 thousand [1].",
             REFUSE, "cited to United's excerpt instead"),
@@ -123,7 +153,12 @@ MATRIX: dict = {
             BIND, "'2019' bare is not a period token; V17 needs FY/quarter form"),
         "WRONG_METRIC": (
             "Aflac Japan net investment income was $6,744 million in 2025 [1].",
-            REFUSE, "6,744 is the net earned premiums row"),
+            BIND,
+            "PREDICTED REFUSE, AND THE PREDICTION WAS WRONG, for a different "
+            "reason than LYV's: `_metric_keys` returns the EMPTY SET for this "
+            "claim — `net investment income` is not in production's metric "
+            "vocabulary at all — so no metric is named and nothing constrains "
+            "the search. That is V16's class, a recorded limit since round 6"),
         "WRONG_CITATION": (
             "Aflac Japan net earned premiums were $6,744 million in 2025 [1].",
             REFUSE, "cited to United's excerpt instead"),
@@ -224,3 +259,47 @@ def test_wrong_entity_is_a_separate_dimension():
     claim = "Microsoft operating revenue was $59,070 million in FY2025 [1]."
     assert _claim_is_bound(claim, [UAL_RESULTS]) is True
     assert _entity_is_bound("microsoft", [UAL_RESULTS]) is False
+
+
+# ── V42 — the scale set, and what it does not yet reach ───────────────────
+
+
+@pytest.mark.parametrize("scale,expected", [
+    ("thousand", REFUSE),
+    ("million", BIND),
+])
+def test_v42_a_currency_free_claim_is_held_to_the_declared_scales(scale, expected):
+    """A claim naming no currency must still be read at a scale the header
+    actually declares, not at any scale at all."""
+    assert _claim_is_bound(
+        f"Aflac Japan net earned premiums were 6,744 {scale} in 2025 [1].",
+        [AFL_JAPAN_OPERATIONS]) is expected
+
+
+def test_v42_the_other_declared_scale_still_binds_a_currency_free_claim():
+    """
+    PINNED RESIDUE. `6,744 billion` still binds, because the header genuinely
+    declares billions — for the yen column — and a per-header scale SET cannot
+    tell which column a currency-free figure belongs to. Closing it needs
+    per-column currency association.
+
+    Recorded rather than left implicit: the fix narrowed the search from any
+    scale to the declared ones, which is a real narrowing and not a complete
+    one.
+    """
+    assert _claim_is_bound(
+        "Aflac Japan net earned premiums were 6,744 billion in 2025 [1].",
+        [AFL_JAPAN_OPERATIONS]) is True, (
+        "V42 residue moved: per-column currency association now separates the "
+        "dollar and yen scales. Delete this pin and assert REFUSE.")
+
+
+def test_v42_single_scale_headers_are_unchanged():
+    """The control. UAL and LYV declare one scale under the unkeyed entry and
+    must behave exactly as before."""
+    assert _claim_is_bound(
+        "United operating revenue was 59,070 million in FY2025 [1].",
+        [UAL_RESULTS]) is True
+    assert _claim_is_bound(
+        "United operating revenue was 59,070 thousand in FY2025 [1].",
+        [UAL_RESULTS]) is False

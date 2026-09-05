@@ -607,19 +607,29 @@ def _sigdigits(v: float) -> int:
 
 
 def _matches(expected: float, text: str, tol: float = 0.01,
-             declared: float | None = None) -> bool:
+             declared: float | tuple[float, ...] | None = None) -> bool:
+    # V42. `declared` may be several scales. A header that declares one scale
+    # per currency -- `(In millions of dollars and billions of yen)` -- declares
+    # nothing for a claim that names no currency, and passing None there let the
+    # search fall through to the unconstrained 1e3/1e6/1e9 loop: `6,744
+    # thousand`, `6,744 million` and `6,744 billion` all bound against the same
+    # source figure, three readings a thousand apart. The source declared
+    # exactly these scales, so they are the candidates -- not any scale at all.
+    cands = ((declared,) if isinstance(declared, (int, float))
+             else tuple(declared or ()))
     for got, explicit in _readings(text):
         if expected == 0:
             if got == 0:
                 return True
             continue
-        if declared and not explicit:
+        if cands and not explicit:
             # V14. The source said what its bare figures mean, so they mean
             # that and nothing else — not their face value either. A millions
             # table reading `59,070` does not support a claim of $59,070, and
             # allowing the face match let `$59.07 thousand` bind against it.
-            if (_sigdigits(got) >= _sigdigits(expected)
-                    and abs(got * declared - expected) / abs(expected) <= tol):
+            if _sigdigits(got) >= _sigdigits(expected) and any(
+                    abs(got * d - expected) / abs(expected) <= tol
+                    for d in cands):
                 return True
             continue
         if abs(got - expected) / abs(expected) <= tol:
@@ -649,7 +659,7 @@ def _matches(expected: float, text: str, tol: float = 0.01,
             # thousandfold-wrong claim bound against a number that was never a
             # quantity at all.
             continue
-        for scale in ((declared,) if declared else (1e3, 1e6, 1e9)):
+        for scale in (cands or (1e3, 1e6, 1e9)):
             if abs(got * scale - expected) / abs(expected) <= tol:
                 return True
     return False
@@ -954,7 +964,12 @@ def _claim_is_bound(text: str, cites: list[dict]) -> bool | None:
             # own currency picks which one applies. The unkeyed entry is the
             # ordinary `(in millions)` case and remains the fallback.
             scales = declared_scales(e)
-            declared = scales.get(ccy) or scales.get("")
+            # V42. When the claim names no currency, every scale the header
+            # declares is a candidate. Before this the lookup returned None and
+            # the scale search became unconstrained, which is exactly the
+            # freedom V14 was written to remove.
+            declared = scales.get(ccy) or scales.get("") or tuple(
+                sorted(set(scales.values()))) or None
             # V26. A figure quoted in a currency the source does not deal in is
             # not that source's figure, however well the digits agree. Both
             # sides must actually name a currency for this to fire: a claim
