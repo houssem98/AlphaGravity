@@ -371,8 +371,7 @@ export default function GridView({ tickers }: { tickers?: string[] } = {}) {
         (async () => {
             try {
                 const res = await fetch(
-                    `${GRAVITY_API}/v1/documents/chunk/${encodeURIComponent(sourceViewer.chunk_id!)}/context?window=1`,
-                    { headers: { 'X-API-Key': 'deep-research-internal' } },
+                    `${API_BASE}/api/gravity/chunk/${encodeURIComponent(sourceViewer.chunk_id!)}/context?window=1`,
                 );
                 const data = res.ok ? await res.json() : null;
                 const cited = (data?.chunks ?? []).find((ch: any) => ch.is_cited);

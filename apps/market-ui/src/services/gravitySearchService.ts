@@ -6,7 +6,9 @@
 // returns empty results so Deep Research still works web-only.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GRAVITY_API_URL = import.meta.env?.VITE_GRAVITY_API_URL || 'http://localhost:8000';
+// market-server, not gravity-api directly: the gravity key is injected there so
+// it never reaches the browser bundle.
+const API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:3001';
 const RAG_TIMEOUT_MS = 45_000; // 45s — agentic pipeline needs up to 40s
 
 export interface GravityRAGSource {
@@ -116,11 +118,12 @@ export async function queryGravityRAG(query: string, filters?: GravityRAGFilters
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), RAG_TIMEOUT_MS);
 
-        const response = await fetch(`${GRAVITY_API_URL}/v1/search`, {
+        // Via market-server, which injects the gravity key server-side. The key
+        // used to be sent from here, i.e. from the public bundle.
+        const response = await fetch(`${API_BASE}/api/gravity/search`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-API-Key': 'deep-research-internal',
             },
             body: JSON.stringify({
                 query,

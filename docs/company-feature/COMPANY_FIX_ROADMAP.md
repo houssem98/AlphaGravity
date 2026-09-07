@@ -13,7 +13,7 @@ worse than a slow chart.
 | # | Task | Gate (binary) | Status |
 |---|------|---------------|--------|
 | CF-1 | Brief + Devil's Advocate call a model that returns content | Live POST to `/api/llm/chat` with the brief's default config returns non-empty `text` for 6/6 seed prompts. Recorded with the response bodies. | **DONE** |
-| CF-2 | No credential in the client bundle | `grep -r "deep-research-internal" apps/market-ui/src` → 0 hits, AND `npm -w market-ui run build` output greps clean for the literal. | OPEN |
+| CF-2 | No credential in the client bundle | `grep -r "deep-research-internal" apps/market-ui/src` → 0 hits, AND `npm -w market-ui run build` output greps clean for the literal. | **DONE** |
 | CF-3 | One auth scheme on the company page | Every `fetch` in `CompanyPage.tsx` carries the same auth header construction; anonymous load renders a stated refusal, not a half page. | OPEN |
 | CF-4 | `total` is the real filing count, or is not called `total` | For a ticker with >4000 chunks, the response's count matches a direct `count(distinct)` against the table. If unfixable without an RPC, the field is renamed and the cap is stated in the payload. | OPEN |
 | CF-5 | Financials dedupe before truncation | For NVDA (402 XBRL rows), `limit=80` returns the 80 newest distinct metric+period pairs, verified against an unlimited query. | OPEN |
@@ -23,6 +23,8 @@ worse than a slow chart.
 | CF-9 | `CompanyPage.tsx` under 400 lines | `wc -l` < 400; tabs extracted as components; no behaviour change (existing tests green). | OPEN |
 | CF-10 | One backend company service | Sentiment + longitudinal + filings + financials reachable under one router with one auth dependency. | OPEN |
 | CF-11 | An empty LLM completion is an error, not an answer | `llm.ts` returns `''` for a null completion today, with `ok: true` in the trace. Gate: a null/empty completion produces a non-2xx from `/api/llm/chat` and `ok: false` in the emitted trace, asserted by a test. | OPEN |
+| CF-12 | The internal key stops bypassing billing | `auth.py` routes API keys around `_apply_entitlement`, so `deep-research-internal` carries `tier: unlimited` with no rate limit. CF-2 moved that key server-side but did not change what it grants. Gate: a request authenticated with an internal service key is subject to a stated tier and rate limit, asserted by a test. **Product decision — needs the owner.** | OPEN |
+| CF-13 | market-server's own gravity calls authenticate | `services/market-server/src/services/gravityClient.ts` sends no auth header on any gravity-api call. Gate: every `fetch` in that file carries the key; a 401 from upstream surfaces as a named error, not an empty result. | OPEN |
 
 ### Gate scripts
 

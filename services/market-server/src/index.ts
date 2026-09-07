@@ -15,6 +15,7 @@ import { firecrawlRouter } from './routes/firecrawl.js';
 import { orgsRouter } from './routes/orgs.js';
 import { claudeRouter } from './routes/claude.js';
 import { hermesRouter } from './routes/hermes.js';
+import { gravityRouter } from './routes/gravity.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -133,6 +134,7 @@ app.use('/api/tavily', tavilyRouter);
 app.use('/api/firecrawl', firecrawlRouter);
 app.use('/api/orgs', orgsRouter);
 app.use('/api/claude', claudeRouter);
+app.use('/api/gravity', gravityRouter);
 app.use('/api/hermes', hermesRouter);
 
 // Start server

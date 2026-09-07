@@ -1244,9 +1244,11 @@ export default function SearchPage() {
     const handleSaveSearch = async (q: string) => {
         if (!q.trim() || savedSearches.has(q)) return;
         try {
-            await fetch('http://localhost:8000/v1/workspaces', {
+            // Was a hardcoded http://localhost:8000, so this never worked in
+            // production at all. Now via market-server, which holds the key.
+            await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/gravity/workspaces`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-API-Key': 'deep-research-internal' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: q.slice(0, 80), queries: [q], description: 'Saved from search' }),
             });
             setSavedSearches(prev => new Set([...prev, q]));

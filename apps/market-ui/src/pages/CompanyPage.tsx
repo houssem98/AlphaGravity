@@ -340,9 +340,9 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
 
         let alive = true;
         const qs = new URLSearchParams({ metric: 'revenue', periods: periods.join(',') });
-        fetch(`${GRAVITY_BASE}/v1/analytics/longitudinal/${symbol}?${qs}`, {
-            headers: { 'X-API-Key': 'deep-research-internal' },
-        })
+        // No key: analytics.py declares no auth dependency. Probed live
+        // 2026-09-07 without the header — 200, same body.
+        fetch(`${GRAVITY_BASE}/v1/analytics/longitudinal/${symbol}?${qs}`)
             .then(r => r.ok ? r.json() : null)
             .then(body => {
                 if (!alive || !body) return;
@@ -379,9 +379,9 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
         setSentimentView(null);
         (async () => {
             try {
-                const res = await fetch(sentimentSkillUrl(GRAVITY_BASE, symbol), {
-                    headers: { 'X-API-Key': 'deep-research-internal' },
-                });
+                // No key: skills.py declares no auth dependency either. Probed
+                // live 2026-09-07 without the header — the same data 404, not a 401.
+                const res = await fetch(sentimentSkillUrl(GRAVITY_BASE, symbol));
                 const body = await res.json().catch(() => null);
                 if (!alive) return;
                 const view = toView(body);
