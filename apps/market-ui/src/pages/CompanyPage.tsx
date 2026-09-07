@@ -120,6 +120,57 @@ interface LongitudinalPoint {
 
 const GRAVITY_BASE = import.meta.env.VITE_GRAVITY_API_URL ?? 'http://localhost:8000';
 
+// CF-3 · ONE auth construction for every request this page makes. It used to be
+// two: a Supabase bearer on filings/financials and a hardcoded service key on
+// longitudinal/sentiment, so which half of the page an anonymous visitor got was
+// decided by which scheme a given line happened to use.
+const authed = (tok: string | null): HeadersInit =>
+    tok ? { Authorization: `Bearer ${tok}` } : {};
+
+// A surface either has data, or has a REASON it does not.
+//
+// `fetch(...).then(r => r.ok ? r.json() : null)` threw the reason away: a 401
+// arrived as `null`, and the failure check read `null` as "no data", so an
+// unauthenticated visitor saw empty cards where the honest answer was "sign in".
+// Keeping the status is the whole fix.
+export type SurfaceResult = { ok: true; data: unknown } | { ok: false; status: number };
+
+async function fetchSurface(url: string, headers: HeadersInit): Promise<SurfaceResult> {
+    const r = await fetch(url, { headers });
+    return r.ok ? { ok: true, data: await r.json() } : { ok: false, status: r.status };
+}
+
+/**
+ * Why a surface is missing, in words — or null when it is merely EMPTY.
+ *
+ * CT-7's rule holds: an empty result and a failed request are different events
+ * and must not look alike. This adds the case that was missing, an HTTP error,
+ * and separates a credential fault (the visitor can fix it by signing in) from a
+ * server fault (they cannot).
+ *
+ * Exported for CompanyPage.surfaces.test.ts.
+ */
+export function surfaceFailure(label: string, r: PromiseSettledResult<unknown>): string | null {
+    if (r.status === 'rejected') return `${label} — request failed`;
+    const v = r.value as Record<string, unknown> | null;
+    if (!v || typeof v !== 'object') return null;
+    if (v.ok === false && typeof v.status === 'number') {
+        return v.status === 401 || v.status === 403
+            ? `${label} — sign in to view`
+            : `${label} — server error (${v.status})`;
+    }
+    if ('error' in v) return `${label} — ${String(v.error)}`;
+    return null;
+}
+
+/** The payload a surface carried, or null when it failed. */
+export function surfaceData(r: PromiseSettledResult<unknown>): any {
+    if (r.status !== 'fulfilled') return null;
+    const v = r.value as Record<string, unknown> | null;
+    if (v && typeof v === 'object' && 'ok' in v) return v.ok === true ? (v as any).data : null;
+    return v;
+}
+
 function fmt(n: string | number, style: 'currency' | 'percent' | 'number' = 'number'): string {
     const num = typeof n === 'string' ? parseFloat(n) : n;
     if (isNaN(num)) return '—';
@@ -244,26 +295,18 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
         setFailedSurfaces([]);
         setWatermark(lastSeen(symbol));
 
-        const authed = (tok: string | null): HeadersInit =>
-            tok ? { Authorization: `Bearer ${tok}` } : {};
-
         getAccessToken().catch(() => null).then(tok => Promise.allSettled([
             // Alpha Vantage overview (opportunistic — 25 req/day free tier;
             // page renders '—' when absent)
             apiGetOverview(symbol),
             // Quote via the Yahoo→sina fallback stack (always up, no key)
-            fetch(`/api/quote?symbols=${encodeURIComponent(symbol)}`)
-                .then(r => r.ok ? r.json() : null),
+            fetchSurface(`/api/quote?symbols=${encodeURIComponent(symbol)}`, authed(tok)),
             // Gravity indexed documents (Supabase-REST-backed; /v1/documents is
             // dead on prod — asyncpg get_db stub)
-            fetch(`${GRAVITY_BASE}/v1/company/${symbol}/filings?limit=15`, {
-                headers: authed(tok),
-            }).then(r => r.ok ? r.json() : null),
+            fetchSurface(`${GRAVITY_BASE}/v1/company/${symbol}/filings?limit=15`, authed(tok)),
             // Exact XBRL financial facts (NL→SQL structured search is broken in
             // prod and inexact anyway — xbrl:* rows are the one exact population)
-            fetch(`${GRAVITY_BASE}/v1/company/${symbol}/financials?limit=80`, {
-                headers: authed(tok),
-            }).then(r => r.ok ? r.json() : null),
+            fetchSurface(`${GRAVITY_BASE}/v1/company/${symbol}/financials?limit=80`, authed(tok)),
             // CT2-5 · the sentiment score is NOT fetched here. It needs a
             // document_id, which only arrives with the filings payload in this
             // same batch, so it runs in its own effect below.
@@ -283,35 +326,39 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
         ]).then(([ov, qt, docs, met]) => {
             const arr = (v: unknown): any[] => Array.isArray(v) ? v : [];
 
-            // A rejected fetch, or a body carrying an `error`, is a FAILURE and is
-            // stated. A well-formed body with no data is an EMPTY and renders the
-            // null marker — the two are not the same event and must not look it.
-            const failures: string[] = [];
-            const failed = (r: PromiseSettledResult<any>) =>
-                r.status === 'rejected' || (r.value && typeof r.value === 'object' && 'error' in r.value);
-            if (failed(ov)) failures.push('Company overview (Alpha Vantage)');
-            if (failed(docs)) failures.push('Filings index');
-            if (failed(met)) failures.push('XBRL financials');
+            // A rejected fetch, an HTTP error, or a body carrying an `error`, is a
+            // FAILURE and is stated — with the reason, so a 401 reads as "sign in"
+            // and not as an empty shelf. A well-formed body with no data is an
+            // EMPTY and renders the null marker. The two must not look alike.
+            const failures = [
+                surfaceFailure('Company overview (Alpha Vantage)', ov),
+                surfaceFailure('Quote', qt),
+                surfaceFailure('Filings index', docs),
+                surfaceFailure('XBRL financials', met),
+            ].filter((f): f is string => f !== null);
             if (failures.length) setFailedSurfaces(failures);
 
-            if (ov.status === 'fulfilled' && ov.value?.Symbol) setOverview(ov.value);
-            if (qt.status === 'fulfilled') {
-                const q = qt.value?.quoteResponse?.result?.[0];
-                setQuote(q?.regularMarketPrice ? {
-                    price: q.regularMarketPrice,
-                    changePct: q.regularMarketChangePercent ?? 0,
-                    volume: q.regularMarketVolume ?? 0,
-                    marketCap: q.marketCap ?? 0,
-                } : null);
-            }
-            if (docs.status === 'fulfilled') {
-                const list = arr(docs.value?.documents ?? docs.value) as GravityDocument[];
+            const ovData = surfaceData(ov);
+            if (ovData?.Symbol) setOverview(ovData);
+
+            const q = surfaceData(qt)?.quoteResponse?.result?.[0];
+            setQuote(q?.regularMarketPrice ? {
+                price: q.regularMarketPrice,
+                changePct: q.regularMarketChangePercent ?? 0,
+                volume: q.regularMarketVolume ?? 0,
+                marketCap: q.marketCap ?? 0,
+            } : null);
+
+            const docsData = surfaceData(docs);
+            if (docsData) {
+                const list = arr(docsData.documents ?? docsData) as GravityDocument[];
                 setDocuments(list);
                 // Record the newest filing_date so next visit can flag anything newer.
                 const newest = list.map(d => d.filing_date).filter(Boolean).sort().reverse()[0] ?? null;
                 markSeen(symbol, newest);
             }
-            if (met.status === 'fulfilled') setMetrics(arr(met.value?.rows ?? met.value?.structured_data));
+            const metData = surfaceData(met);
+            if (metData) setMetrics(arr(metData.rows ?? metData.structured_data));
             setLoading(false);
         }));
     }, [symbol]);
@@ -340,9 +387,13 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
 
         let alive = true;
         const qs = new URLSearchParams({ metric: 'revenue', periods: periods.join(',') });
-        // No key: analytics.py declares no auth dependency. Probed live
-        // 2026-09-07 without the header — 200, same body.
-        fetch(`${GRAVITY_BASE}/v1/analytics/longitudinal/${symbol}?${qs}`)
+        // analytics.py declares no auth dependency today (probed live 2026-09-07:
+        // 200 with no header), but it goes through the same `authed` construction
+        // as every other call on this page so it stays correct if that changes.
+        getAccessToken().catch(() => null)
+            .then(tok => fetch(`${GRAVITY_BASE}/v1/analytics/longitudinal/${symbol}?${qs}`, {
+                headers: authed(tok),
+            }))
             .then(r => r.ok ? r.json() : null)
             .then(body => {
                 if (!alive || !body) return;
@@ -379,9 +430,13 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
         setSentimentView(null);
         (async () => {
             try {
-                // No key: skills.py declares no auth dependency either. Probed
-                // live 2026-09-07 without the header — the same data 404, not a 401.
-                const res = await fetch(sentimentSkillUrl(GRAVITY_BASE, symbol));
+                // skills.py declares no auth dependency either (probed live
+                // 2026-09-07: the same data 404, not a 401), but it uses the same
+                // `authed` construction as the rest of the page.
+                const tok = await getAccessToken().catch(() => null);
+                const res = await fetch(sentimentSkillUrl(GRAVITY_BASE, symbol), {
+                    headers: authed(tok),
+                });
                 const body = await res.json().catch(() => null);
                 if (!alive) return;
                 const view = toView(body);
