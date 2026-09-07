@@ -23,7 +23,11 @@ const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'
 // answer). Model choice mirrors GridView's picker.
 type ModelKey = 'deepseek' | 'claude' | 'gemini';
 const MODEL_CONFIG: Record<ModelKey, { provider: string; model: string; label: string }> = {
-    deepseek: { provider: 'deepseek', model: 'deepseek-v4-flash', label: 'DeepSeek' },
+    // deepseek-v4-flash is a REASONING model: it spends the token budget on
+    // `reasoning_content` and returns content:null, which the proxy coerces to
+    // ''. Measured 2026-09-07 against the live proxy — 5 of the 6 brief prompts
+    // came back http=200 with chars=0. deepseek-chat is the completion model.
+    deepseek: { provider: 'deepseek', model: 'deepseek-chat', label: 'DeepSeek' },
     claude:   { provider: 'anthropic', model: 'claude-sonnet-4-6', label: 'Claude' },
     gemini:   { provider: 'gemini', model: 'gemini-2.5-flash', label: 'Gemini' },
 };
