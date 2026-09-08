@@ -86,20 +86,29 @@ async def company_financials(
     """Exact reported figures for a ticker — XBRL-sourced rows only (the one
     exact population in the financials table), newest period first."""
     symbol = ticker.upper()
-    rows = await supabase_rest.sb_select(
+    # The order is a TOTAL order, and has to be. `period.desc,filing_date.desc`
+    # alone leaves every row inside a period tied, so "the newest 80" had no
+    # defined answer: the cut lands mid-period and which metrics of that period
+    # fall inside it was whatever order Postgres happened to return. Measured
+    # 2026-09-07 — all 10 heaviest tickers disagreed with an independent read of
+    # the same table, every disagreement inside the boundary period.
+    #
+    # metric_name orders the pairs; id breaks the remaining tie for tickers that
+    # hold duplicate rows per (metric, period) — MMM 376 rows over 366 pairs — so
+    # which row wins the dedupe is fixed rather than incidental.
+    rows, _hit_cap = await supabase_rest.sb_select_all(
         "financials",
         {
             "ticker": f"eq.{symbol}",
             "document_id": "like.xbrl:*",
-            "order": "period.desc,filing_date.desc",
+            "order": "period.desc,filing_date.desc,metric_name.asc,id.asc",
         },
         # CT2-3 · document_id is selected so the client can attempt an id lookup
         # against /filings. CT2-2 measured what it currently holds — one distinct
-        # value per ticker, the literal "xbrl:NVDA" over 402 NVDA rows — so the
+        # value per ticker, the literal "xbrl:NVDA" over the ticker's rows — so the
         # lookup resolves nothing today and the client renders the honest null.
         # Shipping it anyway is what makes that fact visible instead of assumed.
         select="metric_name,period,value_float,unit,filing_type,filing_date,document_id",
-        limit=max(limit * 3, 120),
     )
     # One row per metric+period; later filings restate — keep the newest.
     best: dict[tuple[str, str], dict[str, Any]] = {}
