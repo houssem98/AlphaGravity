@@ -153,13 +153,18 @@ async def company_trend(
     uses — the point of this route is the auth dependency and the single company
     surface, not a second implementation of the query.
 
-    KNOWN BROKEN (CF-15): the tracker reads `SELECT value FROM financial_statements`
-    over the asyncpg session. That table does not exist in this database and that
-    session is a dead stub, so every period comes back null with a 200. Moving the
-    route does not fix that, and this docstring is here so the next reader does not
-    mistake a null series for a company without revenue.
+    CF-15 · the tracker now reads the exact-XBRL `financials` rows first. It used
+    to go straight to `SELECT value FROM financial_statements` over the asyncpg
+    session — a table that does not exist here, over a session that is a dead stub
+    — and swallow the failure per period, so every period came back null with a
+    200 and the chart had never drawn a point.
+
+    A series with nothing in it now says WHY, because "we cannot look that metric
+    up" and "this company reported no such period" are different answers and an
+    empty chart renders them identically.
     """
     from app.api.routes.analytics import _get_longitudinal_tracker
+    from app.core.analytics.longitudinal_tracker import METRIC_ALIASES, resolve_metric
 
     period_list = [p.strip() for p in periods.split(",") if p.strip()]
     if not period_list:
@@ -168,7 +173,22 @@ async def company_trend(
     series = await _get_longitudinal_tracker().get_metric_series(
         ticker=ticker.upper(), metric_name=metric, periods=period_list,
     )
+
+    unavailable_reason = None
+    if not any(dp.value is not None for dp in series.data_points):
+        if resolve_metric(metric) is None:
+            unavailable_reason = (
+                f"No exact figure is stored under the name {metric!r}. "
+                f"Known metrics: {', '.join(sorted(METRIC_ALIASES))}."
+            )
+        else:
+            unavailable_reason = (
+                f"{ticker.upper()} has no reported {metric} for "
+                f"{', '.join(period_list)} in the exact-XBRL rows."
+            )
+
     return {
+        "unavailable_reason": unavailable_reason,
         "ticker": series.ticker,
         "metric_name": series.metric_name,
         "display_name": series.display_name,

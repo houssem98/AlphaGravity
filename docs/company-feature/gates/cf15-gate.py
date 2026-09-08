@@ -1,0 +1,134 @@
+"""CF-15 gate. The revenue trend has data, or the card says why it does not.
+
+Checks the endpoint's values against the `financials` table read independently,
+and checks that a metric it genuinely cannot source comes back with a stated
+reason rather than a row of nulls.
+
+Run from services/gravity-api:
+    .venv/Scripts/python.exe ../../docs/company-feature/gates/cf15-gate.py
+"""
+import asyncio
+import os
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
+API = ROOT / "services" / "gravity-api"
+sys.path.insert(0, str(API))
+
+for env_file in (API / ".env", ROOT / ".env"):
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+
+from app.api.routes.company import company_trend  # noqa: E402
+from app.core.analytics.longitudinal_tracker import resolve_metric  # noqa: E402
+from app.db import supabase_rest  # noqa: E402
+
+AUTH = {"user_id": "gate", "tier": "unlimited", "api_key": "gate"}
+
+# Tickers whose exact-XBRL rows actually carry revenue for these periods. The row
+# originally named AAPL; measured 2026-09-08, AAPL's corpus holds
+# `Revenue (Total Revenue, Net Sales)` only for FY2017 and FY2018 — from FY2019 it
+# has COGS and no revenue row at all. That is a gap in the corpus, not in this
+# code, so AAPL moved to the two cases below that test exactly that.
+TICKERS = ["NVDA", "TSLA", "CRM", "DELL"]
+PERIODS = ["FY2021", "FY2022", "FY2023", "FY2024", "FY2025"]
+
+failures = 0
+
+
+def check(name: str, ok: bool, detail: str = "") -> None:
+    global failures
+    if not ok:
+        failures += 1
+    print(f"{'PASS' if ok else 'FAIL'}  {name}" + (f"\n      {detail}" if detail and not ok else ""))
+
+
+async def truth(ticker: str, metric: str, period: str):
+    """The stored fact, read straight from the table."""
+    stored = resolve_metric(metric)
+    rows = await supabase_rest.sb_select(
+        "financials",
+        {"ticker": f"eq.{ticker}", "metric_name": f"eq.{stored}", "period": f"eq.{period}",
+         "document_id": "like.xbrl:*", "order": "filing_date.desc,id.asc"},
+        select="value_float", limit=1,
+    )
+    return rows[0].get("value_float") if rows else None
+
+
+async def main() -> int:
+    if not supabase_rest.configured():
+        print("BLOCKED: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set")
+        return 2
+
+    for t in TICKERS:
+        r = await company_trend(t, metric="revenue", periods=",".join(PERIODS), auth=AUTH)
+        got = {p["period"]: p["value"] for p in r["data_points"]}
+        nonnull = {k: v for k, v in got.items() if v is not None}
+
+        check(f"{t}: revenue is non-null for at least 3 periods", len(nonnull) >= 3,
+              f"got {len(nonnull)}: {got}")
+
+        mismatched = []
+        for period in PERIODS:
+            want = await truth(t, "revenue", period)
+            if got.get(period) != want:
+                mismatched.append(f"{period}: endpoint={got.get(period)} table={want}")
+        check(f"{t}: every value matches the financials table exactly", not mismatched,
+              "; ".join(mismatched))
+
+        check(f"{t}: no unavailable_reason when data was found",
+              r.get("unavailable_reason") is None or not nonnull,
+              f"reason={r.get('unavailable_reason')!r} while {len(nonnull)} values were returned")
+
+        if nonnull:
+            sample = sorted(nonnull.items())[-1]
+            print(f"      {t} {sample[0]} revenue = ${sample[1] / 1e9:.2f}B")
+
+    # AAPL, both directions. The periods it HAS must come back with real numbers,
+    # and the periods it does not must come back with the reason — an empty chart
+    # renders "no data source" and "no such period" identically, which is the whole
+    # defect this row was opened for.
+    covered = await company_trend("AAPL", metric="revenue", periods="FY2017,FY2018", auth=AUTH)
+    vals = {p["period"]: p["value"] for p in covered["data_points"]}
+    check("AAPL returns real revenue for the periods its corpus covers",
+          vals.get("FY2017") == 229234000000 and vals.get("FY2018") == 265595000000,
+          f"got {vals}")
+    check("and carries no reason when it found them",
+          covered.get("unavailable_reason") is None,
+          f"reason={covered.get('unavailable_reason')!r}")
+
+    gap = await company_trend("AAPL", metric="revenue", periods="FY2021,FY2022,FY2023", auth=AUTH)
+    check("AAPL states the corpus gap for the periods it does not cover",
+          "no reported revenue" in (gap.get("unavailable_reason") or ""),
+          f"reason={gap.get('unavailable_reason')!r}")
+    check("and names the periods it was asked for",
+          "FY2021" in (gap.get("unavailable_reason") or ""),
+          f"reason={gap.get('unavailable_reason')!r}")
+
+    # A metric that genuinely cannot be sourced must SAY so, not return nulls.
+    unknown = await company_trend("AAPL", metric="unicorn_count",
+                                  periods="FY2024,FY2025", auth=AUTH)
+    check("an unmappable metric returns a stated reason, not a row of nulls",
+          bool(unknown.get("unavailable_reason")),
+          f"unavailable_reason={unknown.get('unavailable_reason')!r}")
+    check("that reason names what IS available",
+          "revenue" in (unknown.get("unavailable_reason") or ""),
+          f"reason={unknown.get('unavailable_reason')!r}")
+
+    # A real metric in a period the company never reported is the OTHER reason.
+    old = await company_trend("NVDA", metric="revenue", periods="FY1998,FY1999", auth=AUTH)
+    check("a real metric with no facts for those periods says that instead",
+          "no reported revenue" in (old.get("unavailable_reason") or ""),
+          f"reason={old.get('unavailable_reason')!r}")
+
+    print(f"\nRESULT {'PASS' if failures == 0 else f'FAIL ({failures})'}")
+    return 0 if failures == 0 else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(asyncio.run(main()))

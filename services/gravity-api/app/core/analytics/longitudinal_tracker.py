@@ -435,7 +435,17 @@ class LongitudinalTracker:
     # ── Data Fetching ──────────────────────────────────────────────────────────
 
     async def _fetch_metric(self, ticker: str, metric_name: str, period: str) -> float | None:
-        """Fetch a single metric value from RatioEngine or TimescaleDB."""
+        """Fetch a single metric value from Supabase, RatioEngine or TimescaleDB."""
+        # CF-15 · this is the path that actually holds the data. Everything below
+        # was returning None for every ticker and every period: the asyncpg branch
+        # queries `financial_statements`, a table that does not exist in this
+        # database, over a session that is a dead stub on this deploy. The
+        # exception was swallowed per period, so the endpoint answered 200 with
+        # value:null and the revenue chart had never rendered a single point.
+        value = await _fetch_from_financials(ticker, metric_name, period)
+        if value is not None:
+            return value
+
         if self.ratio_engine:
             try:
                 output = await self.ratio_engine.compute_from_query(
@@ -630,3 +640,67 @@ class LongitudinalTracker:
                 anomaly_z_score=dp_data.get("anomaly_z_score"),
             ))
         return series
+
+
+# ─── CF-15 · the exact-XBRL path ──────────────────────────────────────────────
+#
+# The `financials` table stores a metric under its full disclosed name — the
+# client asks for "revenue" and the row is called "Revenue (Total Revenue, Net
+# Sales)". Nothing mapped between the two, which is the second half of why this
+# endpoint returned nothing: even had the table been right, the name would not
+# have matched.
+#
+# The map is explicit rather than fuzzy on purpose. A substring match would
+# happily resolve "income" to "Income Tax Expense" and report tax as earnings,
+# which is worse than returning nothing.
+METRIC_ALIASES: dict[str, str] = {
+    "revenue": "Revenue (Total Revenue, Net Sales)",
+    "total_revenue": "Revenue (Total Revenue, Net Sales)",
+    "net_sales": "Revenue (Total Revenue, Net Sales)",
+    "net_income": "Net Income (Net Earnings, Profit)",
+    "earnings": "Net Income (Net Earnings, Profit)",
+    "operating_income": "Operating Income",
+    "cost_of_revenue": "Cost of Revenue (COGS)",
+    "cogs": "Cost of Revenue (COGS)",
+    "eps": "Earnings Per Share (EPS) Diluted",
+    "eps_diluted": "Earnings Per Share (EPS) Diluted",
+    "eps_basic": "Earnings Per Share (EPS) Basic",
+    "income_tax_expense": "Income Tax Expense",
+    "net_interest_income": "Net Interest Income (NII)",
+}
+
+
+def resolve_metric(metric_name: str) -> str | None:
+    """The stored `metric_name` for a caller's shorthand, or None if unmapped."""
+    return METRIC_ALIASES.get(metric_name.strip().lower().replace(" ", "_").replace("-", "_"))
+
+
+async def _fetch_from_financials(ticker: str, metric_name: str, period: str) -> float | None:
+    """One exact XBRL fact, read the way company.py reads them.
+
+    Returns None when the metric is unmapped or the period holds no fact — the
+    caller distinguishes those two cases, because "we cannot look this up" and
+    "this company did not report that period" are different answers.
+    """
+    stored = resolve_metric(metric_name)
+    if stored is None:
+        return None
+    from app.db import supabase_rest
+
+    if not supabase_rest.configured():
+        return None
+    rows = await supabase_rest.sb_select(
+        "financials",
+        {
+            "ticker": f"eq.{ticker.upper()}",
+            "metric_name": f"eq.{stored}",
+            "period": f"eq.{period}",
+            "document_id": "like.xbrl:*",
+            # Newest filing wins a restatement; id settles the remaining tie so the
+            # same request does not answer differently on consecutive calls (CF-5).
+            "order": "filing_date.desc,id.asc",
+        },
+        select="value_float",
+        limit=1,
+    )
+    return rows[0].get("value_float") if rows else None
