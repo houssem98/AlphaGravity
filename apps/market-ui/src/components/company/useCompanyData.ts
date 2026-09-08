@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { lastSeen, markSeen } from '../../lib/newFilings';
 import { apiGetOverview } from '../../services/api';
 import { getAccessToken } from '../../services/supabase';
-import { sentimentSkillUrl, toView, type SentimentView } from '../../lib/sentimentSkill';
+import { toView, type SentimentView } from '../../lib/sentimentSkill';
 import {
     GRAVITY_BASE, authed, fetchSurface, surfaceFailure, surfaceData,
     withLoading, revenuePeriods,
@@ -72,7 +72,7 @@ export function useCompanyData(symbol: string) {
                 // on `metrics`, which cost a second serial round trip — 4.08s to first
                 // chart for AAPL against 2.19s issued in parallel.
                 fetchSurface(
-                    `${GRAVITY_BASE}/v1/analytics/longitudinal/${symbol}?`
+                    `${GRAVITY_BASE}/v1/company/${symbol}/trend?`
                     + new URLSearchParams({ metric: 'revenue', periods: revenuePeriods().join(',') }),
                     authed(tok),
                 ),
@@ -162,13 +162,14 @@ export function useCompanyData(symbol: string) {
         setSentimentView(null);
         (async () => {
             try {
-                // skills.py declares no auth dependency either (probed live
-                // 2026-09-07: the same data 404, not a 401), but it uses the same
-                // `authed` construction as the rest of the page.
+                // CF-10 · via the company router, so every surface this page reads
+                // sits behind the same auth dependency. It delegates to the same
+                // skill /v1/skills/sentiment runs, and keeps its status mapping.
                 const tok = await getAccessToken().catch(() => null);
-                const res = await fetch(sentimentSkillUrl(GRAVITY_BASE, symbol), {
-                    headers: authed(tok),
-                });
+                const res = await fetch(
+                    `${GRAVITY_BASE}/v1/company/${encodeURIComponent(symbol)}/sentiment`,
+                    { headers: authed(tok) },
+                );
                 const body = await res.json().catch(() => null);
                 if (!alive) return;
                 const view = toView(body);

@@ -21,7 +21,7 @@ worse than a slow chart.
 | CF-7 | The spinner cannot hang | An induced throw inside the settle handler still clears `loading`. Test asserts it. | **DONE** |
 | CF-8 | Trend chart costs one round trip, not two | Longitudinal periods derived without waiting on the financials response, or the two are issued in one batch. Measured before/after. | **DONE** |
 | CF-9 | `CompanyPage.tsx` under 400 lines | `wc -l` < 400; tabs extracted as components; no behaviour change (existing tests green). | **DONE** |
-| CF-10 | One backend company service | Sentiment + longitudinal + filings + financials reachable under one router with one auth dependency. | OPEN |
+| CF-10 | One backend company service | Sentiment + longitudinal + filings + financials reachable under one router with one auth dependency. | **DONE** |
 | CF-11 | An empty LLM completion is an error, not an answer | `llm.ts` returns `''` for a null completion today, with `ok: true` in the trace. Gate: a null/empty completion produces a non-2xx from `/api/llm/chat` and `ok: false` in the emitted trace, asserted by a test. | OPEN |
 | CF-12 | The internal key stops bypassing billing | `auth.py` routes API keys around `_apply_entitlement`, so `deep-research-internal` carries `tier: unlimited` with no rate limit. CF-2 moved that key server-side but did not change what it grants. Gate: a request authenticated with an internal service key is subject to a stated tier and rate limit, asserted by a test. **Product decision — needs the owner.** | OPEN |
 | CF-13 | market-server's own gravity calls authenticate | `services/market-server/src/services/gravityClient.ts` sends no auth header on any gravity-api call. Gate: every `fetch` in that file carries the key; a 401 from upstream surfaces as a named error, not an empty result. | OPEN |
@@ -33,6 +33,12 @@ worse than a slow chart.
 | CF-16 | `tsc --noEmit -p tsconfig.json` stops reporting clean on broken code | `apps/market-ui/tsconfig.json` is a references-only root, so that command type-checks **nothing** and prints "No errors found" regardless. Found in CF-9: it passed while `CompanyPage.tsx` referenced three undefined names, which `tsc -b` caught immediately. Anyone verifying a change with the obvious command gets false assurance. Gate: introduce a deliberate type error and confirm the documented typecheck command fails. | OPEN |
 
 ### Gate scripts
+
+Gates that hit an API take `GRAVITY_BASE`. **Prod is frozen** (Fly deploys are
+invoice-blocked), so it does not serve routes added after the freeze — point them at a
+local API instead: from `services/gravity-api`,
+`APP_ENV=development .venv/Scripts/python.exe -m uvicorn app.main:app --port 8010`, then
+`GRAVITY_BASE=http://127.0.0.1:8010 node docs/company-feature/gates/cf8-gate.mjs`.
 
 - CF-1 — `node docs/company-feature/gates/cf1-gate.mjs` (needs market-server up; set
   `PROXY=` if it is not on :3002). Reads the default model config out of the real

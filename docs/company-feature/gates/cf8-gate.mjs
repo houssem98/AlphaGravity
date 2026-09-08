@@ -23,10 +23,16 @@ const check = (name, cond, detail = '') => {
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${detail && !cond ? `\n      ${detail}` : ''}`);
 };
 
+// Timing a 404 is not a measurement. CF-10 moved the trend onto the company
+// router, and the API this gate points at is frozen (Fly deploys are blocked), so
+// without this check the gate happily "proved" that two 404s race faster than they
+// queue. Every timed request must be a real 200 or the number is discarded.
+const statuses = [];
 const ms = async (url) => {
   const t0 = performance.now();
   const r = await fetch(url, { headers: { 'X-API-Key': KEY } });
   await r.text();
+  statuses.push({ url, status: r.status });
   return performance.now() - t0;
 };
 
@@ -41,7 +47,7 @@ console.log(`${'ticker'.padEnd(8)}${'serial'.padStart(10)}${'parallel'.padStart(
 let totalSerial = 0, totalParallel = 0;
 for (const t of TICKERS) {
   const fin = `${BASE}/v1/company/${t}/financials?limit=80`;
-  const lon = `${BASE}/v1/analytics/longitudinal/${t}?metric=revenue&periods=${periods}`;
+  const lon = `${BASE}/v1/company/${t}/trend?metric=revenue&periods=${periods}`;
 
   // OLD shape: longitudinal cannot start until financials has landed.
   const a = await ms(fin);
@@ -60,12 +66,21 @@ for (const t of TICKERS) {
 
 console.log(`\ntotal serial   ${(totalSerial / 1000).toFixed(2)}s`);
 console.log(`total parallel ${(totalParallel / 1000).toFixed(2)}s`);
-check('issuing both together is faster than issuing them in sequence', totalParallel < totalSerial,
+const bad = statuses.filter(s => s.status !== 200);
+check('every timed request actually answered 200', bad.length === 0,
+  `${bad.length} of ${statuses.length} did not: `
+  + [...new Set(bad.map(b => `${new URL(b.url).pathname} -> ${b.status}`))].join(', ')
+  + `\n      A 404 here means the route is not deployed at ${BASE}, so the timing`
+  + `\n      below measures nothing. Point GRAVITY_BASE at an API running this code.`);
+check('issuing both together is faster than issuing them in sequence',
+  bad.length === 0 && totalParallel < totalSerial,
   `serial ${(totalSerial / 1000).toFixed(2)}s vs parallel ${(totalParallel / 1000).toFixed(2)}s`);
 
 // Wiring: the serial shape must be gone from the page, not merely unused.
-check('longitudinal is issued inside the main batch',
-  /fetchSurface\(\s*`\$\{GRAVITY_BASE\}\/v1\/analytics\/longitudinal/.test(hook));
+// CF-10 moved this onto the company router; the assertion follows the URL the
+// page actually calls, and still grades that the trend is issued in the batch.
+check('the trend request is issued inside the main batch',
+  /fetchSurface\(\s*`\$\{GRAVITY_BASE\}\/v1\/company\/\$\{symbol\}\/trend/.test(hook));
 check('periods no longer come from the financials response',
   !/useEffect\([\s\S]{0,400}?metrics\.length === 0[\s\S]{0,600}?longitudinal/.test(hook),
   'an effect keyed on `metrics` still fetches longitudinal');
