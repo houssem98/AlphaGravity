@@ -17,20 +17,25 @@ import { saveGridRun, loadTodaysRunByName } from '../../services/gridStore';
 import { useBackgroundStore } from '../../stores/backgroundStore';
 import { useCompanyBriefStore, briefDefault, briefAborts } from '../../stores/companyBriefStore';
 
-const LLM_PROXY_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/llm/chat`;
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const LLM_PROXY_URL = `${API_BASE}/api/llm/chat`;
+const LLM_HEALTH_URL = `${API_BASE}/api/llm/health`;
 
 // Fallback LLM (used only when a cell has sources but RAG returns no grounded
 // answer). Model choice mirrors GridView's picker.
 type ModelKey = 'deepseek' | 'claude' | 'gemini';
-const MODEL_CONFIG: Record<ModelKey, { provider: string; model: string; label: string }> = {
+const MODEL_CONFIG: Record<ModelKey, { provider: string; model: string; label: string; hint: string }> = {
     // deepseek-v4-flash is a REASONING model: it spends the token budget on
     // `reasoning_content` and returns content:null, which the proxy coerces to
     // ''. Measured 2026-09-07 against the live proxy — 5 of the 6 brief prompts
     // came back http=200 with chars=0. deepseek-chat is the completion model.
-    deepseek: { provider: 'deepseek', model: 'deepseek-chat', label: 'DeepSeek' },
-    claude:   { provider: 'anthropic', model: 'claude-sonnet-4-6', label: 'Claude' },
-    gemini:   { provider: 'gemini', model: 'gemini-2.5-flash', label: 'Gemini' },
+    deepseek: { provider: 'deepseek', model: 'deepseek-chat', label: 'DeepSeek', hint: 'DeepSeek — cheap, default' },
+    claude:   { provider: 'anthropic', model: 'claude-sonnet-4-6', label: 'Claude', hint: 'Claude — highest quality' },
+    gemini:   { provider: 'gemini', model: 'gemini-2.5-flash', label: 'Gemini', hint: 'Gemini — free' },
 };
+
+/** What `/api/llm/health` reports per provider. */
+type ProviderHealth = { ok: boolean; model: string; error?: string; latencyMs: number };
 
 // Same proxy contract as GridView's callLLMProxy (kept local — it's 12 lines).
 function makeCallLLM(modelKey: ModelKey) {
@@ -146,6 +151,33 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
 
     const briefName = `${ticker} Company Brief`;
 
+    // CF-6 · which providers actually answer. The picker offered all three
+    // unconditionally; measured 2026-09-08, one worked. A dead option that still
+    // looks clickable turns a config fault into what reads as a thin-data answer.
+    // Probed server-side (the keys live there) and cached for 5 minutes.
+    const [health, setHealth] = useState<Record<string, ProviderHealth> | null>(null);
+    useEffect(() => {
+        let alive = true;
+        fetch(LLM_HEALTH_URL)
+            .then(r => (r.ok ? r.json() : null))
+            .then(b => { if (alive && b?.providers) setHealth(b.providers); })
+            // If the probe itself is unreachable, leave every option enabled
+            // rather than disabling a picker on evidence we do not have.
+            .catch(() => { /* no-op */ });
+        return () => { alive = false; };
+    }, []);
+
+    const statusOf = (k: ModelKey): ProviderHealth | undefined => health?.[MODEL_CONFIG[k].provider];
+    const isDead = (k: ModelKey) => statusOf(k)?.ok === false;
+
+    // A dead provider must not stay SELECTED either — disabling the button while
+    // leaving it chosen would still send every brief to a model that cannot answer.
+    useEffect(() => {
+        if (!health || running || !isDead(model)) return;
+        const live = (Object.keys(MODEL_CONFIG) as ModelKey[]).find(k => statusOf(k)?.ok);
+        if (live) patch(ticker, { model: live });
+    }, [health]);  // eslint-disable-line react-hooks/exhaustive-deps
+
     const run = useCallback(async () => {
         briefAborts[ticker]?.abort();
         const controller = new AbortController();
@@ -231,19 +263,27 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
                 )}
                 <div className="ml-auto flex items-center gap-2">
                     <div className="flex rounded-lg border border-white/[0.08] overflow-hidden">
-                        {(Object.keys(MODEL_CONFIG) as ModelKey[]).map(k => (
-                            <button
-                                key={k}
-                                onClick={() => setModel(k)}
-                                disabled={running}
-                                title={k === 'deepseek' ? 'DeepSeek — cheap, default' : k === 'claude' ? 'Claude — highest quality' : 'Gemini — free'}
-                                className={`px-2 py-1 text-[10px] font-medium transition-colors disabled:opacity-40 ${model === k
-                                    ? 'bg-[#00F0FF]/15 text-[#00F0FF]'
-                                    : 'text-[#4A5568] hover:text-[#A7B0C8]'}`}
-                            >
-                                {MODEL_CONFIG[k].label}
-                            </button>
-                        ))}
+                        {(Object.keys(MODEL_CONFIG) as ModelKey[]).map(k => {
+                            const dead = isDead(k);
+                            return (
+                                <button
+                                    key={k}
+                                    onClick={() => setModel(k)}
+                                    disabled={running || dead}
+                                    // The provider's own words, not a summary of them:
+                                    // "Anthropic 401: API key is invalid" is actionable,
+                                    // "unavailable" is not.
+                                    title={dead ? `Unavailable — ${statusOf(k)!.error}` : MODEL_CONFIG[k].hint}
+                                    className={`px-2 py-1 text-[10px] font-medium transition-colors disabled:opacity-40 ${dead
+                                        ? 'text-[#4A5568] line-through cursor-not-allowed'
+                                        : model === k
+                                            ? 'bg-[#00F0FF]/15 text-[#00F0FF]'
+                                            : 'text-[#4A5568] hover:text-[#A7B0C8]'}`}
+                                >
+                                    {MODEL_CONFIG[k].label}
+                                </button>
+                            );
+                        })}
                     </div>
                     <button
                         onClick={exportMemo}

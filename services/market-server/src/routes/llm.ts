@@ -181,6 +181,93 @@ llmRouter.get('/providers', (_req, res) => {
     });
 });
 
+// One place that knows how to reach each provider, so /chat and the health probe
+// below cannot drift apart about what "reaching deepseek" means.
+async function callProvider(
+    provider: string, model: string, prompt: string, maxTokens: number,
+): Promise<{ text: string; cacheStats?: { created: number; read: number } }> {
+    switch (provider) {
+        case 'anthropic': {
+            const key = process.env.ANTHROPIC_API_KEY;
+            if (!key) throw Object.assign(new Error('Anthropic API key not configured on server'), { status: 503 });
+            return callAnthropic(key, model, prompt, maxTokens);
+        }
+        case 'gemini': {
+            const key = process.env.GEMINI_API_KEY;
+            if (!key) throw Object.assign(new Error('Gemini API key not configured on server'), { status: 503 });
+            return { text: await callGeminiAPI(key, model, prompt) };
+        }
+        case 'deepseek': {
+            const key = process.env.DEEPSEEK_API_KEY;
+            if (!key) throw Object.assign(new Error('DeepSeek API key not configured on server'), { status: 503 });
+            return { text: await callOpenAICompatible('https://api.deepseek.com/chat/completions', key, model, prompt, maxTokens) };
+        }
+        default: {
+            const key = process.env.GROQ_API_KEY;
+            if (!key) throw Object.assign(new Error('Groq API key not configured on server'), { status: 503 });
+            return { text: await callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', key, model, prompt, maxTokens) };
+        }
+    }
+}
+
+// ─── GET /api/llm/health — which providers actually answer, right now ────────
+//
+// The Company Brief's model picker offered three options unconditionally. Measured
+// 2026-09-08: one answered. Anthropic returned 401 "API key is invalid", Gemini had
+// no key on this server at all. Offering a dead model turns a configuration fault
+// into what reads as a thin-data answer, which is the same class of bug as CF-1.
+//
+// Probed here rather than in the browser: the keys live on this side, and three
+// live calls per page mount would be both slow and billable.
+
+export interface ProviderHealth {
+    ok: boolean;
+    model: string;
+    /** The provider's own words. Never a summary — the point is to show the fault. */
+    error?: string;
+    latencyMs: number;
+}
+
+const HEALTH_TTL_MS = 5 * 60_000;
+const HEALTH_PROBE_TOKENS = 16;
+const HEALTH_MODELS: Record<string, string> = {
+    deepseek: 'deepseek-chat',
+    anthropic: 'claude-sonnet-4-6',
+    gemini: 'gemini-2.5-flash',
+};
+
+let healthCache: { at: number; data: Record<string, ProviderHealth> } | null = null;
+
+async function probeProvider(provider: string, model: string): Promise<ProviderHealth> {
+    const t0 = Date.now();
+    try {
+        const { text } = await callProvider(provider, model, 'Reply with the single word: ok', HEALTH_PROBE_TOKENS);
+        const latencyMs = Date.now() - t0;
+        // An empty completion is a failure, not a pass — that is exactly how the
+        // reasoning-model bug hid: HTTP 200 carrying nothing.
+        return text.trim().length > 0
+            ? { ok: true, model, latencyMs }
+            : { ok: false, model, latencyMs, error: 'returned an empty completion' };
+    } catch (e: any) {
+        return { ok: false, model, latencyMs: Date.now() - t0, error: e?.message ?? 'probe failed' };
+    }
+}
+
+llmRouter.get('/health', async (req, res) => {
+    const fresh = req.query.refresh === '1';
+    if (!fresh && healthCache && Date.now() - healthCache.at < HEALTH_TTL_MS) {
+        res.json({ providers: healthCache.data, cached: true, checkedAt: healthCache.at });
+        return;
+    }
+    const entries = await Promise.all(
+        Object.entries(HEALTH_MODELS).map(async ([provider, model]) =>
+            [provider, await probeProvider(provider, model)] as const),
+    );
+    const data = Object.fromEntries(entries) as Record<string, ProviderHealth>;
+    healthCache = { at: Date.now(), data };
+    res.json({ providers: data, cached: false, checkedAt: healthCache.at });
+});
+
 // ─── POST /api/llm/chat — Proxy a single LLM call ───────────────────────────
 
 llmRouter.post('/chat', async (req, res) => {
@@ -201,30 +288,7 @@ llmRouter.post('/chat', async (req, res) => {
         }
 
         const result: { text: string; cacheStats?: { created: number; read: number } } =
-            await limiter.run(async () => {
-                switch (provider) {
-                    case 'anthropic': {
-                        const key = process.env.ANTHROPIC_API_KEY;
-                        if (!key) throw Object.assign(new Error('Anthropic API key not configured on server'), { status: 503 });
-                        return callAnthropic(key, model, prompt, max_tokens);
-                    }
-                    case 'gemini': {
-                        const key = process.env.GEMINI_API_KEY;
-                        if (!key) throw Object.assign(new Error('Gemini API key not configured on server'), { status: 503 });
-                        return { text: await callGeminiAPI(key, model, prompt) };
-                    }
-                    case 'deepseek': {
-                        const key = process.env.DEEPSEEK_API_KEY;
-                        if (!key) throw Object.assign(new Error('DeepSeek API key not configured on server'), { status: 503 });
-                        return { text: await callOpenAICompatible('https://api.deepseek.com/chat/completions', key, model, prompt, max_tokens) };
-                    }
-                    default: {
-                        const key = process.env.GROQ_API_KEY;
-                        if (!key) throw Object.assign(new Error('Groq API key not configured on server'), { status: 503 });
-                        return { text: await callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', key, model, prompt, max_tokens) };
-                    }
-                }
-            });
+            await limiter.run(() => callProvider(provider, model, prompt, max_tokens));
 
         const latencyMs = Date.now() - t0;
         emitTrace({

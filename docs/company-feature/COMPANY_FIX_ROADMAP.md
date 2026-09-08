@@ -17,7 +17,7 @@ worse than a slow chart.
 | CF-3 | One auth scheme on the company page | Every `fetch` in `CompanyPage.tsx` carries the same auth header construction; anonymous load renders a stated refusal, not a half page. | **DONE** |
 | CF-4 | `total` is the real filing count, or is not called `total` | For a ticker with >4000 chunks, the response's count matches a direct `count(distinct)` against the table. If unfixable without an RPC, the field is renamed and the cap is stated in the payload. | **DONE** |
 | CF-5 | Financials dedupe before truncation | For NVDA (402 XBRL rows), `limit=80` returns the 80 newest distinct metric+period pairs, verified against an unlimited query. | **DONE** |
-| CF-6 | The model picker offers only models that work | Each option is probed at mount; a failing provider is disabled with the provider's own error as its tooltip. No option is offered that returned an error in the last probe. | OPEN |
+| CF-6 | The model picker offers only models that work | Each option is probed at mount; a failing provider is disabled with the provider's own error as its tooltip. No option is offered that returned an error in the last probe. | **DONE** |
 | CF-7 | The spinner cannot hang | An induced throw inside the settle handler still clears `loading`. Test asserts it. | OPEN |
 | CF-8 | Trend chart costs one round trip, not two | Longitudinal periods derived without waiting on the financials response, or the two are issued in one batch. Measured before/after. | OPEN |
 | CF-9 | `CompanyPage.tsx` under 400 lines | `wc -l` < 400; tabs extracted as components; no behaviour change (existing tests green). | OPEN |
