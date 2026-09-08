@@ -163,6 +163,32 @@ export function surfaceFailure(label: string, r: PromiseSettledResult<unknown>):
     return null;
 }
 
+/**
+ * Runs `work` with the loading flag raised, and lowers it however `work` ends.
+ * Returns the error rather than swallowing it, so the caller can state it.
+ *
+ * The flag used to be cleared on the last line of the settle handler. Anything
+ * that threw above that line — a payload changing shape, a null deref — left the
+ * page spinning forever, with no error shown and no way out but a reload. The
+ * guarantee belongs in a `finally`, not in the last statement of a happy path.
+ *
+ * Exported for CompanyPage.surfaces.test.ts.
+ */
+export async function withLoading(
+    setLoading: (v: boolean) => void,
+    work: () => Promise<void>,
+): Promise<Error | null> {
+    setLoading(true);
+    try {
+        await work();
+        return null;
+    } catch (e) {
+        return e instanceof Error ? e : new Error(String(e));
+    } finally {
+        setLoading(false);
+    }
+}
+
 /** The payload a surface carried, or null when it failed. */
 export function surfaceData(r: PromiseSettledResult<unknown>): any {
     if (r.status !== 'fulfilled') return null;
@@ -291,11 +317,12 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
 
     useEffect(() => {
         if (!symbol) return;
-        setLoading(true);
         setFailedSurfaces([]);
         setWatermark(lastSeen(symbol));
 
-        getAccessToken().catch(() => null).then(tok => Promise.allSettled([
+        withLoading(setLoading, async () => {
+        const tok = await getAccessToken().catch(() => null);
+        const [ov, qt, docs, met] = await Promise.allSettled([
             // Alpha Vantage overview (opportunistic — 25 req/day free tier;
             // page renders '—' when absent)
             apiGetOverview(symbol),
@@ -323,7 +350,8 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
             // sentiment it differences was never computed (GET /sentiment/{t}
             // answers 404 "POST to compute it"). Rendering that reads as "no
             // change since last quarter" -- a measurement we never made.
-        ]).then(([ov, qt, docs, met]) => {
+        ]);
+        {
             const arr = (v: unknown): any[] => Array.isArray(v) ? v : [];
 
             // A rejected fetch, an HTTP error, or a body carrying an `error`, is a
@@ -359,8 +387,13 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
             }
             const metData = surfaceData(met);
             if (metData) setMetrics(arr(metData.rows ?? metData.structured_data));
-            setLoading(false);
-        }));
+        }
+        }).then(err => {
+            // The loading flag is already down — `withLoading` guarantees that.
+            // What is left is to SAY what went wrong, rather than present a page
+            // that silently lost half its content.
+            if (err) setFailedSurfaces(f => [...f, `Company data — ${err.message}`]);
+        });
     }, [symbol]);
 
     // Revenue trend. /analytics/longitudinal/{t} takes `metric` + `periods` and

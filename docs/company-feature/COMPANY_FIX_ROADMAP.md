@@ -18,7 +18,7 @@ worse than a slow chart.
 | CF-4 | `total` is the real filing count, or is not called `total` | For a ticker with >4000 chunks, the response's count matches a direct `count(distinct)` against the table. If unfixable without an RPC, the field is renamed and the cap is stated in the payload. | **DONE** |
 | CF-5 | Financials dedupe before truncation | For NVDA (402 XBRL rows), `limit=80` returns the 80 newest distinct metric+period pairs, verified against an unlimited query. | **DONE** |
 | CF-6 | The model picker offers only models that work | Each option is probed at mount; a failing provider is disabled with the provider's own error as its tooltip. No option is offered that returned an error in the last probe. | **DONE** |
-| CF-7 | The spinner cannot hang | An induced throw inside the settle handler still clears `loading`. Test asserts it. | OPEN |
+| CF-7 | The spinner cannot hang | An induced throw inside the settle handler still clears `loading`. Test asserts it. | **DONE** |
 | CF-8 | Trend chart costs one round trip, not two | Longitudinal periods derived without waiting on the financials response, or the two are issued in one batch. Measured before/after. | OPEN |
 | CF-9 | `CompanyPage.tsx` under 400 lines | `wc -l` < 400; tabs extracted as components; no behaviour change (existing tests green). | OPEN |
 | CF-10 | One backend company service | Sentiment + longitudinal + filings + financials reachable under one router with one auth dependency. | OPEN |
@@ -26,7 +26,7 @@ worse than a slow chart.
 | CF-12 | The internal key stops bypassing billing | `auth.py` routes API keys around `_apply_entitlement`, so `deep-research-internal` carries `tier: unlimited` with no rate limit. CF-2 moved that key server-side but did not change what it grants. Gate: a request authenticated with an internal service key is subject to a stated tier and rate limit, asserted by a test. **Product decision — needs the owner.** | OPEN |
 | CF-13 | market-server's own gravity calls authenticate | `services/market-server/src/services/gravityClient.ts` sends no auth header on any gravity-api call. Gate: every `fetch` in that file carries the key; a 401 from upstream surfaces as a named error, not an empty result. | OPEN |
 
-| CF-14 | The company feature's existing tests actually assert something | `LatestQuarterCard.test.ts` and `TranscriptSummary.test.ts` are bare scripts with no `it()`. They sit inside `vitest.config.ts`'s include glob and report `PASS (0) FAIL (0)` — zero assertions under `npm test`, so they grade nothing in CI. Gate: `npx vitest run src/components/company` reports a non-zero test count and every assertion in those two files runs. | OPEN |
+| CF-14 | The company feature's existing tests actually run somewhere | **Corrected 2026-09-08** — the first wording of this row was wrong. `LatestQuarterCard.test.ts` and `TranscriptSummary.test.ts` are not silently collected as zero; they are named in `vitest.config.ts`'s `exclude` list with a documented rationale, and are meant to run under `npx tsx`. The real problem is that nothing invokes them: the only reference to their runner (`npm run phase2`) is in `.github/workflows/ci.yml.disabled`. Gate: a command that CI actually runs executes those assertions and fails when one fails. | OPEN |
 
 ### Gate scripts
 
