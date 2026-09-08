@@ -290,6 +290,17 @@ llmRouter.post('/chat', async (req, res) => {
         const result: { text: string; cacheStats?: { created: number; read: number } } =
             await limiter.run(() => callProvider(provider, model, prompt, max_tokens));
 
+        // parseCompletion covers the OpenAI-compatible providers at the point they
+        // are parsed. This covers every provider, including Anthropic and Gemini,
+        // at the point the answer leaves this service. A 200 carrying "" is the bug
+        // that hid CF-1 for as long as it did.
+        if (!result.text.trim()) {
+            throw Object.assign(
+                new Error(`${model} returned an empty completion. An empty answer is a failed call, not an answer.`),
+                { status: 502 },
+            );
+        }
+
         const latencyMs = Date.now() - t0;
         emitTrace({
             ts: new Date().toISOString(),
@@ -453,5 +464,42 @@ async function callOpenAICompatible(url: string, apiKey: string, model: string, 
         throw new Error(`${model} ${resp.status}: ${err}`);
     }
     const data = await resp.json();
-    return data.choices?.[0]?.message?.content ?? '';
+    return parseCompletion(data, model, maxTokens);
+}
+
+/**
+ * The assistant text, or an error explaining why there is none.
+ *
+ * `data.choices?.[0]?.message?.content ?? ''` was the single most expensive line
+ * in this file. A reasoning model spends its budget on `reasoning_content` and
+ * returns `content: null`, which that expression turned into an empty string —
+ * so the proxy answered HTTP 200 with `""`, the trace recorded ok:true, and the
+ * AI Company Brief rendered "Not generated." for every section with no error
+ * anywhere in the stack. It was intermittent, because a prompt that finished
+ * reasoning inside the budget did return prose, so it read as thin filing data
+ * rather than a wrong model id.
+ *
+ * An empty completion is a failed call. Say so, and say why when the response
+ * shows why.
+ */
+export function parseCompletion(data: any, model: string, maxTokens: number): string {
+    const msg = data?.choices?.[0]?.message;
+    const text: string = msg?.content ?? '';
+    if (text.trim()) return text;
+
+    const reasoning: string = msg?.reasoning_content ?? '';
+    if (reasoning) {
+        throw Object.assign(new Error(
+            `${model} returned no content: it spent its ${maxTokens}-token budget on `
+            + `reasoning_content (${reasoning.length} chars). This is a reasoning model — `
+            + `use the completion model (e.g. deepseek-chat, not deepseek-v4-flash), `
+            + `or raise max_tokens past what the reasoning consumes.`,
+        ), { status: 502 });
+    }
+    const reason = data?.choices?.[0]?.finish_reason;
+    throw Object.assign(new Error(
+        `${model} returned an empty completion`
+        + (reason ? ` (finish_reason: ${reason})` : '')
+        + '. An empty answer is a failed call, not an answer.',
+    ), { status: 502 });
 }
