@@ -189,6 +189,29 @@ export async function withLoading(
     }
 }
 
+/**
+ * The fiscal years the revenue trend asks for.
+ *
+ * CF-8 · these used to be derived from the financials response — read its newest
+ * FY, span back from there — which forced a second round trip after the first had
+ * landed. Measured 2026-09-08 against prod: financials 1.89s THEN longitudinal
+ * 2.19s for AAPL, 4.08s before the chart could draw.
+ *
+ * The calendar gives the same window without asking anyone. Fiscal years can lead
+ * it (NVDA closed FY2026 in January 2026), so the span runs a year ahead, and
+ * periods the server has no fact for come back null and are filtered out — so a
+ * wider window costs a longer query string and nothing else.
+ *
+ * Exported for CompanyPage.surfaces.test.ts.
+ */
+export const LONGITUDINAL_SPAN = 8;
+
+export function revenuePeriods(now: Date = new Date()): string[] {
+    const newest = now.getFullYear() + 1;
+    return Array.from({ length: LONGITUDINAL_SPAN },
+        (_, i) => `FY${newest - LONGITUDINAL_SPAN + 1 + i}`);
+}
+
 /** The payload a surface carried, or null when it failed. */
 export function surfaceData(r: PromiseSettledResult<unknown>): any {
     if (r.status !== 'fulfilled') return null;
@@ -322,7 +345,7 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
 
         withLoading(setLoading, async () => {
         const tok = await getAccessToken().catch(() => null);
-        const [ov, qt, docs, met] = await Promise.allSettled([
+        const [ov, qt, docs, met, lon] = await Promise.allSettled([
             // Alpha Vantage overview (opportunistic — 25 req/day free tier;
             // page renders '—' when absent)
             apiGetOverview(symbol),
@@ -334,15 +357,19 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
             // Exact XBRL financial facts (NL→SQL structured search is broken in
             // prod and inexact anyway — xbrl:* rows are the one exact population)
             fetchSurface(`${GRAVITY_BASE}/v1/company/${symbol}/financials?limit=80`, authed(tok)),
+            // Revenue trend. It belongs in THIS batch: its periods come from the
+            // calendar (see revenuePeriods), not from the financials response, so
+            // there is nothing to wait for. It used to run in its own effect keyed
+            // on `metrics`, which cost a second serial round trip — 4.08s to first
+            // chart for AAPL against 2.19s issued in parallel.
+            fetchSurface(
+                `${GRAVITY_BASE}/v1/analytics/longitudinal/${symbol}?`
+                + new URLSearchParams({ metric: 'revenue', periods: revenuePeriods().join(',') }),
+                authed(tok),
+            ),
             // CT2-5 · the sentiment score is NOT fetched here. It needs a
             // document_id, which only arrives with the filings payload in this
             // same batch, so it runs in its own effect below.
-            //
-            // Neither is the longitudinal series: it requires `metric` + `periods`,
-            // and the periods come from the financials payload in this same batch.
-            // Called bare, as this batch used to, it answered 422 on every page
-            // load -- our malformed request, not a data gap. It now runs in its
-            // own effect once `metrics` has arrived.
             //
             // /analytics/sentiment/{t}/delta is NOT called at all. Probed live
             // 2026-08-20 with two real document ids: 200 with overall_delta 0.0,
@@ -387,6 +414,16 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
             }
             const metData = surfaceData(met);
             if (metData) setMetrics(arr(metData.rows ?? metData.structured_data));
+
+            // The series arrives as one long list ({data_points: [{period, value}]})
+            // while the chart wants a wide row per period. Periods the server holds
+            // no fact for come back null and drop out here.
+            const lonData = surfaceData(lon);
+            setLongitudinal(
+                arr(lonData?.data_points)
+                    .filter((d: { value?: number | null }) => typeof d.value === 'number')
+                    .map((d: { period: string; value: number }) => ({ period: d.period, revenue: d.value })),
+            );
         }
         }).then(err => {
             // The loading flag is already down — `withLoading` guarantees that.
@@ -395,52 +432,6 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
             if (err) setFailedSurfaces(f => [...f, `Company data — ${err.message}`]);
         });
     }, [symbol]);
-
-    // Revenue trend. /analytics/longitudinal/{t} takes `metric` + `periods` and
-    // answers per-period values, so the periods have to come from somewhere real:
-    // `metrics` already holds the exact-XBRL rows, and its `period` column is the
-    // same "FY2025" vocabulary the endpoint matches on. Newest four fiscal years,
-    // oldest-first so the chart reads left to right.
-    //
-    // The response is one long series ({data_points: [{period, value}]}) while the
-    // chart wants a wide row per period ({period, revenue}), so it is reshaped here.
-    useEffect(() => {
-        if (!symbol || metrics.length === 0) return;
-        const years = metrics
-            .map(m => String((m as { period?: string }).period ?? ''))
-            .filter(p => /^FY\d{4}$/.test(p))
-            .map(p => Number(p.slice(2)));
-        if (years.length === 0) { setLongitudinal([]); return; }
-        // /financials returns only the newest ~80 rows -- for AAPL that is three
-        // fiscal years, which drew a two-point "trend". Span back from the newest
-        // year instead; periods the server has no fact for come back null and are
-        // filtered out below, so asking for more costs nothing.
-        const newest = Math.max(...years);
-        const periods = Array.from({ length: 6 }, (_, i) => `FY${newest - 5 + i}`);
-
-        let alive = true;
-        const qs = new URLSearchParams({ metric: 'revenue', periods: periods.join(',') });
-        // analytics.py declares no auth dependency today (probed live 2026-09-07:
-        // 200 with no header), but it goes through the same `authed` construction
-        // as every other call on this page so it stays correct if that changes.
-        getAccessToken().catch(() => null)
-            .then(tok => fetch(`${GRAVITY_BASE}/v1/analytics/longitudinal/${symbol}?${qs}`, {
-                headers: authed(tok),
-            }))
-            .then(r => r.ok ? r.json() : null)
-            .then(body => {
-                if (!alive || !body) return;
-                const pts = (Array.isArray(body.data_points) ? body.data_points : [])
-                    .filter((d: { value?: number | null }) => typeof d.value === 'number')
-                    .map((d: { period: string; value: number }) => ({
-                        period: d.period,
-                        revenue: d.value,
-                    }));
-                setLongitudinal(pts);
-            })
-            .catch(() => { /* the card simply does not mount */ });
-        return () => { alive = false; };
-    }, [symbol, metrics]);
 
     // CT2-5 · row R6. Probed live 2026-08-09: the endpoint requires BOTH
     // document_id AND period (the ledger's P2 named only the first), and it is a

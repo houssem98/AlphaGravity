@@ -6,7 +6,7 @@
 // with nothing anywhere saying why.
 import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
-import { surfaceFailure, surfaceData, withLoading } from './CompanyPage';
+import { surfaceFailure, surfaceData, withLoading, revenuePeriods, LONGITUDINAL_SPAN } from './CompanyPage';
 
 const ok = (data: unknown) => ({ status: 'fulfilled', value: { ok: true, data } }) as const;
 const http = (status: number) => ({ status: 'fulfilled', value: { ok: false, status } }) as const;
@@ -106,6 +106,35 @@ describe('withLoading', () => {
         await withLoading(s.set, async () => { throw new Error('boom'); })
             .then(() => { flagWhenCallerRan = s.calls.at(-1); });
         expect(flagWhenCallerRan).toBe(false);
+    });
+});
+
+// CF-8 · the trend window used to be read off the financials response, which cost
+// a second serial round trip. The calendar answers the same question for free.
+describe('revenuePeriods', () => {
+    it('runs one year ahead of the calendar, because fiscal years do', () => {
+        // NVDA closed FY2026 in January 2026, so a window ending at the current
+        // calendar year would miss the most recent close.
+        expect(revenuePeriods(new Date('2026-09-08'))).toContain('FY2027');
+    });
+
+    it('returns exactly LONGITUDINAL_SPAN consecutive years, oldest first', () => {
+        const p = revenuePeriods(new Date('2026-09-08'));
+        expect(p).toHaveLength(LONGITUDINAL_SPAN);
+        expect(p[0]).toBe('FY2020');
+        expect(p.at(-1)).toBe('FY2027');
+        const years = p.map(s => Number(s.slice(2)));
+        expect(years.every((y, i) => i === 0 || y === years[i - 1] + 1)).toBe(true);
+    });
+
+    it('moves with the calendar rather than being pinned to a year', () => {
+        expect(revenuePeriods(new Date('2030-01-01')).at(-1)).toBe('FY2031');
+    });
+
+    it('does not depend on any fetched data', () => {
+        // The whole point: same answer with nothing loaded.
+        expect(revenuePeriods(new Date('2026-09-08')))
+            .toEqual(revenuePeriods(new Date('2026-09-08')));
     });
 });
 

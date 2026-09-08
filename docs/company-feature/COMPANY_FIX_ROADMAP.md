@@ -19,7 +19,7 @@ worse than a slow chart.
 | CF-5 | Financials dedupe before truncation | For NVDA (402 XBRL rows), `limit=80` returns the 80 newest distinct metric+period pairs, verified against an unlimited query. | **DONE** |
 | CF-6 | The model picker offers only models that work | Each option is probed at mount; a failing provider is disabled with the provider's own error as its tooltip. No option is offered that returned an error in the last probe. | **DONE** |
 | CF-7 | The spinner cannot hang | An induced throw inside the settle handler still clears `loading`. Test asserts it. | **DONE** |
-| CF-8 | Trend chart costs one round trip, not two | Longitudinal periods derived without waiting on the financials response, or the two are issued in one batch. Measured before/after. | OPEN |
+| CF-8 | Trend chart costs one round trip, not two | Longitudinal periods derived without waiting on the financials response, or the two are issued in one batch. Measured before/after. | **DONE** |
 | CF-9 | `CompanyPage.tsx` under 400 lines | `wc -l` < 400; tabs extracted as components; no behaviour change (existing tests green). | OPEN |
 | CF-10 | One backend company service | Sentiment + longitudinal + filings + financials reachable under one router with one auth dependency. | OPEN |
 | CF-11 | An empty LLM completion is an error, not an answer | `llm.ts` returns `''` for a null completion today, with `ok: true` in the trace. Gate: a null/empty completion produces a non-2xx from `/api/llm/chat` and `ok: false` in the emitted trace, asserted by a test. | OPEN |
@@ -27,6 +27,8 @@ worse than a slow chart.
 | CF-13 | market-server's own gravity calls authenticate | `services/market-server/src/services/gravityClient.ts` sends no auth header on any gravity-api call. Gate: every `fetch` in that file carries the key; a 401 from upstream surfaces as a named error, not an empty result. | OPEN |
 
 | CF-14 | The company feature's existing tests actually run somewhere | **Corrected 2026-09-08** — the first wording of this row was wrong. `LatestQuarterCard.test.ts` and `TranscriptSummary.test.ts` are not silently collected as zero; they are named in `vitest.config.ts`'s `exclude` list with a documented rationale, and are meant to run under `npx tsx`. The real problem is that nothing invokes them: the only reference to their runner (`npm run phase2`) is in `.github/workflows/ci.yml.disabled`. Gate: a command that CI actually runs executes those assertions and fails when one fails. | OPEN |
+
+| CF-15 | The revenue trend has data, or the card says why it does not | **The chart has never rendered a point.** `/v1/analytics/longitudinal/{t}` answers 200 with `value: null` for every period, for every ticker probed. `longitudinal_tracker._fetch_metric` reads `SELECT value FROM financial_statements` over the asyncpg session — a table that does not exist in Supabase (only `chunks` and `financials` do) through a session `company.py`'s own docstring calls a dead stub. The exception is swallowed and each period returns null, so a missing data source is indistinguishable from a company with no revenue history. The facts it wants are in `financials` under names like `Revenue (Total Revenue, Net Sales)`, not `revenue`. Gate: for AAPL, NVDA and TSLA the endpoint returns a non-null revenue value for at least 3 periods, matching `financials` exactly; a metric it genuinely cannot source returns a stated reason rather than a null. | OPEN |
 
 ### Gate scripts
 
