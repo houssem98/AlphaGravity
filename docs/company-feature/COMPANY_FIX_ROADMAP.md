@@ -15,7 +15,7 @@ worse than a slow chart.
 | CF-1 | Brief + Devil's Advocate call a model that returns content | Live POST to `/api/llm/chat` with the brief's default config returns non-empty `text` for 6/6 seed prompts. Recorded with the response bodies. | **DONE** |
 | CF-2 | No credential in the client bundle | `grep -r "deep-research-internal" apps/market-ui/src` → 0 hits, AND `npm -w market-ui run build` output greps clean for the literal. | **DONE** |
 | CF-3 | One auth scheme on the company page | Every `fetch` in `CompanyPage.tsx` carries the same auth header construction; anonymous load renders a stated refusal, not a half page. | **DONE** |
-| CF-4 | `total` is the real filing count, or is not called `total` | For a ticker with >4000 chunks, the response's count matches a direct `count(distinct)` against the table. If unfixable without an RPC, the field is renamed and the cap is stated in the payload. | OPEN |
+| CF-4 | `total` is the real filing count, or is not called `total` | For a ticker with >4000 chunks, the response's count matches a direct `count(distinct)` against the table. If unfixable without an RPC, the field is renamed and the cap is stated in the payload. | **DONE** |
 | CF-5 | Financials dedupe before truncation | For NVDA (402 XBRL rows), `limit=80` returns the 80 newest distinct metric+period pairs, verified against an unlimited query. | OPEN |
 | CF-6 | The model picker offers only models that work | Each option is probed at mount; a failing provider is disabled with the provider's own error as its tooltip. No option is offered that returned an error in the last probe. | OPEN |
 | CF-7 | The spinner cannot hang | An induced throw inside the settle handler still clears `loading`. Test asserts it. | OPEN |
@@ -35,6 +35,10 @@ worse than a slow chart.
   source files rather than a transcription, so it keeps grading after edits.
 - CF-3 — `npx vitest run src/pages/CompanyPage.surfaces.test.ts` from `apps/market-ui`.
   9 assertions over `surfaceFailure` / `surfaceData`, including the anonymous-load case.
+- CF-4 — from `services/gravity-api`:
+  `.venv/Scripts/python.exe ../../docs/company-feature/gates/cf4-gate.py`. Calls the real
+  handler against real Supabase for 10 tickers and checks `total` against a count walked
+  by a separate code path, so a bug inside `sb_select_all` cannot hide from it.
 
 ## Stop conditions
 

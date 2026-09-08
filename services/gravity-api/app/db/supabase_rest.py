@@ -139,3 +139,34 @@ async def sb_select(table: str, filters: dict, select: str = "*", limit: int = 1
     except Exception as e:
         logger.warning("sb_select_error", table=table, error=str(e)[:160])
         return []
+
+
+# PostgREST's own max-rows, which caps a single response no matter what `limit` says.
+PAGE = 1000
+
+
+async def sb_select_all(table: str, filters: dict, select: str = "*",
+                        max_rows: int = 20_000) -> tuple[list[dict], bool]:
+    """Every matching row, paged. Returns (rows, hit_cap).
+
+    `sb_select(limit=4000)` does not return 4000 rows — PostgREST caps a response at
+    `PAGE` and says nothing about it, so a caller asking for more silently got 1000
+    and no signal. Measured 2026-09-07: TSLA held 1998 chunk rows across 9 filings and
+    the capped read saw 4 of them; GS saw 2 of 6.
+
+    `filters['order']` MUST end in a unique column. Ordering by a non-unique column
+    alone leaves ties in an arbitrary order that Postgres may resolve differently per
+    request, which duplicates or skips rows across page boundaries.
+    """
+    if "order" not in filters:
+        logger.warning("sb_select_all_unordered", table=table)
+    out: list[dict] = []
+    offset = 0
+    while offset < max_rows:
+        batch = await sb_select(table, filters, select=select, limit=PAGE, offset=offset)
+        out.extend(batch)
+        if len(batch) < PAGE:
+            return out, False
+        offset += PAGE
+    logger.warning("sb_select_all_hit_cap", table=table, max_rows=max_rows)
+    return out, True

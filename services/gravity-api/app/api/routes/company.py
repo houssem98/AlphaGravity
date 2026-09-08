@@ -27,13 +27,18 @@ async def company_filings(
 ):
     """Distinct filings for a ticker, newest first, deduped from chunk metadata."""
     symbol = ticker.upper()
-    # ponytail: PostgREST can't DISTINCT — pull a capped page of chunk metadata
-    # and dedupe server-side. Move to a SQL RPC if per-ticker chunk counts grow.
-    rows = await supabase_rest.sb_select(
+    # PostgREST can't DISTINCT, so the chunk metadata is deduped here. It must be
+    # PAGED to do that honestly: `limit=4000` did not fetch 4000 rows, because
+    # PostgREST caps a response at 1000 and reports nothing. Measured 2026-09-07 —
+    # TSLA held 1998 rows over 9 filings and this endpoint returned 4 of them, GS
+    # 2 of 6, LHX 3 of 6, while `total` reported the truncated number as the total.
+    #
+    # `id` is the tiebreaker: ordering by filing_date alone leaves ties in an
+    # arbitrary order, which duplicates or skips rows across page boundaries.
+    rows, hit_cap = await supabase_rest.sb_select_all(
         "chunks",
-        {"ticker": f"eq.{symbol}", "order": "filing_date.desc.nullslast"},
+        {"ticker": f"eq.{symbol}", "order": "filing_date.desc.nullslast,id.asc"},
         select="document_id,document_title,filing_type,filing_date",
-        limit=4000,
     )
     # Count chunks per ingest, then collapse duplicate ingests of the same
     # filing (same title = same ticker+form+date) keeping the richest copy.
@@ -61,7 +66,15 @@ async def company_filings(
         if best is None or doc["chunk_count"] > best["chunk_count"]:
             by_filing[key] = doc
     documents = list(by_filing.values())[:limit]
-    return {"ticker": symbol, "documents": documents, "total": len(by_filing)}
+    # `total` is every distinct filing this ticker has, not the number that fit in
+    # one page. `truncated` is only ever true if a ticker exceeds the paging cap,
+    # in which case `total` IS a floor and says so rather than pretending.
+    return {
+        "ticker": symbol,
+        "documents": documents,
+        "total": len(by_filing),
+        "truncated": hit_cap,
+    }
 
 
 @router.get("/company/{ticker}/financials")
