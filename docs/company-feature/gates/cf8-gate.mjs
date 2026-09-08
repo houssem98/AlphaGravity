@@ -11,7 +11,11 @@ const BASE = process.env.GRAVITY_BASE ?? 'https://gravity-api-prod.fly.dev';
 const KEY = process.env.GRAVITY_API_KEY ?? 'deep-research-internal';
 const TICKERS = (process.env.TICKERS ?? 'AAPL,NVDA,TSLA').split(',');
 
-const src = readFileSync(`${ROOT}/apps/market-ui/src/pages/CompanyPage.tsx`, 'utf8');
+// CF-9 split the page: the period window lives in surfaces.ts, the batch that
+// uses it in useCompanyData.ts. Each assertion reads the file it grades.
+const UI = `${ROOT}/apps/market-ui/src/components/company`;
+const surfaces = readFileSync(`${UI}/surfaces.ts`, 'utf8');
+const hook = readFileSync(`${UI}/useCompanyData.ts`, 'utf8');
 
 let failures = 0;
 const check = (name, cond, detail = '') => {
@@ -27,7 +31,7 @@ const ms = async (url) => {
 };
 
 // The window the page now asks for, read from the page rather than retyped.
-const span = Number(src.match(/LONGITUDINAL_SPAN = (\d+)/)[1]);
+const span = Number(surfaces.match(/LONGITUDINAL_SPAN = (\d+)/)[1]);
 const newest = new Date().getFullYear() + 1;
 const periods = Array.from({ length: span }, (_, i) => `FY${newest - span + 1 + i}`).join(',');
 
@@ -61,12 +65,12 @@ check('issuing both together is faster than issuing them in sequence', totalPara
 
 // Wiring: the serial shape must be gone from the page, not merely unused.
 check('longitudinal is issued inside the main batch',
-  /fetchSurface\(\s*`\$\{GRAVITY_BASE\}\/v1\/analytics\/longitudinal/.test(src));
+  /fetchSurface\(\s*`\$\{GRAVITY_BASE\}\/v1\/analytics\/longitudinal/.test(hook));
 check('periods no longer come from the financials response',
-  !/useEffect\([\s\S]{0,400}?metrics\.length === 0[\s\S]{0,600}?longitudinal/.test(src),
+  !/useEffect\([\s\S]{0,400}?metrics\.length === 0[\s\S]{0,600}?longitudinal/.test(hook),
   'an effect keyed on `metrics` still fetches longitudinal');
-check('no effect depends on [symbol, metrics]', !/\}, \[symbol, metrics\]\);/.test(src));
-check('the period window is derived from the calendar', /revenuePeriods\(\)/.test(src));
+check('no effect depends on [symbol, metrics]', !/\}, \[symbol, metrics\]\);/.test(hook));
+check('the period window is derived from the calendar', /revenuePeriods\(\)/.test(hook));
 
 console.log(`\nRESULT ${failures === 0 ? 'PASS' : `FAIL (${failures})`}`);
 process.exit(failures === 0 ? 0 : 1);

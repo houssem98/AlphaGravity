@@ -6,7 +6,11 @@
 // with nothing anywhere saying why.
 import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
-import { surfaceFailure, surfaceData, withLoading, revenuePeriods, LONGITUDINAL_SPAN } from './CompanyPage';
+// CF-9 moved these out of CompanyPage.tsx into components/company/surfaces.ts.
+// The assertions did not change; only where the code lives did.
+import {
+    surfaceFailure, surfaceData, withLoading, revenuePeriods, LONGITUDINAL_SPAN,
+} from '../components/company/surfaces';
 
 const ok = (data: unknown) => ({ status: 'fulfilled', value: { ok: true, data } }) as const;
 const http = (status: number) => ({ status: 'fulfilled', value: { ok: false, status } }) as const;
@@ -140,18 +144,28 @@ describe('revenuePeriods', () => {
 
 // The helper passing its own tests proves nothing if the page stopped calling it.
 describe('the page is wired to the guarantee', () => {
-    const src = readFileSync(new URL('./CompanyPage.tsx', import.meta.url), 'utf8');
+    // CF-9 moved the loading effect into useCompanyData. The assertions follow the
+    // code; each still grades exactly what it graded before.
+    const page = readFileSync(new URL('./CompanyPage.tsx', import.meta.url), 'utf8');
+    const hook = readFileSync(
+        new URL('../components/company/useCompanyData.ts', import.meta.url), 'utf8');
+    const surfaces = readFileSync(
+        new URL('../components/company/surfaces.ts', import.meta.url), 'utf8');
 
     it('loads company data through withLoading', () => {
-        expect(src).toMatch(/withLoading\(setLoading, async \(\) => \{/);
+        expect(hook).toMatch(/withLoading\(setLoading, async \(\) => \{/);
     });
 
-    it('clears the flag only in a finally, never inline on a happy path', () => {
-        // One occurrence, and it is withLoading's `finally`. A second one would be
-        // the shape this row removed: a guarantee that holds only on the path that
-        // reaches the last statement.
-        expect([...src.matchAll(/setLoading\(false\)/g)]).toHaveLength(1);
-        expect(src).toMatch(/finally \{\s*setLoading\(false\);\s*\}/);
+    it('neither the page nor the hook clears the flag itself', () => {
+        // An inline clear is the shape this row removed: a guarantee that holds
+        // only on the path reaching the last statement.
+        expect(page).not.toMatch(/setLoading\(false\)/);
+        expect(hook).not.toMatch(/setLoading\(false\)/);
+    });
+
+    it('the helper clears it exactly once, in a finally', () => {
+        expect([...surfaces.matchAll(/setLoading\(false\)/g)]).toHaveLength(1);
+        expect(surfaces).toMatch(/finally \{\s*setLoading\(false\);\s*\}/);
     });
 });
 
