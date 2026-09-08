@@ -6,6 +6,8 @@
 // returns empty results so Deep Research still works web-only.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { getAccessToken } from './supabase';
+
 // market-server, not gravity-api directly: the gravity key is injected there so
 // it never reaches the browser bundle.
 const API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:3001';
@@ -120,10 +122,18 @@ export async function queryGravityRAG(query: string, filters?: GravityRAGFilters
 
         // Via market-server, which injects the gravity key server-side. The key
         // used to be sent from here, i.e. from the public bundle.
+        //
+        // CF-12 · sending the viewer's own token when they have one is what makes
+        // the paywall real: the proxy forwards it instead of the service key, so
+        // gravity-api resolves their actual subscription tier rather than the
+        // service key's unlimited. Anonymous viewers are metered per client at the
+        // proxy instead, so one of them cannot spend everyone's allowance.
+        const token = await getAccessToken().catch(() => null);
         const response = await fetch(`${API_BASE}/api/gravity/search`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             body: JSON.stringify({
                 query,
