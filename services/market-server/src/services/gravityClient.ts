@@ -112,16 +112,50 @@ function normalizeSources(raw: any[]): GravitySource[] {
     }));
 }
 
+const GRAVITY_KEY = process.env.GRAVITY_API_KEY ?? '';
+
+/** CF-13 · every call to gravity-api carries the key. None of them used to. */
+export function gravityHeaders(json = false): Record<string, string> {
+    const h: Record<string, string> = GRAVITY_KEY ? { 'X-API-Key': GRAVITY_KEY } : {};
+    if (json) h['Content-Type'] = 'application/json';
+    return h;
+}
+
+/**
+ * A credential fault, distinguishable from every other failure.
+ *
+ * Every function in this file used to end in `catch { return [] }`, so a 401
+ * arrived as "no sources found" — identical to a company with nothing indexed.
+ * That is the CF-1 shape again: a configuration fault wearing the costume of thin
+ * data. Auth failures now carry this type and are not swallowed.
+ */
+export class GravityAuthError extends Error {
+    constructor(public readonly status: number, public readonly path: string) {
+        super(
+            `gravity-api rejected the service credential: HTTP ${status} on ${path}. `
+            + (GRAVITY_KEY
+                ? 'GRAVITY_API_KEY is set but not accepted.'
+                : 'GRAVITY_API_KEY is not set on this server.'),
+        );
+        this.name = 'GravityAuthError';
+    }
+}
+
+export function isAuthFailure(e: unknown): e is GravityAuthError {
+    return e instanceof GravityAuthError;
+}
+
 async function gravityFetch(path: string, body: object): Promise<any> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), GRAVITY_TIMEOUT_MS);
     try {
         const res = await fetch(`${GRAVITY_BASE}${path}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: gravityHeaders(true),
             body: JSON.stringify(body),
             signal: controller.signal,
         });
+        if (res.status === 401 || res.status === 403) throw new GravityAuthError(res.status, path);
         if (!res.ok) throw new Error(`Gravity API ${path} → HTTP ${res.status}`);
         return res.json();
     } finally {
@@ -156,11 +190,20 @@ export async function searchGravityParallel(
                     },
                 });
                 return normalizeSources(data.sources || []);
-            } catch {
+            } catch (e) {
+                // One query timing out should not kill the batch. A credential
+                // fault is not that: it will fail every query identically, and
+                // returning [] would report it as "this company has no filings".
+                if (isAuthFailure(e)) throw e;
                 return [] as GravitySource[];
             }
         })
     );
+
+    const authFailure = settled.find(
+        (r): r is PromiseRejectedResult => r.status === 'rejected' && isAuthFailure(r.reason),
+    );
+    if (authFailure) throw authFailure.reason;
 
     const allResults: GravitySource[] = [];
     const seenIds = new Set<string>();
@@ -195,7 +238,8 @@ export async function fetchGravityStructured(
             limit,
         });
         return (data.rows || data.structured_data || []) as GravityStructuredRow[];
-    } catch {
+    } catch (e) {
+        if (isAuthFailure(e)) throw e;
         return [];
     }
 }
@@ -210,12 +254,17 @@ export async function fetchGravityDocuments(
     try {
         const res = await fetch(
             `${GRAVITY_BASE}/v1/documents?ticker=${encodeURIComponent(ticker)}&limit=${limit}`,
-            { signal: AbortSignal.timeout(GRAVITY_TIMEOUT_MS) }
+            { headers: gravityHeaders(), signal: AbortSignal.timeout(GRAVITY_TIMEOUT_MS) }
         );
+        if (res.status === 401 || res.status === 403) {
+            throw new GravityAuthError(res.status, '/v1/documents');
+        }
         if (!res.ok) return [];
         const data = await res.json();
         return (data.documents || data || []) as GravityDocument[];
-    } catch {
+    } catch (e) {
+        // An empty document list is a real answer; a rejected credential is not.
+        if (isAuthFailure(e)) throw e;
         return [];
     }
 }
@@ -226,6 +275,7 @@ export async function fetchGravityDocuments(
 export async function isGravityAvailable(): Promise<boolean> {
     try {
         const res = await fetch(`${GRAVITY_BASE}/health`, {
+            headers: gravityHeaders(),
             signal: AbortSignal.timeout(3_000),
         });
         return res.ok;
