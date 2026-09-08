@@ -37,8 +37,11 @@ export default defineConfig({
             'src/services/deepResearchService.phase2.test.ts',
             'src/services/gridResearch.sources.test.ts',
             'src/services/gridResearch.synthesis.test.ts',
-            'src/components/company/LatestQuarterCard.test.ts',
-            'src/components/company/TranscriptSummary.test.ts',
+            // CF-14 · the two company files that were here are now real vitest
+            // suites. They were excluded for the reason above, which was correct,
+            // but the runner they were meant to use (`npm run phase2`) only runs
+            // deepResearchService.phase2.test.ts, and the CI that called it lives
+            // in ci.yml.disabled — so nothing executed their assertions at all.
         ],
     },
 });
