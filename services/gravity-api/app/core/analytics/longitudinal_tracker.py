@@ -446,6 +446,18 @@ class LongitudinalTracker:
         if value is not None:
             return value
 
+        # CF-19 · the table covers 501 tickers; SEC covers every registrant. A
+        # company the corpus never ingested is not a company without financials,
+        # and fetching its facts at query time costs no database storage — which
+        # is the binding constraint here, not SEC's rate limit.
+        #
+        # This is also what fills the gaps INSIDE the 501: AAPL holds no revenue
+        # row after FY2018, and banks and utilities (MS, DUK, TFC, RF) hold none
+        # at all, because the backfill never wrote one.
+        value = await _fetch_from_edgar(ticker, metric_name, period)
+        if value is not None:
+            return value
+
         if self.ratio_engine:
             try:
                 output = await self.ratio_engine.compute_from_query(
@@ -704,3 +716,66 @@ async def _fetch_from_financials(ticker: str, metric_name: str, period: str) -> 
         limit=1,
     )
     return rows[0].get("value_float") if rows else None
+
+
+# The natural phrasing EDGAR's metric classifier expects, per shorthand. The
+# stored-name map above is for the `financials` table; this one is for the live
+# channel, which matches on the query text rather than on a column value.
+_EDGAR_ASK = {
+    "revenue": "revenue",
+    "total_revenue": "revenue",
+    "net_sales": "revenue",
+    "net_income": "net income",
+    "earnings": "net income",
+    "operating_income": "operating income",
+    "gross_profit": "gross profit",
+    "cost_of_revenue": "cost of revenue",
+    "cogs": "cost of revenue",
+    "eps": "diluted earnings per share",
+    "eps_diluted": "diluted earnings per share",
+    "eps_basic": "basic earnings per share",
+}
+
+
+async def _fetch_from_edgar(ticker: str, metric_name: str, period: str) -> float | None:
+    """One fact for one period, fetched from SEC at query time.
+
+    Nothing is indexed, so this widens coverage from the 501 tickers the
+    `financials` table happens to hold to every registrant, at no storage cost.
+    Returns None on any failure — the caller treats that as "no value", and the
+    route above turns a wholly empty series into a stated reason.
+    """
+    ask = _EDGAR_ASK.get(metric_name.strip().lower().replace(" ", "_").replace("-", "_"))
+    if ask is None:
+        return None
+    try:
+        from app.core.retrieval.edgar_search import EdgarSearch
+
+        results = await EdgarSearch().search(
+            f"{ticker.upper()} {ask} {period}",
+            entities={"tickers": [ticker.upper()]},
+            top_k=2,
+        )
+    except Exception as e:  # noqa: BLE001
+        # Type only: a provider exception message can carry credentials.
+        logger.warning("edgar_metric_failed", ticker=ticker, metric=metric_name,
+                       period=period, error_type=type(e).__name__)
+        return None
+
+    for r in results or []:
+        meta = getattr(r, "metadata", None) or {}
+        value = meta.get("value")
+        if value is None:
+            continue
+        # The period has to MATCH. edgar_search answers the nearest fact it can
+        # find, and a FY2019 figure rendered under a FY2024 label is a fabricated
+        # comparison — the exact failure company_skill's "absent" rule exists to
+        # prevent.
+        got = str(meta.get("period") or meta.get("fiscal_year") or "")
+        if got and period not in got and got not in period:
+            continue
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            continue
+    return None

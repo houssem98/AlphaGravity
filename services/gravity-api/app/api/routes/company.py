@@ -22,12 +22,14 @@ productive path (same as structured_search).
 
 from typing import Any
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from app.api.middleware.auth import require_auth
 from app.db import supabase_rest
 
+logger = structlog.get_logger()
 router = APIRouter()
 
 
@@ -78,6 +80,37 @@ async def company_filings(
         if best is None or doc["chunk_count"] > best["chunk_count"]:
             by_filing[key] = doc
     documents = list(by_filing.values())[:limit]
+
+    # CF-18 · the local index covers 39 tickers. Every other registrant used to
+    # get an empty list that read as "this company has filed nothing", which is
+    # never true of a company with a ticker. SEC lists them all, and reading that
+    # list costs no storage — the binding constraint here is database size, not
+    # SEC's rate limit.
+    if not documents:
+        live, error = await _filings_from_sec(symbol, limit)
+        if live:
+            return {
+                "ticker": symbol,
+                "documents": live,
+                "total": len(live),
+                "truncated": False,
+                "source": "sec",
+                "unavailable_reason": None,
+            }
+        # No filings AND a reason we could not get them. Returning the empty
+        # index list here would say "this company has filed nothing", which is
+        # never true of a registrant and is exactly the confusion the fallback
+        # was added to remove.
+        if error:
+            return {
+                "ticker": symbol,
+                "documents": [],
+                "total": 0,
+                "truncated": False,
+                "source": "unavailable",
+                "unavailable_reason": error,
+            }
+
     # `total` is every distinct filing this ticker has, not the number that fit in
     # one page. `truncated` is only ever true if a ticker exceeds the paging cap,
     # in which case `total` IS a floor and says so rather than pretending.
@@ -86,6 +119,8 @@ async def company_filings(
         "documents": documents,
         "total": len(by_filing),
         "truncated": hit_cap,
+        "source": "index",
+        "unavailable_reason": None,
     }
 
 
@@ -237,3 +272,94 @@ async def company_sentiment(
     return JSONResponse(
         status_code=_HTTP.get(result.status, 200), content=result.as_dict()
     )
+
+
+# ─── CF-18 · filings for any registrant ───────────────────────────────────────
+#
+# The list above is built from `chunks`, which covers 39 tickers. That is an
+# ingestion limit, not a data limit: SEC's submissions API names every filing a
+# registrant has ever made, and the corpus does not need to hold any of it. The
+# same asymmetry `edgar_text_search` already closed for prose.
+#
+# Nothing here is indexed, so this costs no database storage — which is the
+# binding constraint (0.35 of 0.5 GB in use).
+
+_LISTED_FORMS = ("10-K", "10-K/A", "10-Q", "10-Q/A", "8-K", "20-F", "40-F", "DEF 14A")
+
+
+async def _filings_from_sec(
+    symbol: str, limit: int,
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Every recent filing SEC lists for a ticker, and why the list is empty.
+
+    Returns (documents, error). An error is NOT an empty list: "SEC lists no
+    filings for this registrant" and "we could not ask SEC" are different facts,
+    and the first version of this function returned None for both — which the
+    route rendered as a company with no filings. That is the same conflation
+    CT-7 exists to prevent, reintroduced by the fallback meant to fix coverage.
+
+    Documents carry the same shape the chunk-derived list returns, with
+    `chunk_count` 0 and `status` "not_indexed": the filing exists, its prose is
+    not in the local index, and neither fact is guessed.
+    """
+    import asyncio
+
+    from app.core.retrieval.edgar_search import EdgarSearch
+    from app.core.retrieval.edgar_text_search import SUBMISSIONS_URL
+    from app.core.skills import entity as entity_layer
+
+    try:
+        resolved = await entity_layer.resolve(symbol)
+        cik = getattr(resolved, "cik", None)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("sec_entity_resolve_failed", ticker=symbol, error_type=type(e).__name__)
+        return [], f"Could not resolve {symbol} against SEC's registrant index."
+    if not cik:
+        return [], f"{symbol} does not resolve to an SEC registrant."
+
+    # SEC rate-limits at 10 requests/second and `_get_json` raises rather than
+    # retrying. One retry, because a throttle is expected traffic here, not an
+    # anomaly — and because swallowing it is what produced a silent empty list.
+    data = None
+    last: Exception | None = None
+    for attempt in range(2):
+        try:
+            data = await EdgarSearch()._get_json(SUBMISSIONS_URL.format(cik=int(cik)))
+            last = None
+            break
+        except Exception as e:  # noqa: BLE001
+            last = e
+            if attempt == 0:
+                await asyncio.sleep(0.5)
+    if last is not None:
+        logger.warning("sec_filings_fetch_failed", ticker=symbol, error_type=type(last).__name__)
+        return [], (
+            f"SEC did not answer for {symbol} ({type(last).__name__}). "
+            "The filings exist; this list could not be fetched."
+        )
+
+    recent = ((data or {}).get("filings") or {}).get("recent") or {}
+    rows = list(zip(
+        recent.get("form") or [],
+        recent.get("accessionNumber") or [],
+        recent.get("filingDate") or [],
+        recent.get("primaryDocument") or [],
+    ))
+    out: list[dict[str, Any]] = []
+    for form, accn, filed, doc in rows:
+        if form not in _LISTED_FORMS:
+            continue
+        out.append({
+            "id": accn,
+            "ticker": symbol,
+            "title": f"{symbol} {form} {filed}",
+            "filing_type": form,
+            "filing_date": filed,
+            "chunk_count": 0,
+            "status": "not_indexed",
+            "accession": accn,
+            "primary_document": doc,
+        })
+        if len(out) >= limit:
+            break
+    return out, None

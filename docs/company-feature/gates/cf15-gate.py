@@ -73,13 +73,31 @@ async def main() -> int:
         check(f"{t}: revenue is non-null for at least 3 periods", len(nonnull) >= 3,
               f"got {len(nonnull)}: {got}")
 
-        mismatched = []
+        # CF-19 changed what this asserts, and the change is named rather than
+        # quietly relaxed. Before it, `financials` was the only source, so
+        # endpoint == table was the whole correctness condition. The endpoint now
+        # falls back to live SEC XBRL, so it legitimately returns values for
+        # periods the table has never held — NVDA FY2024 and FY2025 among them.
+        #
+        # Asserting equality would now FORBID the coverage CF-19 was built for.
+        # What still grades something real is: the table remains authoritative
+        # for every fact it does hold. A divergence there would mean the endpoint
+        # is fabricating or preferring a worse source, which is the failure this
+        # assertion was always about.
+        mismatched, filled = [], []
         for period in PERIODS:
             want = await truth(t, "revenue", period)
+            if want is None:
+                if got.get(period) is not None:
+                    filled.append(period)
+                continue
             if got.get(period) != want:
                 mismatched.append(f"{period}: endpoint={got.get(period)} table={want}")
-        check(f"{t}: every value matches the financials table exactly", not mismatched,
+        check(f"{t}: every value the table holds is served unchanged", not mismatched,
               "; ".join(mismatched))
+        if filled:
+            print(f"      {t}: {len(filled)} period(s) served from live SEC that the "
+                  f"table does not hold: {', '.join(filled)}")
 
         check(f"{t}: no unavailable_reason when data was found",
               r.get("unavailable_reason") is None or not nonnull,
@@ -102,13 +120,25 @@ async def main() -> int:
           covered.get("unavailable_reason") is None,
           f"reason={covered.get('unavailable_reason')!r}")
 
-    gap = await company_trend("AAPL", metric="revenue", periods="FY2021,FY2022,FY2023", auth=AUTH)
-    check("AAPL states the corpus gap for the periods it does not cover",
+    # AAPL no longer HAS a gap — CF-19 fills FY2019+ from live SEC, which is what
+    # CF-17 was opened for. The "states the gap" case moves to a company that
+    # still has one: a bank files no us-gaap Revenue tag anywhere, so neither the
+    # table nor SEC can serve it, and the honest answer is the stated reason.
+    gap = await company_trend("MS", metric="revenue", periods="FY2021,FY2022,FY2023", auth=AUTH)
+    check("a company that reports no revenue anywhere states that",
           "no reported revenue" in (gap.get("unavailable_reason") or ""),
           f"reason={gap.get('unavailable_reason')!r}")
     check("and names the periods it was asked for",
           "FY2021" in (gap.get("unavailable_reason") or ""),
           f"reason={gap.get('unavailable_reason')!r}")
+
+    # And AAPL, the ticker this row originally named, now answers for the periods
+    # it could not before.
+    fixed = await company_trend("AAPL", metric="revenue", periods="FY2023,FY2024", auth=AUTH)
+    vals_fixed = {p["period"]: p["value"] for p in fixed["data_points"]}
+    check("AAPL now answers for FY2023 and FY2024 (CF-17 closed by CF-19)",
+          all(vals_fixed.get(p) is not None for p in ("FY2023", "FY2024")),
+          f"got {vals_fixed}")
 
     # A metric that genuinely cannot be sourced must SAY so, not return nulls.
     unknown = await company_trend("AAPL", metric="unicorn_count",
