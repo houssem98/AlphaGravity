@@ -20,6 +20,7 @@ dead stub on this deploy → 500. PostgREST with the service-role key is the
 productive path (same as structured_search).
 """
 
+import re
 from typing import Any
 
 import structlog
@@ -363,3 +364,165 @@ async def _filings_from_sec(
         if len(out) >= limit:
             break
     return out, None
+
+
+# ─── CF-24 · verify a ticker before the page loads it ─────────────────────────
+#
+# A mistyped ticker used to look identical to a company with nothing to show:
+# every surface returned empty and the page rendered a full, blank profile of
+# nothing. "APPL" is not Apple, and the page should say so before it fetches.
+#
+# The entity resolver already handles NAMES well — "lululemon" resolves to LULU,
+# "Coca Cola" to KO with COKE and CCEP as candidates — across all ~10,400 SEC
+# registrants. What it does not handle is a mistyped TICKER: measured 2026-09-09,
+# "APPL" and "micrsoft" both return UNKNOWN with no candidates. So a symbol-level
+# near-miss search runs after it, over SEC's whole ticker file rather than the
+# 500-symbol S&P list the Research Grid checks against.
+
+
+def _edit_distance(a: str, b: str, cap: int = 2) -> int:
+    """Levenshtein, abandoned once it cannot come in under `cap`."""
+    if abs(len(a) - len(b)) > cap:
+        return cap + 1
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i] + [0] * len(b)
+        for j, cb in enumerate(b, 1):
+            cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb))
+        if min(cur) > cap:
+            return cap + 1
+        prev = cur
+    return prev[-1]
+
+
+async def _near_symbols(query: str, limit: int = 5) -> list[dict[str, str]]:
+    """Tickers within edit distance 2 of the query, closest first."""
+    from app.core.retrieval.edgar_search import EdgarSearch
+
+    q = query.strip().upper()
+    if not q:
+        return []
+    try:
+        es = EdgarSearch()
+        await es._load_maps()
+        symbols = es._ticker_map
+        issuers = es._issuer_by_ticker
+    except Exception as e:  # noqa: BLE001
+        logger.warning("ticker_suggest_failed", error_type=type(e).__name__)
+        return []
+
+    # Both matchers always run, and each symbol keeps its BEST score. Running
+    # them in sequence and stopping at the first hit ranked by the wrong thing:
+    # "teslla" is edit distance 2 from a dozen four-letter symbols, so TSLA was
+    # buried behind ELLA and ESLA on an alphabetical tiebreak — while the issuer
+    # name "TESLA" is distance 1 and unambiguous.
+    best: dict[str, int] = {}
+    # Which symbols the NAME matcher also reached. At equal edit distance that is
+    # the stronger signal: "APPL" is one edit from both AAPI and AAPL, and only
+    # AAPL is also one edit from its issuer's name. Without this the right answer
+    # loses an alphabetical coin toss.
+    name_confirmed: set[str] = set()
+
+    # A mistyped SYMBOL, compared against the symbol. Only for inputs short
+    # enough to be one — "micrsoft" is not a near-miss of any 4-letter ticker.
+    if len(q) <= 6:
+        for sym in symbols:
+            d = _edit_distance(q, sym)
+            if d <= 2 and d < best.get(sym, 99):
+                best[sym] = d
+
+    # A mistyped NAME, compared against the issuer's first word — which is what
+    # people actually mistype. The rest of a legal name ("CORP", "INC",
+    # "athletica inc.") is noise for this purpose.
+    if len(q) >= 4:
+        cap = 2 if len(q) > 6 else 1
+        for sym, name in issuers.items():
+            # Punctuation has to go before comparing. "Tesla, Inc." yields the
+            # head "TESLA," which is two edits from "TESLLA" rather than one, and
+            # "Amazon.com, Inc." yields "AMAZON.COM," — both far enough away to
+            # lose to unrelated four-letter symbols on a tie.
+            head = re.sub(r"[^A-Z0-9]", "", (name or "").strip().upper().split(" ")[0])
+            if len(head) < 4:
+                continue
+            d = _edit_distance(q, head, cap=cap)
+            if d <= cap:
+                name_confirmed.add(sym)
+                if d < best.get(sym, 99):
+                    best[sym] = d
+
+    # Ties are common and head-word distance cannot break them: "APPL" is one
+    # edit from both AAPL and AAPI, and BOTH issuers begin with the word "Apple"
+    # — Apple Inc. and Apple iSports Group. Distance to the FULL name does
+    # separate them (APPLEINC is 4 away, APPLEISPORTSGROUPINC is 17), and it
+    # prefers the plainer, likelier registrant without needing a popularity list.
+    def full_name_gap(sym: str) -> int:
+        full = re.sub(r"[^A-Z0-9]", "", (issuers.get(sym) or "").upper())
+        return _edit_distance(q, full, cap=64) if full else 99
+
+    scored = [
+        (d, 0 if sym in name_confirmed else 1, full_name_gap(sym), sym)
+        for sym, d in best.items()
+    ]
+    scored.sort()
+    return [
+        {"ticker": sym, "name": issuers.get(sym, ""), "distance": str(d)}
+        for d, _, _, sym in scored[:limit]
+    ]
+
+
+@router.get("/company/resolve")
+async def company_resolve(
+    q: str = Query(..., min_length=1, description="A ticker, or a company name"),
+    auth: dict = Depends(require_auth),
+):
+    """What company `q` names, and what to do when it names none.
+
+    Never guesses on the caller's behalf. A confident resolution is returned with
+    the registrant's legal name so the reader can confirm it is the company they
+    meant; anything less comes back as suggestions to choose from.
+    """
+    from app.core.skills import entity as entity_layer
+
+    text = q.strip()
+    try:
+        ent = await entity_layer.resolve(text)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("resolve_failed", q=text[:40], error_type=type(e).__name__)
+        return {"query": text, "status": "error", "ticker": None,
+                "reason": f"Could not reach SEC's registrant index ({type(e).__name__}).",
+                "suggestions": []}
+
+    ticker = getattr(ent, "ticker", None)
+    status = str(getattr(ent, "status", "")).split(".")[-1].lower()
+    if ticker and status == "resolved":
+        return {
+            "query": text,
+            "status": "resolved",
+            "ticker": ticker,
+            "legal_name": getattr(ent, "legal_name", "") or getattr(ent, "display_name", ""),
+            "cik": getattr(ent, "cik", None),
+            "confidence": getattr(ent, "confidence", None),
+            "match_type": getattr(ent, "match_type", None),
+            # A name can legitimately match several registrants — "Coca Cola"
+            # names KO, COKE and CCEP. Offering them is not hedging; picking one
+            # silently would be.
+            "suggestions": [
+                {"ticker": getattr(c, "ticker", ""), "name": getattr(c, "name", "") or getattr(c, "legal_name", "")}
+                for c in (getattr(ent, "candidates", None) or [])
+            ][:5],
+            "reason": None,
+        }
+
+    near = await _near_symbols(text)
+    return {
+        "query": text,
+        "status": "unknown",
+        "ticker": None,
+        "legal_name": None,
+        "suggestions": near,
+        "reason": (
+            f"No SEC registrant matches {text!r}."
+            + (f" Did you mean {near[0]['ticker']}?" if near else
+               " Check the symbol, or search by company name.")
+        ),
+    }

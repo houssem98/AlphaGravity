@@ -36,6 +36,8 @@ worse than a slow chart.
 | CF-20 | `company_skill` stops reporting revenue as total debt | Measured 2026-09-08: LULU's profile returns `Total debt: $11.10B`, byte-identical to its revenue (`11102600000` for both). A wrong tag mapping, not a coincidence. Gate: for LULU, MS and DUK, total debt differs from revenue and matches the filed balance-sheet figure, or is reported absent. | **DONE** |
 | CF-21 | The trend card handles filers that report no revenue line | Banks and utilities file no us-gaap Revenue tag: MS, TFC, DUK return nothing for `revenue` but do report `net_income` (MS $13.39B FY2024) and sometimes `operating_income` (DUK $7.93B). The stated reason is correct today and better than a fabricated substitution, but the card could offer the metric the filer actually reports, clearly labelled. Gate: for MS and DUK the card renders a labelled series from a metric those filers report, and never renders a substituted metric under a "Revenue" heading. | OPEN |
 
+| CF-24 | A mistyped ticker is caught, not loaded as a blank profile | "APPL" opened a full company page with every surface empty — the same shape as a real registrant with nothing indexed. The entity resolver handles NAMES ("lululemon" → LULU) but returns UNKNOWN with no candidates for a mistyped SYMBOL, which is the mistake people actually make. Gate: 9 typos each return `unknown` with the intended company as the FIRST suggestion; exact tickers and names resolve and carry the registrant's legal name; a string naming nothing says so. | **DONE** |
+
 ### Gate scripts
 
 Gates that hit an API take `GRAVITY_BASE`. **Prod is frozen** (Fly deploys are
@@ -53,6 +55,8 @@ local API instead: from `services/gravity-api`,
   `.venv/Scripts/python.exe ../../docs/company-feature/gates/cf5-gate.py`. Checks the
   returned pairs against an independent paged read, and checks two identical calls agree.
   Note the row count in the gate's wording ("402") was stale: NVDA holds 385.
+- CF-24 — from `services/gravity-api`:
+  `.venv/Scripts/python.exe ../../docs/company-feature/gates/cf24-gate.py`.
 - CF-20 — from `services/gravity-api`:
   `.venv/Scripts/python.exe ../../docs/company-feature/gates/cf20-gate.py`. Five assertions
   on the classifier itself (no network) plus three per ticker on the built profile.
