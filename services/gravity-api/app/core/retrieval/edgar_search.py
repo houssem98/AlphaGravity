@@ -89,6 +89,11 @@ _METRIC_TAGS: list[tuple[tuple[str, ...], str, str]] = [
         "cash and cash equivalents",
     ),
     (
+        ("total debt", "debt"),
+        "DebtLongtermAndShorttermCombinedAmount",
+        "total debt",
+    ),
+    (
         ("revenue", "sales", "top line"),
         "RevenueFromContractWithCustomerExcludingAssessedTax",
         "revenue",
@@ -101,7 +106,23 @@ _TAG_FALLBACKS: dict[str, list[str]] = {
     "RevenueFromContractWithCustomerExcludingAssessedTax": ["Revenues", "SalesRevenueNet"],
     "CostOfGoodsAndServicesSold": ["CostOfRevenue"],
     "EarningsPerShareDiluted": ["EarningsPerShareBasic"],
+    # No single us-gaap tag means "total debt". Filers report the combined
+    # amount, or long-term debt alone, or the borrowings line — in that order of
+    # preference. A filer reporting none of them reports no total debt, which is
+    # a fact about the filing, not a reason to substitute another number.
+    "DebtLongtermAndShorttermCombinedAmount": [
+        "LongTermDebt",
+        "LongTermDebtNoncurrent",
+        "DebtInstrumentCarryingAmount",
+    ],
 }
+
+# Phrases that name no single us-gaap concept, and must not fall through to a
+# substring match on a word they happen to contain.
+_NO_CONCEPT: tuple[str, ...] = (
+    "free cash flow",
+    "fcf",
+)
 
 _QUARTER_INTENT = re.compile(r"\bquarter(?:ly|s)?\b|\bq[1-4]\b", re.I)
 _QUARTER_NUMBER = re.compile(r"\bq([1-4])\b|\b([1-4])(?:st|nd|rd|th)\s+quarter\b", re.I)
@@ -146,16 +167,45 @@ def concept_family(tag: str) -> list[str]:
     return [tag] + _TAG_FALLBACKS.get(tag, [])
 
 
-def classify_metric(query: str) -> tuple[str, str]:
-    """
-    (us-gaap tag, human name). Revenue is the default — it is what an unqualified
-    "how did X do" question almost always means.
+def classify_metric_strict(query: str) -> tuple[str, str] | None:
+    """(us-gaap tag, human name), or None when the query names no known metric.
+
+    `classify_metric` falls back to revenue, which is right for an unqualified
+    "how did X do" question and wrong for a caller that asked for something
+    specific. Measured 2026-09-08: `company_skill` asked for "total debt", no
+    keyword matched, the default returned the revenue tag, and LULU's profile
+    reported `Total debt: $11.10B` — byte-identical to its revenue, cited, and
+    entirely fabricated.
+
+    A caller that names a metric wants that metric or nothing.
     """
     ql = (query or "").lower()
+    # Checked FIRST, because the table matches on substrings and these phrases
+    # contain words that belong to other metrics. "free cash flow" contains
+    # "cash", so it matched CashAndCashEquivalentsAtCarryingValue and reported
+    # Morgan Stanley's $160.1B cash balance as its free cash flow.
+    #
+    # These are not missing entries to be filled in later. Free cash flow is
+    # DERIVED (operating cash flow minus capital expenditure) and no filer tags
+    # it, so there is no concept to return and the honest answer is none.
+    if any(phrase in ql for phrase in _NO_CONCEPT):
+        return None
     for keywords, tag, label in _METRIC_TAGS:
         if any(kw in ql for kw in keywords):
             return tag, label
-    return "RevenueFromContractWithCustomerExcludingAssessedTax", "revenue"
+    return None
+
+
+def classify_metric(query: str) -> tuple[str, str]:
+    """
+    (us-gaap tag, human name). Revenue is the default — it is what an unqualified
+    "how did X do" question almost always means. Callers that asked for a
+    SPECIFIC metric must use `classify_metric_strict` instead; this default will
+    happily answer a debt question with revenue.
+    """
+    return classify_metric_strict(query) or (
+        "RevenueFromContractWithCustomerExcludingAssessedTax", "revenue"
+    )
 
 
 def extract_tickers(

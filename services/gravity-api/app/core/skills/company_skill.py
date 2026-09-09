@@ -29,6 +29,7 @@ from datetime import date
 
 import structlog
 
+from app.core.retrieval.edgar_search import classify_metric_strict, concept_family
 from app.core.skills import entity as entity_layer
 from app.core.skills import period as period_layer
 from app.core.skills.contract import (
@@ -365,9 +366,30 @@ async def _fetch(ent, request: SkillRequest, verdict, facts_search):
             state, error_type = ChannelState.FAILED, type(e).__name__
             break
 
+        # The concept that came back must be the concept asked for.
+        #
+        # `edgar_search.classify_metric` defaults to revenue for any query naming
+        # no metric it knows, so a request for a metric outside its table came
+        # back as revenue wearing that metric's label. Measured 2026-09-08: LULU
+        # reported `Total debt: $11.10B`, byte-identical to its revenue, cited to
+        # a real filing. Free cash flow has no us-gaap tag at all and took the
+        # same path.
+        #
+        # Checking the tag makes that class of substitution impossible rather
+        # than fixed one metric at a time: a metric this channel cannot resolve
+        # now falls through to `absent`, which is what the filing supports.
+        want = classify_metric_strict(f"{ent.ticker} {metric.ask}{suffix}")
+        expected = set(concept_family(want[0])) if want else set()
+
         for r in results or []:
             m = getattr(r, "metadata", None) or {}
             if m.get("value") is None:
+                continue
+            got_tag = str(m.get("tag") or "")
+            if not expected or (got_tag and got_tag not in expected):
+                logger.info("company_metric_concept_mismatch", ticker=ent.ticker,
+                            metric=metric.key, asked=metric.ask,
+                            expected=sorted(expected) or None, got=got_tag)
                 continue
             found[metric.key] = {
                 "value": m["value"],
