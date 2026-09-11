@@ -49,6 +49,15 @@ TIERS: dict[str, Tier] = {
     # Dev bypass and internal service API keys (auth.py). Not purchasable, so it is
     # absent from the pricing table and from `sold_tiers()`.
     "unlimited": Tier("unlimited", "Unlimited (internal)", False, 100_000, None, None),
+    # V2-7 · what an internal service KEY resolves to. `unlimited` stays for the
+    # development bypass, which runs on a laptop; a key that reaches production
+    # gets a ceiling that actually binds.
+    #
+    # 600/min is the institutional rate, and 20k/day clears every measured
+    # consumer: FinanceBench runs 4 concurrent with 10-60s queries, the
+    # market-server proxy is already capped at 20/min per anonymous viewer, and
+    # the scheduled-grid routes fire on a cron. It is a limit, not a wall.
+    "service": Tier("service", "Service (internal)", False, 600, 20_000, None),
 }
 
 # Every id this service has ever issued, mapped forward. Dropping one of these

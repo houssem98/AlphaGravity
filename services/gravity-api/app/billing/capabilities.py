@@ -67,9 +67,11 @@ class Capability:
         return self.source_path().exists()
 
     def for_tier(self, tier_id: str) -> CapValue:
-        # `unlimited` (dev bypass + internal service keys, tiers.py) has no column
-        # of its own; it reads the top sold tier so it is never more restricted.
-        if tier_id == "unlimited":
+        # `unlimited` (the dev bypass) and `service` (internal API keys) have no
+        # column of their own; they read the top sold tier so neither is ever more
+        # restricted than a paying customer. Their RATE limits still differ — those
+        # live in tiers.py, and V2-7 gave `service` a finite one.
+        if tier_id in ("unlimited", "service"):
             tier_id = "institutional"
         try:
             return getattr(self, tier_id)

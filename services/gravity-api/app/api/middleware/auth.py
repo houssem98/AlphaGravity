@@ -63,11 +63,15 @@ async def require_auth(
     )
 
 
-# Internal service keys (the market-ui RAG proxy + eval harness). These already
-# ship in the frontend bundle, so they're not secrets — recognising them WITHOUT a
-# Redis lookup keeps the Research Grid / Deep Research working even when the Upstash
-# quota is exhausted (writes blocked, lookups unreliable). Extra keys via env
-# INTERNAL_API_KEYS (comma-separated).
+# Internal service keys (the market-ui RAG proxy + eval harnesses). Recognised
+# WITHOUT a Redis lookup, which keeps the Research Grid / Deep Research working when
+# the Upstash quota is exhausted (writes blocked, lookups unreliable). Extra keys via
+# env INTERNAL_API_KEYS (comma-separated).
+#
+# The justification that used to sit here — "these already ship in the frontend
+# bundle, so they're not secrets" — stopped being true at CF-2, which took the key
+# out of the bundle. They are server-side credentials again, and V2-7 gives them a
+# tier with a ceiling rather than a blank cheque.
 async def _apply_entitlement(request: Request, user: dict) -> dict:
     """
     Replace the tier a token *claims* with the tier the subscription actually grants.
@@ -104,9 +108,16 @@ def _internal_keys() -> set[str]:
 async def _validate_api_key(api_key: str) -> dict | None:
     """Validate API key: static internal allowlist first (Redis-independent), then Redis."""
     if api_key in _internal_keys():
+        # V2-7 · a stated tier with a stated, FINITE limit.
+        #
+        # This said "unlimited", which resolves to 100_000/min and no daily or
+        # monthly ceiling — a limit in name only. Any caller who reached
+        # gravity-api with the key string held that, whatever CF-12 metered at the
+        # proxy in front of it. `service` is 600/min and 20_000/day: above every
+        # measured consumer, and no longer a blank cheque.
         return {
             "user_id": f"svc:{api_key[:16]}",
-            "tier": "unlimited",
+            "tier": "service",
             "api_key": api_key,
             "entitlements": ["public"],
         }
