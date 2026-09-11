@@ -49,6 +49,8 @@ class PeriodDataPoint:
     qoq_change: float | None = None
     is_anomaly: bool = False
     anomaly_z_score: float | None = None
+    # V2-2 · why this period has no value. Empty when it has one.
+    absent_reason: str = ""
 
 
 @dataclass
@@ -145,13 +147,13 @@ class LongitudinalTracker:
         # gather preserves input order, so the series still reads oldest-first.
         import asyncio
 
-        values = await asyncio.gather(*[
+        fetched = await asyncio.gather(*[
             self._fetch_metric(ticker, metric_name, period) for period in periods
         ])
         unit = self._get_metric_unit(metric_name)
         data_points = [
-            PeriodDataPoint(period=period, value=value, unit=unit)
-            for period, value in zip(periods, values)
+            PeriodDataPoint(period=period, value=value, unit=unit, absent_reason=reason)
+            for period, (value, reason) in zip(periods, fetched)
         ]
 
         series = MetricSeries(
@@ -228,7 +230,7 @@ class LongitudinalTracker:
         results = []
         for period in periods:
             guidance = await self._fetch_guidance(ticker, metric, period)
-            actual = await self._fetch_metric(ticker, metric, period)
+            actual, _ = await self._fetch_metric(ticker, metric, period)
 
             tracker = GuidanceActualsTracker(
                 ticker=ticker,
@@ -446,8 +448,18 @@ class LongitudinalTracker:
 
     # ── Data Fetching ──────────────────────────────────────────────────────────
 
-    async def _fetch_metric(self, ticker: str, metric_name: str, period: str) -> float | None:
-        """Fetch a single metric value from Supabase, RatioEngine or TimescaleDB."""
+    async def _fetch_metric(
+        self, ticker: str, metric_name: str, period: str,
+    ) -> tuple[float | None, str]:
+        """Fetch one metric value — and, when there is none, why there is none.
+
+        V2-2 · the second half is not decoration. The RatioEngine branch below
+        used to return whichever ratio came back first, under the name that was
+        asked for, so a request for revenue could answer with gross margin. A
+        value is now reported only under the name it was computed for, and a
+        mismatch is absent WITH the reason rather than silently substituted.
+        """
+        reason = ""
         # CF-15 · this is the path that actually holds the data. Everything below
         # was returning None for every ticker and every period: the asyncpg branch
         # queries `financial_statements`, a table that does not exist in this
@@ -456,7 +468,7 @@ class LongitudinalTracker:
         # value:null and the revenue chart had never rendered a single point.
         value = await _fetch_from_financials(ticker, metric_name, period)
         if value is not None:
-            return value
+            return value, ""
 
         # CF-19 · the table covers 501 tickers; SEC covers every registrant. A
         # company the corpus never ingested is not a company without financials,
@@ -468,21 +480,49 @@ class LongitudinalTracker:
         # at all, because the backfill never wrote one.
         value = await _fetch_from_edgar(ticker, metric_name, period)
         if value is not None:
-            return value
+            return value, ""
 
         if self.ratio_engine:
+            wanted = metric_name.strip().lower()
             try:
                 output = await self.ratio_engine.compute_from_query(
                     ticker=ticker,
                     query=metric_name,
                     period=period,
                 )
-                if output and output.ratios:
-                    first_val = next(iter(output.ratios.values()))
-                    if isinstance(first_val, (int, float)):
-                        return float(first_val)
-            except Exception:
-                pass
+            except Exception as exc:
+                output = None
+                reason = (
+                    f"the ratio engine raised {type(exc).__name__} computing "
+                    f"{metric_name} for {period}"
+                )
+            returned = list(getattr(output, "ratios", None) or [])
+            match = next(
+                (r for r in returned if str(getattr(r, "ratio_key", "")).strip().lower() == wanted),
+                None,
+            )
+            if match is not None and isinstance(match.value, (int, float)):
+                return float(match.value), ""
+            if returned and match is None:
+                # The defect this row exists for. `ratios` is a LIST of
+                # RatioResult, so the old `next(iter(output.ratios.values()))`
+                # raised AttributeError into a bare `except: pass` — the branch
+                # had never returned anything. Had it been a dict it would have
+                # returned position 1 under the requested metric's name, which is
+                # CF-20's substitution bug in a second place.
+                names = ", ".join(
+                    str(getattr(r, "ratio_key", "?")) for r in returned
+                ) or "nothing"
+                reason = (
+                    f"the ratio engine was asked for {metric_name} and returned "
+                    f"{names}; a figure is reported only under the name it was "
+                    f"computed for"
+                )
+            elif match is not None:
+                reason = (
+                    f"the ratio engine computed {metric_name} for {period} but "
+                    f"its value is {match.value!r}"
+                )
 
         if self.db:
             try:
@@ -501,7 +541,7 @@ class LongitudinalTracker:
                         ticker, metric_name, fiscal_year, fiscal_quarter,
                     )
                     if row:
-                        return float(row["value"])
+                        return float(row["value"]), ""
             except Exception as e:
                 logger.warning("metric_db_fetch_failed", error=str(e))
 
@@ -533,11 +573,11 @@ class LongitudinalTracker:
                 limit=1,
             )
             if rows and rows[0].get("value_float") is not None:
-                return float(rows[0]["value_float"])
+                return float(rows[0]["value_float"]), ""
         except Exception as e:
             logger.warning("metric_rest_fetch_failed", error=str(e)[:120])
 
-        return None
+        return None, reason
 
     async def _fetch_guidance(self, ticker: str, metric: str, period: str) -> dict | None:
         """Fetch management guidance for a metric from consensus_estimates table."""

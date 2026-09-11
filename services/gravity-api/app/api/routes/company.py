@@ -273,6 +273,7 @@ async def company_trend(
             {
                 "period": dp.period,
                 "value": dp.value,
+                "absent_reason": dp.absent_reason,
                 "yoy_change": dp.yoy_change,
                 "qoq_change": dp.qoq_change,
                 "is_anomaly": dp.is_anomaly,

@@ -66,8 +66,11 @@ async def serial(tracker, ticker: str, metric: str) -> list[PeriodDataPoint]:
     unit = tracker._get_metric_unit(metric)
     out = []
     for period in PERIODS:
-        value = await tracker._fetch_metric(ticker, metric, period)
-        out.append(PeriodDataPoint(period=period, value=value, unit=unit))
+        # V2-2 changed this to return (value, reason); the control still compares
+        # the values, which is what this row is about.
+        value, reason = await tracker._fetch_metric(ticker, metric, period)
+        out.append(PeriodDataPoint(period=period, value=value, unit=unit,
+                                   absent_reason=reason))
     return out
 
 
