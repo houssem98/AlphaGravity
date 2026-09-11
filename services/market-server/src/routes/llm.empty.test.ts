@@ -12,6 +12,14 @@ import type { Server } from 'node:http';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { llmRouter, parseCompletion } from './llm.js';
 
+// V2-6 · /api/llm/chat requires a viewer now. This suite is about what happens
+// to an EMPTY COMPLETION, so it authenticates through the documented local
+// bypass and leaves the auth assertions to llm.auth.test.ts.
+vi.hoisted(() => {
+    process.env.SUPABASE_URL ??= 'http://localhost:54321';
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'test-service-role';
+});
+
 // A DeepSeek response exactly as a reasoning model returns one: the budget went
 // to reasoning_content, and `content` is null.
 const { reasoningModelReply } = vi.hoisted(() => ({
@@ -77,6 +85,7 @@ describe('POST /api/llm/chat with an empty completion', () => {
 
     beforeAll(async () => {
         process.env.DEEPSEEK_API_KEY = 'test-key';
+        process.env.DEV_AUTH_BYPASS = '1';
         // emitTrace writes one JSON line to stdout; that line is the trace.
         vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
             logged.push(args.map(String).join(' '));
@@ -90,6 +99,7 @@ describe('POST /api/llm/chat with an empty completion', () => {
     });
 
     afterAll(async () => {
+        delete process.env.DEV_AUTH_BYPASS;
         vi.restoreAllMocks();
         await new Promise<void>(resolve => server.close(() => resolve()));
     });

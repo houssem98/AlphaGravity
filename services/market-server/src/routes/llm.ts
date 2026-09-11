@@ -17,6 +17,9 @@
 import { Router } from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Agent, fetch as undiciFetch } from 'undici';
+import { authMiddleware } from '../middleware/auth.js';
+import type { AuthRequest } from '../middleware/auth.js';
+import { meter } from './gravity.js';
 
 // W0d: node fetch (undici) defaults to 300s headers/body timeouts. A long
 // non-streaming completion (e.g. a budget-starved monolith Writer call on
@@ -134,6 +137,8 @@ interface TraceSpan {
     model: string;
     promptChars: number;
     outputChars: number;
+    /** V2-6 · the budget actually sent upstream, after the server-side cap. */
+    maxTokens?: number;
     latencyMs: number;
     cacheStats?: { created: number; read: number };
     ok: boolean;
@@ -270,8 +275,50 @@ llmRouter.get('/health', async (req, res) => {
 
 // ─── POST /api/llm/chat — Proxy a single LLM call ───────────────────────────
 
-llmRouter.post('/chat', async (req, res) => {
-    const { provider, model, prompt, max_tokens = 8192 } = req.body;
+// V2-6 · this route spends money, and used to take anyone's word for how much.
+//
+// It accepted caller-supplied provider, model, prompt and max_tokens and called
+// a provider with SERVER-side credentials under no inbound auth at all — the one
+// Authorization header in this file is the outbound one. Anyone who could reach
+// market-server could pick the model and spend the credits.
+//
+// Three things now stand in front of it: a viewer, a meter, and a ceiling.
+
+const MAX_TOKENS_DEFAULT = 8192;
+
+/** The ceiling a caller cannot raise. Read per call so a deploy can lower it. */
+export const maxTokensCap = () => Number(process.env.LLM_MAX_TOKENS_CAP ?? 8192);
+
+/**
+ * What the provider is actually asked for.
+ *
+ * A caller naming no budget gets the default; one naming a bigger budget than
+ * the ceiling gets the ceiling; one naming nonsense gets the default rather than
+ * NaN, which some providers read as "no limit".
+ */
+export function capMaxTokens(requested: unknown): number {
+    const cap = maxTokensCap();
+    const n = Math.floor(Number(requested));
+    if (!Number.isFinite(n) || n <= 0) return Math.min(MAX_TOKENS_DEFAULT, cap);
+    return Math.min(n, cap);
+}
+
+llmRouter.post('/chat', authMiddleware, async (req: AuthRequest, res) => {
+    // Metered per viewer, by the same meter /api/gravity/search uses. There the
+    // key is an address because the caller may be anonymous; here there is
+    // always a viewer, so it is their id — one person cannot spend the service's
+    // allowance by arriving from many addresses.
+    const full = meter(`llm:${req.user?.id ?? 'unknown'}`);
+    if (full) {
+        res.set('Retry-After', String(full.retryAfter)).status(429).json({
+            error: `LLM request limit reached (per ${full.window}). Retry in ${full.retryAfter}s.`,
+            retryAfter: full.retryAfter,
+        });
+        return;
+    }
+
+    const { provider, model, prompt } = req.body ?? {};
+    const max_tokens = capMaxTokens(req.body?.max_tokens);
 
     if (!provider || !model || !prompt) {
         res.status(400).json({ error: 'Required: provider, model, prompt' });
@@ -308,6 +355,7 @@ llmRouter.post('/chat', async (req, res) => {
             provider, model,
             promptChars: prompt.length,
             outputChars: result.text.length,
+            maxTokens: max_tokens,
             latencyMs,
             cacheStats: result.cacheStats,
             ok: true,
@@ -322,6 +370,7 @@ llmRouter.post('/chat', async (req, res) => {
             provider, model,
             promptChars: prompt.length,
             outputChars: 0,
+            maxTokens: max_tokens,
             latencyMs,
             ok: false,
             errorMessage: error.message,

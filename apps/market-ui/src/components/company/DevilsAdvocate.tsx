@@ -5,6 +5,7 @@
 // section already carries the bull case).
 
 import { Children, type ReactNode } from 'react';
+import { authHeader } from '../../services/supabase';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Scale } from 'lucide-react';
@@ -64,7 +65,7 @@ export default function DevilsAdvocate({ ticker }: { ticker: string }) {
 
             const res = await fetch(LLM_PROXY_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
                 // deepseek-chat, not -v4-flash: the latter is a reasoning model
                 // that returns content:null at this budget (see CompanyBrief).
                 body: JSON.stringify({ provider: 'deepseek', model: 'deepseek-chat', prompt: PROMPT(ticker, facts), max_tokens: 1600 }),

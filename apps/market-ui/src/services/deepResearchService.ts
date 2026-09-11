@@ -17,6 +17,7 @@ import {
     type TavilySearchResult,
     type RecencyBucket,
 } from './tavilyService';
+import { authHeader } from './supabase';
 import { queryGravityRAG, formatRAGSourcesForPrompt, formatRAGStructuredData, type GravityRAGResult } from './gravitySearchService';
 import {
     runEntityGate, buildSourceEntityIndex, evaluatePublicationGates,
@@ -1051,7 +1052,7 @@ async function callLLMProxy(
     _activeBudget?.checkBeforeCall();
     const res = await fetch(LLM_PROXY_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({ provider, model, prompt, max_tokens: 8192 }),
         signal: _activeSignal ?? undefined,
     });

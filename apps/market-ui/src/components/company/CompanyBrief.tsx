@@ -3,6 +3,7 @@
 // section is a cited, filings-grounded answer — no new infrastructure.
 
 import { useState, useEffect, useCallback, useRef, Children, type ReactNode } from 'react';
+import { authHeader } from '../../services/supabase';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Sparkles, RefreshCw, Square, Download } from 'lucide-react';
@@ -43,7 +44,7 @@ function makeCallLLM(modelKey: ModelKey) {
     return async function callLLM(prompt: string, signal?: AbortSignal): Promise<{ text: string; model: ResearchModelId }> {
         const res = await fetch(LLM_PROXY_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
             body: JSON.stringify({ provider: cfg.provider, model: cfg.model, prompt, max_tokens: 2048 }),
             signal,
         });

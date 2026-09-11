@@ -3,6 +3,7 @@
 // Used by: npm run eval:loop, LOOP_SELF_IMPROVE.sh
 
 import { buildJudgePrompt, buildCitationSpotPrompt, parseJudgeJson, type JudgeScores } from './evalRubric';
+import { authHeader } from './supabase';
 import type { ResearchModelId } from './deepResearchService';
 
 const API = import.meta.env?.VITE_API_URL || 'http://localhost:3002';
@@ -86,7 +87,7 @@ export async function llmChat(prompt: string): Promise<string> {
 async function judgeCall(prompt: string): Promise<string> {
     const res = await fetch(`${API}/api/llm/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({ provider: 'deepseek', model: 'deepseek-v4-flash', prompt, max_tokens: 2000 }),
     });
     if (!res.ok) throw new Error(`judge call failed: HTTP ${res.status}`);

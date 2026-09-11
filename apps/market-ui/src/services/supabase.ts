@@ -512,6 +512,12 @@ export const mfaQrUrl = (secret: string, email: string): string => {
     return `${GRAVITY_API_URL}/v1/auth/mfa/qr?${params.toString()}`;
 };
 
+/** `Authorization` for a signed-in viewer, or nothing. */
+export const authHeader = async (): Promise<Record<string, string>> => {
+    const token = await getAccessToken().catch(() => null);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 export const getAccessToken = async (): Promise<string | null> => {
     if (DEV_AUTH_BYPASS) {
         return getDevSession()?.access_token || null;

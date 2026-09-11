@@ -3,6 +3,7 @@
 // cancellable LLM call with per-cell status.
 
 import { useState, useRef, useEffect, useMemo, Children, type ReactNode } from 'react';
+import { authHeader } from '../../services/supabase';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -56,7 +57,7 @@ async function callLLMProxy(prompt: string, modelKey: 'deepseek' | 'claude' | 'g
     const config = MODEL_CONFIG[modelKey];
     const res = await fetch(LLM_PROXY_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({ ...config, prompt, max_tokens: 2048 }),
         signal,
     });

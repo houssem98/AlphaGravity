@@ -2,10 +2,14 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Request, Response, NextFunction } from 'express';
 
-const supabase = createClient(
+// Built on first use, not at import. Bound at module load, importing this
+// file anywhere the env has not been read yet throws before a single route is
+// mounted — which is a startup failure disguised as an import.
+let client: ReturnType<typeof createClient> | null = null;
+const supabase = () => (client ??= createClient(
     process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+));
 
 export interface AuthRequest extends Request {
     user?: {
@@ -34,7 +38,7 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
     const token = authHeader.split(' ')[1];
 
     try {
-        const { data: { user }, error } = await supabase.auth.getUser(token);
+        const { data: { user }, error } = await supabase().auth.getUser(token);
 
         if (error || !user) {
             res.status(401).json({ error: 'Invalid or expired token' });
