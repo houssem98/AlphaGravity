@@ -29,6 +29,10 @@ import structlog
 
 logger = structlog.get_logger()
 
+# The fiscal quarters in order, so "the previous quarter" is a name and not an
+# array offset. Q1's predecessor is the prior year's Q4.
+_QUARTERS = ("Q1", "Q2", "Q3", "Q4")
+
 _CACHE_PREFIX = "longitudinal:"
 _CACHE_TTL = 3600  # 1 hour
 
@@ -322,20 +326,47 @@ class LongitudinalTracker:
             series.trend_confidence = round(min(1.0, abs(slope) / (series.std_dev + 1e-9)), 3)
 
     def _compute_changes(self, series: MetricSeries) -> None:
-        """Compute YoY (4-period lag) and QoQ (1-period lag) changes."""
-        points = series.data_points
-        for i, dp in enumerate(points):
+        """Year-over-year and quarter-over-quarter, against the period the label names.
+
+        V2-3 · this was `points[i - 4]` under a docstring reading "(4-period
+        lag)". Four rows back is the same quarter a year earlier only for a
+        dense quarterly series; the company page asks for eight ANNUAL periods,
+        so FY2024's year-over-year pointed at FY2020 and called it growth.
+
+        The comparison period is now NAMED from the label and then looked up. A
+        neighbour that is missing from the series leaves the change absent
+        instead of silently reaching further back, and a label the parser cannot
+        read gets no change at all rather than a positional guess.
+        """
+        by_period: dict[tuple[int, str], PeriodDataPoint] = {}
+        for point in series.data_points:
+            year, qualifier = self._parse_period(point.period)
+            if year is not None and qualifier:
+                by_period.setdefault((year, qualifier), point)
+
+        def change_from(now: float, key: tuple[int, str]) -> float | None:
+            before = by_period.get(key)
+            if before is None or before.value is None or before.value == 0:
+                return None
+            return round(((now - before.value) / abs(before.value)) * 100, 2)
+
+        for dp in series.data_points:
             if dp.value is None:
                 continue
-            # QoQ: compare to previous period
-            if i >= 1 and points[i - 1].value is not None:
-                prev = points[i - 1].value
-                dp.qoq_change = round(((dp.value - prev) / abs(prev)) * 100, 2) if prev != 0 else None
+            year, qualifier = self._parse_period(dp.period)
+            if year is None or not qualifier:
+                continue
 
-            # YoY: compare to 4 periods ago
-            if i >= 4 and points[i - 4].value is not None:
-                prior_year = points[i - 4].value
-                dp.yoy_change = round(((dp.value - prior_year) / abs(prior_year)) * 100, 2) if prior_year != 0 else None
+            # Same qualifier, one year earlier: FY2024 against FY2023, Q3 2025
+            # against Q3 2024. Never FY against a quarter.
+            dp.yoy_change = change_from(dp.value, (year - 1, qualifier))
+
+            # An annual series has no previous quarter, so it gets no QoQ —
+            # the old code gave it one by comparing consecutive fiscal years.
+            if qualifier in _QUARTERS:
+                i = _QUARTERS.index(qualifier)
+                previous = (year, _QUARTERS[i - 1]) if i else (year - 1, "Q4")
+                dp.qoq_change = change_from(dp.value, previous)
 
     def _detect_anomalies(self, series: MetricSeries) -> None:
         """Flag data points >2σ from the mean."""
