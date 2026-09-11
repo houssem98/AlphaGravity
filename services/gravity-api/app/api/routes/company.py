@@ -170,10 +170,49 @@ async def company_financials(
                 "period": r.get("period"),
                 "ticker": symbol,
                 "filing_type": r.get("filing_type") or "",
+                # Named `filing_date` by the ingest, but it holds the PERIOD END:
+                # AAPL's 10-K rows carry 2025-09-27, which is its fiscal year end,
+                # not the day it filed. `period_end` is the same value under the
+                # name it deserves, and `filed` below is the real filing date.
                 "filing_date": r.get("filing_date"),
+                "period_end": r.get("filing_date"),
                 "document_id": r.get("document_id"),
             }
-    return {"ticker": symbol, "rows": list(best.values())[:limit], "source": "xbrl"}
+    rows_out = list(best.values())[:limit]
+
+    # V2-8 · every figure names the filing it came from.
+    #
+    # `document_id` is the literal "xbrl:<TICKER>" on all 150,596 exact rows —
+    # one value per registrant, which identifies no filing, so the Source column
+    # rendered a bare dash on every line. What the row DOES carry is the form and
+    # the period it was reported for, and that pair names exactly one filing in
+    # SEC's own index. Resolving it there is a lookup, not an inference.
+    index, cik, index_error = await _filing_index(symbol)
+    for row in rows_out:
+        hit = index.get(((row["filing_type"] or "").upper(), row["period_end"] or ""))
+        row["cik"] = cik
+        if hit and hit.get("accession"):
+            row["accession"] = hit["accession"]
+            row["filed"] = hit["filed"]
+            row["primary_document"] = hit["primary_document"]
+            row["source_reason"] = None
+        else:
+            # A fact with no single filing says which fact and why, because the
+            # dash it used to render said neither.
+            row["accession"] = None
+            row["filed"] = None
+            row["primary_document"] = None
+            row["source_reason"] = index_error or (hit or {}).get("reason") or (
+                f"SEC's index lists no {row['filing_type'] or 'filing'} for "
+                f"{symbol} covering a period ending {row['period_end'] or 'an unstated date'}."
+            )
+
+    return {
+        "ticker": symbol,
+        "rows": rows_out,
+        "source": "xbrl",
+        "provenance_unavailable_reason": index_error,
+    }
 
 
 @router.get("/company/{ticker}/trend")
@@ -407,6 +446,87 @@ async def _filings_from_sec(
         if len(out) >= limit:
             break
     return out, None
+
+
+# V2-8 · SEC's own index of which filing reported which period.
+#
+# Keyed by (form, period end), because that is the pair an exact-XBRL row
+# carries. One submissions fetch answers every row for a ticker, and the answer
+# is cached for an hour — a company's filing history does not change between two
+# page loads, and SEC rate-limits at 10 req/s.
+_FILING_INDEX_TTL = 3600.0
+_FILING_INDEX_CACHE: dict[str, tuple[float, dict, Any, str | None]] = {}
+
+
+async def _filing_index(
+    symbol: str,
+) -> tuple[dict[tuple[str, str], dict[str, Any]], Any, str | None]:
+    """((form, period end) -> filing), the CIK, and why the index is empty.
+
+    An entry whose key matched more than one filing carries a `reason` and no
+    accession: two filings of the same form covering the same period cannot be
+    told apart from what the fact row holds, and picking one would be the guess
+    this whole ledger exists to refuse.
+    """
+    import time
+
+    cached = _FILING_INDEX_CACHE.get(symbol)
+    if cached and (time.time() - cached[0]) < _FILING_INDEX_TTL:
+        return cached[1], cached[2], cached[3]
+
+    from app.core.retrieval.edgar_search import EdgarSearch
+    from app.core.retrieval.edgar_text_search import SUBMISSIONS_URL
+    from app.core.skills import entity as entity_layer
+
+    def remember(idx, cik, err):
+        _FILING_INDEX_CACHE[symbol] = (time.time(), idx, cik, err)
+        return idx, cik, err
+
+    try:
+        resolved = await entity_layer.resolve(symbol)
+        cik = getattr(resolved, "cik", None)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("provenance_entity_resolve_failed", ticker=symbol,
+                       error_type=type(e).__name__)
+        return remember({}, None, f"Could not resolve {symbol} against SEC's registrant index.")
+    if not cik:
+        return remember({}, None, f"{symbol} does not resolve to an SEC registrant.")
+
+    try:
+        data = await EdgarSearch()._get_json(SUBMISSIONS_URL.format(cik=int(cik)))
+    except Exception as e:  # noqa: BLE001
+        logger.warning("provenance_submissions_failed", ticker=symbol,
+                       error_type=type(e).__name__)
+        return remember({}, cik, (
+            f"SEC did not answer for {symbol} ({type(e).__name__}). The filings "
+            "exist; which one reported each figure could not be looked up."
+        ))
+
+    recent = ((data or {}).get("filings") or {}).get("recent") or {}
+    index: dict[tuple[str, str], dict[str, Any]] = {}
+    for form, accn, filed, report, doc in zip(
+        recent.get("form") or [],
+        recent.get("accessionNumber") or [],
+        recent.get("filingDate") or [],
+        recent.get("reportDate") or [],
+        recent.get("primaryDocument") or [],
+    ):
+        if not form or not report or not accn:
+            continue
+        key = (form.upper(), report)
+        existing = index.get(key)
+        if existing is None:
+            index[key] = {"accession": accn, "filed": filed, "primary_document": doc}
+        elif existing.get("accession") != accn:
+            index[key] = {
+                "accession": None, "filed": None, "primary_document": None,
+                "reason": (
+                    f"SEC lists more than one {form} for {symbol} covering the "
+                    f"period ending {report}, and a figure cannot be attributed "
+                    "to one of them from what this row records."
+                ),
+            }
+    return remember(index, cik, None)
 
 
 # ─── CF-24 · verify a ticker before the page loads it ─────────────────────────

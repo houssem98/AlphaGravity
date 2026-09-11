@@ -55,6 +55,20 @@ export interface GravityMetric {
     // the marker exists because the id can be missing — narrowing this to string
     // would delete the state the page has to render honestly.
     document_id?: string;
+
+    // V2-8 · the filing this figure came from. `document_id` holds the literal
+    // "xbrl:<TICKER>" on every exact row, which identifies no filing, so the
+    // server resolves (form, period end) against SEC's index and answers with
+    // the accession — or with `source_reason`, which says why it could not.
+    filing_type?: string;
+    /** The period the figure covers. The server's `filing_date` is this value
+     *  under the wrong name; `filed` below is when it was actually filed. */
+    period_end?: string;
+    filed?: string;
+    accession?: string | null;
+    primary_document?: string | null;
+    cik?: string | number | null;
+    source_reason?: string | null;
 }
 
 export interface SentimentResult {
