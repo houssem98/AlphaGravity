@@ -2,18 +2,19 @@
 
 import {
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-    ResponsiveContainer, Cell,
+    ResponsiveContainer, Cell, LabelList,
 } from 'recharts';
 import CompanyBrief from './CompanyBrief';
 import LatestQuarterCard from './LatestQuarterCard';
 import TranscriptSummary from './TranscriptSummary';
 import DevilsAdvocate from './DevilsAdvocate';
 import { COLORS } from './presentation';
+import { formatFinancialValue } from '../../lib/figures';
 import type { GravityDocument, GravityMetric, LongitudinalPoint, MarketOverview } from './types';
 
 export default function OverviewTab({
     symbol, metrics, overview, longitudinal, documents, chartData,
-    trendMetric, trendReason,
+    trendMetric, trendReason, trendUnit,
 }: {
     symbol: string;
     metrics: GravityMetric[];
@@ -24,12 +25,17 @@ export default function OverviewTab({
     /** CF-21 · the metric the series actually is, which is not always the one asked for. */
     trendMetric: string | null;
     trendReason: string | null;
+    /** V2-1 · the unit the server denominated the series in: "%", "x", or a currency. */
+    trendUnit: string | null;
 }) {
     const transcript = documents.find(d => d.filing_type === 'earnings_transcript');
     // CF-21 · banks and utilities file no us-gaap Revenue tag, so the server may
     // answer with the line the filer DOES report. Labelling that "Revenue" would
     // be the fabricated comparison this codebase refuses everywhere else.
     const trendKey = trendMetric ?? 'revenue';
+    // V2-1 · axis, tooltip and point label all read the same formatter, so the
+    // series is drawn in the unit the server sent rather than in USD billions.
+    const fmtTrend = (v: number) => formatFinancialValue(v, trendUnit ?? undefined, trendKey);
     const trendLabel = trendKey.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     return (
         <div className="space-y-5">
@@ -58,11 +64,13 @@ export default function OverviewTab({
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                             <XAxis dataKey="period" tick={{ fill: '#4A5568', fontSize: 10 }} axisLine={false} tickLine={false} />
                             <YAxis tick={{ fill: '#4A5568', fontSize: 10 }} axisLine={false} tickLine={false} width={60}
-                                    tickFormatter={(v: number) => `$${(v / 1e9).toFixed(0)}B`} />
+                                    tickFormatter={fmtTrend} />
                             <Tooltip contentStyle={{ backgroundColor: '#0D1117', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '12px', color: '#E8EBF0' }}
-                                    formatter={(v: number) => [`$${(v / 1e9).toFixed(2)}B`, trendKey]} />
+                                    formatter={(v: number) => [fmtTrend(v), trendKey]} />
                             {[trendKey].filter(k => longitudinal.some(p => p[k] !== undefined)).map((key, i) => (
-                                <Line key={key} type="monotone" dataKey={key} stroke={['#00F0FF', '#5B8DF6', '#10B981'][i]} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} name={key.replace(/_/g, ' ')} />
+                                <Line key={key} type="monotone" dataKey={key} stroke={['#00F0FF', '#5B8DF6', '#10B981'][i]} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} name={key.replace(/_/g, ' ')}>
+                                    <LabelList dataKey={key} position="top" formatter={fmtTrend} style={{ fill: '#A7B0C8', fontSize: 10 }} />
+                                </Line>
                             ))}
                         </LineChart>
                     </ResponsiveContainer>

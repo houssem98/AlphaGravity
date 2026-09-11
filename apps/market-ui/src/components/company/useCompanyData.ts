@@ -43,6 +43,7 @@ export function useCompanyData(symbol: string) {
     // received rather than what was asked for.
     const [trendMetric, setTrendMetric] = useState<string | null>(null);
     const [trendReason, setTrendReason] = useState<string | null>(null);
+    const [trendUnit, setTrendUnit] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     // CT-7 · row 9. A surface that failed is NAMED. A credential fault and a data
     // gap look identical when both render an empty card, and only one of them is
@@ -135,6 +136,7 @@ export function useCompanyData(symbol: string) {
             const lonData = surfaceData(lon);
             setTrendMetric(lonData?.metric_used ?? null);
             setTrendReason(lonData?.unavailable_reason ?? null);
+            setTrendUnit(lonData?.unit ?? null);
             setLongitudinal(
                 arr(lonData?.data_points)
                     .filter((d: { value?: number | null }) => typeof d.value === 'number')
@@ -220,7 +222,7 @@ export function useCompanyData(symbol: string) {
     }, [symbol]);
 
     return {
-        overview, quote, documents, metrics, longitudinal, trendMetric, trendReason, loading,
+        overview, quote, documents, metrics, longitudinal, trendMetric, trendReason, trendUnit, loading,
         failedSurfaces, watermark,
         sentiment, sentimentView, sentimentRefusal, sentimentDelta,
     };

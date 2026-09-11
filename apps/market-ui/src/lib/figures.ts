@@ -70,3 +70,29 @@ export function figureAttrs(
         'data-source': source?.trim() || NULL_MARK,
     } as const;
 }
+
+/**
+ * V2-1 · a figure rendered in the unit the server said it was in.
+ *
+ * OverviewTab drew every series as `$${(v/1e9).toFixed(0)}B`, so a margin
+ * arrived as `$0.00B` and an EPS as `$0.00B`. The longitudinal endpoint already
+ * returns `unit` — "%", "x", or a currency — and the tracker's own narrative
+ * prints the value against that unit unscaled (`{value:,.1f} {unit}`), so a
+ * percent series carries 45.0 and not 0.45.
+ *
+ * `metric` distinguishes a per-share figure from a currency magnitude: both are
+ * dollars, but $7.46 of EPS is not 7.46 of anything divisible by a billion.
+ */
+export function formatFinancialValue(value: number, unit?: string, metric?: string): string {
+    if (!Number.isFinite(value)) return NULL_MARK;
+    const u = unit?.trim().toLowerCase() ?? '';
+    if (u === '%') return `${value.toFixed(1)}%`;
+    if (u === 'x') return `${value.toFixed(2)}x`;
+    if (metric && /(^|_)(eps|per_share)(_|$)/i.test(metric)) return `$${value.toFixed(2)}`;
+    const sign = value < 0 ? '-' : '';
+    const a = Math.abs(value);
+    if (a >= 1e12) return `${sign}$${(a / 1e12).toFixed(2)}T`;
+    if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(2)}B`;
+    if (a >= 1e6) return `${sign}$${(a / 1e6).toFixed(2)}M`;
+    return `${sign}$${a.toLocaleString()}`;
+}
