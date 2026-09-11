@@ -40,6 +40,11 @@ worse than a slow chart.
 
 | CF-25 | A search that did not finish is not an empty corpus | The AI Company Brief showed `No data available for "<the whole prompt>" in SEC filings or public sources` on every cell — a claim about what AMD filed. Two causes, both ours. (1) The CF-2 proxy aborted at 30s while the browser waits 45s; a cold `/v1/search` for AMD measured **30.097s**, a 97ms margin, so cold cells lost and warm ones squeaked through. (2) A cache hit returns the answer and citations with an **empty `sources` array** (measured: `cache_hit: true`, 0 sources, 15 citations, 10,377 chars) and the cell counted only `sources`. Gate: the proxy's timeout is >= the client's; a failed search reports the failure instead of claiming SEC holds nothing; and the two brief prompts from the screenshot return usable evidence and an answer through the proxy. | **DONE** |
 
+| CF-26 | The brief says what it is doing, per section | `gridResearch` already fires `deps.onStep(ticker, promptId, label)` on every trace step — "Searching SEC filings", "Fetching market data", "Analyzing" — and its own comment says it exists "so the UI can show the current step inside the running cell". `CompanyBrief` passes no `onStep`, so all of it is discarded and six sections show one generic spinner for ~30s. Gate: a running section renders the live step label, the label changes as the cell advances, and a section that has not started does not claim to be analyzing. | **DONE** |
+| CF-27 | A section's state is its own, not the run's | `BriefSection` is handed the GLOBAL `running` flag, so every not-yet-started section renders "Analyzing filings…" from the moment the run begins. With concurrency 3 and six prompts, at least three sections are lying at any time. Gate: each section renders from its own cell status — queued, running, done, error — and a finished section shows its answer while its siblings are still running. | **DONE** |
+| CF-28 | The trend stops fetching periods one at a time | `get_metric_series` loops `for period in periods: await self._fetch_metric(...)`, so an 8-period window is 8 serial round trips — measured 16.0s warm, 46.6s cold. They are independent. Gate: the 8-period load runs concurrently and returns byte-identical values to the serial version, measured before/after. | OPEN |
+| CF-29 | Streaming the brief, without reopening the billing hole | Quick Answer streams because it opens a WebSocket **direct to gravity-api**, bypassing market-server — and therefore bypassing the CF-12 per-viewer metering and server-side key injection. Copying that transport for six cells per brief would widen that hole six-fold. Gate: if the brief streams, it streams through a market-server WS proxy that meters the viewer exactly as `/api/gravity/search` does. **Deferred until CF-26/27 are measured — they may remove the need.** | OPEN |
+
 ### Gate scripts
 
 Gates that hit an API take `GRAVITY_BASE`. **Prod is frozen** (Fly deploys are
@@ -57,6 +62,9 @@ local API instead: from `services/gravity-api`,
   `.venv/Scripts/python.exe ../../docs/company-feature/gates/cf5-gate.py`. Checks the
   returned pairs against an independent paged read, and checks two identical calls agree.
   Note the row count in the gate's wording ("402") was stale: NVDA holds 385.
+- CF-26/27 — `npx vitest run src/components/company/CompanyBrief.progress.test.ts`
+  from `apps/market-ui`. Drives the real `runGrid` to prove the steps advance and are
+  attributed per cell, then reads the component to prove it consumes them.
 - CF-25 — `node docs/company-feature/gates/cf25-gate.mjs` with market-server and
   gravity-api up. Asserts the two clocks against each other and replays the exact
   two brief prompts from the bug report.

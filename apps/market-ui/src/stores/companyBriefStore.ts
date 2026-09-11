@@ -14,6 +14,10 @@ export interface BriefEntry {
     running: boolean;
     cached: boolean;
     model: BriefModel;
+    // CF-26 · the trace step each cell is on right now, keyed by cellKey. Lives
+    // here rather than in the component because the run itself outlives the
+    // component — leaving the page must not reset the ticker.
+    steps: Record<string, string>;
     // Devil's Advocate — the company page's other long-running call, keyed by the
     // same ticker so it too survives leaving the page (FI-3).
     devilAnswer: string | null;
@@ -27,7 +31,7 @@ export interface BriefEntry {
 }
 
 export const briefDefault: BriefEntry = {
-    state: null, running: false, cached: false, model: 'deepseek',
+    state: null, running: false, cached: false, model: 'deepseek', steps: {},
     devilAnswer: null, devilRunning: false, devilError: null,
     transcriptAnswer: null, transcriptLoading: false, transcriptFailed: false,
 };

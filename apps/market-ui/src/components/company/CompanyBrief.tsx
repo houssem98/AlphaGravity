@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm';
 import { Sparkles, RefreshCw, Square, Download } from 'lucide-react';
 import {
     initializeGrid, runGrid, cellKey, buildMemo, SEED_GRID_PROMPTS,
-    type GridState, type CellRunnerDeps,
+    type GridState, type CellRunnerDeps, type CellStatus,
 } from '../../services/gridResearch';
 import { downloadBlob } from '../../services/gridExcel';
 import type { Citation, ResearchModelId } from '../../services/deepResearchService';
@@ -78,11 +78,24 @@ function citeChildren(children: ReactNode, onCite: (id: number) => void): ReactN
     });
 }
 
-function BriefSection({ label, answer, citations, running }: {
+/**
+ * CF-26/27 · a section reports its own state, and says what it is doing.
+ *
+ * It used to be handed the RUN's `running` flag, so with concurrency 3 and six
+ * prompts at least three sections claimed to be "Analyzing filings…" before they
+ * had started. And `gridResearch` fires `onStep` on every trace step — its own
+ * comment says that exists "so the UI can show the current step inside the
+ * running cell" — which this component discarded, turning ~30s of real progress
+ * into one motionless spinner.
+ */
+function BriefSection({ label, answer, citations, status, step }: {
     label: string;
     answer?: string;
     citations?: Citation[];
-    running: boolean;
+    /** This cell's status, not the run's. `idle` = the run has not begun. */
+    status: CellStatus | 'idle';
+    /** The trace step this cell is on right now, when it is running. */
+    step?: string;
 }) {
     const [openCite, setOpenCite] = useState<number | null>(null);
     const onCite = (id: number) => setOpenCite(prev => (prev === id ? null : id));
@@ -105,10 +118,25 @@ function BriefSection({ label, answer, citations, running }: {
                     </ReactMarkdown>
                 </div>
             ) : (
-                <div className="flex items-center gap-2 text-xs text-[#4A5568] py-2">
-                    {running
-                        ? <><span className="w-3 h-3 rounded-full border-2 border-[#00F0FF] border-t-transparent animate-spin" /> Analyzing filings…</>
-                        : 'Not generated.'}
+                <div data-section-state={status}
+                    className="flex items-center gap-2 text-xs text-[#4A5568] py-2">
+                    {status === 'running' ? (
+                        <>
+                            <span className="w-3 h-3 rounded-full border-2 border-[#00F0FF] border-t-transparent animate-spin" />
+                            {/* The live step, when there is one. Until the first
+                                step arrives this says "Starting" rather than
+                                naming work that has not begun. */}
+                            <span data-section-step>{step ?? 'Starting'}…</span>
+                        </>
+                    ) : status === 'pending' ? (
+                        'Queued.'
+                    ) : status === 'error' ? (
+                        'Failed.'
+                    ) : status === 'cancelled' ? (
+                        'Stopped.'
+                    ) : (
+                        'Not generated.'
+                    )}
                 </div>
             )}
             {cited && (
@@ -143,7 +171,7 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
     // Live brief state lives in the store, keyed by ticker — so this component
     // is a pure view over it and can leave/return without dropping the run.
     const entry = useCompanyBriefStore((s) => s.byTicker[ticker]) ?? briefDefault;
-    const { state, running, cached, model } = entry;
+    const { state, running, cached, model, steps } = entry;
     const patch = useCompanyBriefStore((s) => s.patch);
     const setModel = (m: ModelKey) => patch(ticker, { model: m });
     const startBgJob = useBackgroundStore((s) => s.startJob);
@@ -189,13 +217,20 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
             prompts: SEED_GRID_PROMPTS,
         };
         const initial = initializeGrid(def);
-        patch(ticker, { state: initial, running: true, cached: false });
+        patch(ticker, { state: initial, running: true, cached: false, steps: {} });
         // Background job so the brief keeps running (and caches) after the user
         // leaves the company page, and shows in the global activity indicator.
         const jobId = `brief-${ticker}-${Date.now()}`;
         startBgJob({ id: jobId, label: briefName, kind: 'brief', href: `/companies/${ticker}`, startedAt: Date.now() });
         const deps: CellRunnerDeps = {
             callLLM: makeCallLLM(model),
+            // CF-26 · gridResearch fires this on every trace step and the UI
+            // threw it away. Writing it per cell is what turns a 30s spinner
+            // into "Searching SEC filings…" then "Analyzing…".
+            onStep: (t, promptId, label) => {
+                const cur = useCompanyBriefStore.getState().byTicker[t] ?? briefDefault;
+                patch(t, { steps: { ...cur.steps, [cellKey(t, promptId)]: label } });
+            },
             searchGravity: (q, t, signal) => {
                 void signal;
                 return queryGravityRAG(q, { companies: [t] });
@@ -302,14 +337,23 @@ export default function CompanyBrief({ ticker }: { ticker: string }) {
                 </div>
             </div>
             {SEED_GRID_PROMPTS.filter(p => !p.synthesis).map(p => {
-                const cell = state?.cells[cellKey(ticker, p.id)];
+                const key = cellKey(ticker, p.id);
+                const cell = state?.cells[key];
+                // CF-27 · the SECTION's status, not the run's. A cell with no
+                // status while the run is going has not started yet — saying it
+                // is analyzing was false for at least three of six at all times.
+                // A cell that exists reports itself. No cell while the run is
+                // going means it has not started — `pending`, not `running`.
+                const status: CellStatus | 'idle' =
+                    cell?.status ?? (running ? 'pending' : 'idle');
                 return (
                     <BriefSection
                         key={p.id}
                         label={p.label}
                         answer={cell?.status === 'done' ? cell.answer : undefined}
                         citations={cell?.citations}
-                        running={running && cell?.status !== 'error'}
+                        status={status}
+                        step={steps[key]}
                     />
                 );
             })}
