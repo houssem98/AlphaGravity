@@ -467,6 +467,14 @@ async def _filing_index(
     accession: two filings of the same form covering the same period cannot be
     told apart from what the fact row holds, and picking one would be the guess
     this whole ledger exists to refuse.
+
+    What this resolves, precisely: THE FILING THAT COVERS THE PERIOD. It is not
+    necessarily companyfacts' own `accn` for the observation, which `sec_xbrl.py`
+    drops at ingest (it emits concept/label/fy/value/unit/form/end and no accn,
+    measured by CT2-2). Where a figure was restated in a later filing, `accn`
+    would name that later one and this names the original. Both are true
+    statements about the figure; they are not the same statement, and the UI must
+    not be read as making the stronger one.
     """
     import time
 
