@@ -34,7 +34,7 @@ worse than a slow chart.
 | CF-18 | Filings are listed for any registrant, not just the 39 ingested | The list is built from `chunks`, which covers 39 tickers; every other company got an empty list that reads as "this company has filed nothing", which is never true of a registrant. Gate: LULU, ANET, MS and DUK each return ≥5 filings with a form and a date, the payload names SEC as the source, unindexed filings say `not_indexed` rather than claiming a chunk count, and an ingested ticker still answers from the local index. | **DONE** |
 | CF-19 | Financial facts come from SEC when the table has none | `financials` covers 501 tickers and has gaps inside them — AAPL holds no revenue row after FY2018, banks and utilities hold none at all. Gate: LULU (absent from the table) and AAPL (gap) return revenue matching their filings for FY2023/FY2024; every value the table DOES hold is served unchanged; a company that reports no revenue anywhere states that rather than substituting a metric; the storage cost is measured, not claimed. | **DONE** |
 | CF-20 | `company_skill` stops reporting revenue as total debt | Measured 2026-09-08: LULU's profile returns `Total debt: $11.10B`, byte-identical to its revenue (`11102600000` for both). A wrong tag mapping, not a coincidence. Gate: for LULU, MS and DUK, total debt differs from revenue and matches the filed balance-sheet figure, or is reported absent. | **DONE** |
-| CF-21 | The trend card handles filers that report no revenue line | Banks and utilities file no us-gaap Revenue tag: MS, TFC, DUK return nothing for `revenue` but do report `net_income` (MS $13.39B FY2024) and sometimes `operating_income` (DUK $7.93B). The stated reason is correct today and better than a fabricated substitution, but the card could offer the metric the filer actually reports, clearly labelled. Gate: for MS and DUK the card renders a labelled series from a metric those filers report, and never renders a substituted metric under a "Revenue" heading. | OPEN |
+| CF-21 | The trend card handles filers that report no revenue line | Banks and utilities file no us-gaap Revenue tag: MS, TFC, DUK return nothing for `revenue` but do report `net_income` (MS $13.39B FY2024) and sometimes `operating_income` (DUK $7.93B). The stated reason is correct today and better than a fabricated substitution, but the card could offer the metric the filer actually reports, clearly labelled. Gate: for MS and DUK the card renders a labelled series from a metric those filers report, and never renders a substituted metric under a "Revenue" heading. | **DONE** |
 
 | CF-24 | A mistyped ticker is caught, not loaded as a blank profile | "APPL" opened a full company page with every surface empty — the same shape as a real registrant with nothing indexed. The entity resolver handles NAMES ("lululemon" → LULU) but returns UNKNOWN with no candidates for a mistyped SYMBOL, which is the mistake people actually make. Gate: 9 typos each return `unknown` with the intended company as the FIRST suggestion; exact tickers and names resolve and carry the registrant's legal name; a string naming nothing says so. | **DONE** |
 
@@ -55,6 +55,10 @@ local API instead: from `services/gravity-api`,
   `.venv/Scripts/python.exe ../../docs/company-feature/gates/cf5-gate.py`. Checks the
   returned pairs against an independent paged read, and checks two identical calls agree.
   Note the row count in the gate's wording ("402") was stale: NVDA holds 385.
+- CF-21 — from `services/gravity-api`:
+  `.venv/Scripts/python.exe ../../docs/company-feature/gates/cf21-gate.py`. Checks the
+  server picks the metric the filer reports AND that the component cannot label it
+  "Revenue" — the server half is worthless if the heading is hardcoded.
 - CF-24 — from `services/gravity-api`:
   `.venv/Scripts/python.exe ../../docs/company-feature/gates/cf24-gate.py`.
 - CF-20 — from `services/gravity-api`:

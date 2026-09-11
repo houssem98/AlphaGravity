@@ -38,6 +38,11 @@ export function useCompanyData(symbol: string) {
     // rather than a bare number.
     const [sentimentView, setSentimentView] = useState<SentimentView | null>(null);
     const [longitudinal, setLongitudinal] = useState<LongitudinalPoint[]>([]);
+    // CF-21 · which metric the series actually IS. A filer that reports no
+    // revenue line still reports something, and the card must label what it
+    // received rather than what was asked for.
+    const [trendMetric, setTrendMetric] = useState<string | null>(null);
+    const [trendReason, setTrendReason] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     // CT-7 · row 9. A surface that failed is NAMED. A credential fault and a data
     // gap look identical when both render an empty card, and only one of them is
@@ -128,10 +133,18 @@ export function useCompanyData(symbol: string) {
             // while the chart wants a wide row per period. Periods the server holds
             // no fact for come back null and drop out here.
             const lonData = surfaceData(lon);
+            setTrendMetric(lonData?.metric_used ?? null);
+            setTrendReason(lonData?.unavailable_reason ?? null);
             setLongitudinal(
                 arr(lonData?.data_points)
                     .filter((d: { value?: number | null }) => typeof d.value === 'number')
-                    .map((d: { period: string; value: number }) => ({ period: d.period, revenue: d.value })),
+                    .map((d: { period: string; value: number }) => ({
+                        period: d.period,
+                        // Keyed by the metric that came back. Writing every series
+                        // to `revenue` is what would put net income under a
+                        // "Revenue" heading.
+                        [lonData?.metric_used ?? 'revenue']: d.value,
+                    })),
             );
         }).then(err => {
             // The loading flag is already down — `withLoading` guarantees that.
@@ -207,7 +220,7 @@ export function useCompanyData(symbol: string) {
     }, [symbol]);
 
     return {
-        overview, quote, documents, metrics, longitudinal, loading,
+        overview, quote, documents, metrics, longitudinal, trendMetric, trendReason, loading,
         failedSurfaces, watermark,
         sentiment, sentimentView, sentimentRefusal, sentimentDelta,
     };

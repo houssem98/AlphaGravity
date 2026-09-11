@@ -43,7 +43,7 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
         : navigate(`/companies/${encodeURIComponent(t.toUpperCase())}`);
 
     const {
-        overview, quote, documents, metrics, longitudinal, loading,
+        overview, quote, documents, metrics, longitudinal, trendMetric, trendReason, loading,
         failedSurfaces, watermark,
         sentiment, sentimentView, sentimentRefusal, sentimentDelta,
     } = useCompanyData(symbol);
@@ -251,7 +251,8 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                     {/* Overview tab */}
                     {activeTab === 'overview' && (
                         <OverviewTab symbol={symbol} metrics={metrics} overview={overview}
-                            longitudinal={longitudinal} documents={documents} chartData={chartData} />
+                            longitudinal={longitudinal} documents={documents} chartData={chartData}
+                            trendMetric={trendMetric} trendReason={trendReason} />
                     )}
 
                     {/* Filings tab */}

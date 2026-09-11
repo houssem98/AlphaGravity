@@ -103,14 +103,27 @@ async def main() -> int:
               r.get("unavailable_reason") is None,
               f"reason={r.get('unavailable_reason')!r}")
 
-    # A bank files no us-gaap Revenue tag at all. The honest answer is the stated
-    # reason, NOT a substituted metric — showing net income under a "Revenue
-    # Trend" heading would be a fabricated comparison.
+    # A bank files no us-gaap Revenue tag at all.
+    #
+    # This asserted that MS refuses. CF-21 changed what the right answer is: MS
+    # does report net income, so the card now shows that rather than nothing. The
+    # protection this check existed for is unchanged and is now asserted more
+    # precisely — a substitute is never handed back under the requested metric's
+    # name — and the refusal case is kept, pointed at a filer that genuinely
+    # reports none of the ladder. Two assertions where there was one.
     ms = await company_trend("MS", metric="revenue", periods="FY2023,FY2024", auth=AUTH)
-    check("MS reports no revenue and says so rather than substituting a metric",
-          all(p["value"] is None for p in ms["data_points"])
-          and bool(ms.get("unavailable_reason")),
-          f"reason={ms.get('unavailable_reason')!r}")
+    check("MS gets the metric it does report, never labelled as revenue",
+          any(p["value"] is not None for p in ms["data_points"])
+          and ms["metric_used"] != "revenue"
+          and ms["substituted"] is True
+          and ms["metric_requested"] == "revenue",
+          f"metric_used={ms['metric_used']!r} substituted={ms['substituted']!r}")
+
+    tfc = await company_trend("TFC", metric="revenue", periods="FY2023,FY2024", auth=AUTH)
+    check("a filer reporting none of the ladder still refuses rather than inventing one",
+          all(p["value"] is None for p in tfc["data_points"])
+          and bool(tfc.get("unavailable_reason")),
+          f"reason={tfc.get('unavailable_reason')!r}")
 
     # ── the constraint that motivated all of it ───────────────────────────────
     #

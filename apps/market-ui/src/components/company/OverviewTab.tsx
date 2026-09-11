@@ -13,6 +13,7 @@ import type { GravityDocument, GravityMetric, LongitudinalPoint, MarketOverview 
 
 export default function OverviewTab({
     symbol, metrics, overview, longitudinal, documents, chartData,
+    trendMetric, trendReason,
 }: {
     symbol: string;
     metrics: GravityMetric[];
@@ -20,8 +21,16 @@ export default function OverviewTab({
     longitudinal: LongitudinalPoint[];
     documents: GravityDocument[];
     chartData: { name: string; value: number; label: string }[];
+    /** CF-21 · the metric the series actually is, which is not always the one asked for. */
+    trendMetric: string | null;
+    trendReason: string | null;
 }) {
     const transcript = documents.find(d => d.filing_type === 'earnings_transcript');
+    // CF-21 · banks and utilities file no us-gaap Revenue tag, so the server may
+    // answer with the line the filer DOES report. Labelling that "Revenue" would
+    // be the fabricated comparison this codebase refuses everywhere else.
+    const trendKey = trendMetric ?? 'revenue';
+    const trendLabel = trendKey.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     return (
         <div className="space-y-5">
             <LatestQuarterCard metrics={metrics} fiscalYearEnd={overview?.FiscalYearEnd} />
@@ -31,9 +40,19 @@ export default function OverviewTab({
                 until one is computed, which nothing does. A revenue series
                 does not depend on sentiment; it belongs beside the rest of
                 the company's numbers. */}
+            {longitudinal.length === 0 && trendReason && (
+                <div data-trend-unavailable className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
+                    <p className="text-xs text-[#4A5568] uppercase tracking-wider mb-2">
+                        {trendLabel} Trend
+                    </p>
+                    <p className="text-sm text-[#A7B0C8]">{trendReason}</p>
+                </div>
+            )}
             {longitudinal.length > 0 && (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
-                    <p className="text-xs text-[#4A5568] uppercase tracking-wider mb-4">Revenue Trend</p>
+                    <p className="text-xs text-[#4A5568] uppercase tracking-wider mb-4">
+                        {trendLabel} Trend
+                    </p>
                     <ResponsiveContainer width="100%" height={200}>
                         <LineChart data={longitudinal} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -41,8 +60,8 @@ export default function OverviewTab({
                             <YAxis tick={{ fill: '#4A5568', fontSize: 10 }} axisLine={false} tickLine={false} width={60}
                                     tickFormatter={(v: number) => `$${(v / 1e9).toFixed(0)}B`} />
                             <Tooltip contentStyle={{ backgroundColor: '#0D1117', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '12px', color: '#E8EBF0' }}
-                                    formatter={(v: number) => [`$${(v / 1e9).toFixed(2)}B`, 'revenue']} />
-                            {['revenue', 'net_income', 'operating_income'].filter(k => longitudinal.some(p => p[k] !== undefined)).map((key, i) => (
+                                    formatter={(v: number) => [`$${(v / 1e9).toFixed(2)}B`, trendKey]} />
+                            {[trendKey].filter(k => longitudinal.some(p => p[k] !== undefined)).map((key, i) => (
                                 <Line key={key} type="monotone" dataKey={key} stroke={['#00F0FF', '#5B8DF6', '#10B981'][i]} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} name={key.replace(/_/g, ' ')} />
                             ))}
                         </LineChart>

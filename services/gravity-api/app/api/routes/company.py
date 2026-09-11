@@ -206,9 +206,39 @@ async def company_trend(
     if not period_list:
         raise HTTPException(status_code=400, detail="At least one period required")
 
-    series = await _get_longitudinal_tracker().get_metric_series(
-        ticker=ticker.upper(), metric_name=metric, periods=period_list,
+    tracker = _get_longitudinal_tracker()
+    symbol = ticker.upper()
+    series = await tracker.get_metric_series(
+        ticker=symbol, metric_name=metric, periods=period_list,
     )
+
+    # CF-21 · a filer that reports no revenue line still reports something.
+    #
+    # Banks and utilities file no us-gaap Revenue tag at all — measured
+    # 2026-09-10, MS and DUK and TFC all return nothing for `revenue` — so the
+    # card was empty for an entire sector. MS does report net income ($13.39B
+    # FY2024) and DUK also operating income ($7.93B).
+    #
+    # The substitute is NEVER shown under the requested metric's name. Rendering
+    # net income beneath a "Revenue" heading is the fabricated comparison this
+    # whole ledger exists to prevent; the caller is told which metric it actually
+    # received and labels the card from that.
+    #
+    # The ladder runs ONLY for a metric we recognise. A caller asking for
+    # "unicorn_count" is not a filer that reports no revenue line — answering it
+    # with revenue would be the fabrication in its purest form, and the first
+    # version of this did exactly that until CF-15's gate caught it.
+    substituted = False
+    if resolve_metric(metric) is not None             and not any(dp.value is not None for dp in series.data_points):
+        for alt in FALLBACK_METRICS:
+            if alt == metric.strip().lower():
+                continue
+            alt_series = await tracker.get_metric_series(
+                ticker=symbol, metric_name=alt, periods=period_list,
+            )
+            if any(dp.value is not None for dp in alt_series.data_points):
+                series, substituted = alt_series, True
+                break
 
     unavailable_reason = None
     if not any(dp.value is not None for dp in series.data_points):
@@ -218,13 +248,20 @@ async def company_trend(
                 f"Known metrics: {', '.join(sorted(METRIC_ALIASES))}."
             )
         else:
+            tried = ", ".join(m for m in FALLBACK_METRICS if m != metric.strip().lower())
             unavailable_reason = (
-                f"{ticker.upper()} has no reported {metric} for "
-                f"{', '.join(period_list)} in the exact-XBRL rows."
+                f"{symbol} has no reported {metric} for "
+                f"{', '.join(period_list)} in the exact-XBRL rows, and none of "
+                f"{tried} either."
             )
 
     return {
         "unavailable_reason": unavailable_reason,
+        # What was ASKED for, and what actually came back. They differ when the
+        # filer reports no such line, and the client must label from the second.
+        "metric_requested": metric,
+        "metric_used": series.metric_name,
+        "substituted": substituted,
         "ticker": series.ticker,
         "metric_name": series.metric_name,
         "display_name": series.display_name,
@@ -284,6 +321,11 @@ async def company_sentiment(
 #
 # Nothing here is indexed, so this costs no database storage — which is the
 # binding constraint (0.35 of 0.5 GB in use).
+
+# Income-statement lines in the order a reader would accept as a stand-in for a
+# top line, most-preferred first. Every entry must exist in the tracker's alias
+# map or it resolves to nothing.
+FALLBACK_METRICS = ("revenue", "operating_income", "net_income")
 
 _LISTED_FORMS = ("10-K", "10-K/A", "10-Q", "10-Q/A", "8-K", "20-F", "40-F", "DEF 14A")
 

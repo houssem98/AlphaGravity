@@ -121,16 +121,31 @@ async def main() -> int:
           f"reason={covered.get('unavailable_reason')!r}")
 
     # AAPL no longer HAS a gap — CF-19 fills FY2019+ from live SEC, which is what
-    # CF-17 was opened for. The "states the gap" case moves to a company that
-    # still has one: a bank files no us-gaap Revenue tag anywhere, so neither the
-    # table nor SEC can serve it, and the honest answer is the stated reason.
-    gap = await company_trend("MS", metric="revenue", periods="FY2021,FY2022,FY2023", auth=AUTH)
-    check("a company that reports no revenue anywhere states that",
+    # CF-17 was opened for. The "states the gap" case therefore moves to a company
+    # that still has one.
+    #
+    # It used to be MS, and CF-21 changed what MS correctly does: a bank files no
+    # us-gaap Revenue tag, but it does report net income, so the card now shows
+    # that LABELLED rather than refusing. The filer with genuinely nothing to show
+    # is one that reports none of the ladder — TFC — and the refusal assertions
+    # move there intact. MS gains an assertion of its own, so this is three checks
+    # where there were two.
+    gap = await company_trend("TFC", metric="revenue", periods="FY2021,FY2022,FY2023", auth=AUTH)
+    check("a company that reports none of the ladder states that",
           "no reported revenue" in (gap.get("unavailable_reason") or ""),
           f"reason={gap.get('unavailable_reason')!r}")
     check("and names the periods it was asked for",
           "FY2021" in (gap.get("unavailable_reason") or ""),
           f"reason={gap.get('unavailable_reason')!r}")
+
+    # The filer that DOES report something must not be refused, and must never be
+    # handed back under the name of the metric it does not report.
+    ms = await company_trend("MS", metric="revenue", periods="FY2023,FY2024", auth=AUTH)
+    check("a filer with no revenue line still gets a series, labelled as what it is",
+          any(p["value"] is not None for p in ms["data_points"])
+          and ms["metric_used"] != "revenue"
+          and ms["substituted"] is True,
+          f"metric_used={ms['metric_used']!r} substituted={ms['substituted']!r}")
 
     # And AAPL, the ticker this row originally named, now answers for the periods
     # it could not before.
