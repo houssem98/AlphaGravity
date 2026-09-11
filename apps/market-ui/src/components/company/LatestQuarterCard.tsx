@@ -1,4 +1,6 @@
 import { figureAttrs } from '../../lib/figures';
+import { selectComparablePeriods } from '../../lib/periods';
+import type { PeriodBasis } from '../../lib/periods';
 // Latest-period card — headline P&L from exact XBRL rows, newest period vs
 // prior, with deltas. Pure: derives everything from the metrics array the
 // company page already fetches (/v1/company/{ticker}/financials).
@@ -29,13 +31,15 @@ function money(n: number): string {
 
 export interface QuarterRow { label: string; cur: string; prev: string; delta: number | null; unit: string; }
 
-// Pure: pick the two most recent periods and build the headline rows with deltas.
-export function computeQuarterRows(metrics: Metric[]): { latest: string; prior?: string; rows: QuarterRow[] } | null {
-    // Two most recent periods (string desc works for FYyyyy / ISO dates).
-    const periods = [...new Set(metrics.map(m => m.period).filter(Boolean) as string[])]
-        .sort().reverse();
-    if (periods.length === 0) return null;
-    const [latest, prior] = periods;
+// Pure: pick the two most recent comparable periods and build the headline rows.
+export function computeQuarterRows(metrics: Metric[]): { latest: string; prior?: string; basis: PeriodBasis; rows: QuarterRow[] } | null {
+    // V2-5 · this sorted the period STRINGS and took the top two, so a mixed set
+    // compared "Q4 2025" against "FY2025" — Q sorts above F — and printed a
+    // delta between a quarter and a year. The two periods now come back on one
+    // basis, or the second comes back undefined and no delta is drawn.
+    const selection = selectComparablePeriods(metrics.map(m => m.period).filter(Boolean) as string[]);
+    if (!selection) return null;
+    const { latest, prior, basis } = selection;
 
     const valueFor = (match: RegExp, period: string): number | null => {
         const row = metrics.find(m => m.period === period && match.test(m.metric));
@@ -58,7 +62,7 @@ export function computeQuarterRows(metrics: Metric[]): { latest: string; prior?:
         };
     }).filter(Boolean) as QuarterRow[];
 
-    return rows.length ? { latest, prior, rows } : null;
+    return rows.length ? { latest, prior, basis, rows } : null;
 }
 
 export default function LatestQuarterCard({ metrics, fiscalYearEnd }: { metrics: Metric[]; fiscalYearEnd?: string }) {
