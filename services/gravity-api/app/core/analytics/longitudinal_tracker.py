@@ -295,12 +295,18 @@ class LongitudinalTracker:
         variance = sum((v - series.mean) ** 2 for v in values) / len(values)
         series.std_dev = math.sqrt(variance)
 
-        # CAGR: from first to last value
+        # CAGR over the years the series actually spans.
+        #
+        # V2-4 · this was `n_years = len(values) / 4  # assuming quarterly data`.
+        # The company page asks for eight ANNUAL periods, so an ~7-year span was
+        # called 2 and the compounding root was taken over a quarter of the true
+        # elapsed time. FY2019->FY2026 at 100->200 reported 41.4% a year where
+        # the answer is 10.4%.
         first, last = values[0], values[-1]
-        n_years = len(values) / 4  # assuming quarterly data
-        if first > 0 and last > 0 and n_years > 0:
+        n_years = self._elapsed_years(series)
+        if first > 0 and last > 0 and n_years and n_years > 0:
             try:
-                series.cagr = round((last / first) ** (1 / n_years) - 1, 4)
+                series.cagr = (last / first) ** (1 / n_years) - 1
             except (ValueError, ZeroDivisionError):
                 pass
 
@@ -367,6 +373,30 @@ class LongitudinalTracker:
                 i = _QUARTERS.index(qualifier)
                 previous = (year, _QUARTERS[i - 1]) if i else (year - 1, "Q4")
                 dp.qoq_change = change_from(dp.value, previous)
+
+    def _elapsed_years(self, series: MetricSeries) -> float | None:
+        """The time between the first and last period that carry a value.
+
+        Read off the labels, because the row count does not know it: eight
+        annual periods span seven years, and eight quarterly ones span one and
+        three quarters. A span this cannot read returns None, and the caller
+        reports no CAGR rather than compounding over a guess.
+        """
+        carrying = series.periods()
+        if len(carrying) < 2:
+            return None
+        start_year, start_q = self._parse_period(carrying[0])
+        end_year, end_q = self._parse_period(carrying[-1])
+        if start_year is None or end_year is None or not start_q or not end_q:
+            return None
+        if start_q != end_q and not (start_q in _QUARTERS and end_q in _QUARTERS):
+            # An annual period against a quarterly one spans no defined number
+            # of years, and guessing one is how a fiscal year became two.
+            return None
+        span = float(end_year - start_year)
+        if start_q in _QUARTERS and end_q in _QUARTERS:
+            span += (_QUARTERS.index(end_q) - _QUARTERS.index(start_q)) / 4
+        return span
 
     def _detect_anomalies(self, series: MetricSeries) -> None:
         """Flag data points >2σ from the mean."""
