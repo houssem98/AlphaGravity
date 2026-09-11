@@ -133,14 +133,26 @@ class LongitudinalTracker:
         if cached:
             return cached
 
-        data_points = []
-        for period in periods:
-            value = await self._fetch_metric(ticker, metric_name, period)
-            data_points.append(PeriodDataPoint(
-                period=period,
-                value=value,
-                unit=self._get_metric_unit(metric_name),
-            ))
+        # CF-28 · the periods are independent, so they are fetched together.
+        #
+        # This was `for period in periods: await ...`, which made an 8-period
+        # window eight serial round trips. Measured 2026-09-11 over FY2020-FY2027:
+        # NVDA 75.2s, MS 48.9s (the fallback ladder doubles it — eight serial
+        # calls for revenue, then eight more for net income), LULU 12.0s.
+        #
+        # SEC concurrency is already bounded upstream by `_SEC_SEMAPHORE`, so this
+        # does not increase the rate hitting EDGAR; it stops idling between calls.
+        # gather preserves input order, so the series still reads oldest-first.
+        import asyncio
+
+        values = await asyncio.gather(*[
+            self._fetch_metric(ticker, metric_name, period) for period in periods
+        ])
+        unit = self._get_metric_unit(metric_name)
+        data_points = [
+            PeriodDataPoint(period=period, value=value, unit=unit)
+            for period, value in zip(periods, values)
+        ]
 
         series = MetricSeries(
             ticker=ticker,
