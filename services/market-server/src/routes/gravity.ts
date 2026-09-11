@@ -16,7 +16,17 @@ import type { Request, Response } from 'express';
 export const gravityRouter = Router();
 
 const GRAVITY_BASE = process.env.GRAVITY_API_URL ?? 'http://localhost:8000';
-const TIMEOUT_MS = 30_000;
+// Longer than the client's own budget, deliberately.
+//
+// This was 30s while gravitySearchService allows 45s, so the proxy aborted calls
+// the browser was still willing to wait for. Measured 2026-09-11: a cold
+// /v1/search for AMD takes 30.097s — a 97ms margin — so every cold Company Brief
+// cell lost the race and rendered "No data available", while a warm one squeaked
+// through. Intermittent, and it read as a claim about SEC's filings.
+//
+// The client's timeout is the one that should bind: it is the one that knows
+// whether anybody is still waiting.
+const TIMEOUT_MS = 60_000;
 
 // Read per call, not at module load. Binding it at import time means the value
 // depends on whether dotenv ran first, which is invisible until something reads

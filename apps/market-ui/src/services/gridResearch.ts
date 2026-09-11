@@ -578,16 +578,35 @@ export async function runGridCell(
             toolResults.quote && `Live market data (real-time quote):\n${toolResults.quote.text}`,
             toolResults.fundamentals && `Fundamentals snapshot (TTM):\n${toolResults.fundamentals.text}`,
         ].filter(Boolean).join('\n\n');
-        const hasRagSources = ragResult && ragResult.sources && ragResult.sources.length > 0;
+        // Evidence is sources OR citations, not sources alone.
+        //
+        // A CACHE HIT returns the answer and its citations but no `sources` —
+        // measured 2026-09-11 on AMD: cache_hit true, 0 sources, 4 citations,
+        // a 10,377-character answer. Checking only `sources` threw all of that
+        // away and printed "No data available ... in SEC filings", which is a
+        // claim about AMD's filings rather than about our cache.
+        //
+        // The branch at `ragResult.citations.length > 0` above already renders a
+        // cell from citations alone; this guard simply has to agree with it.
+        const hasRagSources = !!ragResult && (
+            (ragResult.sources?.length ?? 0) > 0
+            || (ragResult.citations?.length ?? 0) > 0
+        );
         const hasWebCitations = citations.length > 0;
         if (!hasRagSources && !hasWebCitations && !toolBlock) {
             return {
                 ticker, promptId,
                 status: 'done',
-                answer: `No data available for "${resolved}" in SEC filings or public sources. Check investor relations page or earnings call transcripts for this specific metric.`,
+                // A search that FAILED is not an empty corpus. Claiming SEC holds
+                // nothing, when the truth is that the request never completed, is
+                // the same fault this codebase refuses everywhere else — and it
+                // hid a 30s proxy timeout that blanked every cold brief cell.
+                answer: ragResult?.failure
+                    ? `Search did not complete: ${ragResult.failure}. This says nothing about what ${ticker} filed — the request failed before any source was read.`
+                    : `No data available for "${resolved}" in SEC filings or public sources. Check investor relations page or earnings call transcripts for this specific metric.`,
                 citations: [],
                 durationMs: Date.now() - started,
-                modelUsed: 'no-sources',
+                modelUsed: ragResult?.failure ? 'search-failed' : 'no-sources',
                 ragUsed: false,
                 steps: trace.done(),
             };

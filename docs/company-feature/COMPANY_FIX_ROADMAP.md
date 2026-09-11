@@ -38,6 +38,8 @@ worse than a slow chart.
 
 | CF-24 | A mistyped ticker is caught, not loaded as a blank profile | "APPL" opened a full company page with every surface empty — the same shape as a real registrant with nothing indexed. The entity resolver handles NAMES ("lululemon" → LULU) but returns UNKNOWN with no candidates for a mistyped SYMBOL, which is the mistake people actually make. Gate: 9 typos each return `unknown` with the intended company as the FIRST suggestion; exact tickers and names resolve and carry the registrant's legal name; a string naming nothing says so. | **DONE** |
 
+| CF-25 | A search that did not finish is not an empty corpus | The AI Company Brief showed `No data available for "<the whole prompt>" in SEC filings or public sources` on every cell — a claim about what AMD filed. Two causes, both ours. (1) The CF-2 proxy aborted at 30s while the browser waits 45s; a cold `/v1/search` for AMD measured **30.097s**, a 97ms margin, so cold cells lost and warm ones squeaked through. (2) A cache hit returns the answer and citations with an **empty `sources` array** (measured: `cache_hit: true`, 0 sources, 15 citations, 10,377 chars) and the cell counted only `sources`. Gate: the proxy's timeout is >= the client's; a failed search reports the failure instead of claiming SEC holds nothing; and the two brief prompts from the screenshot return usable evidence and an answer through the proxy. | **DONE** |
+
 ### Gate scripts
 
 Gates that hit an API take `GRAVITY_BASE`. **Prod is frozen** (Fly deploys are
@@ -55,6 +57,9 @@ local API instead: from `services/gravity-api`,
   `.venv/Scripts/python.exe ../../docs/company-feature/gates/cf5-gate.py`. Checks the
   returned pairs against an independent paged read, and checks two identical calls agree.
   Note the row count in the gate's wording ("402") was stale: NVDA holds 385.
+- CF-25 — `node docs/company-feature/gates/cf25-gate.mjs` with market-server and
+  gravity-api up. Asserts the two clocks against each other and replays the exact
+  two brief prompts from the bug report.
 - CF-21 — from `services/gravity-api`:
   `.venv/Scripts/python.exe ../../docs/company-feature/gates/cf21-gate.py`. Checks the
   server picks the metric the filer reports AND that the component cannot label it

@@ -86,8 +86,17 @@ export interface GravityRAGResult {
     }>;
     confidence: string;
     latency_ms: number;
+    /**
+     * Why the search did not complete, when it did not.
+     *
+     * Absent means the search RAN. `available: false` with no `failure` is an
+     * honest empty corpus; `available: false` WITH one is a fault, and the two
+     * must never render the same sentence.
+     */
+    failure?: string;
 }
 
+/** The search ran and found nothing. Distinct from the search not completing. */
 const EMPTY_RESULT: GravityRAGResult = {
     available: false,
     answer: '',
@@ -147,7 +156,10 @@ export async function queryGravityRAG(query: string, filters?: GravityRAGFilters
 
         if (!response.ok) {
             console.warn(`[GravityRAG] Backend returned ${response.status}`);
-            return EMPTY_RESULT;
+            // A backend fault is not an empty corpus. Saying so is what stops a
+            // caller reporting "no data available in SEC filings" about a search
+            // that never completed.
+            return { ...EMPTY_RESULT, failure: `search failed (HTTP ${response.status})` };
         }
 
         const data = await response.json();
@@ -177,7 +189,12 @@ export async function queryGravityRAG(query: string, filters?: GravityRAGFilters
         console.warn(
             `[GravityRAG] ${isTimeout ? 'Timed out' : 'Unavailable'}: ${error?.message || error}`
         );
-        return EMPTY_RESULT;
+        return {
+            ...EMPTY_RESULT,
+            failure: isTimeout
+                ? `search timed out after ${RAG_TIMEOUT_MS / 1000}s`
+                : `search unavailable (${error?.message || error})`,
+        };
     }
 }
 
