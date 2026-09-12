@@ -1,4 +1,4 @@
-import { figureAttrs } from '../../lib/figures';
+import { figureAttrs, formatFinancialValue, NULL_MARK } from '../../lib/figures';
 import { selectComparablePeriods } from '../../lib/periods';
 import type { PeriodBasis } from '../../lib/periods';
 // Latest-period card — headline P&L from exact XBRL rows, newest period vs
@@ -9,9 +9,15 @@ interface Metric { metric: string; value: string | number; unit?: string; period
 
 // Headline lines, in display order. `match` hits the verbose XBRL metric_name
 // by substring (e.g. "Revenue (Total Revenue, Net Sales)").
-const HEADLINE: { label: string; match: RegExp; pct?: boolean }[] = [
+// V3-1 · `Gross Profit` used to match `/^Gross Profit|Gross margin/i`, so a
+// filer reporting a MARGIN got it printed under the word PROFIT, and then run
+// through a money formatter: `Gross margin 45 %` rendered as `Gross Profit $45`.
+// A profit and a margin are different facts with different units; they get
+// different rows, and each row's unit comes from the fact, not from this table.
+const HEADLINE: { label: string; match: RegExp }[] = [
     { label: 'Revenue', match: /^Revenue|Total net sales|Net Sales/i },
-    { label: 'Gross Profit', match: /^Gross Profit|Gross margin/i },
+    { label: 'Gross Profit', match: /^Gross Profit/i },
+    { label: 'Gross Margin', match: /^Gross margin/i },
     { label: 'Operating Income', match: /^Operating Income/i },
     { label: 'Net Income', match: /^Net Income/i },
     { label: 'Diluted EPS', match: /EPS\).*Diluted|Diluted.*EPS/i },
@@ -22,14 +28,21 @@ function num(v: string | number): number | null {
     return isNaN(n) ? null : n;
 }
 
-function money(n: number): string {
-    if (Math.abs(n) >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
-    if (Math.abs(n) >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
-    if (Math.abs(n) >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
-    return `$${n.toLocaleString()}`;
-}
+/** A figure already denominated in percent. Its change is in POINTS, not percent. */
+const isPct = (unit: string | null) => unit?.trim() === '%';
 
-export interface QuarterRow { label: string; cur: string; prev: string; delta: number | null; unit: string; }
+export interface QuarterRow {
+    label: string;
+    cur: string;
+    prev: string;
+    delta: number | null;
+    /** What `delta` is measured in: `pp` for a percentage-point move on a figure
+     *  that is itself a percentage, `%` for a relative change on anything else. */
+    deltaUnit: 'pp' | '%';
+    /** The unit the SERVER sent for this fact. `null` when it sent none — which
+     *  is a state the card renders, not one it fills in. */
+    unit: string | null;
+}
 
 // Pure: pick the two most recent comparable periods and build the headline rows.
 export function computeQuarterRows(metrics: Metric[]): { latest: string; prior?: string; basis: PeriodBasis; rows: QuarterRow[] } | null {
@@ -41,24 +54,38 @@ export function computeQuarterRows(metrics: Metric[]): { latest: string; prior?:
     if (!selection) return null;
     const { latest, prior, basis } = selection;
 
-    const valueFor = (match: RegExp, period: string): number | null => {
-        const row = metrics.find(m => m.period === period && match.test(m.metric));
-        return row ? num(row.value) : null;
-    };
+    const rowFor = (match: RegExp, period: string): Metric | undefined =>
+        metrics.find(m => m.period === period && match.test(m.metric));
 
     const rows = HEADLINE.map(h => {
-        const cur = valueFor(h.match, latest);
-        const prev = prior ? valueFor(h.match, prior) : null;
-        if (cur === null) return null;
-        const isEps = /EPS/i.test(h.label);
-        const delta = prev !== null && prev !== 0 ? ((cur - prev) / Math.abs(prev)) * 100 : null;
+        const curRow = rowFor(h.match, latest);
+        const cur = curRow ? num(curRow.value) : null;
+        if (curRow === undefined || cur === null) return null;
+        const prevRow = prior ? rowFor(h.match, prior) : undefined;
+        const prev = prevRow ? num(prevRow.value) : null;
+
+        // V3-1 · the unit is the fact's own. `unit: isEps ? 'USD/share' : 'USD'`
+        // asserted a currency from the row's POSITION in HEADLINE, which is how a
+        // percentage came to be stamped USD and drawn with a dollar sign.
+        const unit = curRow.unit?.trim() || null;
+        const sameBasis = prevRow !== undefined && (prevRow.unit?.trim() || null) === unit;
+
+        // A percentage's change is a move in POINTS. 45% against 40% is +5pp, and
+        // calling it +12.5% is a different, and much larger-sounding, statement.
+        const pct = isPct(unit);
+        const delta = prev !== null && sameBasis
+            ? (pct ? cur - prev : (prev !== 0 ? ((cur - prev) / Math.abs(prev)) * 100 : null))
+            : null;
+
         return {
             label: h.label,
-            cur: isEps ? `$${cur.toFixed(2)}` : money(cur),
-            prev: prev === null ? '—' : isEps ? `$${prev.toFixed(2)}` : money(prev),
+            cur: formatFinancialValue(cur, unit ?? undefined, curRow.metric),
+            prev: prev === null || !sameBasis
+                ? NULL_MARK
+                : formatFinancialValue(prev, unit ?? undefined, prevRow!.metric),
             delta,
-            // CT-5 · both columns are money unless the row is per-share.
-            unit: isEps ? 'USD/share' : 'USD',
+            deltaUnit: pct ? 'pp' as const : '%' as const,
+            unit,
         };
     }).filter(Boolean) as QuarterRow[];
 
@@ -99,12 +126,15 @@ export default function LatestQuarterCard({ metrics, fiscalYearEnd }: { metrics:
                                 {/* CT-5 · row 7. Every figure here states the period it
                                     belongs to and the unit it is denominated in. */}
                                 <td className="py-2 text-right font-mono text-white pl-3"
-                                    {...figureAttrs(latest, r.unit, fiscalYearEnd)}>{r.cur}</td>
+                                    {...figureAttrs(latest, r.unit ?? undefined, fiscalYearEnd)}>{r.cur}</td>
                                 <td className="py-2 text-right font-mono text-[color:var(--text-2)] pl-3"
-                                    {...figureAttrs(prior, r.unit, fiscalYearEnd)}>{r.prev}</td>
+                                    {...figureAttrs(prior, r.unit ?? undefined, fiscalYearEnd)}>{r.prev}</td>
+                                {/* V3-1 · the delta states its own unit. A margin moving
+                                    45% → 40% is -5pp; printing -11.1% there describes a
+                                    different and much larger-sounding event. */}
                                 <td className={`py-2 text-right font-mono pl-3 ${r.delta === null ? 'text-[#4A5568]' : r.delta >= 0 ? 'text-green-400' : 'text-red-400'}`}
-                                    {...figureAttrs(prior ? `${latest} vs ${prior}` : undefined, r.delta === null ? undefined : '%', fiscalYearEnd)}>
-                                    {r.delta === null ? '—' : `${r.delta >= 0 ? '+' : ''}${r.delta.toFixed(1)}%`}
+                                    {...figureAttrs(prior ? `${latest} vs ${prior}` : undefined, r.delta === null ? undefined : r.deltaUnit, fiscalYearEnd)}>
+                                    {r.delta === null ? NULL_MARK : `${r.delta >= 0 ? '+' : ''}${r.delta.toFixed(1)}${r.deltaUnit}`}
                                 </td>
                             </tr>
                         ))}

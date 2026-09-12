@@ -88,11 +88,32 @@ export function formatFinancialValue(value: number, unit?: string, metric?: stri
     const u = unit?.trim().toLowerCase() ?? '';
     if (u === '%') return `${value.toFixed(1)}%`;
     if (u === 'x') return `${value.toFixed(2)}x`;
-    if (metric && /(^|_)(eps|per_share)(_|$)/i.test(metric)) return `$${value.toFixed(2)}`;
+    if (PER_SHARE.test(u)) return `$${value.toFixed(2)}`;
+    if (!u && metric && /(^|_)(eps|per_share)(_|$)/i.test(metric)) return `$${value.toFixed(2)}`;
+    // V3-2 · every remaining unit used to fall through to a `$`. A row whose
+    // unit is NULL, or whose unit is `shares` or `EUR`, is not dollars, and the
+    // dollar sign was this function asserting a currency nobody reported. Money
+    // is now the units that ARE money; a known non-currency unit is named beside
+    // the number, and an unknown one adds nothing to it.
     const sign = value < 0 ? '-' : '';
     const a = Math.abs(value);
-    if (a >= 1e12) return `${sign}$${(a / 1e12).toFixed(2)}T`;
-    if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(2)}B`;
-    if (a >= 1e6) return `${sign}$${(a / 1e6).toFixed(2)}M`;
-    return `${sign}$${a.toLocaleString()}`;
+    const mag = a >= 1e12 ? `${(a / 1e12).toFixed(2)}T`
+        : a >= 1e9 ? `${(a / 1e9).toFixed(2)}B`
+            : a >= 1e6 ? `${(a / 1e6).toFixed(2)}M`
+                : a.toLocaleString();
+    if (MONEY.test(u)) return `${sign}$${mag}`;
+    return `${sign}${mag}${u ? ` ${unit!.trim()}` : ''}`;
 }
+
+/**
+ * Units that denote money, and so may carry a `$`. Nothing else may.
+ *
+ * The trailing scale word is part of the unit as the server spells it:
+ * `_get_metric_unit` in longitudinal_tracker.py answers the literal "USD M" for
+ * every non-ratio, non-percentage metric. The VALUE is already absolute — the
+ * suffix labels the currency, it does not scale the number — so it is matched
+ * and then ignored, and `formatFinancialValue` picks the magnitude itself.
+ */
+const MONEY = /^(?:usd|us\$|\$|dollars?)(?:\s*(?:k|m|mm|bn?|tn?))?$/;
+/** Money per share — formatted to the cent rather than abbreviated. */
+const PER_SHARE = /^(usd|us\$|\$)\s*[/ ]\s*shares?$/;
