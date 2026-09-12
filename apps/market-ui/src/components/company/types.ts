@@ -69,6 +69,18 @@ export interface GravityMetric {
     primary_document?: string | null;
     cik?: string | number | null;
     source_reason?: string | null;
+
+    // V4-3 · V3-3 added these server-side and nothing declared them here, so they
+    // arrived over the wire invisible to TypeScript and to the reader. A figure
+    // whose (metric, period) has two disagreeing values is NOT a figure with
+    // missing provenance — it is a figure that is in dispute, and the difference
+    // has to reach the cell the number is rendered in.
+    /** Two or more filings report different values for this (metric, period). */
+    ambiguous?: boolean;
+    /** Every distinct value reported, when `ambiguous`. */
+    conflicting_values?: (number | null)[];
+    /** Why the row carries no unit, when it carries none. */
+    unit_reason?: string | null;
 }
 
 export interface SentimentResult {
