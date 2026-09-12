@@ -20,9 +20,11 @@ narrative generation, and only optionally.
 from __future__ import annotations
 
 import json
+import re
 import math
 import time
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Optional
 
 import structlog
@@ -850,34 +852,114 @@ _EDGAR_ASK = {
 }
 
 
-def _period_key(label: str) -> tuple[int, int | None] | None:
-    """(year, quarter) for a period label, or None when it names no period.
+class PeriodBasis(str, Enum):
+    """What KIND of period a label names.
 
-    V3-4 · the two labels either denote the SAME period or they do not, and
-    substring containment answers a different question. "FY2024" is contained by
-    "FY2024 Q4"; they are a year and a quarter of it, and one is roughly a
-    quarter of the other's value.
+    V4-1 · V3-4 keyed a period as `(year, quarter)`, which closed the substring
+    hole it was written for and left every basis confusion open. Measured on the
+    previous implementation:
 
-    Annual labels ("FY2024", "2024", "FY 2024") key as `(2024, None)`; quarterly
-    ones ("FY2024 Q4", "Q4 2024") as `(2024, 4)`. A label with no four-digit year
-    in it — the empty string included — keys as None and matches nothing.
+        _same_period("FY2024",     "TTM 2024")   -> True
+        _same_period("FY2024",     "2024-09-28") -> True
+        _same_period("2024-09-28", "2024-12-31") -> True
+
+    A trailing-twelve-months figure was accepted for a fiscal year, a
+    balance-sheet instant for an annual duration, and — the plainly wrong one —
+    one date for a different date, because neither carried a quarter and both
+    fell in 2024.
+
+    A year plus an optional quarter cannot express any of that. The kind of
+    period has to be part of its identity, which is what the client has always
+    done (`apps/market-ui/src/lib/periods.ts`, `PeriodBasis`). This is the same
+    model on the server so the two halves agree about what a period is.
     """
-    import re
 
-    # Digit boundaries, not word boundaries: there is no `\b` between the Y and
-    # the 2 of "FY2024", because both are word characters.
-    text = (label or "").upper()
-    year = re.search(r"(?<!\d)(?:19|20)\d{2}(?!\d)", text)
-    if not year:
-        return None
-    quarter = re.search(r"(?<![A-Z0-9])Q\s?([1-4])(?!\d)", text)
-    return (int(year.group(0)), int(quarter.group(1)) if quarter else None)
+    ANNUAL = "annual"
+    QUARTERLY = "quarterly"
+    TTM = "ttm"
+    #: A point in time — a balance-sheet date. XBRL calls these instants, and an
+    #: instant is never the same period as a duration that happens to end on it.
+    INSTANT = "instant"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True)
+class Period:
+    """A period label parsed into the parts that decide its identity."""
+
+    basis: PeriodBasis
+    #: Fiscal year, when the label states one. 0 for an instant.
+    year: int = 0
+    #: 1-4 for a quarter, None otherwise.
+    quarter: int | None = None
+    #: ISO date for an instant, None otherwise.
+    date: str | None = None
+    #: The label as given, kept for reasons and logs.
+    raw: str = ""
+
+    def identifies_a_period(self) -> bool:
+        return self.basis is not PeriodBasis.UNKNOWN
+
+
+_YEAR_RE = re.compile(r"(?<!\d)(?:19|20)\d{2}(?!\d)")
+# Digit boundaries, not word boundaries: there is no `\b` between the Y and the
+# 2 of "FY2024", because both are word characters.
+_QUARTER_RE = re.compile(r"(?<![A-Z0-9])Q\s?([1-4])(?!\d)")
+_ISO_DATE_RE = re.compile(r"^\s*((?:19|20)\d{2})-(\d{2})-(\d{2})\s*$")
+_TTM_RE = re.compile(r"(?<![A-Z])(?:TTM|LTM|TRAILING\s+TWELVE)(?![A-Z])")
+
+
+def parse_period(label: str) -> Period:
+    """A period label as a `Period`. An unreadable label parses as UNKNOWN.
+
+    Order matters. An explicit date is checked first because "2024-09-28" also
+    contains the year 2024 and would otherwise read as the fiscal year. TTM is
+    checked before annual for the same reason: "TTM 2024" contains "2024".
+    """
+    raw = label or ""
+    text = raw.upper()
+
+    iso = _ISO_DATE_RE.match(text)
+    if iso:
+        return Period(PeriodBasis.INSTANT, date=iso.group(0).strip(), raw=raw)
+
+    year_match = _YEAR_RE.search(text)
+    if not year_match:
+        return Period(PeriodBasis.UNKNOWN, raw=raw)
+    year = int(year_match.group(0))
+
+    if _TTM_RE.search(text):
+        return Period(PeriodBasis.TTM, year=year, raw=raw)
+
+    quarter = _QUARTER_RE.search(text)
+    if quarter:
+        return Period(PeriodBasis.QUARTERLY, year=year,
+                      quarter=int(quarter.group(1)), raw=raw)
+
+    return Period(PeriodBasis.ANNUAL, year=year, raw=raw)
 
 
 def _same_period(want: str, got: str) -> bool:
-    """Whether `got` denotes the period `want` asks for. Unknown never matches."""
-    a, b = _period_key(want), _period_key(got)
-    return a is not None and a == b
+    """Whether `got` denotes the same period `want` asks for.
+
+    Same basis, and then the parts that basis is made of. An UNKNOWN label
+    matches nothing — including another UNKNOWN, because two labels we cannot
+    read are not thereby the same period.
+
+    What this deliberately does NOT claim: that two labels on the same basis and
+    year cover the same DAYS. A 52-week and a 53-week FY2024 both parse as
+    annual 2024, and telling them apart needs the period end date, which these
+    labels do not carry. Where an exact window matters the caller must compare
+    instants, which this model keeps separable precisely so that it can.
+    """
+    a, b = parse_period(want), parse_period(got)
+    if not a.identifies_a_period() or a.basis is not b.basis:
+        return False
+    if a.basis is PeriodBasis.INSTANT:
+        return a.date == b.date
+    if a.basis is PeriodBasis.QUARTERLY:
+        return a.year == b.year and a.quarter == b.quarter
+    return a.year == b.year
 
 
 async def _fetch_from_edgar(ticker: str, metric_name: str, period: str) -> float | None:
