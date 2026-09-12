@@ -158,15 +158,49 @@ async def company_financials(
         # Shipping it anyway is what makes that fact visible instead of assumed.
         select="metric_name,period,value_float,unit,filing_type,filing_date,document_id",
     )
-    # One row per metric+period; later filings restate — keep the newest.
+    # One row per metric+period.
+    #
+    # V3-3 · this used to say "later filings restate — keep the newest", and it
+    # did neither. The order's last tiebreak is `id.asc`, which is INGEST order:
+    # it is deterministic, which is what CT2-1 needed, but it carries no
+    # information about which filing restated what. `sec_xbrl.py` drops
+    # companyfacts' own `accn` at ingest, so the row cannot name its own
+    # observation either. Two rows disagreeing about one (metric, period) are
+    # therefore not resolvable here — MMM holds 376 rows over 366 pairs, so this
+    # is measured, not hypothetical.
+    #
+    # Picking one anyway is the guess this ledger exists to refuse. A conflict is
+    # kept and SAID: the figure is marked ambiguous, both values are named, and
+    # no filing is attached to it below.
     best: dict[tuple[str, str], dict[str, Any]] = {}
     for r in rows:
         key = (r.get("metric_name") or "", r.get("period") or "")
-        if key not in best:
-            best[key] = {
+        if key in best:
+            kept = best[key]
+            v = r.get("value_float")
+            if v == kept["value"]:
+                continue  # the same fact reported twice is not a conflict
+            kept["ambiguous"] = True
+            if v not in kept["conflicting_values"]:
+                kept["conflicting_values"].append(v)
+            continue
+        unit = (r.get("unit") or "").strip() or None
+        best[key] = {
                 "metric": r.get("metric_name") or "",
                 "value": r.get("value_float"),
-                "unit": r.get("unit") or "USD",
+                # V3-2 · this was `r.get("unit") or "USD"`. A row whose unit is
+                # NULL has not told us it is dollars; defaulting made the API
+                # assert a currency the filing never stated, and a percent or a
+                # per-share figure rendered as money. Unknown stays unknown, and
+                # says so.
+                "unit": unit,
+                "unit_reason": None if unit else (
+                    "This row carries no unit in the exact-XBRL table, so the "
+                    "figure is shown without one rather than assumed to be USD."
+                ),
+                # V3-3 · set when a later row disagrees about this same fact.
+                "ambiguous": False,
+                "conflicting_values": [r.get("value_float")],
                 "period": r.get("period"),
                 "ticker": symbol,
                 "filing_type": r.get("filing_type") or "",
@@ -191,7 +225,24 @@ async def company_financials(
     for row in rows_out:
         hit = index.get(((row["filing_type"] or "").upper(), row["period_end"] or ""))
         row["cik"] = cik
-        if hit and hit.get("accession"):
+        if row["ambiguous"]:
+            # V3-3 · the table holds more than one value for this fact. Which
+            # filing reported which is not recoverable from these rows, so no
+            # filing is named — attaching one would attribute a figure to a
+            # document that may not contain it.
+            row["accession"] = None
+            row["filed"] = None
+            row["primary_document"] = None
+            values = ", ".join(
+                "an unstated value" if v is None else f"{v:g}"
+                for v in row["conflicting_values"]
+            )
+            row["source_reason"] = (
+                f"{symbol} has more than one reported value for {row['metric']} "
+                f"in {row['period']} ({values}), and which filing reported which "
+                "is not recorded on these rows. No filing is attributed."
+            )
+        elif hit and hit.get("accession"):
             row["accession"] = hit["accession"]
             row["filed"] = hit["filed"]
             row["primary_document"] = hit["primary_document"]
