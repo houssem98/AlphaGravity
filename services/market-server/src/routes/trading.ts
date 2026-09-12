@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express';
+import { authMiddleware, type AuthRequest } from '../middleware/auth.js';
+import { meter } from './gravity.js';
 import YahooFinance from 'yahoo-finance2';
 
 const router = Router();
@@ -281,11 +283,31 @@ async function fetchInfluencerTweets(handle: string, coinName: string, asset: st
 }
 
 // GET /api/social/influencers/:asset — returns all tracked influencers + their real tweets
-router.get('/social/influencers/:asset', async (req: Request, res: Response) => {
+// V4-2 · the one route in this file that spends money, and the only one that is
+// authed.
+//
+// The rest of trading.ts is market data the public /trading hub reads
+// anonymously, so the router deliberately stays open. This route is different:
+// it fans out to Tavily once per influencer on the server's key. Unauthenticated
+// it was an 8-for-1 amplifier, and `?handles=` is caller-supplied and was
+// unbounded — a hundred handles was a hundred paid calls in one GET.
+//
+// Auth, a per-viewer meter, and a ceiling on the fan-out the caller cannot raise.
+const MAX_INFLUENCERS = 12;
+
+router.get('/social/influencers/:asset', authMiddleware, async (req: AuthRequest, res: Response) => {
   const { asset } = req.params;
   const handlesParam = req.query.handles as string | undefined;
   const apiKey = process.env.TAVILY_API_KEY;
   if (!apiKey) return res.status(503).json({ error: 'Tavily API not configured' });
+
+  const full = meter(`tavily:${req.user?.id ?? 'unknown'}`);
+  if (full) {
+    return res.status(429).json({
+      error: `Influencer search rate limit reached for this ${full.window}.`,
+      retryAfter: full.retryAfter,
+    });
+  }
 
   const cacheKey = `${asset}:${handlesParam || 'default'}`;
   const now = Date.now();
@@ -296,7 +318,7 @@ router.get('/social/influencers/:asset', async (req: Request, res: Response) => 
 
   const coinName = COIN_NAMES[asset] || asset;
   const influencers = handlesParam
-    ? handlesParam.split(',').map(h => ({ handle: h.trim(), name: h.trim(), sentiment: 'neutral' }))
+    ? handlesParam.split(',').slice(0, MAX_INFLUENCERS).map(h => ({ handle: h.trim(), name: h.trim(), sentiment: 'neutral' }))
     : DEFAULT_INFLUENCERS;
 
   // Fetch tweets for all influencers in parallel (max 4 at a time to not blast API)
