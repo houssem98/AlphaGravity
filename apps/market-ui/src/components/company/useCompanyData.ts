@@ -105,6 +105,12 @@ export function useCompanyData(symbol: string) {
                 surfaceFailure('Quote', qt),
                 surfaceFailure('Filings index', docs),
                 surfaceFailure('XBRL financials', met),
+                // V3-5 · the trend is in this same allSettled and was the one
+                // surface not named here. A 503 on /trend produced `longitudinal:
+                // []` and nothing else — an empty chart, which is what a company
+                // that reported nothing also looks like. The whole point of this
+                // list is that those two must not look alike.
+                surfaceFailure('Revenue trend', lon),
             ].filter((f): f is string => f !== null);
             if (failures.length) setFailedSurfaces(failures);
 

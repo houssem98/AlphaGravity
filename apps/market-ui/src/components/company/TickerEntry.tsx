@@ -47,10 +47,24 @@ export default function TickerEntry({ onOpen }: { onOpen: (ticker: string) => vo
                 return;
             }
             setResult(body);
-        } catch {
-            // If the check itself cannot run, do not block the reader on it:
-            // open what they typed rather than refusing on evidence we lack.
-            onOpen(q.toUpperCase());
+        } catch (e) {
+            // V3-6 · this used to call `onOpen(q.toUpperCase())`. A network fault
+            // in the CHECK became permission to skip the check, which is the
+            // state CF-24 exists to prevent: "APPL" opened a full company profile
+            // with every surface empty, indistinguishable from a real registrant
+            // with nothing indexed.
+            //
+            // A resolver that could not run has not verified anything, so it says
+            // so and hands the decision back. The same explicit "Open X anyway"
+            // escape the unknown-ticker branch offers is rendered below, so this
+            // is never a dead end — it is a choice the reader makes knowingly.
+            setResult({
+                status: 'error',
+                ticker: null,
+                suggestions: [],
+                reason: `${q.toUpperCase()} could not be verified — the company lookup did not answer `
+                    + `(${e instanceof Error ? e.message : String(e)}). Nothing about this ticker has been checked.`,
+            });
         } finally {
             setChecking(false);
         }

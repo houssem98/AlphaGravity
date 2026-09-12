@@ -32,21 +32,22 @@ const PROMPT = (ticker: string, facts: string) =>
     + `**Bear Rebuttal** — attack the 2-3 weakest points of the bull thesis with specific figures.\n`
     + `**Risk Review** — the top 3 downside risks and what would invalidate the bull case.\n`
     + `**PM Verdict** — a definitive call (Buy / Hold / Avoid) with conviction (High/Medium/Low) and one-line sizing rationale.\n`
-    + `Cite inline like [1]. Be concise and specific; never hedge into "it depends".\n\n`
-    + `VERIFIED DATA:\n${facts}`;
+    + `Cite inline with the bracketed numbers below — [1], [2] — and use no number that is not listed. `
+    + `Be concise and specific; never hedge into "it depends".\n\n`
+    + `NUMBERED FILING PASSAGES:\n${facts}`;
 
 export default function DevilsAdvocate({ ticker }: { ticker: string }) {
     // Run state lives in the ticker-keyed store, so leaving the company page no
     // longer drops the challenge: the loop keeps writing here and the UI picks
     // the SAME run (or its finished result) back up on return.
     const entry = useCompanyBriefStore((s) => s.byTicker[ticker]) ?? briefDefault;
-    const { devilAnswer: answer, devilRunning: running, devilError: error } = entry;
+    const { devilAnswer: answer, devilRunning: running, devilError: error, devilSources: sources } = entry;
     const patch = useCompanyBriefStore((s) => s.patch);
     const startBgJob = useBackgroundStore((s) => s.startJob);
     const endBgJob = useBackgroundStore((s) => s.endJob);
 
     const run = async () => {
-        patch(ticker, { devilRunning: true, devilError: null, devilAnswer: null });
+        patch(ticker, { devilRunning: true, devilError: null, devilAnswer: null, devilSources: [] });
         const jobId = `devil-${ticker}-${Date.now()}`;
         startBgJob({
             id: jobId, label: `${ticker} Devil's Advocate`, kind: 'brief',
@@ -57,11 +58,41 @@ export default function DevilsAdvocate({ ticker }: { ticker: string }) {
                 `${ticker} investment thesis growth drivers risks bear case valuation`,
                 { companies: [ticker] },
             ).catch(() => null);
-            const facts = rag?.available && rag.answer ? rag.answer : '';
-            if (!facts) {
-                patch(ticker, { devilError: 'No filing data available to challenge for this ticker.' });
+
+            // V3-7 · this used to be `facts = rag.answer` — the pipeline's own
+            // SYNTHESISED paragraph, handed to the model under the heading
+            // VERIFIED DATA with an instruction to cite it as [1]. There was no
+            // [1]: nothing numbered was ever sent, so every marker the model
+            // emitted indexed a list that did not exist, and the superscripts
+            // rendered below pointed at nothing.
+            //
+            // The RAG result already carries `citations[]` — each one an exact
+            // source passage with its own id, title and URL. Those are what a
+            // challenge can actually be held to, so those are what it gets.
+            const cites = (rag?.available ? rag.citations : []) ?? [];
+            if (!cites.length) {
+                // No evidence means no challenge. An answer built on a summary
+                // nobody can check is not a cheaper version of this — it is a
+                // different thing wearing its name.
+                patch(ticker, {
+                    devilError: rag?.available
+                        ? 'The filing search returned no citable passages for this ticker, so there is '
+                        + 'no evidence to pressure-test the thesis against.'
+                        : 'No filing data available to challenge for this ticker.',
+                });
                 return;
             }
+            const facts = cites.map(c => [
+                `[${c.id}]`,
+                c.source,
+                c.section && `— ${c.section}`,
+                c.date && `(${c.date})`,
+            ].filter(Boolean).join(' ') + `\n${c.text}`).join('\n\n');
+            patch(ticker, {
+                devilSources: cites.map(c => ({
+                    id: c.id, source: c.source, section: c.section, date: c.date, url: c.url,
+                })),
+            });
 
             const res = await fetch(LLM_PROXY_URL, {
                 method: 'POST',
@@ -116,6 +147,29 @@ export default function DevilsAdvocate({ ticker }: { ticker: string }) {
                     >
                         {answer}
                     </ReactMarkdown>
+
+                    {/* V3-7 · the list the [N] markers index. The challenge is
+                        prompted with these exact passages and nothing else, so
+                        every superscript above resolves to a filing here. */}
+                    {sources.length > 0 && (
+                        <div data-devil-sources className="pt-3 mt-3 border-t border-[#F59E0B]/15">
+                            <p className="text-[10px] uppercase tracking-wider text-[#4A5568] mb-1.5">
+                                Evidence the challenge was given
+                            </p>
+                            <ol className="space-y-1">
+                                {sources.map(s => (
+                                    <li key={s.id} data-devil-source={s.id} className="text-[11px] text-[#4A5568] flex gap-1.5">
+                                        <span className="text-[#F59E0B] font-bold shrink-0">[{s.id}]</span>
+                                        {s.url
+                                            ? <a href={s.url} target="_blank" rel="noreferrer" className="hover:text-[#A7B0C8] underline decoration-dotted truncate">{s.source}</a>
+                                            : <span className="truncate">{s.source}</span>}
+                                        {s.section && <span className="shrink-0">· {s.section}</span>}
+                                        {s.date && <span className="shrink-0">· {s.date}</span>}
+                                    </li>
+                                ))}
+                            </ol>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

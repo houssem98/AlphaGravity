@@ -9,6 +9,15 @@ import type { GridState } from '../services/gridResearch';
 
 export type BriefModel = 'deepseek' | 'claude' | 'gemini';
 
+/** One numbered source a Devil's Advocate `[N]` marker resolves to. */
+export interface DevilSource {
+    id: number;
+    source: string;
+    section?: string;
+    date?: string;
+    url?: string;
+}
+
 export interface BriefEntry {
     state: GridState | null;
     running: boolean;
@@ -23,6 +32,10 @@ export interface BriefEntry {
     devilAnswer: string | null;
     devilRunning: boolean;
     devilError: string | null;
+    // V3-7 · the numbered evidence the challenge was actually given. The prompt
+    // demands `[N]` markers, so the list those markers index has to survive
+    // alongside the answer — otherwise the superscripts point at nothing.
+    devilSources: DevilSource[];
     // Earnings-call summary — one RAG call, measured at 1.7–14.7s (FI-4), so it
     // is a real long-run and lives here too rather than in the component.
     transcriptAnswer: string | null;
@@ -32,7 +45,7 @@ export interface BriefEntry {
 
 export const briefDefault: BriefEntry = {
     state: null, running: false, cached: false, model: 'deepseek', steps: {},
-    devilAnswer: null, devilRunning: false, devilError: null,
+    devilAnswer: null, devilRunning: false, devilError: null, devilSources: [],
     transcriptAnswer: null, transcriptLoading: false, transcriptFailed: false,
 };
 
