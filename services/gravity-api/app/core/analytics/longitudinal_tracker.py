@@ -850,6 +850,36 @@ _EDGAR_ASK = {
 }
 
 
+def _period_key(label: str) -> tuple[int, int | None] | None:
+    """(year, quarter) for a period label, or None when it names no period.
+
+    V3-4 · the two labels either denote the SAME period or they do not, and
+    substring containment answers a different question. "FY2024" is contained by
+    "FY2024 Q4"; they are a year and a quarter of it, and one is roughly a
+    quarter of the other's value.
+
+    Annual labels ("FY2024", "2024", "FY 2024") key as `(2024, None)`; quarterly
+    ones ("FY2024 Q4", "Q4 2024") as `(2024, 4)`. A label with no four-digit year
+    in it — the empty string included — keys as None and matches nothing.
+    """
+    import re
+
+    # Digit boundaries, not word boundaries: there is no `\b` between the Y and
+    # the 2 of "FY2024", because both are word characters.
+    text = (label or "").upper()
+    year = re.search(r"(?<!\d)(?:19|20)\d{2}(?!\d)", text)
+    if not year:
+        return None
+    quarter = re.search(r"(?<![A-Z0-9])Q\s?([1-4])(?!\d)", text)
+    return (int(year.group(0)), int(quarter.group(1)) if quarter else None)
+
+
+def _same_period(want: str, got: str) -> bool:
+    """Whether `got` denotes the period `want` asks for. Unknown never matches."""
+    a, b = _period_key(want), _period_key(got)
+    return a is not None and a == b
+
+
 async def _fetch_from_edgar(ticker: str, metric_name: str, period: str) -> float | None:
     """One fact for one period, fetched from SEC at query time.
 
@@ -884,8 +914,17 @@ async def _fetch_from_edgar(ticker: str, metric_name: str, period: str) -> float
         # find, and a FY2019 figure rendered under a FY2024 label is a fabricated
         # comparison — the exact failure company_skill's "absent" rule exists to
         # prevent.
+        #
+        # V3-4 · this was `period not in got and got not in period`, which is
+        # substring containment and not equality. "FY2024" is a substring of
+        # "FY2024 Q4", so asking for a fiscal year accepted a single quarter of
+        # it — a 4x understatement rendered under the annual label. Worse, the
+        # leading `got and` meant a result carrying NO period skipped the check
+        # altogether and was accepted on the strength of the search ranking.
+        #
+        # Both are closed by requiring the periods to be the SAME period.
         got = str(meta.get("period") or meta.get("fiscal_year") or "")
-        if got and period not in got and got not in period:
+        if not _same_period(period, got):
             continue
         try:
             return float(value)
