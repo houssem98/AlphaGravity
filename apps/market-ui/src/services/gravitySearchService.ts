@@ -83,6 +83,15 @@ export interface GravityRAGResult {
     verification_status?: string;
     /** The exact SEC URL a source click must open. */
     canonical_url?: string;
+    /**
+     * V4-4 · `SEC_EVIDENCE` | `LOCAL_EVIDENCE` | `WEB_EVIDENCE`.
+     *
+     * The backend has always sent this (`Citation.source_class` in
+     * app/api/schemas/search.py). Nothing declared it here, so no caller could
+     * tell a 10-K passage from a blog post, and Devil's Advocate presented both
+     * under a heading that claimed filings.
+     */
+    source_class?: string;
     }>;
     confidence: string;
     latency_ms: number;

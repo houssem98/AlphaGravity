@@ -69,7 +69,31 @@ export default function DevilsAdvocate({ ticker }: { ticker: string }) {
             // The RAG result already carries `citations[]` — each one an exact
             // source passage with its own id, title and URL. Those are what a
             // challenge can actually be held to, so those are what it gets.
-            const cites = (rag?.available ? rag.citations : []) ?? [];
+            // V4-4 · a citation existing is not proof it is a filing.
+            //
+            // V3-7 stopped feeding the model the synthesised answer and started
+            // feeding it `citations[]`, which was right. What it did not do was
+            // check WHAT those citations are. The backend classifies every one
+            // (`Citation.source_class`: SEC_EVIDENCE | LOCAL_EVIDENCE |
+            // WEB_EVIDENCE) and this component ignored the classification, then
+            // sent whatever came back under a heading reading NUMBERED FILING
+            // PASSAGES. A news article presented that way is this component
+            // asserting provenance the source does not have.
+            //
+            // Filing evidence means: SEC-classed, and carrying the accession that
+            // names the filing. Anything else is not sent.
+            const all = (rag?.available ? rag.citations : []) ?? [];
+            const cites = all.filter(c =>
+                c.source_class === 'SEC_EVIDENCE' && Boolean(c.accession || c.accession_number));
+            if (!cites.length && all.length) {
+                patch(ticker, {
+                    devilError: `The filing search returned ${all.length} source`
+                        + `${all.length === 1 ? '' : 's'} for ${ticker}, but none of them is a `
+                        + 'verified SEC filing passage. The bull case is not pressure-tested '
+                        + 'against unverified sources.',
+                });
+                return;
+            }
             if (!cites.length) {
                 // No evidence means no challenge. An answer built on a summary
                 // nobody can check is not a cheaper version of this — it is a
