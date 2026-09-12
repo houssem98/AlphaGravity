@@ -18,6 +18,18 @@ import { hermesRouter } from './routes/hermes.js';
 import { gravityRouter } from './routes/gravity.js';
 
 const app = express();
+
+// V3-10 · how many reverse proxies sit in front of this server. Express defaults
+// this to `false`, which leaves `req.ip` as the socket address and — more to the
+// point — leaves `x-forwarded-for` completely unvalidated, so the anonymous rate
+// limiter in routes/gravity.ts was keying on a string the caller chose.
+//
+// With a hop count set, `req.ip` is the address the LAST TRUSTED proxy appended:
+// a client can prepend anything it likes to the header and change nothing. The
+// default of 1 matches a single edge proxy (Fly, Vercel, a load balancer);
+// TRUST_PROXY_HOPS=0 is the correct setting when this server is reached directly.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
+
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3002;
 

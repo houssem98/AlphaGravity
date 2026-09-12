@@ -55,9 +55,18 @@ const ANON_PER_HOUR = Number(process.env.GRAVITY_ANON_PER_HOUR ?? 200);
 type Bucket = { minute: number[]; hour: number[] };
 const buckets = new Map<string, Bucket>();
 
-function clientKey(req: Request): string {
-    const fwd = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim();
-    return fwd || req.socket.remoteAddress || 'unknown';
+// V3-10 · this read the FIRST value of `x-forwarded-for` and keyed the bucket on
+// it. Express's `trust proxy` defaults to false and this server never set it, so
+// nothing validated that header: a caller sending a fresh random
+// `X-Forwarded-For` on every request got a fresh bucket every time, and
+// GRAVITY_ANON_PER_MIN / _PER_HOUR bound nobody at all.
+//
+// `req.ip` is the same value only when Express has been told how many proxies
+// sit in front (see `app.set('trust proxy', …)` in index.ts): it then takes the
+// entry the LAST TRUSTED hop appended, which the client cannot choose, and
+// ignores whatever the client prepended.
+export function clientKey(req: Request): string {
+    return req.ip || req.socket.remoteAddress || 'unknown';
 }
 
 /** null when allowed; otherwise the window that is full and when it frees up. */

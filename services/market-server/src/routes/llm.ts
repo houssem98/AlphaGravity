@@ -258,19 +258,46 @@ async function probeProvider(provider: string, model: string): Promise<ProviderH
     }
 }
 
-llmRouter.get('/health', async (req, res) => {
-    const fresh = req.query.refresh === '1';
-    if (!fresh && healthCache && Date.now() - healthCache.at < HEALTH_TTL_MS) {
-        res.json({ providers: healthCache.data, cached: true, checkedAt: healthCache.at });
-        return;
+// V3-8 · this route has no inbound auth, and it used to honour `?refresh=1` by
+// skipping the cache and calling DeepSeek, Anthropic and Gemini live. Three
+// billable provider calls per request, from anyone who could reach this server,
+// repeatable as fast as they could send. `/chat` was hardened in V2-6 and this
+// was the same exposure one route over.
+//
+// Who may READ provider availability is a product question and is deliberately
+// unchanged. What is removed is the caller's ability to make this server SPEND:
+// the refresh parameter is gone, and the cold-cache probe is coalesced, so N
+// concurrent first-requests cause one round of probes and not 3N calls.
+let healthInFlight: Promise<Record<string, ProviderHealth>> | null = null;
+
+async function currentHealth(now = Date.now()): Promise<{ data: Record<string, ProviderHealth>; cached: boolean }> {
+    if (healthCache && now - healthCache.at < HEALTH_TTL_MS) {
+        return { data: healthCache.data, cached: true };
     }
-    const entries = await Promise.all(
-        Object.entries(HEALTH_MODELS).map(async ([provider, model]) =>
-            [provider, await probeProvider(provider, model)] as const),
-    );
-    const data = Object.fromEntries(entries) as Record<string, ProviderHealth>;
-    healthCache = { at: Date.now(), data };
-    res.json({ providers: data, cached: false, checkedAt: healthCache.at });
+    if (healthInFlight) return { data: await healthInFlight, cached: true };
+
+    healthInFlight = (async () => {
+        const entries = await Promise.all(
+            Object.entries(HEALTH_MODELS).map(async ([provider, model]) =>
+                [provider, await probeProvider(provider, model)] as const),
+        );
+        const data = Object.fromEntries(entries) as Record<string, ProviderHealth>;
+        healthCache = { at: Date.now(), data };
+        return data;
+    })();
+    try {
+        return { data: await healthInFlight, cached: false };
+    } finally {
+        healthInFlight = null;
+    }
+}
+
+/** Test seam — the cache and the in-flight probe are module state. */
+export function _resetHealth(): void { healthCache = null; healthInFlight = null; }
+
+llmRouter.get('/health', async (_req, res) => {
+    const { data, cached } = await currentHealth();
+    res.json({ providers: data, cached, checkedAt: healthCache?.at ?? Date.now() });
 });
 
 // ─── POST /api/llm/chat — Proxy a single LLM call ───────────────────────────
