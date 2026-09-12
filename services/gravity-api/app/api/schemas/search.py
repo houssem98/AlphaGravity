@@ -98,8 +98,8 @@ class Citation(BaseModel):
     filing_url: str = Field("", description="Exact filing index URL for that accession")
     document_url: str = Field("", description="The exact document the figure was read from, when SEC served one")
     source_url: str = Field("", description="Authoritative SEC URL the resolver returned")
-    evidence_location: str = Field("", description="Document plus XBRL context element, where the fact was read")
-    canonical_url: str = Field("", description="The exact SEC URL a source click must open. Empty when no verified filing provenance exists.")
+    evidence_location: str = Field("", description="Where the passage was read: document plus XBRL context element for filing evidence, the location within the page for web evidence.")
+    canonical_url: str = Field("", description="The exact URL a source click must open: the SEC document for filing evidence, the canonicalized page for web evidence. Empty when the source has no verified provenance of either kind.")
     verification_status: str = Field("", description="Deterministic verification outcome for the cited fact")
     provenance: dict | None = Field(None, description="Full canonical evidence chain: issuer, CIK, period, XBRL concept, dimension, unit, value, evidence location")
     # Web-source provenance. Present only for a WEB_EVIDENCE citation; a filing
@@ -107,12 +107,10 @@ class Citation(BaseModel):
     # Emitted through the same `citation_provenance` module as the SEC fields
     # above, which is what keeps this one citation architecture rather than two.
     source_class: str = Field("", description="SEC_EVIDENCE | LOCAL_EVIDENCE | WEB_EVIDENCE")
-    canonical_url: str = Field("", description="Canonicalized page URL, used for deduplication and the source click")
     domain: str = Field("", description="Registrable domain of the web source")
     published_at: str = Field("", description="Publication date the page declared, when it declared one")
     retrieved_at: str = Field("", description="When this page was actually fetched")
     source_type: str = Field("", description="web_page | news | press_release | filing")
-    evidence_location: str = Field("", description="Where inside the source this passage was read")
 
 
 class SourcePassage(BaseModel):
@@ -135,7 +133,7 @@ class SourcePassage(BaseModel):
     tier_label: str = Field("", description="Human-readable tier name")
     evidence_kind: str = Field("", description="SEC_EVIDENCE | LOCAL_EVIDENCE | WEB_EVIDENCE")
     url: str = Field("", description="Exact URL this source card opens")
-    canonical_url: str = Field("", description="Canonicalized URL, used for deduplication")
+    canonical_url: str = Field("", description="The exact URL a source click must open: the SEC document for filing evidence, the canonicalized page for web evidence. Empty when the source has no verified provenance of either kind.")
     domain: str = Field("", description="Registrable domain for a web source")
     published_at: str = Field("", description="Publication date, when the source declared one")
     retrieved_at: str = Field("", description="When a web page was fetched")
@@ -158,7 +156,6 @@ class SourcePassage(BaseModel):
     source_url: str = ""
     evidence_location: str = ""
     verification_status: str = ""
-    canonical_url: str = Field("", description="The exact SEC URL a source click must open. Empty when no verified filing provenance exists.")
 
 
 class StructuredDataPoint(BaseModel):
