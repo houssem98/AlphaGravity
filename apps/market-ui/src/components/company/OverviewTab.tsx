@@ -11,9 +11,10 @@ import DevilsAdvocate from './DevilsAdvocate';
 import { COLORS } from './presentation';
 import { formatFinancialValue } from '../../lib/figures';
 import type { GravityDocument, GravityMetric, LongitudinalPoint, MarketOverview } from './types';
+import type { ChartGroup } from './chartGroup';
 
 export default function OverviewTab({
-    symbol, metrics, overview, longitudinal, documents, chartData,
+    symbol, metrics, overview, longitudinal, documents, chartGroup,
     trendMetric, trendReason, trendUnit,
 }: {
     symbol: string;
@@ -21,7 +22,9 @@ export default function OverviewTab({
     overview: MarketOverview | null;
     longitudinal: LongitudinalPoint[];
     documents: GravityDocument[];
-    chartData: { name: string; value: number; label: string }[];
+    /** V3-9 · one unit, one period, or nothing. A bar chart's shared axis says the
+     *  bars are comparable, so the series it draws has to actually be one series. */
+    chartGroup: ChartGroup | null;
     /** CF-21 · the metric the series actually is, which is not always the one asked for. */
     trendMetric: string | null;
     trendReason: string | null;
@@ -36,6 +39,9 @@ export default function OverviewTab({
     // V2-1 · axis, tooltip and point label all read the same formatter, so the
     // series is drawn in the unit the server sent rather than in USD billions.
     const fmtTrend = (v: number) => formatFinancialValue(v, trendUnit ?? undefined, trendKey);
+    // V3-9 · the secondary chart draws one unit, so it formats in that one unit —
+    // axis and tooltip through the same function, as V2-1 established for the trend.
+    const fmtChart = (v: number) => formatFinancialValue(v, chartGroup?.unit ?? undefined);
     const trendLabel = trendKey.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     return (
         <div className="space-y-5">
@@ -86,20 +92,33 @@ export default function OverviewTab({
                 </div>
             )}
 
-            {chartData.length > 0 && (
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
-                    <p className="text-xs text-[#4A5568] uppercase tracking-wider mb-4">Financial Metrics (from Gravity Index)</p>
+            {chartGroup && chartGroup.data.length > 0 && (
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5" data-chart-unit={chartGroup.unit ?? ''}>
+                    {/* V3-9 · the axis states its unit and its period. It used to
+                        say only "Financial Metrics", while carrying dollars, a
+                        per-share figure and a percentage at once. */}
+                    <div className="flex items-baseline justify-between mb-4 gap-3">
+                        <p className="text-xs text-[#4A5568] uppercase tracking-wider">
+                            Financial Metrics · {chartGroup.period} · {chartGroup.unit ?? 'unit not stated'}
+                        </p>
+                        {chartGroup.omitted > 0 && (
+                            <p className="text-[10px] text-[#4A5568] shrink-0">
+                                {chartGroup.omitted} more not shown — see Data
+                            </p>
+                        )}
+                    </div>
                     <ResponsiveContainer width="100%" height={200}>
-                        <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 8, left: 8 }}>
+                        <BarChart data={chartGroup.data} margin={{ top: 4, right: 8, bottom: 8, left: 8 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                            <XAxis dataKey="name" tick={{ fill: '#4A5568', fontSize: 10 }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fill: '#4A5568', fontSize: 10 }} axisLine={false} tickLine={false} width={60} />
+                            <XAxis dataKey="name" tick={{ fill: '#4A5568', fontSize: 10 }} axisLine={false} tickLine={false} interval={0} angle={-20} textAnchor="end" height={50} />
+                            <YAxis tick={{ fill: '#4A5568', fontSize: 10 }} axisLine={false} tickLine={false} width={70}
+                                tickFormatter={fmtChart} />
                             <Tooltip
                                 contentStyle={{ backgroundColor: '#0D1117', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '12px', color: '#E8EBF0' }}
-                                formatter={(v: number, _n, p) => [v.toLocaleString(), p.payload.label]}
+                                formatter={(v: number, _n, p) => [fmtChart(v), p.payload.label]}
                             />
                             <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                                {chartData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                                {chartGroup.data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>

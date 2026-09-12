@@ -18,6 +18,7 @@ import DataTab from '../components/company/DataTab';
 import TickerEntry from '../components/company/TickerEntry';
 import { fmt, StatCard } from '../components/company/presentation';
 import { useCompanyData } from '../components/company/useCompanyData';
+import { chartGroupFor } from '../components/company/chartGroup';
 import type { GravityDocument, CompanyTab } from '../components/company/types';
 
 export type { CompanyTab };
@@ -62,12 +63,8 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
     const changePct = quote?.changePct ?? null;
     const isUp = changePct !== null ? changePct >= 0 : null;
 
-    const chartData = metrics
-        .filter(m => typeof m.value === 'number' && m.period)
-        .slice(0, 8)
-        .map(m => ({ name: m.period!, value: m.value as number, label: m.metric }));
+    const chartGroup = chartGroupFor(metrics);
 
-    const COLORS = ['#00F0FF', '#5B8DF6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'];
 
     return (
         <div className="min-h-[calc(100dvh-64px)] p-4 sm:p-6 max-w-5xl mx-auto">
@@ -251,7 +248,7 @@ export default function CompanyPage({ embedded = false, tab, ticker: fixedTicker
                     {/* Overview tab */}
                     {activeTab === 'overview' && (
                         <OverviewTab symbol={symbol} metrics={metrics} overview={overview}
-                            longitudinal={longitudinal} documents={documents} chartData={chartData}
+                            longitudinal={longitudinal} documents={documents} chartGroup={chartGroup}
                             trendMetric={trendMetric} trendReason={trendReason} trendUnit={trendUnit} />
                     )}
 
